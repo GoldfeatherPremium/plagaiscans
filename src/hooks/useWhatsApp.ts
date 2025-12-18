@@ -27,10 +27,21 @@ export const useWhatsApp = () => {
       `Hello, I want to buy credits.\nUser ID: ${user?.id || 'Not logged in'}\nEmail: ${profile?.email || 'Not logged in'}\nRequested Credits: ${credits || '___'}`
     );
     
+    openWhatsAppWithMessage(message);
+  };
+
+  const openWhatsAppSupport = () => {
+    const message = encodeURIComponent(
+      `Hello, I need support.\nUser ID: ${user?.id || 'Not logged in'}\nEmail: ${profile?.email || 'Not logged in'}\nIssue: `
+    );
+    
+    openWhatsAppWithMessage(message);
+  };
+
+  const openWhatsAppWithMessage = (message: string) => {
     const cleanNumber = whatsappNumber.replace(/[^0-9]/g, '');
     const url = `https://wa.me/${cleanNumber}?text=${message}`;
     
-    // Create a temporary anchor element to bypass iframe restrictions
     const link = document.createElement('a');
     link.href = url;
     link.target = '_blank';
@@ -40,5 +51,5 @@ export const useWhatsApp = () => {
     document.body.removeChild(link);
   };
 
-  return { whatsappNumber, openWhatsApp };
+  return { whatsappNumber, openWhatsApp, openWhatsAppSupport };
 };

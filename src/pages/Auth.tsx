@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { FileCheck, Loader2, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
+import { WhatsAppSupportButton } from '@/components/WhatsAppSupportButton';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -452,6 +453,7 @@ export default function Auth() {
           </Tabs>
         </Card>
       </div>
+      <WhatsAppSupportButton />
     </div>
   );
 }

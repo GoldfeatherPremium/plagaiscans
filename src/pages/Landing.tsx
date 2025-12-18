@@ -14,6 +14,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { WhatsAppSupportButton } from '@/components/WhatsAppSupportButton';
 
 export default function Landing() {
   const { user } = useAuth();
@@ -268,6 +269,8 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      <WhatsAppSupportButton />
     </div>
   );
 }
