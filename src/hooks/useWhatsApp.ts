@@ -1,10 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useWhatsApp = () => {
   const { user, profile } = useAuth();
-  const [whatsappNumber, setWhatsappNumber] = useState<string>('');
+  const [whatsappNumber, setWhatsappNumber] = useState<string>('+447360536649');
 
   useEffect(() => {
     const fetchWhatsAppNumber = async () => {
@@ -22,13 +22,12 @@ export const useWhatsApp = () => {
     fetchWhatsAppNumber();
   }, []);
 
-  const openWhatsApp = useCallback((credits?: number) => {
-    const numberToUse = whatsappNumber || '+447360536649';
+  const openWhatsApp = (credits?: number) => {
     const message = encodeURIComponent(
       `Hello, I want to buy credits.\nUser ID: ${user?.id || 'Not logged in'}\nEmail: ${profile?.email || 'Not logged in'}\nRequested Credits: ${credits || '___'}`
     );
     
-    const cleanNumber = numberToUse.replace(/[^0-9]/g, '');
+    const cleanNumber = whatsappNumber.replace(/[^0-9]/g, '');
     const url = `https://wa.me/${cleanNumber}?text=${message}`;
     
     // Use window.location.href as fallback if window.open is blocked
@@ -36,7 +35,7 @@ export const useWhatsApp = () => {
     if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
       window.location.href = url;
     }
-  }, [whatsappNumber, user?.id, profile?.email]);
+  };
 
   return { whatsappNumber, openWhatsApp };
 };
