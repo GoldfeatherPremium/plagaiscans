@@ -56,6 +56,7 @@ export type Database = {
           file_name: string
           file_path: string
           id: string
+          remarks: string | null
           similarity_percentage: number | null
           similarity_report_path: string | null
           status: Database["public"]["Enums"]["document_status"]
@@ -72,6 +73,7 @@ export type Database = {
           file_name: string
           file_path: string
           id?: string
+          remarks?: string | null
           similarity_percentage?: number | null
           similarity_report_path?: string | null
           status?: Database["public"]["Enums"]["document_status"]
@@ -88,6 +90,7 @@ export type Database = {
           file_name?: string
           file_path?: string
           id?: string
+          remarks?: string | null
           similarity_percentage?: number | null
           similarity_report_path?: string | null
           status?: Database["public"]["Enums"]["document_status"]

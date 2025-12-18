@@ -16,6 +16,7 @@ export interface Document {
   ai_percentage: number | null;
   similarity_report_path: string | null;
   ai_report_path: string | null;
+  remarks: string | null;
   error_message: string | null;
   uploaded_at: string;
   completed_at: string | null;
@@ -226,7 +227,8 @@ export const useDocuments = () => {
     similarityReport: File | null,
     aiReport: File | null,
     similarityPercentage: number,
-    aiPercentage: number
+    aiPercentage: number,
+    remarks?: string | null
   ) => {
     if (!user) return;
 
@@ -234,6 +236,7 @@ export const useDocuments = () => {
       const updates: Record<string, unknown> = {
         similarity_percentage: similarityPercentage,
         ai_percentage: aiPercentage,
+        remarks: remarks || null,
       };
 
       // Upload similarity report
