@@ -4,8 +4,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { StatusBadge } from '@/components/StatusBadge';
-import { FileText, Download, Loader2, AlertCircle } from 'lucide-react';
+import { FileText, Download, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 export default function StaffProcessed() {
   const { documents, loading, downloadFile } = useDocuments();
@@ -15,6 +23,30 @@ export default function StaffProcessed() {
   const myProcessedDocs = documents.filter(
     (d) => d.assigned_staff_id === user?.id && d.status === 'completed'
   );
+
+  const handleDownloadDocument = (doc: Document) => {
+    downloadFile(doc.file_path, 'documents');
+  };
+
+  const handleDownloadSimilarityReport = (doc: Document) => {
+    if (doc.similarity_report_path) {
+      downloadFile(doc.similarity_report_path, 'reports');
+    }
+  };
+
+  const handleDownloadAIReport = (doc: Document) => {
+    if (doc.ai_report_path) {
+      downloadFile(doc.ai_report_path, 'reports');
+    }
+  };
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return {
+      date: date.toLocaleDateString(),
+      time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+  };
 
   return (
     <DashboardLayout>
@@ -41,51 +73,109 @@ export default function StaffProcessed() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {myProcessedDocs.map((doc) => (
-              <Card key={doc.id}>
-                <CardContent className="p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <FileText className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">{doc.file_name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Completed on {new Date(doc.completed_at!).toLocaleDateString()}
-                        </p>
-                        <div className="flex gap-4 mt-1 text-sm">
-                          <span>Similarity: <strong>{doc.similarity_percentage}%</strong></span>
-                          <span>AI: <strong>{doc.ai_percentage}%</strong></span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <StatusBadge status={doc.status} />
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => downloadFile(doc.file_path)}
-                      >
-                        <Download className="h-4 w-4 mr-2" /> Document
-                      </Button>
-                    </div>
-                  </div>
-
-                  {doc.error_message && (
-                    <div className="mt-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-2">
-                      <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-destructive">Error Reported</p>
-                        <p className="text-sm text-muted-foreground">{doc.error_message}</p>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12 text-center">#</TableHead>
+                      <TableHead>Document</TableHead>
+                      <TableHead>Completed At</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-center">Similarity %</TableHead>
+                      <TableHead className="text-center">AI %</TableHead>
+                      <TableHead className="text-center">Document</TableHead>
+                      <TableHead className="text-center">Similarity Report</TableHead>
+                      <TableHead className="text-center">AI Report</TableHead>
+                      <TableHead>Remarks</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {myProcessedDocs.map((doc, index) => {
+                      const { date, time } = formatDateTime(doc.completed_at || doc.uploaded_at);
+                      return (
+                        <TableRow key={doc.id}>
+                          <TableCell className="text-center font-medium">
+                            {index + 1}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                              <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
+                                {doc.file_name}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <div>{date}</div>
+                              <div className="text-muted-foreground">{time}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <StatusBadge status={doc.status} />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className="font-semibold text-primary">
+                              {doc.similarity_percentage}%
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className="font-semibold text-secondary">
+                              {doc.ai_percentage}%
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownloadDocument(doc)}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {doc.similarity_report_path ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadSimilarityReport(doc)}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {doc.ai_report_path ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadAIReport(doc)}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {doc.error_message ? (
+                              <span className="text-sm text-destructive">{doc.error_message}</span>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </DashboardLayout>
