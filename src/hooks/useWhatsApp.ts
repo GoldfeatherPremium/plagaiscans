@@ -15,7 +15,7 @@ export const useWhatsApp = () => {
         .maybeSingle();
       
       if (data?.value) {
-        setWhatsappNumber(data.value);
+        setWhatsappNumber(data.value.trim());
       }
     };
 
@@ -30,11 +30,14 @@ export const useWhatsApp = () => {
     const cleanNumber = whatsappNumber.replace(/[^0-9]/g, '');
     const url = `https://wa.me/${cleanNumber}?text=${message}`;
     
-    // Use window.location.href as fallback if window.open is blocked
-    const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-      window.location.href = url;
-    }
+    // Create a temporary anchor element to bypass iframe restrictions
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return { whatsappNumber, openWhatsApp };
