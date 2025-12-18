@@ -152,7 +152,9 @@ export default function MyDocuments() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {doc.error_message ? (
+                            {doc.remarks ? (
+                              <span className="text-sm text-foreground">{doc.remarks}</span>
+                            ) : doc.error_message ? (
                               <span className="text-sm text-destructive">{doc.error_message}</span>
                             ) : doc.status === 'pending' ? (
                               <span className="text-sm text-muted-foreground">In queue</span>
