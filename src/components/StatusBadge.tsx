@@ -1,9 +1,10 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Loader2, CheckCircle } from 'lucide-react';
+import { Clock, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { DocumentStatus } from '@/hooks/useDocuments';
 
 interface StatusBadgeProps {
-  status: 'pending' | 'in_progress' | 'completed';
+  status: DocumentStatus;
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
@@ -22,6 +23,11 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       label: 'Completed',
       className: 'status-completed border',
       icon: CheckCircle,
+    },
+    error: {
+      label: 'Error',
+      className: 'bg-destructive/10 text-destructive border-destructive/30 border',
+      icon: AlertCircle,
     },
   };
 

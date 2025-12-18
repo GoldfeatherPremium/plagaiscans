@@ -52,6 +52,7 @@ export type Database = {
           ai_report_path: string | null
           assigned_staff_id: string | null
           completed_at: string | null
+          error_message: string | null
           file_name: string
           file_path: string
           id: string
@@ -67,6 +68,7 @@ export type Database = {
           ai_report_path?: string | null
           assigned_staff_id?: string | null
           completed_at?: string | null
+          error_message?: string | null
           file_name: string
           file_path: string
           id?: string
@@ -82,6 +84,7 @@ export type Database = {
           ai_report_path?: string | null
           assigned_staff_id?: string | null
           completed_at?: string | null
+          error_message?: string | null
           file_name?: string
           file_path?: string
           id?: string
@@ -91,6 +94,33 @@ export type Database = {
           updated_at?: string
           uploaded_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      pricing_packages: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          is_active: boolean
+          price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credits: number
+          id?: string
+          is_active?: boolean
+          price: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          is_active?: boolean
+          price?: number
+          updated_at?: string
         }
         Relationships: []
       }

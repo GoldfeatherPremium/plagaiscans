@@ -14,7 +14,9 @@ import DocumentQueue from "./pages/DocumentQueue";
 import AdminUsers from "./pages/AdminUsers";
 import AdminAnalytics from "./pages/AdminAnalytics";
 import AdminSettings from "./pages/AdminSettings";
+import AdminPricing from "./pages/AdminPricing";
 import StaffStats from "./pages/StaffStats";
+import StaffProcessed from "./pages/StaffProcessed";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,12 +69,13 @@ const AppRoutes = () => (
     
     {/* Staff Routes */}
     <Route path="/dashboard/queue" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><DocumentQueue /></ProtectedRoute>} />
-    <Route path="/dashboard/my-work" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><MyDocuments /></ProtectedRoute>} />
+    <Route path="/dashboard/my-work" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><StaffProcessed /></ProtectedRoute>} />
     <Route path="/dashboard/stats" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><StaffStats /></ProtectedRoute>} />
     
     {/* Admin Routes */}
     <Route path="/dashboard/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsers /></ProtectedRoute>} />
     <Route path="/dashboard/analytics" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnalytics /></ProtectedRoute>} />
+    <Route path="/dashboard/pricing" element={<ProtectedRoute allowedRoles={['admin']}><AdminPricing /></ProtectedRoute>} />
     <Route path="/dashboard/settings" element={<ProtectedRoute allowedRoles={['admin']}><AdminSettings /></ProtectedRoute>} />
     
     <Route path="*" element={<NotFound />} />
