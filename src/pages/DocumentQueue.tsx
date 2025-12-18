@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
-import { FileText, Download, Upload, Loader2, Lock, AlertTriangle, Clock, Unlock } from 'lucide-react';
+import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,13 +27,12 @@ export default function DocumentQueue() {
   const { toast } = useToast();
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] = useState<'report' | 'error'>('report');
+  const [dialogMode] = useState<'report'>('report');
   const [similarityFile, setSimilarityFile] = useState<File | null>(null);
   const [aiFile, setAiFile] = useState<File | null>(null);
   const [similarityPercent, setSimilarityPercent] = useState('');
   const [aiPercent, setAiPercent] = useState('');
   const [remarks, setRemarks] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [processingTimeout, setProcessingTimeout] = useState(30);
   const [, setTick] = useState(0);
@@ -88,9 +87,8 @@ export default function DocumentQueue() {
     });
   };
 
-  const handleOpenDialog = (doc: Document, mode: 'report' | 'error') => {
+  const handleOpenDialog = (doc: Document) => {
     setSelectedDoc(doc);
-    setDialogMode(mode);
     setDialogOpen(true);
   };
 
@@ -102,7 +100,6 @@ export default function DocumentQueue() {
     setSimilarityPercent('');
     setAiPercent('');
     setRemarks('');
-    setErrorMessage('');
   };
 
   const handleSubmitReport = async () => {
@@ -116,20 +113,6 @@ export default function DocumentQueue() {
       parseFloat(similarityPercent) || 0,
       parseFloat(aiPercent) || 0,
       remarks.trim() || null
-    );
-    setSubmitting(false);
-    handleCloseDialog();
-  };
-
-  const handleSubmitError = async () => {
-    if (!selectedDoc || !errorMessage.trim()) return;
-    setSubmitting(true);
-    await updateDocumentStatus(
-      selectedDoc.id,
-      'error',
-      { error_message: errorMessage.trim() },
-      selectedDoc.user_id,
-      selectedDoc.file_name
     );
     setSubmitting(false);
     handleCloseDialog();
@@ -283,16 +266,8 @@ export default function DocumentQueue() {
                                   <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path)}>
                                     <Download className="h-4 w-4" />
                                   </Button>
-                                  <Button size="sm" onClick={() => handleOpenDialog(doc, 'report')}>
+                                  <Button size="sm" onClick={() => handleOpenDialog(doc)}>
                                     <Upload className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="text-destructive border-destructive/30"
-                                    onClick={() => handleOpenDialog(doc, 'error')}
-                                  >
-                                    <AlertTriangle className="h-4 w-4" />
                                   </Button>
                                 </>
                               )}
@@ -328,94 +303,67 @@ export default function DocumentQueue() {
         <Dialog open={dialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
           <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
             <DialogHeader>
-              <DialogTitle>
-                {dialogMode === 'report' 
-                  ? `Upload Reports for ${selectedDoc?.file_name}`
-                  : `Report Error for ${selectedDoc?.file_name}`
-                }
-              </DialogTitle>
+              <DialogTitle>Upload Reports for {selectedDoc?.file_name}</DialogTitle>
             </DialogHeader>
             
-            {dialogMode === 'report' ? (
-              <div className="space-y-4">
-                <div>
-                  <Label>Similarity %</Label>
-                  <Input 
-                    type="number" 
-                    min="0" 
-                    max="100" 
-                    value={similarityPercent} 
-                    onChange={(e) => setSimilarityPercent(e.target.value)} 
-                  />
-                </div>
-                <div>
-                  <Label>Similarity Report (PDF)</Label>
-                  <Input 
-                    type="file" 
-                    accept=".pdf" 
-                    onChange={handleSimilarityFileChange}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  {similarityFile && (
-                    <p className="text-sm text-muted-foreground mt-1">Selected: {similarityFile.name}</p>
-                  )}
-                </div>
-                <div>
-                  <Label>AI Detection %</Label>
-                  <Input 
-                    type="number" 
-                    min="0" 
-                    max="100" 
-                    value={aiPercent} 
-                    onChange={(e) => setAiPercent(e.target.value)} 
-                  />
-                </div>
-                <div>
-                  <Label>AI Report (PDF)</Label>
-                  <Input 
-                    type="file" 
-                    accept=".pdf" 
-                    onChange={handleAiFileChange}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  {aiFile && (
-                    <p className="text-sm text-muted-foreground mt-1">Selected: {aiFile.name}</p>
-                  )}
-                </div>
-                <div>
-                  <Label>Remarks (Optional)</Label>
-                  <Textarea 
-                    placeholder="Add any remarks or notes about this document..."
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-                <Button className="w-full" onClick={handleSubmitReport} disabled={submitting}>
-                  {submitting ? 'Submitting...' : 'Complete & Submit'}
-                </Button>
+            <div className="space-y-4">
+              <div>
+                <Label>Similarity %</Label>
+                <Input 
+                  type="number" 
+                  min="0" 
+                  max="100" 
+                  value={similarityPercent} 
+                  onChange={(e) => setSimilarityPercent(e.target.value)} 
+                />
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <Label>Error Description</Label>
-                  <Textarea 
-                    placeholder="Describe the error with this document..."
-                    value={errorMessage}
-                    onChange={(e) => setErrorMessage(e.target.value)}
-                    rows={4}
-                  />
-                </div>
-                <Button 
-                  className="w-full" 
-                  variant="destructive"
-                  onClick={handleSubmitError} 
-                  disabled={submitting || !errorMessage.trim()}
-                >
-                  {submitting ? 'Submitting...' : 'Submit Error Report'}
-                </Button>
+              <div>
+                <Label>Similarity Report (PDF)</Label>
+                <Input 
+                  type="file" 
+                  accept=".pdf" 
+                  onChange={handleSimilarityFileChange}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                {similarityFile && (
+                  <p className="text-sm text-muted-foreground mt-1">Selected: {similarityFile.name}</p>
+                )}
               </div>
-            )}
+              <div>
+                <Label>AI Detection %</Label>
+                <Input 
+                  type="number" 
+                  min="0" 
+                  max="100" 
+                  value={aiPercent} 
+                  onChange={(e) => setAiPercent(e.target.value)} 
+                />
+              </div>
+              <div>
+                <Label>AI Report (PDF)</Label>
+                <Input 
+                  type="file" 
+                  accept=".pdf" 
+                  onChange={handleAiFileChange}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                {aiFile && (
+                  <p className="text-sm text-muted-foreground mt-1">Selected: {aiFile.name}</p>
+                )}
+              </div>
+              <div>
+                <Label>Remarks (Optional)</Label>
+                <Textarea 
+                  placeholder="Add any remarks or notes about this document..."
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  rows={3}
+                />
+              </div>
+              <Button className="w-full" onClick={handleSubmitReport} disabled={submitting}>
+                {submitting ? 'Submitting...' : 'Complete & Submit'}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
