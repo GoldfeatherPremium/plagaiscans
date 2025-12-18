@@ -241,13 +241,6 @@ export default function UploadDocument() {
 
         {/* Notices */}
         <div className="space-y-3">
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
-            <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-amber-700 dark:text-amber-400">
-              The AI feature is available exclusively for English documents.
-            </p>
-          </div>
-          
           <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 border border-border">
             <Info className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
             <p className="text-sm text-muted-foreground">
