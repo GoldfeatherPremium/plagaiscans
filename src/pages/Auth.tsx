@@ -16,10 +16,13 @@ const loginSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+const phoneSchema = z.string()
+  .regex(/^\+?[0-9]{10,15}$/, 'Phone number must be 10-15 digits (can start with +)');
+
 const signupSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters').max(100),
   email: z.string().email('Invalid email address'),
-  phone: z.string().min(10, 'Phone number must be at least 10 digits').max(20),
+  phone: phoneSchema,
   password: z.string().min(6, 'Password must be at least 6 characters'),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -405,10 +408,16 @@ export default function Auth() {
                     <Input
                       id="signup-phone"
                       type="tel"
-                      placeholder="+1234567890"
+                      placeholder="+923001234567"
                       value={signupData.phone}
-                      onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })}
+                      onChange={(e) => {
+                        // Only allow digits and + sign
+                        const value = e.target.value.replace(/[^\d+]/g, '');
+                        setSignupData({ ...signupData, phone: value });
+                      }}
+                      maxLength={16}
                     />
+                    <p className="text-xs text-muted-foreground">10-15 digits, can start with +</p>
                     {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
                   </div>
                   <div className="space-y-2">
