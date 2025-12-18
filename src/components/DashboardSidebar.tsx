@@ -12,6 +12,7 @@ import {
   FileCheck,
   Menu,
   X,
+  User,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/upload', icon: Upload, label: 'Upload Document' },
     { to: '/dashboard/documents', icon: FileText, label: 'My Documents' },
     { to: '/dashboard/credits', icon: CreditCard, label: 'Buy Credits' },
+    { to: '/dashboard/profile', icon: User, label: 'Profile' },
   ];
 
   const staffLinks = [
@@ -33,6 +35,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/queue', icon: FileCheck, label: 'Document Queue' },
     { to: '/dashboard/my-work', icon: FileText, label: 'My Processed' },
     { to: '/dashboard/stats', icon: BarChart3, label: 'My Stats' },
+    { to: '/dashboard/profile', icon: User, label: 'Profile' },
   ];
 
   const adminLinks = [
@@ -43,6 +46,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
     { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
     { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
+    { to: '/dashboard/profile', icon: User, label: 'Profile' },
   ];
 
   const links = role === 'admin' ? adminLinks : role === 'staff' ? staffLinks : customerLinks;
