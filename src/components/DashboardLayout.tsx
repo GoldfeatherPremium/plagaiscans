@@ -13,7 +13,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   return (
     <div className="min-h-screen bg-background">
       <DashboardSidebar />
-      <main className="ml-64 p-8">
+      <main className="p-8 pt-20">
         {children}
       </main>
       {role === 'customer' && <WhatsAppButton />}
