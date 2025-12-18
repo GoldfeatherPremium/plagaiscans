@@ -31,6 +31,7 @@ export default function DocumentQueue() {
   const [aiFile, setAiFile] = useState<File | null>(null);
   const [similarityPercent, setSimilarityPercent] = useState('');
   const [aiPercent, setAiPercent] = useState('');
+  const [remarks, setRemarks] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -82,6 +83,7 @@ export default function DocumentQueue() {
     setAiFile(null);
     setSimilarityPercent('');
     setAiPercent('');
+    setRemarks('');
     setErrorMessage('');
   };
 
@@ -94,7 +96,8 @@ export default function DocumentQueue() {
       similarityFile,
       aiFile,
       parseFloat(similarityPercent) || 0,
-      parseFloat(aiPercent) || 0
+      parseFloat(aiPercent) || 0,
+      remarks.trim() || null
     );
     setSubmitting(false);
     handleCloseDialog();
@@ -313,6 +316,15 @@ export default function DocumentQueue() {
                   {aiFile && (
                     <p className="text-sm text-muted-foreground mt-1">Selected: {aiFile.name}</p>
                   )}
+                </div>
+                <div>
+                  <Label>Remarks (Optional)</Label>
+                  <Textarea 
+                    placeholder="Add any remarks or notes about this document..."
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    rows={3}
+                  />
                 </div>
                 <Button className="w-full" onClick={handleSubmitReport} disabled={submitting}>
                   {submitting ? 'Submitting...' : 'Complete & Submit'}
