@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { MessageCircle, Save, Loader2, UserPlus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AdminNotificationSender } from '@/components/AdminNotificationSender';
 
 interface UserProfile {
   id: string;
@@ -159,6 +160,9 @@ export default function AdminSettings() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Notification Sender */}
+        <AdminNotificationSender />
       </div>
     </DashboardLayout>
   );
