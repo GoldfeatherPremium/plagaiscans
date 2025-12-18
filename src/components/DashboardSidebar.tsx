@@ -89,7 +89,7 @@ export const DashboardSidebar: React.FC = () => {
             <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
               <FileCheck className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-display font-bold text-lg">DocCheck</span>
+            <span className="font-display font-bold text-lg">PlagaiScans</span>
           </Link>
         </div>
 

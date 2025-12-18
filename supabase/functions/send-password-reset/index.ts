@@ -78,7 +78,7 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "DocCheck <onboarding@resend.dev>",
+        from: "PlagaiScans <onboarding@resend.dev>",
         to: [email],
         subject: "Reset Your Password",
         html: `
@@ -119,7 +119,7 @@ const handler = async (req: Request): Promise<Response> => {
                 </div>
                 
                 <p style="color: #a1a1aa; text-align: center; margin: 30px 0 0 0; font-size: 12px;">
-                  This is an automated email from DocCheck. Please do not reply.
+                  This is an automated email from PlagaiScans. Please do not reply.
                 </p>
               </div>
             </div>

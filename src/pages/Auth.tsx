@@ -213,7 +213,7 @@ export default function Auth() {
               <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center">
                 <FileCheck className="h-6 w-6 text-primary-foreground" />
               </div>
-              <span className="font-display font-bold text-2xl">DocCheck</span>
+              <span className="font-display font-bold text-2xl">PlagaiScans</span>
             </div>
             <p className="text-muted-foreground">Set your new password</p>
           </div>
@@ -269,7 +269,7 @@ export default function Auth() {
               <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center">
                 <FileCheck className="h-6 w-6 text-primary-foreground" />
               </div>
-              <span className="font-display font-bold text-2xl">DocCheck</span>
+              <span className="font-display font-bold text-2xl">PlagaiScans</span>
             </div>
             <p className="text-muted-foreground">Reset your password</p>
           </div>
@@ -321,7 +321,7 @@ export default function Auth() {
             <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center">
               <FileCheck className="h-6 w-6 text-primary-foreground" />
             </div>
-            <span className="font-display font-bold text-2xl">DocCheck</span>
+            <span className="font-display font-bold text-2xl">PlagaiScans</span>
           </div>
           <p className="text-muted-foreground">Document Plagiarism & AI Detection Platform</p>
         </div>

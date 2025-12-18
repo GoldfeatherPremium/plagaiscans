@@ -58,7 +58,7 @@ export default function Landing() {
             <div className="h-9 w-9 rounded-lg gradient-primary flex items-center justify-center">
               <FileCheck className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-display font-bold text-xl">DocCheck</span>
+            <span className="font-display font-bold text-xl">PlagaiScans</span>
           </Link>
           <div className="flex items-center gap-4">
             {user ? (
@@ -168,7 +168,7 @@ export default function Landing() {
                 Ready to Check Your Documents?
               </h2>
               <p className="text-lg opacity-90 mb-8 max-w-2xl mx-auto">
-                Join thousands of users who trust DocCheck for accurate plagiarism and AI detection.
+                Join thousands of users who trust PlagaiScans for accurate plagiarism and AI detection.
               </p>
               <Button size="lg" variant="secondary" asChild>
                 <Link to="/auth">
@@ -188,10 +188,10 @@ export default function Landing() {
               <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
                 <FileCheck className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="font-display font-bold">DocCheck</span>
+              <span className="font-display font-bold">PlagaiScans</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} DocCheck. All rights reserved.
+              © {new Date().getFullYear()} PlagaiScans. All rights reserved.
             </p>
           </div>
         </div>
