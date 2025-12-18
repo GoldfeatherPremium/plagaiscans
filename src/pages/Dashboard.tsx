@@ -2,15 +2,23 @@ import React from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { useDocuments } from '@/hooks/useDocuments';
-import { FileText, Clock, CheckCircle, CreditCard, Upload, Users, BarChart } from 'lucide-react';
+import { useDocuments, Document } from '@/hooks/useDocuments';
+import { FileText, Clock, CheckCircle, CreditCard, Upload, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 export default function Dashboard() {
   const { role, profile } = useAuth();
-  const { documents } = useDocuments();
+  const { documents, downloadFile } = useDocuments();
 
   const stats = {
     pending: documents.filter((d) => d.status === 'pending').length,
@@ -20,6 +28,26 @@ export default function Dashboard() {
   };
 
   const recentDocs = documents.slice(0, 5);
+
+  const handleDownloadSimilarityReport = (doc: Document) => {
+    if (doc.similarity_report_path) {
+      downloadFile(doc.similarity_report_path, 'reports');
+    }
+  };
+
+  const handleDownloadAIReport = (doc: Document) => {
+    if (doc.ai_report_path) {
+      downloadFile(doc.ai_report_path, 'reports');
+    }
+  };
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return {
+      date: date.toLocaleDateString(),
+      time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+  };
 
   return (
     <DashboardLayout>
@@ -147,9 +175,9 @@ export default function Dashboard() {
               </Link>
             </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {recentDocs.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="text-center py-8 text-muted-foreground px-6">
                 <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p>No documents yet</p>
                 {role === 'customer' && (
@@ -159,36 +187,106 @@ export default function Dashboard() {
                 )}
               </div>
             ) : (
-              <div className="space-y-3">
-                {recentDocs.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium truncate max-w-[200px]">{doc.file_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(doc.uploaded_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      {doc.status === 'completed' && (
-                        <div className="text-right text-sm">
-                          <p className="text-muted-foreground">
-                            Similarity: <span className="font-medium text-foreground">{doc.similarity_percentage}%</span>
-                          </p>
-                          <p className="text-muted-foreground">
-                            AI: <span className="font-medium text-foreground">{doc.ai_percentage}%</span>
-                          </p>
-                        </div>
-                      )}
-                      <StatusBadge status={doc.status} />
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12 text-center">#</TableHead>
+                      <TableHead>Document</TableHead>
+                      <TableHead>Upload Time</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-center">Similarity %</TableHead>
+                      <TableHead className="text-center">AI %</TableHead>
+                      <TableHead className="text-center">Similarity Report</TableHead>
+                      <TableHead className="text-center">AI Report</TableHead>
+                      <TableHead>Remarks</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recentDocs.map((doc, index) => {
+                      const { date, time } = formatDateTime(doc.uploaded_at);
+                      return (
+                        <TableRow key={doc.id}>
+                          <TableCell className="text-center font-medium">
+                            {index + 1}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                              <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
+                                {doc.file_name}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <div>{date}</div>
+                              <div className="text-muted-foreground">{time}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <StatusBadge status={doc.status} />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {doc.status === 'completed' ? (
+                              <span className="font-semibold text-primary">
+                                {doc.similarity_percentage}%
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {doc.status === 'completed' ? (
+                              <span className="font-semibold text-secondary">
+                                {doc.ai_percentage}%
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {doc.similarity_report_path ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadSimilarityReport(doc)}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {doc.ai_report_path ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadAIReport(doc)}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {doc.error_message ? (
+                              <span className="text-sm text-destructive">{doc.error_message}</span>
+                            ) : doc.status === 'pending' ? (
+                              <span className="text-sm text-muted-foreground">In queue</span>
+                            ) : doc.status === 'in_progress' ? (
+                              <span className="text-sm text-muted-foreground">Processing...</span>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
