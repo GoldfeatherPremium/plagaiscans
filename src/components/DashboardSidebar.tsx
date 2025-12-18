@@ -40,7 +40,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/queue', icon: FileCheck, label: 'Document Queue' },
     { to: '/dashboard/documents', icon: FileText, label: 'All Documents' },
     { to: '/dashboard/users', icon: Users, label: 'User Management' },
-    { to: '/dashboard/credits', icon: CreditCard, label: 'Credit Management' },
+    { to: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
     { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
     { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
   ];

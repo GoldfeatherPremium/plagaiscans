@@ -1,21 +1,47 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useWhatsApp } from '@/hooks/useWhatsApp';
 import { useAuth } from '@/contexts/AuthContext';
-import { MessageCircle, CreditCard, CheckCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { MessageCircle, CreditCard, CheckCircle, Loader2 } from 'lucide-react';
+
+interface PricingPackage {
+  id: string;
+  credits: number;
+  price: number;
+}
 
 export default function BuyCredits() {
   const { profile } = useAuth();
   const { openWhatsApp } = useWhatsApp();
+  const [packages, setPackages] = useState<PricingPackage[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const plans = [
-    { credits: 10, price: 15 },
-    { credits: 25, price: 30 },
-    { credits: 50, price: 50 },
-    { credits: 100, price: 90 },
-  ];
+  useEffect(() => {
+    const fetchPackages = async () => {
+      const { data } = await supabase
+        .from('pricing_packages')
+        .select('*')
+        .eq('is_active', true)
+        .order('credits', { ascending: true });
+      
+      setPackages(data || []);
+      setLoading(false);
+    };
+    fetchPackages();
+  }, []);
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -44,12 +70,14 @@ export default function BuyCredits() {
 
         {/* Pricing Plans */}
         <div className="grid md:grid-cols-2 gap-4">
-          {plans.map((plan) => (
-            <Card key={plan.credits} className="hover:border-primary/50 transition-colors">
+          {packages.map((plan) => (
+            <Card key={plan.id} className="hover:border-primary/50 transition-colors">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="text-2xl font-bold">{plan.credits} Credits</h3>
+                    <h3 className="text-2xl font-bold">
+                      {plan.credits} {plan.credits === 1 ? 'Credit' : 'Credits'}
+                    </h3>
                     <p className="text-sm text-muted-foreground">
                       ${(plan.price / plan.credits).toFixed(2)} per document
                     </p>

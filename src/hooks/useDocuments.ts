@@ -3,17 +3,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+export type DocumentStatus = 'pending' | 'in_progress' | 'completed' | 'error';
+
 export interface Document {
   id: string;
   user_id: string;
   file_name: string;
   file_path: string;
-  status: 'pending' | 'in_progress' | 'completed';
+  status: DocumentStatus;
   assigned_staff_id: string | null;
   similarity_percentage: number | null;
   ai_percentage: number | null;
   similarity_report_path: string | null;
   ai_report_path: string | null;
+  error_message: string | null;
   uploaded_at: string;
   completed_at: string | null;
   updated_at: string;
@@ -144,12 +147,13 @@ export const useDocuments = () => {
 
   const updateDocumentStatus = async (
     documentId: string,
-    status: 'pending' | 'in_progress' | 'completed',
+    status: DocumentStatus,
     updates?: {
       similarity_percentage?: number;
       ai_percentage?: number;
       similarity_report_path?: string;
       ai_report_path?: string;
+      error_message?: string;
     },
     documentUserId?: string,
     fileName?: string
