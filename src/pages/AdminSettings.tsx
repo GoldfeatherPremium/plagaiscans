@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, UserPlus } from 'lucide-react';
+import { MessageCircle, Save, Loader2, UserPlus, Clock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AdminNotificationSender } from '@/components/AdminNotificationSender';
 
@@ -20,7 +20,9 @@ export default function AdminSettings() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingTimeout, setSavingTimeout] = useState(false);
   const [whatsappNumber, setWhatsappNumber] = useState('');
+  const [processingTimeout, setProcessingTimeout] = useState('30');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [selectedUser, setSelectedUser] = useState('');
   const [selectedRole, setSelectedRole] = useState<'admin' | 'staff' | 'customer'>('staff');
@@ -31,8 +33,13 @@ export default function AdminSettings() {
   }, []);
 
   const fetchSettings = async () => {
-    const { data } = await supabase.from('settings').select('*').eq('key', 'whatsapp_number').maybeSingle();
-    if (data) setWhatsappNumber(data.value);
+    const { data } = await supabase.from('settings').select('*').in('key', ['whatsapp_number', 'processing_timeout_minutes']);
+    if (data) {
+      const whatsapp = data.find(s => s.key === 'whatsapp_number');
+      const timeout = data.find(s => s.key === 'processing_timeout_minutes');
+      if (whatsapp) setWhatsappNumber(whatsapp.value);
+      if (timeout) setProcessingTimeout(timeout.value);
+    }
     setLoading(false);
   };
 
@@ -49,6 +56,17 @@ export default function AdminSettings() {
       toast({ title: 'Error', description: 'Failed to save settings', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'WhatsApp number updated' });
+    }
+  };
+
+  const saveProcessingTimeout = async () => {
+    setSavingTimeout(true);
+    const { error } = await supabase.from('settings').update({ value: processingTimeout }).eq('key', 'processing_timeout_minutes');
+    setSavingTimeout(false);
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to save timeout setting', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: 'Processing timeout updated' });
     }
   };
 
@@ -116,6 +134,37 @@ export default function AdminSettings() {
           </CardContent>
         </Card>
 
+        {/* Processing Timeout Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-amber-500" />
+              Document Processing Timeout
+            </CardTitle>
+            <CardDescription>Set the time limit for staff to process a document before it's auto-released</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="timeout">Timeout (minutes)</Label>
+              <Input
+                id="timeout"
+                type="number"
+                min="5"
+                max="1440"
+                placeholder="30"
+                value={processingTimeout}
+                onChange={(e) => setProcessingTimeout(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Documents will be automatically released if not processed within this time (5-1440 minutes)
+              </p>
+            </div>
+            <Button onClick={saveProcessingTimeout} disabled={savingTimeout}>
+              {savingTimeout ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Timeout
+            </Button>
+          </CardContent>
+        </Card>
         {/* Role Assignment */}
         <Card>
           <CardHeader>

@@ -50,6 +50,7 @@ export type Database = {
         Row: {
           ai_percentage: number | null
           ai_report_path: string | null
+          assigned_at: string | null
           assigned_staff_id: string | null
           completed_at: string | null
           error_message: string | null
@@ -67,6 +68,7 @@ export type Database = {
         Insert: {
           ai_percentage?: number | null
           ai_report_path?: string | null
+          assigned_at?: string | null
           assigned_staff_id?: string | null
           completed_at?: string | null
           error_message?: string | null
@@ -84,6 +86,7 @@ export type Database = {
         Update: {
           ai_percentage?: number | null
           ai_report_path?: string | null
+          assigned_at?: string | null
           assigned_staff_id?: string | null
           completed_at?: string | null
           error_message?: string | null

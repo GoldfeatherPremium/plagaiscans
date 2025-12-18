@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,9 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
-import { FileText, Download, Upload, Loader2, Lock, AlertTriangle } from 'lucide-react';
+import { FileText, Download, Upload, Loader2, Lock, AlertTriangle, Clock, Unlock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Table,
   TableBody,
@@ -21,7 +22,7 @@ import {
 } from '@/components/ui/table';
 
 export default function DocumentQueue() {
-  const { documents, loading, downloadFile, uploadReport, updateDocumentStatus } = useDocuments();
+  const { documents, loading, downloadFile, uploadReport, updateDocumentStatus, releaseDocument } = useDocuments();
   const { user, role } = useAuth();
   const { toast } = useToast();
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
@@ -34,6 +35,23 @@ export default function DocumentQueue() {
   const [remarks, setRemarks] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [processingTimeout, setProcessingTimeout] = useState(30);
+  const [, setTick] = useState(0);
+
+  // Fetch processing timeout setting
+  useEffect(() => {
+    const fetchTimeout = async () => {
+      const { data } = await supabase.from('settings').select('value').eq('key', 'processing_timeout_minutes').maybeSingle();
+      if (data) setProcessingTimeout(parseInt(data.value) || 30);
+    };
+    fetchTimeout();
+  }, []);
+
+  // Update elapsed time every minute
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Check if staff already has a document in progress
   const hasDocumentInProgress = documents.some(
@@ -135,6 +153,24 @@ export default function DocumentQueue() {
     };
   };
 
+  const getElapsedTime = (assignedAt: string | null) => {
+    if (!assignedAt) return null;
+    const elapsed = Math.floor((Date.now() - new Date(assignedAt).getTime()) / 60000);
+    const hours = Math.floor(elapsed / 60);
+    const minutes = elapsed % 60;
+    return { elapsed, display: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m` };
+  };
+
+  const isOverdue = (assignedAt: string | null) => {
+    if (!assignedAt) return false;
+    const elapsed = Math.floor((Date.now() - new Date(assignedAt).getTime()) / 60000);
+    return elapsed >= processingTimeout;
+  };
+
+  const handleReleaseDocument = async (doc: Document) => {
+    await releaseDocument(doc.id);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -171,7 +207,8 @@ export default function DocumentQueue() {
                       <TableHead>Document</TableHead>
                       <TableHead>Upload Time</TableHead>
                       <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-center">Assigned</TableHead>
+                      <TableHead className="text-center">Processing By</TableHead>
+                      <TableHead className="text-center">Time Elapsed</TableHead>
                       <TableHead className="text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -180,9 +217,11 @@ export default function DocumentQueue() {
                       const isAssignedToMe = doc.assigned_staff_id === user?.id;
                       const canPick = !hasDocumentInProgress || isAssignedToMe;
                       const { date, time } = formatDateTime(doc.uploaded_at);
+                      const elapsedInfo = getElapsedTime(doc.assigned_at);
+                      const overdue = isOverdue(doc.assigned_at);
 
                       return (
-                        <TableRow key={doc.id} className={isAssignedToMe ? 'bg-primary/5' : ''}>
+                        <TableRow key={doc.id} className={`${isAssignedToMe ? 'bg-primary/5' : ''} ${overdue ? 'bg-destructive/5' : ''}`}>
                           <TableCell className="text-center font-medium">
                             {index + 1}
                           </TableCell>
@@ -206,8 +245,23 @@ export default function DocumentQueue() {
                           <TableCell className="text-center">
                             {isAssignedToMe ? (
                               <span className="text-xs text-primary font-medium">You</span>
+                            ) : doc.staff_profile ? (
+                              <span className="text-xs text-muted-foreground" title={doc.staff_profile.email}>
+                                {doc.staff_profile.full_name || doc.staff_profile.email}
+                              </span>
                             ) : doc.assigned_staff_id ? (
-                              <span className="text-xs text-muted-foreground">Other Staff</span>
+                              <span className="text-xs text-muted-foreground">Staff</span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {elapsedInfo ? (
+                              <div className={`flex items-center justify-center gap-1 text-xs ${overdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                                <Clock className="h-3 w-3" />
+                                {elapsedInfo.display}
+                                {overdue && <span className="text-destructive">(overdue)</span>}
+                              </div>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
@@ -244,9 +298,20 @@ export default function DocumentQueue() {
                               )}
                               
                               {role === 'admin' && !isAssignedToMe && doc.status === 'in_progress' && (
-                                <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path)}>
-                                  <Download className="h-4 w-4" />
-                                </Button>
+                                <>
+                                  <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path)}>
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="text-amber-600 border-amber-600/30"
+                                    onClick={() => handleReleaseDocument(doc)}
+                                    title="Release document (make available to other staff)"
+                                  >
+                                    <Unlock className="h-4 w-4" />
+                                  </Button>
+                                </>
                               )}
                             </div>
                           </TableCell>

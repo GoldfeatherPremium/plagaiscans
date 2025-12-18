@@ -12,6 +12,7 @@ export interface Document {
   file_path: string;
   status: DocumentStatus;
   assigned_staff_id: string | null;
+  assigned_at: string | null;
   similarity_percentage: number | null;
   ai_percentage: number | null;
   similarity_report_path: string | null;
@@ -22,6 +23,10 @@ export interface Document {
   completed_at: string | null;
   updated_at: string;
   profiles?: {
+    email: string;
+    full_name: string | null;
+  };
+  staff_profile?: {
     email: string;
     full_name: string | null;
   };
@@ -47,7 +52,31 @@ export const useDocuments = () => {
       const { data, error } = await query.order('uploaded_at', { ascending: false });
 
       if (error) throw error;
-      setDocuments((data || []) as Document[]);
+
+      // Fetch staff profiles for assigned documents
+      const staffIds = [...new Set((data || []).filter(d => d.assigned_staff_id).map(d => d.assigned_staff_id))];
+      let staffProfiles: Record<string, { email: string; full_name: string | null }> = {};
+      
+      if (staffIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, email, full_name')
+          .in('id', staffIds);
+        
+        if (profiles) {
+          staffProfiles = profiles.reduce((acc, p) => {
+            acc[p.id] = { email: p.email, full_name: p.full_name };
+            return acc;
+          }, {} as Record<string, { email: string; full_name: string | null }>);
+        }
+      }
+
+      const docsWithStaff = (data || []).map(doc => ({
+        ...doc,
+        staff_profile: doc.assigned_staff_id ? staffProfiles[doc.assigned_staff_id] : undefined
+      }));
+
+      setDocuments(docsWithStaff as Document[]);
     } catch (error) {
       console.error('Error fetching documents:', error);
       toast({
@@ -57,6 +86,34 @@ export const useDocuments = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const releaseDocument = async (documentId: string) => {
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .update({ 
+          status: 'pending', 
+          assigned_staff_id: null, 
+          assigned_at: null 
+        })
+        .eq('id', documentId);
+
+      if (error) throw error;
+
+      await fetchDocuments();
+      toast({
+        title: 'Document Released',
+        description: 'Document is now available for other staff members',
+      });
+    } catch (error) {
+      console.error('Error releasing document:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to release document',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -164,6 +221,7 @@ export const useDocuments = () => {
       
       if (status === 'in_progress' && user) {
         updateData.assigned_staff_id = user.id;
+        updateData.assigned_at = new Date().toISOString();
       }
       
       if (status === 'completed') {
@@ -308,5 +366,6 @@ export const useDocuments = () => {
     updateDocumentStatus,
     uploadReport,
     fetchDocuments,
+    releaseDocument,
   };
 };
