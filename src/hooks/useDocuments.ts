@@ -150,7 +150,9 @@ export const useDocuments = () => {
       ai_percentage?: number;
       similarity_report_path?: string;
       ai_report_path?: string;
-    }
+    },
+    documentUserId?: string,
+    fileName?: string
   ) => {
     try {
       const updateData: Record<string, unknown> = { status, ...updates };
@@ -177,6 +179,25 @@ export const useDocuments = () => {
           document_id: documentId,
           action: `Changed status to ${status}`,
         });
+      }
+
+      // Send email notification when document is completed
+      if (status === 'completed' && documentUserId && fileName) {
+        try {
+          await supabase.functions.invoke('send-completion-email', {
+            body: {
+              documentId,
+              userId: documentUserId,
+              fileName,
+              similarityPercentage: updates?.similarity_percentage || 0,
+              aiPercentage: updates?.ai_percentage || 0,
+            },
+          });
+          console.log('Completion email sent successfully');
+        } catch (emailError) {
+          console.error('Error sending completion email:', emailError);
+          // Don't fail the whole operation if email fails
+        }
       }
 
       await fetchDocuments();
@@ -233,7 +254,7 @@ export const useDocuments = () => {
         updates.ai_report_path = aiPath;
       }
 
-      await updateDocumentStatus(documentId, 'completed', updates);
+      await updateDocumentStatus(documentId, 'completed', updates, document.user_id, document.file_name);
     } catch (error) {
       console.error('Error uploading reports:', error);
       toast({

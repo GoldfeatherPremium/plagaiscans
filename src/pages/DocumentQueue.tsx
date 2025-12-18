@@ -7,11 +7,12 @@ import { Label } from '@/components/ui/label';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FileText, Download, Upload, Loader2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function DocumentQueue() {
   const { documents, loading, downloadFile, uploadReport } = useDocuments();
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [similarityFile, setSimilarityFile] = useState<File | null>(null);
   const [aiFile, setAiFile] = useState<File | null>(null);
   const [similarityPercent, setSimilarityPercent] = useState('');
@@ -19,6 +20,20 @@ export default function DocumentQueue() {
   const [submitting, setSubmitting] = useState(false);
 
   const pendingDocs = documents.filter((d) => d.status === 'pending' || d.status === 'in_progress');
+
+  const handleOpenDialog = (doc: Document) => {
+    setSelectedDoc(doc);
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setSelectedDoc(null);
+    setSimilarityFile(null);
+    setAiFile(null);
+    setSimilarityPercent('');
+    setAiPercent('');
+  };
 
   const handleSubmitReport = async () => {
     if (!selectedDoc) return;
@@ -32,11 +47,17 @@ export default function DocumentQueue() {
       parseFloat(aiPercent) || 0
     );
     setSubmitting(false);
-    setSelectedDoc(null);
-    setSimilarityFile(null);
-    setAiFile(null);
-    setSimilarityPercent('');
-    setAiPercent('');
+    handleCloseDialog();
+  };
+
+  const handleSimilarityFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    setSimilarityFile(e.target.files?.[0] || null);
+  };
+
+  const handleAiFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    setAiFile(e.target.files?.[0] || null);
   };
 
   return (
@@ -77,45 +98,72 @@ export default function DocumentQueue() {
                     <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path)}>
                       <Download className="h-4 w-4 mr-2" /> Download
                     </Button>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button size="sm" onClick={() => setSelectedDoc(doc)}>
-                          <Upload className="h-4 w-4 mr-2" /> Upload Report
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Upload Reports</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <Label>Similarity %</Label>
-                            <Input type="number" min="0" max="100" value={similarityPercent} onChange={(e) => setSimilarityPercent(e.target.value)} />
-                          </div>
-                          <div>
-                            <Label>Similarity Report (PDF)</Label>
-                            <Input type="file" accept=".pdf" onChange={(e) => setSimilarityFile(e.target.files?.[0] || null)} />
-                          </div>
-                          <div>
-                            <Label>AI Detection %</Label>
-                            <Input type="number" min="0" max="100" value={aiPercent} onChange={(e) => setAiPercent(e.target.value)} />
-                          </div>
-                          <div>
-                            <Label>AI Report (PDF)</Label>
-                            <Input type="file" accept=".pdf" onChange={(e) => setAiFile(e.target.files?.[0] || null)} />
-                          </div>
-                          <Button className="w-full" onClick={handleSubmitReport} disabled={submitting}>
-                            {submitting ? 'Submitting...' : 'Complete & Submit'}
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                    <Button size="sm" onClick={() => handleOpenDialog(doc)}>
+                      <Upload className="h-4 w-4 mr-2" /> Upload Report
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
+
+        <Dialog open={dialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
+          <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
+            <DialogHeader>
+              <DialogTitle>Upload Reports for {selectedDoc?.file_name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Similarity %</Label>
+                <Input 
+                  type="number" 
+                  min="0" 
+                  max="100" 
+                  value={similarityPercent} 
+                  onChange={(e) => setSimilarityPercent(e.target.value)} 
+                />
+              </div>
+              <div>
+                <Label>Similarity Report (PDF)</Label>
+                <Input 
+                  type="file" 
+                  accept=".pdf" 
+                  onChange={handleSimilarityFileChange}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                {similarityFile && (
+                  <p className="text-sm text-muted-foreground mt-1">Selected: {similarityFile.name}</p>
+                )}
+              </div>
+              <div>
+                <Label>AI Detection %</Label>
+                <Input 
+                  type="number" 
+                  min="0" 
+                  max="100" 
+                  value={aiPercent} 
+                  onChange={(e) => setAiPercent(e.target.value)} 
+                />
+              </div>
+              <div>
+                <Label>AI Report (PDF)</Label>
+                <Input 
+                  type="file" 
+                  accept=".pdf" 
+                  onChange={handleAiFileChange}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                {aiFile && (
+                  <p className="text-sm text-muted-foreground mt-1">Selected: {aiFile.name}</p>
+                )}
+              </div>
+              <Button className="w-full" onClick={handleSubmitReport} disabled={submitting}>
+                {submitting ? 'Submitting...' : 'Complete & Submit'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
