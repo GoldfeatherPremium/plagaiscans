@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   User,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/dashboard/queue', icon: FileCheck, label: 'Document Queue' },
     { to: '/dashboard/documents', icon: FileText, label: 'All Documents' },
+    { to: '/dashboard/staff-work', icon: ClipboardList, label: 'Staff Work' },
     { to: '/dashboard/users', icon: Users, label: 'User Management' },
     { to: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
     { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
