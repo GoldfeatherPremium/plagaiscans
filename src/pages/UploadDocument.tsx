@@ -110,7 +110,7 @@ export default function UploadDocument() {
           <CardHeader>
             <CardTitle>Upload File</CardTitle>
             <CardDescription>
-              Supported formats: PDF, DOC, DOCX, TXT (Max 10MB)
+              Supported formats: PDF, DOC, DOCX, TXT
             </CardDescription>
           </CardHeader>
           <CardContent>
