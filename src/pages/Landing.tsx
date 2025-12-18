@@ -11,7 +11,6 @@ import {
   Bot,
   CheckCircle,
   ArrowRight,
-  MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { WhatsAppSupportButton } from '@/components/WhatsAppSupportButton';
@@ -42,12 +41,6 @@ export default function Landing() {
     },
   ];
 
-  const pricingPlans = [
-    { credits: 10, price: 15, popular: false },
-    { credits: 25, price: 30, popular: true },
-    { credits: 50, price: 50, popular: false },
-    { credits: 100, price: 90, popular: false },
-  ];
 
   const steps = [
     { step: 1, title: 'Create Account', description: 'Sign up with your email, phone, and password' },
@@ -107,9 +100,6 @@ export default function Landing() {
                 Start Checking <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" asChild>
-              <a href="#pricing">View Pricing</a>
-            </Button>
           </div>
         </div>
       </section>
@@ -168,69 +158,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="section-padding bg-muted/30">
-        <div className="container-width">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">
-              Simple Credit-Based Pricing
-            </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              1 Credit = 1 Document Check. Buy credits and use them anytime.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
-            {pricingPlans.map((plan) => (
-              <Card
-                key={plan.credits}
-                className={`relative ${plan.popular ? 'border-primary shadow-lg scale-105' : 'border-border'}`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-medium">
-                    Most Popular
-                  </div>
-                )}
-                <CardHeader className="text-center">
-                  <CardTitle className="text-4xl font-bold">{plan.credits}</CardTitle>
-                  <CardDescription>Credits</CardDescription>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <p className="text-3xl font-bold mb-4">${plan.price}</p>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    ${(plan.price / plan.credits).toFixed(2)} per document
-                  </p>
-                  <ul className="text-sm space-y-2 mb-6 text-left">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-secondary" />
-                      Similarity Report
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-secondary" />
-                      AI Detection Report
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-secondary" />
-                      No Expiry
-                    </li>
-                  </ul>
-                  <Button className="w-full" variant={plan.popular ? 'default' : 'outline'} asChild>
-                    <Link to="/auth">Buy Now</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <div className="mt-12 text-center">
-            <div className="inline-flex items-center gap-3 px-6 py-4 rounded-xl bg-[#25D366]/10 border border-[#25D366]/30">
-              <MessageCircle className="h-6 w-6 text-[#25D366]" />
-              <div className="text-left">
-                <p className="font-semibold">Buy Credits via WhatsApp</p>
-                <p className="text-sm text-muted-foreground">Contact us to purchase credits securely</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* CTA Section */}
       <section className="section-padding">
