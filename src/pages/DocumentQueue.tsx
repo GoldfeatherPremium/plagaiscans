@@ -10,8 +10,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FileText, Download, Upload, Loader2, Lock, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 export default function DocumentQueue() {
   const { documents, loading, downloadFile, uploadReport, updateDocumentStatus } = useDocuments();
@@ -117,6 +124,14 @@ export default function DocumentQueue() {
     setAiFile(e.target.files?.[0] || null);
   };
 
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return {
+      date: date.toLocaleDateString(),
+      time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -143,69 +158,103 @@ export default function DocumentQueue() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {availableDocs.map((doc) => {
-              const isAssignedToMe = doc.assigned_staff_id === user?.id;
-              const canPick = !hasDocumentInProgress || isAssignedToMe;
-              
-              return (
-                <Card key={doc.id} className={isAssignedToMe ? 'border-primary' : ''}>
-                  <CardContent className="p-6 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <FileText className="h-10 w-10 text-primary" />
-                      <div>
-                        <h3 className="font-semibold">{doc.file_name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(doc.uploaded_at).toLocaleString()}
-                        </p>
-                        {isAssignedToMe && (
-                          <p className="text-xs text-primary font-medium mt-1">Assigned to you</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <StatusBadge status={doc.status} />
-                      
-                      {doc.status === 'pending' && !isAssignedToMe && (
-                        <Button 
-                          size="sm" 
-                          onClick={() => handlePickDocument(doc)}
-                          disabled={!canPick}
-                        >
-                          Pick Document
-                        </Button>
-                      )}
-                      
-                      {isAssignedToMe && (
-                        <>
-                          <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path)}>
-                            <Download className="h-4 w-4 mr-2" /> Download
-                          </Button>
-                          <Button size="sm" onClick={() => handleOpenDialog(doc, 'report')}>
-                            <Upload className="h-4 w-4 mr-2" /> Upload Report
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="text-destructive border-destructive/30"
-                            onClick={() => handleOpenDialog(doc, 'error')}
-                          >
-                            <AlertTriangle className="h-4 w-4 mr-2" /> Report Error
-                          </Button>
-                        </>
-                      )}
-                      
-                      {role === 'admin' && !isAssignedToMe && doc.status === 'in_progress' && (
-                        <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path)}>
-                          <Download className="h-4 w-4 mr-2" /> Download
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12 text-center">#</TableHead>
+                      <TableHead>Document</TableHead>
+                      <TableHead>Upload Time</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-center">Assigned</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {availableDocs.map((doc, index) => {
+                      const isAssignedToMe = doc.assigned_staff_id === user?.id;
+                      const canPick = !hasDocumentInProgress || isAssignedToMe;
+                      const { date, time } = formatDateTime(doc.uploaded_at);
+
+                      return (
+                        <TableRow key={doc.id} className={isAssignedToMe ? 'bg-primary/5' : ''}>
+                          <TableCell className="text-center font-medium">
+                            {index + 1}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                              <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
+                                {doc.file_name}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <div>{date}</div>
+                              <div className="text-muted-foreground">{time}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <StatusBadge status={doc.status} />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {isAssignedToMe ? (
+                              <span className="text-xs text-primary font-medium">You</span>
+                            ) : doc.assigned_staff_id ? (
+                              <span className="text-xs text-muted-foreground">Other Staff</span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-center gap-2 flex-wrap">
+                              {doc.status === 'pending' && !isAssignedToMe && (
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => handlePickDocument(doc)}
+                                  disabled={!canPick}
+                                >
+                                  Pick
+                                </Button>
+                              )}
+                              
+                              {isAssignedToMe && (
+                                <>
+                                  <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path)}>
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                  <Button size="sm" onClick={() => handleOpenDialog(doc, 'report')}>
+                                    <Upload className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="text-destructive border-destructive/30"
+                                    onClick={() => handleOpenDialog(doc, 'error')}
+                                  >
+                                    <AlertTriangle className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                              
+                              {role === 'admin' && !isAssignedToMe && doc.status === 'in_progress' && (
+                                <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path)}>
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         <Dialog open={dialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
