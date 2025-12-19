@@ -11,6 +11,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare, CheckCheck } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -299,8 +309,9 @@ export default function DocumentQueue() {
 
   // Process All - Admin only: mark all pending/in-progress as completed
   const [processingAll, setProcessingAll] = useState(false);
+  const [processAllDialogOpen, setProcessAllDialogOpen] = useState(false);
   
-  const handleProcessAll = async () => {
+  const handleProcessAllConfirm = async () => {
     if (role !== 'admin') return;
     
     const docsToProcess = availableDocs.filter(
@@ -317,6 +328,7 @@ export default function DocumentQueue() {
     }
 
     setProcessingAll(true);
+    setProcessAllDialogOpen(false);
     try {
       const { error } = await supabase
         .from('documents')
@@ -439,7 +451,7 @@ export default function DocumentQueue() {
           {/* Process All Button - Admin Only */}
           {role === 'admin' && availableDocs.length > 0 && (
             <Button 
-              onClick={handleProcessAll}
+              onClick={() => setProcessAllDialogOpen(true)}
               disabled={processingAll}
               className="bg-green-600 hover:bg-green-700"
             >
@@ -831,6 +843,28 @@ export default function DocumentQueue() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Process All Confirmation Dialog */}
+        <AlertDialog open={processAllDialogOpen} onOpenChange={setProcessAllDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Process All Documents?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will mark <strong>{availableDocs.length} document(s)</strong> as completed. 
+                This action cannot be undone. Documents will be marked as completed without reports.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleProcessAllConfirm}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Yes, Process All
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
