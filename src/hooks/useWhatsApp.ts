@@ -30,6 +30,11 @@ export const useWhatsApp = () => {
     openWhatsAppWithMessage(message);
   };
 
+  const openWhatsAppCustom = (customMessage: string) => {
+    const message = encodeURIComponent(customMessage);
+    openWhatsAppWithMessage(message);
+  };
+
   const openWhatsAppSupport = () => {
     const message = encodeURIComponent(
       `Hello, I need support.\nUser ID: ${user?.id || 'Not logged in'}\nEmail: ${profile?.email || 'Not logged in'}\nIssue: `
@@ -51,5 +56,5 @@ export const useWhatsApp = () => {
     document.body.removeChild(link);
   };
 
-  return { whatsappNumber, openWhatsApp, openWhatsAppSupport };
+  return { whatsappNumber, openWhatsApp, openWhatsAppSupport, openWhatsAppCustom };
 };

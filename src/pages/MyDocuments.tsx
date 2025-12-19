@@ -4,7 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { StatusBadge } from '@/components/StatusBadge';
-import { FileText, Download, Loader2 } from 'lucide-react';
+import { FileText, Download, Loader2, MessageCircle } from 'lucide-react';
+import { useWhatsApp } from '@/hooks/useWhatsApp';
 import {
   Table,
   TableBody,
@@ -16,6 +17,12 @@ import {
 
 export default function MyDocuments() {
   const { documents, loading, downloadFile } = useDocuments();
+  const { openWhatsAppCustom } = useWhatsApp();
+
+  const handleWhatsAppChat = (doc: Document) => {
+    const message = `Hi! I'd like to discuss my document results:\n\n📄 Document: ${doc.file_name}\n📊 Similarity: ${doc.similarity_percentage}%\n🤖 AI Detection: ${doc.ai_percentage}%\n\nPlease help me understand these results.`;
+    openWhatsAppCustom(message);
+  };
 
   const handleDownloadSimilarityReport = (doc: Document) => {
     if (doc.similarity_report_path) {
@@ -79,6 +86,7 @@ export default function MyDocuments() {
                       <TableHead className="text-center">AI %</TableHead>
                       <TableHead className="text-center">Similarity Report</TableHead>
                       <TableHead className="text-center">AI Report</TableHead>
+                      <TableHead className="text-center">Chat</TableHead>
                       <TableHead>Remarks</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -146,6 +154,21 @@ export default function MyDocuments() {
                                 onClick={() => handleDownloadAIReport(doc)}
                               >
                                 <Download className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {doc.status === 'completed' ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleWhatsAppChat(doc)}
+                                className="text-green-600 border-green-600/30 hover:bg-green-50"
+                                title="Chat about results on WhatsApp"
+                              >
+                                <MessageCircle className="h-4 w-4" />
                               </Button>
                             ) : (
                               <span className="text-muted-foreground">-</span>

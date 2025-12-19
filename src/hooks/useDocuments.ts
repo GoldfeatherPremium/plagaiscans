@@ -244,31 +244,25 @@ export const useDocuments = () => {
         });
       }
 
-      // Send email notification when document is completed
+      // Create in-app notification when document is completed
       if (status === 'completed' && documentUserId && fileName) {
-        console.log('Attempting to send completion email:', { documentId, documentUserId, fileName });
         try {
-          const { data: emailData, error: emailError } = await supabase.functions.invoke('send-completion-email', {
-            body: {
-              documentId,
-              userId: documentUserId,
-              fileName,
-              similarityPercentage: updates?.similarity_percentage || 0,
-              aiPercentage: updates?.ai_percentage || 0,
-            },
+          // Create a notification for the customer
+          const { error: notifError } = await supabase.from('notifications').insert({
+            title: 'Document Completed! 🎉',
+            message: `Your document "${fileName}" has been processed. Similarity: ${updates?.similarity_percentage || 0}%, AI Detection: ${updates?.ai_percentage || 0}%. View your results in My Documents.`,
+            created_by: user?.id,
+            is_active: true,
           });
           
-          if (emailError) {
-            console.error('Error sending completion email:', emailError);
+          if (notifError) {
+            console.error('Error creating notification:', notifError);
           } else {
-            console.log('Completion email sent successfully:', emailData);
+            console.log('In-app notification created for document completion');
           }
-        } catch (emailError) {
-          console.error('Exception sending completion email:', emailError);
-          // Don't fail the whole operation if email fails
+        } catch (notifError) {
+          console.error('Exception creating notification:', notifError);
         }
-      } else {
-        console.log('Email not sent - missing data:', { status, documentUserId, fileName });
       }
 
       await fetchDocuments();
