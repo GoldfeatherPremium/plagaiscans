@@ -246,8 +246,9 @@ export const useDocuments = () => {
 
       // Send email notification when document is completed
       if (status === 'completed' && documentUserId && fileName) {
+        console.log('Attempting to send completion email:', { documentId, documentUserId, fileName });
         try {
-          await supabase.functions.invoke('send-completion-email', {
+          const { data: emailData, error: emailError } = await supabase.functions.invoke('send-completion-email', {
             body: {
               documentId,
               userId: documentUserId,
@@ -256,11 +257,18 @@ export const useDocuments = () => {
               aiPercentage: updates?.ai_percentage || 0,
             },
           });
-          console.log('Completion email sent successfully');
+          
+          if (emailError) {
+            console.error('Error sending completion email:', emailError);
+          } else {
+            console.log('Completion email sent successfully:', emailData);
+          }
         } catch (emailError) {
-          console.error('Error sending completion email:', emailError);
+          console.error('Exception sending completion email:', emailError);
           // Don't fail the whole operation if email fails
         }
+      } else {
+        console.log('Email not sent - missing data:', { status, documentUserId, fileName });
       }
 
       await fetchDocuments();
