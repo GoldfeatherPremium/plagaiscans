@@ -301,7 +301,7 @@ export default function DocumentQueue() {
                               
                               {isAssignedToMe && (
                                 <>
-                                  <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path)}>
+                                  <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path, 'documents', doc.file_name)}>
                                     <Download className="h-4 w-4" />
                                   </Button>
                                   <Button size="sm" onClick={() => handleOpenDialog(doc)}>
@@ -312,7 +312,7 @@ export default function DocumentQueue() {
                               
                               {role === 'admin' && !isAssignedToMe && doc.status === 'in_progress' && (
                                 <>
-                                  <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path)}>
+                                  <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path, 'documents', doc.file_name)}>
                                     <Download className="h-4 w-4" />
                                   </Button>
                                   <Button 

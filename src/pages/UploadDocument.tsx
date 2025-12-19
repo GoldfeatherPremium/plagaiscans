@@ -18,7 +18,7 @@ export default function UploadDocument() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
-  const [title, setTitle] = useState('');
+  
   const [excludeBibliographic, setExcludeBibliographic] = useState(true);
   const [excludeQuoted, setExcludeQuoted] = useState(false);
   const [excludeSmallSources, setExcludeSmallSources] = useState(false);
@@ -62,13 +62,11 @@ export default function UploadDocument() {
     if (success) {
       setUploadSuccess(true);
       setSelectedFile(null);
-      setTitle('');
     }
   };
 
   const handleCancel = () => {
     setSelectedFile(null);
-    setTitle('');
     navigate('/dashboard/documents');
   };
 
@@ -120,17 +118,6 @@ export default function UploadDocument() {
           </Card>
         )}
 
-        {/* Title Field */}
-        <div className="space-y-2">
-          <Label htmlFor="title">Title</Label>
-          <Input
-            id="title"
-            placeholder="Enter the document title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            disabled={!hasCredits}
-          />
-        </div>
 
         {/* Options (exclusion) */}
         <div className="space-y-4">

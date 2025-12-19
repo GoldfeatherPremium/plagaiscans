@@ -19,13 +19,15 @@ export default function MyDocuments() {
 
   const handleDownloadSimilarityReport = (doc: Document) => {
     if (doc.similarity_report_path) {
-      downloadFile(doc.similarity_report_path, 'reports');
+      const baseName = doc.file_name.replace(/\.[^/.]+$/, '');
+      downloadFile(doc.similarity_report_path, 'reports', `${baseName}_similarity.pdf`);
     }
   };
 
   const handleDownloadAIReport = (doc: Document) => {
     if (doc.ai_report_path) {
-      downloadFile(doc.ai_report_path, 'reports');
+      const baseName = doc.file_name.replace(/\.[^/.]+$/, '');
+      downloadFile(doc.ai_report_path, 'reports', `${baseName}_ai.pdf`);
     }
   };
 
