@@ -25,6 +25,9 @@ export default function DocumentQueue() {
   const { documents, loading, downloadFile, uploadReport, updateDocumentStatus, releaseDocument } = useDocuments();
   const { user, role } = useAuth();
   const { toast } = useToast();
+  
+  // Staff must upload both reports - admin can submit without
+  const canSubmitReport = role === 'admin' || false; // Will be updated based on file state
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode] = useState<'report'>('report');
@@ -360,7 +363,19 @@ export default function DocumentQueue() {
                   rows={3}
                 />
               </div>
-              <Button className="w-full" onClick={handleSubmitReport} disabled={submitting}>
+              
+              {/* Staff must upload both reports warning */}
+              {role === 'staff' && (!similarityFile || !aiFile) && (
+                <p className="text-sm text-destructive flex items-center gap-1">
+                  <span className="font-medium">Required:</span> Both Similarity and AI reports must be uploaded
+                </p>
+              )}
+              
+              <Button 
+                className="w-full" 
+                onClick={handleSubmitReport} 
+                disabled={submitting || (role === 'staff' && (!similarityFile || !aiFile))}
+              >
                 {submitting ? 'Submitting...' : 'Complete & Submit'}
               </Button>
             </div>
