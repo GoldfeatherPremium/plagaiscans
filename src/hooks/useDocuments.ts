@@ -244,21 +244,20 @@ export const useDocuments = () => {
         });
       }
 
-      // Create in-app notification when document is completed
+      // Create personal notification for the document owner when completed
       if (status === 'completed' && documentUserId && fileName) {
         try {
-          // Create a notification for the customer
-          const { error: notifError } = await supabase.from('notifications').insert({
+          const { error: notifError } = await supabase.from('user_notifications').insert({
+            user_id: documentUserId,
             title: 'Document Completed! 🎉',
             message: `Your document "${fileName}" has been processed. Similarity: ${updates?.similarity_percentage || 0}%, AI Detection: ${updates?.ai_percentage || 0}%. View your results in My Documents.`,
             created_by: user?.id,
-            is_active: true,
           });
           
           if (notifError) {
             console.error('Error creating notification:', notifError);
           } else {
-            console.log('In-app notification created for document completion');
+            console.log('Personal notification created for document completion');
           }
         } catch (notifError) {
           console.error('Exception creating notification:', notifError);

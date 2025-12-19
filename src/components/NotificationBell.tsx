@@ -17,6 +17,7 @@ interface Notification {
   message: string;
   created_at: string;
   is_read?: boolean;
+  type: 'broadcast' | 'personal';
 }
 
 export const NotificationBell: React.FC = () => {
@@ -29,66 +30,125 @@ export const NotificationBell: React.FC = () => {
     if (!user) return;
 
     const fetchNotifications = async () => {
-      const { data: notifs } = await supabase
+      // Fetch broadcast notifications
+      const { data: broadcasts } = await supabase
         .from('notifications')
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
+      // Fetch personal notifications for this user
+      const { data: personal } = await supabase
+        .from('user_notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      // Fetch read status for broadcast notifications
       const { data: reads } = await supabase
         .from('notification_reads')
         .select('notification_id')
         .eq('user_id', user.id);
 
-      if (notifs) setNotifications(notifs);
+      // Combine and sort all notifications
+      const allNotifications: Notification[] = [
+        ...(broadcasts || []).map(n => ({ ...n, type: 'broadcast' as const })),
+        ...(personal || []).map(n => ({ ...n, type: 'personal' as const, is_read: !!n.read_at })),
+      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setNotifications(allNotifications);
       if (reads) setReadIds(new Set(reads.map(r => r.notification_id)));
     };
 
     fetchNotifications();
 
     // Subscribe to realtime notifications
-    const channel = supabase
+    const broadcastChannel = supabase
       .channel('notifications-channel')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications' },
         (payload) => {
-          setNotifications(prev => [payload.new as Notification, ...prev]);
+          setNotifications(prev => [{ ...payload.new as Notification, type: 'broadcast' }, ...prev]);
+        }
+      )
+      .subscribe();
+
+    // Subscribe to personal notifications
+    const personalChannel = supabase
+      .channel('user-notifications-channel')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          setNotifications(prev => [{ ...payload.new as Notification, type: 'personal' }, ...prev]);
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(broadcastChannel);
+      supabase.removeChannel(personalChannel);
     };
   }, [user]);
 
-  const markAsRead = async (notificationId: string) => {
-    if (!user || readIds.has(notificationId)) return;
+  const markAsRead = async (notif: Notification) => {
+    if (!user) return;
+    
+    if (notif.type === 'personal') {
+      // Mark personal notification as read
+      await supabase
+        .from('user_notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('id', notif.id);
+      
+      setNotifications(prev => 
+        prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n)
+      );
+    } else {
+      // Mark broadcast notification as read
+      if (readIds.has(notif.id)) return;
+      
+      await supabase
+        .from('notification_reads')
+        .insert({ notification_id: notif.id, user_id: user.id });
 
-    await supabase
-      .from('notification_reads')
-      .insert({ notification_id: notificationId, user_id: user.id });
-
-    setReadIds(prev => new Set([...prev, notificationId]));
+      setReadIds(prev => new Set([...prev, notif.id]));
+    }
   };
 
   const markAllAsRead = async () => {
     if (!user) return;
 
-    const unreadNotifs = notifications.filter(n => !readIds.has(n.id));
-    if (unreadNotifs.length === 0) return;
+    // Mark personal notifications
+    const unreadPersonal = notifications.filter(n => n.type === 'personal' && !n.is_read);
+    if (unreadPersonal.length > 0) {
+      await supabase
+        .from('user_notifications')
+        .update({ read_at: new Date().toISOString() })
+        .in('id', unreadPersonal.map(n => n.id));
+    }
 
-    const inserts = unreadNotifs.map(n => ({
-      notification_id: n.id,
-      user_id: user.id,
-    }));
+    // Mark broadcast notifications
+    const unreadBroadcasts = notifications.filter(n => n.type === 'broadcast' && !readIds.has(n.id));
+    if (unreadBroadcasts.length > 0) {
+      const inserts = unreadBroadcasts.map(n => ({
+        notification_id: n.id,
+        user_id: user.id,
+      }));
+      await supabase.from('notification_reads').insert(inserts);
+    }
 
-    await supabase.from('notification_reads').insert(inserts);
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     setReadIds(new Set(notifications.map(n => n.id)));
   };
 
-  const unreadCount = notifications.filter(n => !readIds.has(n.id)).length;
+  const isUnread = (notif: Notification) => {
+    if (notif.type === 'personal') return !notif.is_read;
+    return !readIds.has(notif.id);
+  };
+
+  const unreadCount = notifications.filter(n => isUnread(n)).length;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -122,13 +182,13 @@ export const NotificationBell: React.FC = () => {
                 <div
                   key={notif.id}
                   className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors ${
-                    !readIds.has(notif.id) ? 'bg-primary/5' : ''
+                    isUnread(notif) ? 'bg-primary/5' : ''
                   }`}
-                  onClick={() => markAsRead(notif.id)}
+                  onClick={() => markAsRead(notif)}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <h4 className="font-medium text-sm">{notif.title}</h4>
-                    {!readIds.has(notif.id) && (
+                    {isUnread(notif) && (
                       <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-1.5" />
                     )}
                   </div>
