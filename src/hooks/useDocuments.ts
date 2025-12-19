@@ -217,6 +217,21 @@ export const useDocuments = () => {
     fileName?: string
   ) => {
     try {
+      // Staff (not admin) must upload both reports to complete a document
+      if (status === 'completed' && role === 'staff') {
+        const hasSimReport = updates?.similarity_report_path;
+        const hasAiReport = updates?.ai_report_path;
+        
+        if (!hasSimReport || !hasAiReport) {
+          toast({
+            title: 'Reports Required',
+            description: 'You must upload both Similarity and AI reports before completing this document.',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+
       const updateData: Record<string, unknown> = { status, ...updates };
       
       if (status === 'in_progress' && user) {
