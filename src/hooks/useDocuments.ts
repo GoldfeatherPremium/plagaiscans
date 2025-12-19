@@ -179,7 +179,7 @@ export const useDocuments = () => {
     }
   };
 
-  const downloadFile = async (path: string, bucket: string = 'documents') => {
+  const downloadFile = async (path: string, bucket: string = 'documents', originalFileName?: string) => {
     try {
       const { data, error } = await supabase.storage.from(bucket).download(path);
 
@@ -188,7 +188,7 @@ export const useDocuments = () => {
       const url = URL.createObjectURL(data);
       const link = document.createElement('a');
       link.href = url;
-      link.download = path.split('/').pop() || 'download';
+      link.download = originalFileName || path.split('/').pop() || 'download';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
