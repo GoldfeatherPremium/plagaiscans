@@ -21,13 +21,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
+interface StaffSettings {
+  time_limit_minutes: number;
+  max_concurrent_files: number;
+}
+
 export default function DocumentQueue() {
   const { documents, loading, downloadFile, uploadReport, updateDocumentStatus, releaseDocument } = useDocuments();
   const { user, role } = useAuth();
   const { toast } = useToast();
   
-  // Staff must upload both reports - admin can submit without
-  const canSubmitReport = role === 'admin' || false; // Will be updated based on file state
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode] = useState<'report'>('report');
@@ -37,17 +40,39 @@ export default function DocumentQueue() {
   const [aiPercent, setAiPercent] = useState('');
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [processingTimeout, setProcessingTimeout] = useState(30);
+  const [globalTimeout, setGlobalTimeout] = useState(30);
+  const [mySettings, setMySettings] = useState<StaffSettings>({ time_limit_minutes: 30, max_concurrent_files: 1 });
   const [, setTick] = useState(0);
 
-  // Fetch processing timeout setting
+  // Fetch settings
   useEffect(() => {
-    const fetchTimeout = async () => {
-      const { data } = await supabase.from('settings').select('value').eq('key', 'processing_timeout_minutes').maybeSingle();
-      if (data) setProcessingTimeout(parseInt(data.value) || 30);
+    const fetchSettings = async () => {
+      // Get global timeout
+      const { data: globalData } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'processing_timeout_minutes')
+        .maybeSingle();
+      if (globalData) setGlobalTimeout(parseInt(globalData.value) || 30);
+
+      // Get my personal staff settings (if staff)
+      if (user && role === 'staff') {
+        const { data: staffData } = await supabase
+          .from('staff_settings')
+          .select('time_limit_minutes, max_concurrent_files')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (staffData) {
+          setMySettings({
+            time_limit_minutes: staffData.time_limit_minutes,
+            max_concurrent_files: staffData.max_concurrent_files,
+          });
+        }
+      }
     };
-    fetchTimeout();
-  }, []);
+    fetchSettings();
+  }, [user, role]);
 
   // Update elapsed time every minute
   useEffect(() => {
@@ -55,10 +80,13 @@ export default function DocumentQueue() {
     return () => clearInterval(interval);
   }, []);
 
-  // Check if staff already has a document in progress (admins can pick multiple)
-  const hasDocumentInProgress = role !== 'admin' && documents.some(
+  // Count how many documents staff currently has in progress
+  const myInProgressCount = documents.filter(
     (d) => d.assigned_staff_id === user?.id && d.status === 'in_progress'
-  );
+  ).length;
+
+  // Check if staff can pick more (admins unlimited, staff based on their limit)
+  const canPickMore = role === 'admin' || myInProgressCount < mySettings.max_concurrent_files;
 
   // Filter documents: show pending (not assigned) or assigned to current user
   const availableDocs = documents.filter((d) => {
@@ -73,10 +101,10 @@ export default function DocumentQueue() {
   });
 
   const handlePickDocument = async (doc: Document) => {
-    if (hasDocumentInProgress && doc.assigned_staff_id !== user?.id) {
+    if (!canPickMore && doc.assigned_staff_id !== user?.id) {
       toast({
-        title: 'Already Processing',
-        description: 'Complete your current document before picking another.',
+        title: 'Limit Reached',
+        description: `You can only process ${mySettings.max_concurrent_files} document(s) at a time. Complete your current work first.`,
         variant: 'destructive',
       });
       return;
@@ -147,10 +175,13 @@ export default function DocumentQueue() {
     return { elapsed, display: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m` };
   };
 
+  // Use personal timeout for staff, global for admin
+  const effectiveTimeout = role === 'staff' ? mySettings.time_limit_minutes : globalTimeout;
+
   const isOverdue = (assignedAt: string | null) => {
     if (!assignedAt) return false;
     const elapsed = Math.floor((Date.now() - new Date(assignedAt).getTime()) / 60000);
-    return elapsed >= processingTimeout;
+    return elapsed >= effectiveTimeout;
   };
 
   const handleReleaseDocument = async (doc: Document) => {
@@ -163,10 +194,15 @@ export default function DocumentQueue() {
         <div>
           <h1 className="text-3xl font-display font-bold">Document Queue</h1>
           <p className="text-muted-foreground mt-1">Process pending documents</p>
-          {hasDocumentInProgress && (
+          {role === 'staff' && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Your limits: {mySettings.max_concurrent_files} file(s) at a time, {mySettings.time_limit_minutes} min per document
+            </p>
+          )}
+          {!canPickMore && (
             <p className="text-sm text-amber-600 mt-2 flex items-center gap-2">
               <Lock className="h-4 w-4" />
-              Complete your current document before picking another
+              You have {myInProgressCount}/{mySettings.max_concurrent_files} documents in progress. Complete them to pick more.
             </p>
           )}
         </div>
@@ -201,7 +237,6 @@ export default function DocumentQueue() {
                   <TableBody>
                     {availableDocs.map((doc, index) => {
                       const isAssignedToMe = doc.assigned_staff_id === user?.id;
-                      const canPick = !hasDocumentInProgress || isAssignedToMe;
                       const { date, time } = formatDateTime(doc.uploaded_at);
                       const elapsedInfo = getElapsedTime(doc.assigned_at);
                       const overdue = isOverdue(doc.assigned_at);
@@ -258,7 +293,7 @@ export default function DocumentQueue() {
                                 <Button 
                                   size="sm" 
                                   onClick={() => handlePickDocument(doc)}
-                                  disabled={!canPick}
+                                  disabled={!canPickMore}
                                 >
                                   Pick
                                 </Button>

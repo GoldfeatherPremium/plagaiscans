@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get the processing timeout setting
+    // Get the global processing timeout setting (fallback)
     const { data: settingData, error: settingError } = await supabase
       .from('settings')
       .select('value')
@@ -31,27 +31,66 @@ Deno.serve(async (req) => {
       throw settingError;
     }
 
-    const timeoutMinutes = settingData ? parseInt(settingData.value) : 30;
-    console.log(`Using timeout of ${timeoutMinutes} minutes`);
+    const globalTimeoutMinutes = settingData ? parseInt(settingData.value) : 30;
+    console.log(`Global timeout: ${globalTimeoutMinutes} minutes`);
 
-    // Calculate the cutoff time
-    const cutoffTime = new Date(Date.now() - timeoutMinutes * 60 * 1000).toISOString();
-    console.log(`Looking for documents assigned before: ${cutoffTime}`);
-
-    // Find overdue documents (in_progress and assigned_at older than timeout)
-    const { data: overdueDocuments, error: fetchError } = await supabase
+    // Find all in-progress documents with their assigned staff
+    const { data: inProgressDocuments, error: fetchError } = await supabase
       .from('documents')
       .select('id, file_name, assigned_staff_id, assigned_at')
       .eq('status', 'in_progress')
-      .not('assigned_at', 'is', null)
-      .lt('assigned_at', cutoffTime);
+      .not('assigned_at', 'is', null);
 
     if (fetchError) {
-      console.error('Error fetching overdue documents:', fetchError);
+      console.error('Error fetching in-progress documents:', fetchError);
       throw fetchError;
     }
 
-    if (!overdueDocuments || overdueDocuments.length === 0) {
+    if (!inProgressDocuments || inProgressDocuments.length === 0) {
+      console.log('No in-progress documents found');
+      return new Response(
+        JSON.stringify({ message: 'No in-progress documents found', released: 0 }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Found ${inProgressDocuments.length} in-progress documents to check`);
+
+    // Get unique staff IDs
+    const staffIds = [...new Set(inProgressDocuments.map(d => d.assigned_staff_id).filter(Boolean))];
+    
+    // Fetch individual staff settings
+    let staffSettingsMap: Record<string, number> = {};
+    if (staffIds.length > 0) {
+      const { data: staffSettings } = await supabase
+        .from('staff_settings')
+        .select('user_id, time_limit_minutes')
+        .in('user_id', staffIds);
+      
+      if (staffSettings) {
+        staffSettingsMap = Object.fromEntries(
+          staffSettings.map(s => [s.user_id, s.time_limit_minutes])
+        );
+      }
+      console.log(`Found settings for ${Object.keys(staffSettingsMap).length} staff members`);
+    }
+
+    // Check each document against its staff's personal timeout
+    const now = Date.now();
+    const overdueDocuments = inProgressDocuments.filter(doc => {
+      const staffTimeout = staffSettingsMap[doc.assigned_staff_id] ?? globalTimeoutMinutes;
+      const cutoffTime = now - staffTimeout * 60 * 1000;
+      const assignedTime = new Date(doc.assigned_at).getTime();
+      const isOverdue = assignedTime < cutoffTime;
+      
+      if (isOverdue) {
+        console.log(`Document ${doc.file_name} is overdue (staff timeout: ${staffTimeout}min)`);
+      }
+      
+      return isOverdue;
+    });
+
+    if (overdueDocuments.length === 0) {
       console.log('No overdue documents found');
       return new Response(
         JSON.stringify({ message: 'No overdue documents found', released: 0 }),
@@ -81,7 +120,8 @@ Deno.serve(async (req) => {
 
     // Log the releases
     for (const doc of overdueDocuments) {
-      console.log(`Released document: ${doc.file_name} (ID: ${doc.id}) - was assigned to staff ${doc.assigned_staff_id}`);
+      const staffTimeout = staffSettingsMap[doc.assigned_staff_id] ?? globalTimeoutMinutes;
+      console.log(`Released document: ${doc.file_name} (ID: ${doc.id}) - was assigned to staff ${doc.assigned_staff_id} (timeout: ${staffTimeout}min)`);
     }
 
     console.log(`Successfully released ${overdueDocuments.length} overdue documents`);

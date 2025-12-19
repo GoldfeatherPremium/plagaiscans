@@ -6,14 +6,30 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, UserPlus, Clock } from 'lucide-react';
+import { MessageCircle, Save, Loader2, UserPlus, Clock, Users, Settings2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AdminNotificationSender } from '@/components/AdminNotificationSender';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface UserProfile {
   id: string;
   email: string;
   full_name: string | null;
+}
+
+interface StaffMember {
+  id: string;
+  email: string;
+  full_name: string | null;
+  time_limit_minutes: number;
+  max_concurrent_files: number;
 }
 
 export default function AdminSettings() {
@@ -26,10 +42,13 @@ export default function AdminSettings() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [selectedUser, setSelectedUser] = useState('');
   const [selectedRole, setSelectedRole] = useState<'admin' | 'staff' | 'customer'>('staff');
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [savingStaffId, setSavingStaffId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSettings();
     fetchUsers();
+    fetchStaffWithSettings();
   }, []);
 
   const fetchSettings = async () => {
@@ -46,6 +65,47 @@ export default function AdminSettings() {
   const fetchUsers = async () => {
     const { data } = await supabase.from('profiles').select('id, email, full_name');
     if (data) setUsers(data);
+  };
+
+  const fetchStaffWithSettings = async () => {
+    // Get all staff members
+    const { data: staffRoles } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'staff');
+
+    if (!staffRoles || staffRoles.length === 0) {
+      setStaffMembers([]);
+      return;
+    }
+
+    const staffIds = staffRoles.map(r => r.user_id);
+
+    // Get profiles for staff
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, email, full_name')
+      .in('id', staffIds);
+
+    // Get staff settings
+    const { data: settings } = await supabase
+      .from('staff_settings')
+      .select('*')
+      .in('user_id', staffIds);
+
+    // Merge data
+    const merged: StaffMember[] = (profiles || []).map(profile => {
+      const setting = settings?.find(s => s.user_id === profile.id);
+      return {
+        id: profile.id,
+        email: profile.email,
+        full_name: profile.full_name,
+        time_limit_minutes: setting?.time_limit_minutes ?? 30,
+        max_concurrent_files: setting?.max_concurrent_files ?? 1,
+      };
+    });
+
+    setStaffMembers(merged);
   };
 
   const saveWhatsAppNumber = async () => {
@@ -66,7 +126,7 @@ export default function AdminSettings() {
     if (error) {
       toast({ title: 'Error', description: 'Failed to save timeout setting', variant: 'destructive' });
     } else {
-      toast({ title: 'Success', description: 'Processing timeout updated' });
+      toast({ title: 'Success', description: 'Global processing timeout updated' });
     }
   };
 
@@ -84,6 +144,36 @@ export default function AdminSettings() {
     } else {
       toast({ title: 'Success', description: `Role assigned: ${selectedRole}` });
       setSelectedUser('');
+      // Refresh staff list if role changed
+      fetchStaffWithSettings();
+    }
+  };
+
+  const updateStaffLimit = (staffId: string, field: 'time_limit_minutes' | 'max_concurrent_files', value: number) => {
+    setStaffMembers(prev => prev.map(s => 
+      s.id === staffId ? { ...s, [field]: value } : s
+    ));
+  };
+
+  const saveStaffSettings = async (staff: StaffMember) => {
+    setSavingStaffId(staff.id);
+    
+    // Upsert staff settings
+    const { error } = await supabase
+      .from('staff_settings')
+      .upsert({
+        user_id: staff.id,
+        time_limit_minutes: staff.time_limit_minutes,
+        max_concurrent_files: staff.max_concurrent_files,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+
+    setSavingStaffId(null);
+
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to save staff settings', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: `Settings saved for ${staff.full_name || staff.email}` });
     }
   };
 
@@ -99,7 +189,7 @@ export default function AdminSettings() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl space-y-6">
+      <div className="max-w-4xl space-y-6">
         <div>
           <h1 className="text-3xl font-display font-bold">Settings</h1>
           <p className="text-muted-foreground mt-1">Manage platform settings</p>
@@ -134,18 +224,18 @@ export default function AdminSettings() {
           </CardContent>
         </Card>
 
-        {/* Processing Timeout Settings */}
+        {/* Global Processing Timeout Settings */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-amber-500" />
-              Document Processing Timeout
+              Global Document Processing Timeout
             </CardTitle>
-            <CardDescription>Set the time limit for staff to process a document before it's auto-released</CardDescription>
+            <CardDescription>Default timeout for staff without individual settings</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="timeout">Timeout (minutes)</Label>
+              <Label htmlFor="timeout">Default Timeout (minutes)</Label>
               <Input
                 id="timeout"
                 type="number"
@@ -156,15 +246,93 @@ export default function AdminSettings() {
                 onChange={(e) => setProcessingTimeout(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Documents will be automatically released if not processed within this time (5-1440 minutes)
+                Used as fallback when staff has no individual timeout set (5-1440 minutes)
               </p>
             </div>
             <Button onClick={saveProcessingTimeout} disabled={savingTimeout}>
               {savingTimeout ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Save Timeout
+              Save Default Timeout
             </Button>
           </CardContent>
         </Card>
+
+        {/* Staff Individual Limits */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings2 className="h-5 w-5 text-primary" />
+              Staff Individual Limits
+            </CardTitle>
+            <CardDescription>Set custom time limits and file quotas for each staff member</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {staffMembers.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No staff members found. Assign staff roles below.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Staff Member</TableHead>
+                      <TableHead className="w-36">Time Limit (min)</TableHead>
+                      <TableHead className="w-36">Max Files</TableHead>
+                      <TableHead className="w-24 text-center">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {staffMembers.map((staff) => (
+                      <TableRow key={staff.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{staff.full_name || 'Unnamed'}</div>
+                            <div className="text-sm text-muted-foreground">{staff.email}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="5"
+                            max="1440"
+                            value={staff.time_limit_minutes}
+                            onChange={(e) => updateStaffLimit(staff.id, 'time_limit_minutes', parseInt(e.target.value) || 30)}
+                            className="w-24"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={staff.max_concurrent_files}
+                            onChange={(e) => updateStaffLimit(staff.id, 'max_concurrent_files', parseInt(e.target.value) || 1)}
+                            className="w-24"
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button 
+                            size="sm" 
+                            onClick={() => saveStaffSettings(staff)}
+                            disabled={savingStaffId === staff.id}
+                          >
+                            {savingStaffId === staff.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Save className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Role Assignment */}
         <Card>
           <CardHeader>
