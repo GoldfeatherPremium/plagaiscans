@@ -204,18 +204,17 @@ export const useDocuments = () => {
 
   const downloadFile = async (path: string, bucket: string = 'documents', originalFileName?: string) => {
     try {
-      const { data, error } = await supabase.storage.from(bucket).download(path);
+      // Use signed URL for faster direct download instead of downloading blob first
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(path, 60, {
+          download: originalFileName || path.split('/').pop() || 'download',
+        });
 
       if (error) throw error;
 
-      const url = URL.createObjectURL(data);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = originalFileName || path.split('/').pop() || 'download';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // Open the signed URL directly - browser handles the download
+      window.open(data.signedUrl, '_blank');
     } catch (error) {
       console.error('Error downloading file:', error);
       toast({
