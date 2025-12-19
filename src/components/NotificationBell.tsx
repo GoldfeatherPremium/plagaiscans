@@ -93,7 +93,7 @@ export const NotificationBell: React.FC = () => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="fixed top-4 right-36 z-40 bg-card border border-border shadow-lg rounded-full">
+        <Button variant="ghost" size="icon" className="fixed top-4 right-4 z-40 bg-card border border-border shadow-lg rounded-full">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
