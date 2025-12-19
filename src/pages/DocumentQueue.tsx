@@ -52,8 +52,8 @@ export default function DocumentQueue() {
     return () => clearInterval(interval);
   }, []);
 
-  // Check if staff already has a document in progress
-  const hasDocumentInProgress = documents.some(
+  // Check if staff already has a document in progress (admins can pick multiple)
+  const hasDocumentInProgress = role !== 'admin' && documents.some(
     (d) => d.assigned_staff_id === user?.id && d.status === 'in_progress'
   );
 
@@ -160,7 +160,7 @@ export default function DocumentQueue() {
         <div>
           <h1 className="text-3xl font-display font-bold">Document Queue</h1>
           <p className="text-muted-foreground mt-1">Process pending documents</p>
-          {role === 'staff' && hasDocumentInProgress && (
+          {hasDocumentInProgress && (
             <p className="text-sm text-amber-600 mt-2 flex items-center gap-2">
               <Lock className="h-4 w-4" />
               Complete your current document before picking another
