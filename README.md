@@ -1,73 +1,78 @@
-# Welcome to your Lovable project
+# PlagaiScans
 
-## Project info
+A comprehensive document plagiarism and AI detection platform powered by Turnitin®.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 📚 Documentation
 
-## How can I edit this code?
+For complete platform documentation, see **[DOCUMENTATION.md](./DOCUMENTATION.md)**
 
-There are several ways of editing your application.
+### Quick Links
 
-**Use Lovable**
+| Section | Description |
+|---------|-------------|
+| [Architecture](./DOCUMENTATION.md#architecture) | Frontend & backend stack overview |
+| [User Roles & Permissions](./DOCUMENTATION.md#user-roles--permissions) | Role hierarchy and access levels |
+| [Features by Role](./DOCUMENTATION.md#features-by-role) | Complete feature breakdown |
+| [Database Schema](./DOCUMENTATION.md#database-schema) | Tables, columns, and relationships |
+| [Edge Functions](./DOCUMENTATION.md#edge-functions) | Serverless functions documentation |
+| [Security & RLS Policies](./DOCUMENTATION.md#security--rls-policies) | Authentication and row-level security |
+| [Integrations](./DOCUMENTATION.md#integrations) | WhatsApp, Turnitin, Email setup |
+| [UI Components](./DOCUMENTATION.md#ui-components) | Component library overview |
+| [Routes Summary](./DOCUMENTATION.md#routes-summary) | All application routes |
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🚀 Quick Start
 
-**Use your preferred IDE**
+### Prerequisites
+- Node.js & npm - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### Local Development
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Clone the repository
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
+# Navigate to project directory
 cd <YOUR_PROJECT_NAME>
 
-# Step 3: Install the necessary dependencies.
+# Install dependencies
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🛠 Tech Stack
 
-**Use GitHub Codespaces**
+- **Frontend**: React 18, TypeScript, Tailwind CSS, shadcn/ui
+- **Backend**: Lovable Cloud (PostgreSQL, Edge Functions, Storage)
+- **Authentication**: Email/Password
+- **Charts**: Recharts
+- **Routing**: React Router v6
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
+## 📦 Deployment
 
-This project is built with:
+Open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click **Share → Publish**.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Custom Domain
 
-## How can I deploy this project?
+Navigate to **Project > Settings > Domains** and click **Connect Domain**.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+[Read more about custom domains](https://docs.lovable.dev/features/custom-domain#custom-domain)
 
-## Can I connect a custom domain to my Lovable project?
+---
 
-Yes, you can!
+## 🔗 Other Ways to Edit
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- **Lovable**: Visit your [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID)
+- **GitHub**: Edit files directly in the repository
+- **Codespaces**: Launch a cloud development environment
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+---
+
+**Powered by Turnitin® | Built with Lovable**
