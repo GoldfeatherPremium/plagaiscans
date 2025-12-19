@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
-import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare } from 'lucide-react';
+import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare, CheckCheck } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -297,6 +297,55 @@ export default function DocumentQueue() {
     }
   };
 
+  // Process All - Admin only: mark all pending/in-progress as completed
+  const [processingAll, setProcessingAll] = useState(false);
+  
+  const handleProcessAll = async () => {
+    if (role !== 'admin') return;
+    
+    const docsToProcess = availableDocs.filter(
+      d => d.status === 'pending' || d.status === 'in_progress'
+    );
+    
+    if (docsToProcess.length === 0) {
+      toast({
+        title: 'No Documents',
+        description: 'No pending or in-progress documents to process.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setProcessingAll(true);
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .update({ 
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          assigned_staff_id: user?.id,
+          assigned_at: new Date().toISOString(),
+        })
+        .in('id', docsToProcess.map(d => d.id));
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: `${docsToProcess.length} document(s) marked as completed.`,
+      });
+    } catch (error) {
+      console.error('Error processing all:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to process documents',
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessingAll(false);
+    }
+  };
+
   const handleOpenDialog = (doc: Document) => {
     setSelectedDoc(doc);
     setDialogOpen(true);
@@ -370,19 +419,42 @@ export default function DocumentQueue() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-display font-bold">Document Queue</h1>
-          <p className="text-muted-foreground mt-1">Process pending documents</p>
-          {role === 'staff' && (
-            <p className="text-sm text-muted-foreground mt-2">
-              Your limits: {mySettings.max_concurrent_files} file(s) at a time, {mySettings.time_limit_minutes} min per document
-            </p>
-          )}
-          {!canPickMore && (
-            <p className="text-sm text-amber-600 mt-2 flex items-center gap-2">
-              <Lock className="h-4 w-4" />
-              You have {myInProgressCount}/{mySettings.max_concurrent_files} documents in progress. Complete them to pick more.
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-display font-bold">Document Queue</h1>
+            <p className="text-muted-foreground mt-1">Process pending documents</p>
+            {role === 'staff' && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Your limits: {mySettings.max_concurrent_files} file(s) at a time, {mySettings.time_limit_minutes} min per document
+              </p>
+            )}
+            {!canPickMore && (
+              <p className="text-sm text-amber-600 mt-2 flex items-center gap-2">
+                <Lock className="h-4 w-4" />
+                You have {myInProgressCount}/{mySettings.max_concurrent_files} documents in progress. Complete them to pick more.
+              </p>
+            )}
+          </div>
+          
+          {/* Process All Button - Admin Only */}
+          {role === 'admin' && availableDocs.length > 0 && (
+            <Button 
+              onClick={handleProcessAll}
+              disabled={processingAll}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {processingAll ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <CheckCheck className="h-4 w-4 mr-2" />
+                  Process All ({availableDocs.length})
+                </>
+              )}
+            </Button>
           )}
         </div>
 
