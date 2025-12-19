@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
-import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock } from 'lucide-react';
+import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +25,16 @@ import {
 interface StaffSettings {
   time_limit_minutes: number;
   max_concurrent_files: number;
+}
+
+interface BatchReportData {
+  docId: string;
+  fileName: string;
+  similarityPercent: string;
+  aiPercent: string;
+  similarityFile: File | null;
+  aiFile: File | null;
+  remarks: string;
 }
 
 export default function DocumentQueue() {
@@ -43,6 +54,12 @@ export default function DocumentQueue() {
   const [globalTimeout, setGlobalTimeout] = useState(30);
   const [mySettings, setMySettings] = useState<StaffSettings>({ time_limit_minutes: 30, max_concurrent_files: 1 });
   const [, setTick] = useState(0);
+  
+  // Batch selection state
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false);
+  const [batchReportData, setBatchReportData] = useState<BatchReportData[]>([]);
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
 
   // Fetch settings
   useEffect(() => {
@@ -119,6 +136,165 @@ export default function DocumentQueue() {
       title: 'Document Assigned',
       description: 'This document is now assigned to you.',
     });
+  };
+
+  // Toggle document selection
+  const toggleDocSelection = (docId: string) => {
+    setSelectedDocIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(docId)) {
+        newSet.delete(docId);
+      } else {
+        newSet.add(docId);
+      }
+      return newSet;
+    });
+  };
+
+  // Select all pending documents
+  const selectAllPending = () => {
+    const pendingIds = availableDocs
+      .filter(d => d.status === 'pending' && !d.assigned_staff_id)
+      .map(d => d.id);
+    setSelectedDocIds(new Set(pendingIds));
+  };
+
+  // Select all my in-progress documents
+  const selectAllMyInProgress = () => {
+    const myDocs = availableDocs
+      .filter(d => d.assigned_staff_id === user?.id && d.status === 'in_progress')
+      .map(d => d.id);
+    setSelectedDocIds(new Set(myDocs));
+  };
+
+  // Clear selection
+  const clearSelection = () => {
+    setSelectedDocIds(new Set());
+  };
+
+  // Batch pick documents
+  const handleBatchPick = async () => {
+    const pendingSelected = availableDocs.filter(
+      d => selectedDocIds.has(d.id) && d.status === 'pending' && !d.assigned_staff_id
+    );
+    
+    if (pendingSelected.length === 0) {
+      toast({
+        title: 'No Documents Selected',
+        description: 'Please select pending documents to pick.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check limit for staff
+    if (role === 'staff') {
+      const available = mySettings.max_concurrent_files - myInProgressCount;
+      if (pendingSelected.length > available) {
+        toast({
+          title: 'Limit Exceeded',
+          description: `You can only pick ${available} more document(s). You selected ${pendingSelected.length}.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    // Pick all selected documents
+    for (const doc of pendingSelected) {
+      await updateDocumentStatus(doc.id, 'in_progress');
+    }
+    
+    toast({
+      title: 'Documents Assigned',
+      description: `${pendingSelected.length} document(s) assigned to you.`,
+    });
+    setSelectedDocIds(new Set());
+  };
+
+  // Open batch upload dialog
+  const handleOpenBatchUpload = () => {
+    const mySelectedDocs = availableDocs.filter(
+      d => selectedDocIds.has(d.id) && d.assigned_staff_id === user?.id && d.status === 'in_progress'
+    );
+    
+    if (mySelectedDocs.length === 0) {
+      toast({
+        title: 'No Documents Selected',
+        description: 'Please select your in-progress documents to upload reports.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Initialize batch data
+    setBatchReportData(mySelectedDocs.map(doc => ({
+      docId: doc.id,
+      fileName: doc.file_name,
+      similarityPercent: '',
+      aiPercent: '',
+      similarityFile: null,
+      aiFile: null,
+      remarks: '',
+    })));
+    setBatchDialogOpen(true);
+  };
+
+  // Update batch report data
+  const updateBatchData = (index: number, field: keyof BatchReportData, value: string | File | null) => {
+    setBatchReportData(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  // Submit batch reports
+  const handleBatchSubmit = async () => {
+    // Validate all entries
+    for (const data of batchReportData) {
+      if (role === 'staff' && (!data.similarityFile || !data.aiFile)) {
+        toast({
+          title: 'Reports Required',
+          description: `Both reports required for ${data.fileName}`,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    setBatchSubmitting(true);
+    try {
+      for (const data of batchReportData) {
+        const doc = documents.find(d => d.id === data.docId);
+        if (doc) {
+          await uploadReport(
+            data.docId,
+            doc,
+            data.similarityFile,
+            data.aiFile,
+            parseFloat(data.similarityPercent) || 0,
+            parseFloat(data.aiPercent) || 0,
+            data.remarks.trim() || null
+          );
+        }
+      }
+      toast({
+        title: 'Success',
+        description: `${batchReportData.length} document(s) completed.`,
+      });
+      setBatchDialogOpen(false);
+      setBatchReportData([]);
+      setSelectedDocIds(new Set());
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to submit some reports',
+        variant: 'destructive',
+      });
+    } finally {
+      setBatchSubmitting(false);
+    }
   };
 
   const handleOpenDialog = (doc: Document) => {
@@ -222,131 +398,186 @@ export default function DocumentQueue() {
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12 text-center">#</TableHead>
-                      <TableHead>Document</TableHead>
-                      {role === 'admin' && <TableHead>Customer</TableHead>}
-                      <TableHead>Upload Time</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-center">Processing By</TableHead>
-                      <TableHead className="text-center">Time Elapsed</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {availableDocs.map((doc, index) => {
-                      const isAssignedToMe = doc.assigned_staff_id === user?.id;
-                      const { date, time } = formatDateTime(doc.uploaded_at);
-                      const elapsedInfo = getElapsedTime(doc.assigned_at);
-                      const overdue = isOverdue(doc.assigned_at);
-
-                      return (
-                        <TableRow key={doc.id} className={`${isAssignedToMe ? 'bg-primary/5' : ''} ${overdue ? 'bg-destructive/5' : ''}`}>
-                          <TableCell className="text-center font-medium">
-                            {index + 1}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-primary flex-shrink-0" />
-                              <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
-                                {doc.file_name}
-                              </span>
-                            </div>
-                          </TableCell>
-                          {role === 'admin' && (
-                            <TableCell>
-                              <span className="text-sm truncate max-w-[150px]" title={doc.customer_profile?.email}>
-                                {doc.customer_profile?.full_name || doc.customer_profile?.email || '-'}
-                              </span>
-                            </TableCell>
-                          )}
-                          <TableCell>
-                            <div className="text-sm">
-                              <div>{date}</div>
-                              <div className="text-muted-foreground">{time}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <StatusBadge status={doc.status} />
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {isAssignedToMe ? (
-                              <span className="text-xs text-primary font-medium">You</span>
-                            ) : doc.staff_profile ? (
-                              <span className="text-xs text-muted-foreground" title={doc.staff_profile.email}>
-                                {doc.staff_profile.full_name || doc.staff_profile.email}
-                              </span>
-                            ) : doc.assigned_staff_id ? (
-                              <span className="text-xs text-muted-foreground">Staff</span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {elapsedInfo ? (
-                              <div className={`flex items-center justify-center gap-1 text-xs ${overdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                                <Clock className="h-3 w-3" />
-                                {elapsedInfo.display}
-                                {overdue && <span className="text-destructive">(overdue)</span>}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center justify-center gap-2 flex-wrap">
-                              {doc.status === 'pending' && !isAssignedToMe && (
-                                <Button 
-                                  size="sm" 
-                                  onClick={() => handlePickDocument(doc)}
-                                  disabled={!canPickMore}
-                                >
-                                  Pick
-                                </Button>
-                              )}
-                              
-                              {isAssignedToMe && (
-                                <>
-                                  <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path, 'documents', doc.file_name)}>
-                                    <Download className="h-4 w-4" />
-                                  </Button>
-                                  <Button size="sm" onClick={() => handleOpenDialog(doc)}>
-                                    <Upload className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              )}
-                              
-                              {role === 'admin' && !isAssignedToMe && doc.status === 'in_progress' && (
-                                <>
-                                  <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path, 'documents', doc.file_name)}>
-                                    <Download className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="text-amber-600 border-amber-600/30"
-                                    onClick={() => handleReleaseDocument(doc)}
-                                    title="Release document (make available to other staff)"
-                                  >
-                                    <Unlock className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+          <>
+            {/* Batch Action Buttons */}
+            {selectedDocIds.size > 0 && (
+              <div className="flex items-center gap-2 flex-wrap bg-muted/50 p-3 rounded-lg">
+                <span className="text-sm font-medium">{selectedDocIds.size} selected</span>
+                <Button size="sm" variant="outline" onClick={clearSelection}>
+                  Clear
+                </Button>
+                <Button size="sm" onClick={handleBatchPick}>
+                  <CheckSquare className="h-4 w-4 mr-1" />
+                  Batch Pick
+                </Button>
+                <Button size="sm" onClick={handleOpenBatchUpload}>
+                  <Upload className="h-4 w-4 mr-1" />
+                  Batch Upload Reports
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+            )}
+            
+            {/* Quick Select Buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground">Quick Select:</span>
+              <Button size="sm" variant="ghost" onClick={selectAllPending}>
+                All Pending
+              </Button>
+              <Button size="sm" variant="ghost" onClick={selectAllMyInProgress}>
+                My In-Progress
+              </Button>
+              {selectedDocIds.size > 0 && (
+                <Button size="sm" variant="ghost" onClick={clearSelection}>
+                  Clear All
+                </Button>
+              )}
+            </div>
+
+            <Card>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10 text-center">
+                          <Checkbox 
+                            checked={selectedDocIds.size === availableDocs.length && availableDocs.length > 0}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedDocIds(new Set(availableDocs.map(d => d.id)));
+                              } else {
+                                setSelectedDocIds(new Set());
+                              }
+                            }}
+                          />
+                        </TableHead>
+                        <TableHead className="w-12 text-center">#</TableHead>
+                        <TableHead>Document</TableHead>
+                        {role === 'admin' && <TableHead>Customer</TableHead>}
+                        <TableHead>Upload Time</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
+                        <TableHead className="text-center">Processing By</TableHead>
+                        <TableHead className="text-center">Time Elapsed</TableHead>
+                        <TableHead className="text-center">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {availableDocs.map((doc, index) => {
+                        const isAssignedToMe = doc.assigned_staff_id === user?.id;
+                        const { date, time } = formatDateTime(doc.uploaded_at);
+                        const elapsedInfo = getElapsedTime(doc.assigned_at);
+                        const overdue = isOverdue(doc.assigned_at);
+                        const isSelected = selectedDocIds.has(doc.id);
+
+                        return (
+                          <TableRow key={doc.id} className={`${isSelected ? 'bg-primary/10' : ''} ${isAssignedToMe ? 'bg-primary/5' : ''} ${overdue ? 'bg-destructive/5' : ''}`}>
+                            <TableCell className="text-center">
+                              <Checkbox 
+                                checked={isSelected}
+                                onCheckedChange={() => toggleDocSelection(doc.id)}
+                              />
+                            </TableCell>
+                            <TableCell className="text-center font-medium">
+                              {index + 1}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                                <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
+                                  {doc.file_name}
+                                </span>
+                              </div>
+                            </TableCell>
+                            {role === 'admin' && (
+                              <TableCell>
+                                <span className="text-sm truncate max-w-[150px]" title={doc.customer_profile?.email}>
+                                  {doc.customer_profile?.full_name || doc.customer_profile?.email || '-'}
+                                </span>
+                              </TableCell>
+                            )}
+                            <TableCell>
+                              <div className="text-sm">
+                                <div>{date}</div>
+                                <div className="text-muted-foreground">{time}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <StatusBadge status={doc.status} />
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {isAssignedToMe ? (
+                                <span className="text-xs text-primary font-medium">You</span>
+                              ) : doc.staff_profile ? (
+                                <span className="text-xs text-muted-foreground" title={doc.staff_profile.email}>
+                                  {doc.staff_profile.full_name || doc.staff_profile.email}
+                                </span>
+                              ) : doc.assigned_staff_id ? (
+                                <span className="text-xs text-muted-foreground">Staff</span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {elapsedInfo ? (
+                                <div className={`flex items-center justify-center gap-1 text-xs ${overdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                                  <Clock className="h-3 w-3" />
+                                  {elapsedInfo.display}
+                                  {overdue && <span className="text-destructive">(overdue)</span>}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-center gap-2 flex-wrap">
+                                {doc.status === 'pending' && !isAssignedToMe && (
+                                  <Button 
+                                    size="sm" 
+                                    onClick={() => handlePickDocument(doc)}
+                                    disabled={!canPickMore}
+                                  >
+                                    Pick
+                                  </Button>
+                                )}
+                                
+                                {isAssignedToMe && (
+                                  <>
+                                    <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path, 'documents', doc.file_name)}>
+                                      <Download className="h-4 w-4" />
+                                    </Button>
+                                    <Button size="sm" onClick={() => handleOpenDialog(doc)}>
+                                      <Upload className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                                
+                                {role === 'admin' && !isAssignedToMe && doc.status === 'in_progress' && (
+                                  <>
+                                    <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path, 'documents', doc.file_name)}>
+                                      <Download className="h-4 w-4" />
+                                    </Button>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="text-amber-600 border-amber-600/30"
+                                      onClick={() => handleReleaseDocument(doc)}
+                                      title="Release document (make available to other staff)"
+                                    >
+                                      <Unlock className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </>
         )}
 
         <Dialog open={dialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
@@ -423,6 +654,107 @@ export default function DocumentQueue() {
                 disabled={submitting || (role === 'staff' && (!similarityFile || !aiFile))}
               >
                 {submitting ? 'Submitting...' : 'Complete & Submit'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Batch Upload Dialog */}
+        <Dialog open={batchDialogOpen} onOpenChange={(open) => !open && setBatchDialogOpen(false)}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
+            <DialogHeader>
+              <DialogTitle>Batch Upload Reports ({batchReportData.length} documents)</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-6">
+              {batchReportData.map((data, index) => (
+                <div key={data.docId} className="border rounded-lg p-4 space-y-3">
+                  <h4 className="font-medium text-sm flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    {data.fileName}
+                  </h4>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Similarity %</Label>
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        max="100" 
+                        value={data.similarityPercent}
+                        onChange={(e) => updateBatchData(index, 'similarityPercent', e.target.value)}
+                        placeholder="0-100"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">AI Detection %</Label>
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        max="100" 
+                        value={data.aiPercent}
+                        onChange={(e) => updateBatchData(index, 'aiPercent', e.target.value)}
+                        placeholder="0-100"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Similarity Report (PDF)</Label>
+                      <Input 
+                        type="file" 
+                        accept=".pdf" 
+                        onChange={(e) => updateBatchData(index, 'similarityFile', e.target.files?.[0] || null)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      {data.similarityFile && (
+                        <p className="text-xs text-muted-foreground mt-1 truncate">{data.similarityFile.name}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label className="text-xs">AI Report (PDF)</Label>
+                      <Input 
+                        type="file" 
+                        accept=".pdf" 
+                        onChange={(e) => updateBatchData(index, 'aiFile', e.target.files?.[0] || null)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      {data.aiFile && (
+                        <p className="text-xs text-muted-foreground mt-1 truncate">{data.aiFile.name}</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-xs">Remarks (Optional)</Label>
+                    <Textarea 
+                      placeholder="Add remarks..."
+                      value={data.remarks}
+                      onChange={(e) => updateBatchData(index, 'remarks', e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+                  
+                  {role === 'staff' && (!data.similarityFile || !data.aiFile) && (
+                    <p className="text-xs text-destructive">Both reports required</p>
+                  )}
+                </div>
+              ))}
+              
+              <Button 
+                className="w-full" 
+                onClick={handleBatchSubmit}
+                disabled={batchSubmitting || (role === 'staff' && batchReportData.some(d => !d.similarityFile || !d.aiFile))}
+              >
+                {batchSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  `Complete All ${batchReportData.length} Documents`
+                )}
               </Button>
             </div>
           </DialogContent>
