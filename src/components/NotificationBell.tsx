@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Bell, X } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -25,6 +25,25 @@ export const NotificationBell: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
+  const [isRinging, setIsRinging] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Play notification sound
+  const playNotificationSound = useCallback(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2JkI+Kf3R0fYiRlI+Eg3x6fYKGhYOAfXx9f4GBf3x5eHh6fH5/fn18fH1/gYKCgoB+fXx8fX5/f4B/fn5+f4CCg4ODgoF/fn19fX5/gIGBgYB/fn19fX5/gIGBgYB/fn19fX5/gIGBgYB/fn19fX5/gIGBgYB/fn18fH1+f4CAgH9+fXx8fX5/gIB/fn18fHx9fn+AgH9+fXx8fH1+f4B/fn18fHx9fn9/fn18fHx9fn9/fn18fHx8fX5/f359fHx8fH1+f399fXx8fHx9fn9/fXx8fHx8fX5/f318fHx8fH1+f399fHx8fHx9fn9/fXx8fHx8fX5+f318fHx8fH19fn99fXx8fHx8fX5+fXx8fHx8fH19fn58fHx8fHx8fX5+fXx8fHx8fHx9fn58fHx8fHx8fX1+fnx8fHx8fHx9fX5+fHx8fHx8fH19fn18fHx8fHx8fX1+fXx8fHx8fHx9fX59fHx8fHx8fH19fn18fHx8fHx8fH19fnx8fHx8fHx8fX1+fHx8fHx8fHx9fX58fHx8fHx8fHx9fXx8fHx8fHx8fH19fHx8fHx8fHx8fX18fHx8fHx8fHx9fXx8fHx8fHx8fHx9fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8');
+    }
+    audioRef.current.currentTime = 0;
+    audioRef.current.volume = 0.3;
+    audioRef.current.play().catch(() => {});
+  }, []);
+
+  // Trigger bell animation
+  const triggerBellRing = useCallback(() => {
+    setIsRinging(true);
+    playNotificationSound();
+    setTimeout(() => setIsRinging(false), 500);
+  }, [playNotificationSound]);
 
   useEffect(() => {
     if (!user) return;
@@ -70,6 +89,7 @@ export const NotificationBell: React.FC = () => {
         { event: 'INSERT', schema: 'public', table: 'notifications' },
         (payload) => {
           setNotifications(prev => [{ ...payload.new as Notification, type: 'broadcast' }, ...prev]);
+          triggerBellRing();
         }
       )
       .subscribe();
@@ -82,6 +102,7 @@ export const NotificationBell: React.FC = () => {
         { event: 'INSERT', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${user.id}` },
         (payload) => {
           setNotifications(prev => [{ ...payload.new as Notification, type: 'personal' }, ...prev]);
+          triggerBellRing();
         }
       )
       .subscribe();
@@ -90,7 +111,7 @@ export const NotificationBell: React.FC = () => {
       supabase.removeChannel(broadcastChannel);
       supabase.removeChannel(personalChannel);
     };
-  }, [user]);
+  }, [user, triggerBellRing]);
 
   const markAsRead = async (notif: Notification) => {
     if (!user) return;
@@ -153,10 +174,14 @@ export const NotificationBell: React.FC = () => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="fixed top-4 right-4 z-40 bg-card border border-border shadow-lg rounded-full">
-          <Bell className="h-5 w-5" />
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="fixed top-4 right-4 z-40 bg-card border border-border shadow-lg rounded-full"
+        >
+          <Bell className={`h-5 w-5 ${isRinging ? 'animate-bell-ring' : ''} ${unreadCount > 0 ? 'text-primary' : ''}`} />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center animate-pulse">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
