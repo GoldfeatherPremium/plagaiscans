@@ -306,6 +306,18 @@ export const useDocuments = () => {
   ) => {
     if (!user) return;
 
+    // Staff (not admin) MUST upload both reports to complete a document
+    if (role === 'staff') {
+      if (!similarityReport || !aiReport) {
+        toast({
+          title: 'Reports Required',
+          description: 'You must upload both Similarity Report and AI Report before completing this document.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     try {
       const updates: Record<string, unknown> = {
         similarity_percentage: similarityPercentage,
