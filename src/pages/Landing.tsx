@@ -22,7 +22,7 @@ export default function Landing() {
     {
       icon: FileText,
       title: 'Similarity Detection',
-      description: 'Advanced plagiarism checking against billions of sources worldwide',
+      description: 'Documents checked against Turnitin\'s database of billions of academic papers, websites, and publications',
     },
     {
       icon: Bot,
@@ -90,10 +90,21 @@ export default function Landing() {
             Detect Plagiarism & AI Content
             <span className="gradient-text block">With Confidence</span>
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-6 animate-fade-in" style={{ animationDelay: '0.2s' }}>
             Professional document checking service for students, educators, and businesses. 
             Get detailed similarity and AI detection reports in hours.
           </p>
+          
+          {/* Turnitin Partnership Badge */}
+          <div className="flex items-center justify-center gap-3 mb-8 animate-fade-in" style={{ animationDelay: '0.25s' }}>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border">
+              <div className="flex items-center">
+                <span className="text-lg font-bold text-[#1f4e79]">turnitin</span>
+                <span className="text-[#d9534f] text-xl ml-0.5">®</span>
+              </div>
+              <span className="text-sm text-muted-foreground">Powered Database</span>
+            </div>
+          </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in" style={{ animationDelay: '0.3s' }}>
             <Button size="lg" asChild>
               <Link to="/auth">
