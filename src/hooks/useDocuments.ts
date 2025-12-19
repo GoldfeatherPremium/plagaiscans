@@ -30,6 +30,10 @@ export interface Document {
     email: string;
     full_name: string | null;
   };
+  customer_profile?: {
+    email: string;
+    full_name: string | null;
+  };
 }
 
 export const useDocuments = () => {
@@ -71,12 +75,31 @@ export const useDocuments = () => {
         }
       }
 
-      const docsWithStaff = (data || []).map(doc => ({
+      // Fetch customer profiles (document owners)
+      const customerIds = [...new Set((data || []).map(d => d.user_id))];
+      let customerProfiles: Record<string, { email: string; full_name: string | null }> = {};
+      
+      if (customerIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, email, full_name')
+          .in('id', customerIds);
+        
+        if (profiles) {
+          customerProfiles = profiles.reduce((acc, p) => {
+            acc[p.id] = { email: p.email, full_name: p.full_name };
+            return acc;
+          }, {} as Record<string, { email: string; full_name: string | null }>);
+        }
+      }
+
+      const docsWithProfiles = (data || []).map(doc => ({
         ...doc,
-        staff_profile: doc.assigned_staff_id ? staffProfiles[doc.assigned_staff_id] : undefined
+        staff_profile: doc.assigned_staff_id ? staffProfiles[doc.assigned_staff_id] : undefined,
+        customer_profile: customerProfiles[doc.user_id] || undefined
       }));
 
-      setDocuments(docsWithStaff as Document[]);
+      setDocuments(docsWithProfiles as Document[]);
     } catch (error) {
       console.error('Error fetching documents:', error);
       toast({

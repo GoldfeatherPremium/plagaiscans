@@ -230,6 +230,7 @@ export default function DocumentQueue() {
                     <TableRow>
                       <TableHead className="w-12 text-center">#</TableHead>
                       <TableHead>Document</TableHead>
+                      {role === 'admin' && <TableHead>Customer</TableHead>}
                       <TableHead>Upload Time</TableHead>
                       <TableHead className="text-center">Status</TableHead>
                       <TableHead className="text-center">Processing By</TableHead>
@@ -257,6 +258,13 @@ export default function DocumentQueue() {
                               </span>
                             </div>
                           </TableCell>
+                          {role === 'admin' && (
+                            <TableCell>
+                              <span className="text-sm truncate max-w-[150px]" title={doc.customer_profile?.email}>
+                                {doc.customer_profile?.full_name || doc.customer_profile?.email || '-'}
+                              </span>
+                            </TableCell>
+                          )}
                           <TableCell>
                             <div className="text-sm">
                               <div>{date}</div>
