@@ -142,9 +142,13 @@ export default function DocumentQueue() {
     
     // Assign to this staff member
     await updateDocumentStatus(doc.id, 'in_progress');
+    
+    // Auto-download the file
+    downloadFile(doc.file_path, 'documents', doc.file_name);
+    
     toast({
       title: 'Document Assigned',
-      description: 'This document is now assigned to you.',
+      description: 'Document assigned and download started.',
     });
   };
 
@@ -210,14 +214,15 @@ export default function DocumentQueue() {
       }
     }
 
-    // Pick all selected documents
+    // Pick all selected documents and download them
     for (const doc of pendingSelected) {
       await updateDocumentStatus(doc.id, 'in_progress');
+      downloadFile(doc.file_path, 'documents', doc.file_name);
     }
     
     toast({
       title: 'Documents Assigned',
-      description: `${pendingSelected.length} document(s) assigned to you.`,
+      description: `${pendingSelected.length} document(s) assigned and downloads started.`,
     });
     setSelectedDocIds(new Set());
   };
@@ -493,10 +498,6 @@ export default function DocumentQueue() {
                 <Button size="sm" onClick={handleBatchPick}>
                   <CheckSquare className="h-4 w-4 mr-1" />
                   Batch Pick
-                </Button>
-                <Button size="sm" onClick={handleOpenBatchUpload}>
-                  <Upload className="h-4 w-4 mr-1" />
-                  Batch Upload Reports
                 </Button>
               </div>
             )}
