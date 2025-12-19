@@ -89,16 +89,19 @@ export default function DocumentQueue() {
   const canPickMore = role === 'admin' || myInProgressCount < mySettings.max_concurrent_files;
 
   // Filter documents: show pending (not assigned) or assigned to current user
-  const availableDocs = documents.filter((d) => {
-    if (role === 'admin') {
-      return d.status === 'pending' || d.status === 'in_progress';
-    }
-    // Staff can see: unassigned pending docs OR their own in-progress docs
-    return (
-      (d.status === 'pending' && !d.assigned_staff_id) ||
-      (d.assigned_staff_id === user?.id && d.status === 'in_progress')
-    );
-  });
+  // Sort by uploaded_at ascending (oldest first, newest last)
+  const availableDocs = documents
+    .filter((d) => {
+      if (role === 'admin') {
+        return d.status === 'pending' || d.status === 'in_progress';
+      }
+      // Staff can see: unassigned pending docs OR their own in-progress docs
+      return (
+        (d.status === 'pending' && !d.assigned_staff_id) ||
+        (d.assigned_staff_id === user?.id && d.status === 'in_progress')
+      );
+    })
+    .sort((a, b) => new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime());
 
   const handlePickDocument = async (doc: Document) => {
     if (!canPickMore && doc.assigned_staff_id !== user?.id) {
