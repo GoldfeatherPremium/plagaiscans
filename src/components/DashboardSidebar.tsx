@@ -46,6 +46,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/staff-work', icon: ClipboardList, label: 'Staff Work' },
     { to: '/dashboard/users', icon: Users, label: 'User Management' },
     { to: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
+    { to: '/dashboard/magic-links', icon: Upload, label: 'Magic Links' },
     { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
     { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
     { to: '/dashboard/profile', icon: User, label: 'Profile' },
