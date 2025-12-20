@@ -214,9 +214,18 @@ export default function DocumentQueue() {
       }
     }
 
-    // Pick all selected documents and download them
+    // Pick all selected documents
     for (const doc of pendingSelected) {
       await updateDocumentStatus(doc.id, 'in_progress');
+    }
+
+    // Download files with small delay between each to prevent browser blocking
+    for (let i = 0; i < pendingSelected.length; i++) {
+      const doc = pendingSelected[i];
+      // Small delay between downloads to allow browser to process each
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
       downloadFile(doc.file_path, 'documents', doc.file_name);
     }
     
