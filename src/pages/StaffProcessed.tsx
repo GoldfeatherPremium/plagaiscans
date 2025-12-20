@@ -25,21 +25,7 @@ export default function StaffProcessed() {
   );
 
   const handleDownloadDocument = (doc: Document) => {
-    downloadFile(doc.file_path, 'documents', doc.file_name);
-  };
-
-  const handleDownloadSimilarityReport = (doc: Document) => {
-    if (doc.similarity_report_path) {
-      const baseName = doc.file_name.replace(/\.[^/.]+$/, '');
-      downloadFile(doc.similarity_report_path, 'reports', `${baseName}_similarity.pdf`);
-    }
-  };
-
-  const handleDownloadAIReport = (doc: Document) => {
-    if (doc.ai_report_path) {
-      const baseName = doc.file_name.replace(/\.[^/.]+$/, '');
-      downloadFile(doc.ai_report_path, 'reports', `${baseName}_ai.pdf`);
-    }
+    downloadFile(doc.file_path, doc.magic_link_id ? 'magic-uploads' : 'documents', doc.file_name);
   };
 
   const formatDateTime = (dateString: string) => {
@@ -85,8 +71,6 @@ export default function StaffProcessed() {
                       <TableHead>Document</TableHead>
                       <TableHead>Completed At</TableHead>
                       <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-center">Similarity %</TableHead>
-                      <TableHead className="text-center">AI %</TableHead>
                       <TableHead className="text-center">Document</TableHead>
                       <TableHead className="text-center">Similarity Report</TableHead>
                       <TableHead className="text-center">AI Report</TableHead>
@@ -96,11 +80,10 @@ export default function StaffProcessed() {
                   <TableBody>
                     {myProcessedDocs.map((doc, index) => {
                       const { date, time } = formatDateTime(doc.completed_at || doc.uploaded_at);
+                      const baseName = doc.file_name.replace(/\.[^/.]+$/, '');
                       return (
                         <TableRow key={doc.id}>
-                          <TableCell className="text-center font-medium">
-                            {index + 1}
-                          </TableCell>
+                          <TableCell className="text-center font-medium">{index + 1}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <FileText className="h-4 w-4 text-primary flex-shrink-0" />
@@ -119,21 +102,7 @@ export default function StaffProcessed() {
                             <StatusBadge status={doc.status} />
                           </TableCell>
                           <TableCell className="text-center">
-                            <span className="font-semibold text-primary">
-                              {doc.similarity_percentage}%
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="font-semibold text-secondary">
-                              {doc.ai_percentage}%
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDownloadDocument(doc)}
-                            >
+                            <Button variant="outline" size="sm" onClick={() => handleDownloadDocument(doc)}>
                               <Download className="h-4 w-4" />
                             </Button>
                           </TableCell>
@@ -142,7 +111,7 @@ export default function StaffProcessed() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleDownloadSimilarityReport(doc)}
+                                onClick={() => downloadFile(doc.similarity_report_path!, 'reports', `${baseName}_similarity.pdf`)}
                               >
                                 <Download className="h-4 w-4" />
                               </Button>
@@ -155,7 +124,7 @@ export default function StaffProcessed() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleDownloadAIReport(doc)}
+                                onClick={() => downloadFile(doc.ai_report_path!, 'reports', `${baseName}_ai.pdf`)}
                               >
                                 <Download className="h-4 w-4" />
                               </Button>

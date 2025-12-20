@@ -28,8 +28,6 @@ interface ProcessedDocument {
   completed_at: string;
   staff_id: string;
   staff_name: string;
-  similarity_percentage: number | null;
-  ai_percentage: number | null;
 }
 
 interface DailyStats {
@@ -94,7 +92,7 @@ export default function AdminStaffWork() {
     if (docIds.length > 0) {
       const { data: docs } = await supabase
         .from('documents')
-        .select('id, file_name, completed_at, similarity_percentage, ai_percentage')
+        .select('id, file_name, completed_at')
         .in('id', docIds);
 
       docs?.forEach((d) => {
@@ -120,8 +118,6 @@ export default function AdminStaffWork() {
       completed_at: log.created_at,
       staff_id: log.staff_id,
       staff_name: staffMap[log.staff_id] || 'Unknown',
-      similarity_percentage: documents[log.document_id]?.similarity_percentage,
-      ai_percentage: documents[log.document_id]?.ai_percentage,
     }));
 
     setProcessedDocs(processed);
@@ -397,9 +393,7 @@ export default function AdminStaffWork() {
                       <TableHead className="w-12">#</TableHead>
                       <TableHead>Document</TableHead>
                       <TableHead>Processed By</TableHead>
-                      <TableHead>Date & Time</TableHead>
-                      <TableHead className="text-center">Similarity %</TableHead>
-                      <TableHead className="text-center">AI %</TableHead>
+                      <TableHead>Date &amp; Time</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -424,20 +418,6 @@ export default function AdminStaffWork() {
                               <div>{date}</div>
                               <div className="text-muted-foreground">{time}</div>
                             </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {doc.similarity_percentage !== null ? (
-                              <span className={doc.similarity_percentage > 20 ? 'text-destructive font-medium' : ''}>
-                                {doc.similarity_percentage}%
-                              </span>
-                            ) : '-'}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {doc.ai_percentage !== null ? (
-                              <span className={doc.ai_percentage > 20 ? 'text-destructive font-medium' : ''}>
-                                {doc.ai_percentage}%
-                              </span>
-                            ) : '-'}
                           </TableCell>
                         </TableRow>
                       );

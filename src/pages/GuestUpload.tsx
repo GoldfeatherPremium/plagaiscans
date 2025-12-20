@@ -478,8 +478,6 @@ export default function GuestUpload() {
                           <TableHead>Document</TableHead>
                           <TableHead>Upload Time</TableHead>
                           <TableHead className="text-center">Status</TableHead>
-                          <TableHead className="text-center">Similarity %</TableHead>
-                          <TableHead className="text-center">AI %</TableHead>
                           <TableHead className="text-center">Similarity Report</TableHead>
                           <TableHead className="text-center">AI Report</TableHead>
                           <TableHead>Remarks</TableHead>
@@ -491,9 +489,7 @@ export default function GuestUpload() {
                           const status = file.status || 'pending';
                           return (
                             <TableRow key={file.id}>
-                              <TableCell className="text-center font-medium">
-                                {index + 1}
-                              </TableCell>
+                              <TableCell className="text-center font-medium">{index + 1}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   <FileText className="h-4 w-4 text-primary flex-shrink-0" />
@@ -509,41 +505,32 @@ export default function GuestUpload() {
                                 </div>
                               </TableCell>
                               <TableCell className="text-center">
-                                <Badge 
+                                <Badge
                                   variant={
-                                    status === 'completed' ? 'default' : 
-                                    status === 'in_progress' ? 'secondary' : 
-                                    'outline'
+                                    status === 'completed'
+                                      ? 'default'
+                                      : status === 'in_progress'
+                                        ? 'secondary'
+                                        : 'outline'
                                   }
                                 >
-                                  {status === 'in_progress' ? 'Processing' : 
-                                   status.charAt(0).toUpperCase() + status.slice(1)}
+                                  {status === 'in_progress'
+                                    ? 'Processing'
+                                    : status.charAt(0).toUpperCase() + status.slice(1)}
                                 </Badge>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {status === 'completed' && file.similarity_percentage !== null ? (
-                                  <span className="font-semibold text-primary">
-                                    {file.similarity_percentage}%
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {status === 'completed' && file.ai_percentage !== null ? (
-                                  <span className="font-semibold text-secondary">
-                                    {file.ai_percentage}%
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
                               </TableCell>
                               <TableCell className="text-center">
                                 {file.similarity_report_path ? (
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => downloadMagicFile(file.similarity_report_path!, `${file.file_name}_similarity.pdf`, 'reports')}
+                                    onClick={() =>
+                                      downloadMagicFile(
+                                        file.similarity_report_path!,
+                                        `${file.file_name}_similarity.pdf`,
+                                        'reports'
+                                      )
+                                    }
                                     title="Download Similarity Report"
                                   >
                                     <Download className="h-4 w-4" />
@@ -557,7 +544,9 @@ export default function GuestUpload() {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => downloadMagicFile(file.ai_report_path!, `${file.file_name}_ai.pdf`, 'reports')}
+                                    onClick={() =>
+                                      downloadMagicFile(file.ai_report_path!, `${file.file_name}_ai.pdf`, 'reports')
+                                    }
                                     title="Download AI Report"
                                   >
                                     <Download className="h-4 w-4" />

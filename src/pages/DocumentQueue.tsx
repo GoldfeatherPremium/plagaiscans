@@ -40,8 +40,6 @@ interface StaffSettings {
 interface BatchReportData {
   docId: string;
   fileName: string;
-  similarityPercent: string;
-  aiPercent: string;
   similarityFile: File | null;
   aiFile: File | null;
   remarks: string;
@@ -57,8 +55,6 @@ export default function DocumentQueue() {
   const [dialogMode] = useState<'report'>('report');
   const [similarityFile, setSimilarityFile] = useState<File | null>(null);
   const [aiFile, setAiFile] = useState<File | null>(null);
-  const [similarityPercent, setSimilarityPercent] = useState('');
-  const [aiPercent, setAiPercent] = useState('');
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [globalTimeout, setGlobalTimeout] = useState(30);
@@ -277,8 +273,6 @@ export default function DocumentQueue() {
     setBatchReportData(mySelectedDocs.map(doc => ({
       docId: doc.id,
       fileName: doc.file_name,
-      similarityPercent: '',
-      aiPercent: '',
       similarityFile: null,
       aiFile: null,
       remarks: '',
@@ -319,8 +313,8 @@ export default function DocumentQueue() {
             doc,
             data.similarityFile,
             data.aiFile,
-            parseFloat(data.similarityPercent) || 0,
-            parseFloat(data.aiPercent) || 0,
+            0,
+            0,
             data.remarks.trim() || null
           );
         }
@@ -404,8 +398,6 @@ export default function DocumentQueue() {
     setSelectedDoc(null);
     setSimilarityFile(null);
     setAiFile(null);
-    setSimilarityPercent('');
-    setAiPercent('');
     setRemarks('');
   };
 
@@ -417,8 +409,8 @@ export default function DocumentQueue() {
       selectedDoc,
       similarityFile,
       aiFile,
-      parseFloat(similarityPercent) || 0,
-      parseFloat(aiPercent) || 0,
+      0,
+      0,
       remarks.trim() || null
     );
     setSubmitting(false);
@@ -666,7 +658,17 @@ export default function DocumentQueue() {
                                 
                                 {isAssignedToMe && (
                                   <>
-                                    <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path, 'documents', doc.file_name)}>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        downloadFile(
+                                          doc.file_path,
+                                          doc.magic_link_id ? 'magic-uploads' : 'documents',
+                                          doc.file_name
+                                        )
+                                      }
+                                    >
                                       <Download className="h-4 w-4" />
                                     </Button>
                                     <Button size="sm" onClick={() => handleOpenDialog(doc)}>
@@ -674,10 +676,20 @@ export default function DocumentQueue() {
                                     </Button>
                                   </>
                                 )}
-                                
+
                                 {role === 'admin' && !isAssignedToMe && doc.status === 'in_progress' && (
                                   <>
-                                    <Button variant="outline" size="sm" onClick={() => downloadFile(doc.file_path, 'documents', doc.file_name)}>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        downloadFile(
+                                          doc.file_path,
+                                          doc.magic_link_id ? 'magic-uploads' : 'documents',
+                                          doc.file_name
+                                        )
+                                      }
+                                    >
                                       <Download className="h-4 w-4" />
                                     </Button>
                                     <Button 
@@ -712,20 +724,10 @@ export default function DocumentQueue() {
             
             <div className="space-y-4">
               <div>
-                <Label>Similarity %</Label>
-                <Input 
-                  type="number" 
-                  min="0" 
-                  max="100" 
-                  value={similarityPercent} 
-                  onChange={(e) => setSimilarityPercent(e.target.value)} 
-                />
-              </div>
-              <div>
                 <Label>Similarity Report (PDF)</Label>
-                <Input 
-                  type="file" 
-                  accept=".pdf" 
+                <Input
+                  type="file"
+                  accept=".pdf"
                   onChange={handleSimilarityFileChange}
                   onClick={(e) => e.stopPropagation()}
                 />
@@ -734,14 +736,16 @@ export default function DocumentQueue() {
                 )}
               </div>
               <div>
-                <Label>AI Detection %</Label>
-                <Input 
-                  type="number" 
-                  min="0" 
-                  max="100" 
-                  value={aiPercent} 
-                  onChange={(e) => setAiPercent(e.target.value)} 
+                <Label>AI Report (PDF)</Label>
+                <Input
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleAiFileChange}
+                  onClick={(e) => e.stopPropagation()}
                 />
+                {aiFile && (
+                  <p className="text-sm text-muted-foreground mt-1">Selected: {aiFile.name}</p>
+                )}
               </div>
               <div>
                 <Label>AI Report (PDF)</Label>
@@ -798,30 +802,6 @@ export default function DocumentQueue() {
                     {data.fileName}
                   </h4>
                   
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs">Similarity %</Label>
-                      <Input 
-                        type="number" 
-                        min="0" 
-                        max="100" 
-                        value={data.similarityPercent}
-                        onChange={(e) => updateBatchData(index, 'similarityPercent', e.target.value)}
-                        placeholder="0-100"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">AI Detection %</Label>
-                      <Input 
-                        type="number" 
-                        min="0" 
-                        max="100" 
-                        value={data.aiPercent}
-                        onChange={(e) => updateBatchData(index, 'aiPercent', e.target.value)}
-                        placeholder="0-100"
-                      />
-                    </div>
-                  </div>
                   
                   <div className="grid grid-cols-2 gap-3">
                     <div>
