@@ -57,13 +57,14 @@ export type Database = {
           file_name: string
           file_path: string
           id: string
+          magic_link_id: string | null
           remarks: string | null
           similarity_percentage: number | null
           similarity_report_path: string | null
           status: Database["public"]["Enums"]["document_status"]
           updated_at: string
           uploaded_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           ai_percentage?: number | null
@@ -75,13 +76,14 @@ export type Database = {
           file_name: string
           file_path: string
           id?: string
+          magic_link_id?: string | null
           remarks?: string | null
           similarity_percentage?: number | null
           similarity_report_path?: string | null
           status?: Database["public"]["Enums"]["document_status"]
           updated_at?: string
           uploaded_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           ai_percentage?: number | null
@@ -93,15 +95,24 @@ export type Database = {
           file_name?: string
           file_path?: string
           id?: string
+          magic_link_id?: string | null
           remarks?: string | null
           similarity_percentage?: number | null
           similarity_report_path?: string | null
           status?: Database["public"]["Enums"]["document_status"]
           updated_at?: string
           uploaded_at?: string
-          user_id?: string
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "documents_magic_link_id_fkey"
+            columns: ["magic_link_id"]
+            isOneToOne: false
+            referencedRelation: "magic_upload_links"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       magic_upload_files: {
         Row: {
