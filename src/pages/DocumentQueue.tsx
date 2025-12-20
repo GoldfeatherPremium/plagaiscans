@@ -748,18 +748,6 @@ export default function DocumentQueue() {
                 )}
               </div>
               <div>
-                <Label>AI Report (PDF)</Label>
-                <Input 
-                  type="file" 
-                  accept=".pdf" 
-                  onChange={handleAiFileChange}
-                  onClick={(e) => e.stopPropagation()}
-                />
-                {aiFile && (
-                  <p className="text-sm text-muted-foreground mt-1">Selected: {aiFile.name}</p>
-                )}
-              </div>
-              <div>
                 <Label>Remarks (Optional)</Label>
                 <Textarea 
                   placeholder="Add any remarks or notes about this document..."
