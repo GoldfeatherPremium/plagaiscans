@@ -336,15 +336,31 @@ export const useMagicLinks = () => {
 
   const downloadMagicFile = async (path: string, originalFileName?: string, bucket: string = 'magic-uploads') => {
     try {
+      // Create signed URL for download
       const { data, error } = await supabase.storage
         .from(bucket)
-        .createSignedUrl(path, 60, {
-          download: originalFileName || path.split('/').pop() || 'download',
-        });
+        .createSignedUrl(path, 300); // 5 minutes validity
 
       if (error) throw error;
 
-      window.open(data.signedUrl, '_blank');
+      // For better Safari/iOS compatibility, use fetch + blob approach
+      const response = await fetch(data.signedUrl);
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = originalFileName || path.split('/').pop() || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: 'Success',
+        description: 'Download started',
+      });
     } catch (error) {
       console.error('Error downloading file:', error);
       toast({
