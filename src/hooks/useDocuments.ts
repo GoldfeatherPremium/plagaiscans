@@ -205,31 +205,21 @@ export const useDocuments = () => {
 
   const downloadFile = async (path: string, bucket: string = 'documents', originalFileName?: string) => {
     try {
-      // Create signed URL for download
       const { data, error } = await supabase.storage
         .from(bucket)
-        .createSignedUrl(path, 300); // 5 minutes validity
+        .createSignedUrl(path, 300);
 
       if (error) throw error;
 
-      // For better Safari/iOS compatibility, use fetch + blob approach
-      const response = await fetch(data.signedUrl);
-      if (!response.ok) throw new Error('Download failed');
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      // Direct download using anchor - fast and Safari compatible
       const link = document.createElement('a');
-      link.href = url;
+      link.href = data.signedUrl;
       link.download = originalFileName || path.split('/').pop() || 'download';
+      link.target = '_self';
+      link.rel = 'noopener noreferrer';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      toast({
-        title: 'Success',
-        description: 'Download started',
-      });
     } catch (error) {
       console.error('Error downloading file:', error);
       toast({
