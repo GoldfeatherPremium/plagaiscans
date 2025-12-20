@@ -342,15 +342,8 @@ export const useMagicLinks = () => {
 
       if (error) throw error;
 
-      // Direct download using anchor - fast and Safari compatible
-      const link = document.createElement('a');
-      link.href = data.signedUrl;
-      link.download = originalFileName || path.split('/').pop() || 'download';
-      link.target = '_self';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Open in new window for faster download experience
+      window.open(data.signedUrl, '_blank');
     } catch (error) {
       console.error('Error downloading file:', error);
       toast({
