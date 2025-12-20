@@ -217,7 +217,7 @@ export const useMagicLinks = () => {
 
       if (uploadError) throw uploadError;
 
-      // Create file record
+      // Create file record in magic_upload_files
       const { error: insertError } = await supabase
         .from('magic_upload_files')
         .insert({
@@ -228,6 +228,21 @@ export const useMagicLinks = () => {
         });
 
       if (insertError) throw insertError;
+
+      // Also create a document record for staff processing queue
+      const { error: docError } = await supabase
+        .from('documents')
+        .insert({
+          file_name: `[Guest] ${file.name}`,
+          file_path: filePath,
+          magic_link_id: link.id,
+          status: 'pending',
+        });
+
+      if (docError) {
+        console.error('Error creating document record:', docError);
+        // Don't fail the upload if document creation fails
+      }
 
       // Increment upload count
       const { error: updateError } = await supabase
