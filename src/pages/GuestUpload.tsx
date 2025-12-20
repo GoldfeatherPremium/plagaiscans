@@ -480,7 +480,9 @@ export default function GuestUpload() {
                           <TableHead className="text-center">Status</TableHead>
                           <TableHead className="text-center">Similarity %</TableHead>
                           <TableHead className="text-center">AI %</TableHead>
-                          <TableHead className="text-center">Reports</TableHead>
+                          <TableHead className="text-center">Similarity Report</TableHead>
+                          <TableHead className="text-center">AI Report</TableHead>
+                          <TableHead>Remarks</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -537,31 +539,42 @@ export default function GuestUpload() {
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
-                                {status === 'completed' && (file.similarity_report_path || file.ai_report_path) ? (
-                                  <div className="flex items-center justify-center gap-1">
-                                    {file.similarity_report_path && (
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => downloadMagicFile(file.similarity_report_path!, `${file.file_name}_similarity.pdf`)}
-                                        title="Download Similarity Report"
-                                      >
-                                        <Download className="h-4 w-4" />
-                                      </Button>
-                                    )}
-                                    {file.ai_report_path && (
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => downloadMagicFile(file.ai_report_path!, `${file.file_name}_ai.pdf`)}
-                                        title="Download AI Report"
-                                      >
-                                        <Download className="h-4 w-4" />
-                                      </Button>
-                                    )}
-                                  </div>
+                                {file.similarity_report_path ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => downloadMagicFile(file.similarity_report_path!, `${file.file_name}_similarity.pdf`, 'reports')}
+                                    title="Download Similarity Report"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
                                 ) : (
                                   <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {file.ai_report_path ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => downloadMagicFile(file.ai_report_path!, `${file.file_name}_ai.pdf`, 'reports')}
+                                    title="Download AI Report"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {file.remarks ? (
+                                  <span className="text-sm text-foreground">{file.remarks}</span>
+                                ) : status === 'pending' ? (
+                                  <span className="text-sm text-muted-foreground">In queue</span>
+                                ) : status === 'in_progress' ? (
+                                  <span className="text-sm text-muted-foreground">Processing...</span>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">-</span>
                                 )}
                               </TableCell>
                             </TableRow>
