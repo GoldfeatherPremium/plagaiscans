@@ -7,7 +7,8 @@ export type DocumentStatus = 'pending' | 'in_progress' | 'completed' | 'error';
 
 export interface Document {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  magic_link_id?: string | null;
   file_name: string;
   file_path: string;
   status: DocumentStatus;
@@ -204,17 +205,31 @@ export const useDocuments = () => {
 
   const downloadFile = async (path: string, bucket: string = 'documents', originalFileName?: string) => {
     try {
-      // Use signed URL for faster direct download instead of downloading blob first
+      // Create signed URL for download
       const { data, error } = await supabase.storage
         .from(bucket)
-        .createSignedUrl(path, 60, {
-          download: originalFileName || path.split('/').pop() || 'download',
-        });
+        .createSignedUrl(path, 300); // 5 minutes validity
 
       if (error) throw error;
 
-      // Open the signed URL directly - browser handles the download
-      window.open(data.signedUrl, '_blank');
+      // For better Safari/iOS compatibility, use fetch + blob approach
+      const response = await fetch(data.signedUrl);
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = originalFileName || path.split('/').pop() || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: 'Success',
+        description: 'Download started',
+      });
     } catch (error) {
       console.error('Error downloading file:', error);
       toast({
@@ -347,9 +362,12 @@ export const useDocuments = () => {
         remarks: remarks || null,
       };
 
+      // Determine folder path - use user_id for regular users, 'guest' folder for magic link uploads
+      const folderPath = document.user_id || 'guest';
+
       // Upload similarity report
       if (similarityReport) {
-        const simPath = `${document.user_id}/${documentId}_similarity.pdf`;
+        const simPath = `${folderPath}/${documentId}_similarity.pdf`;
         const { error: simError } = await supabase.storage
           .from('reports')
           .upload(simPath, similarityReport, { upsert: true });
@@ -360,7 +378,7 @@ export const useDocuments = () => {
 
       // Upload AI report
       if (aiReport) {
-        const aiPath = `${document.user_id}/${documentId}_ai.pdf`;
+        const aiPath = `${folderPath}/${documentId}_ai.pdf`;
         const { error: aiError } = await supabase.storage
           .from('reports')
           .upload(aiPath, aiReport, { upsert: true });
