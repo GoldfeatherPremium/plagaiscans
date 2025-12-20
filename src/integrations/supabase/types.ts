@@ -103,6 +103,77 @@ export type Database = {
         }
         Relationships: []
       }
+      magic_upload_files: {
+        Row: {
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          magic_link_id: string
+          uploaded_at: string
+        }
+        Insert: {
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          magic_link_id: string
+          uploaded_at?: string
+        }
+        Update: {
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          magic_link_id?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "magic_upload_files_magic_link_id_fkey"
+            columns: ["magic_link_id"]
+            isOneToOne: false
+            referencedRelation: "magic_upload_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      magic_upload_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          current_uploads: number
+          expires_at: string | null
+          id: string
+          max_uploads: number
+          status: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          current_uploads?: number
+          expires_at?: string | null
+          id?: string
+          max_uploads?: number
+          status?: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          current_uploads?: number
+          expires_at?: string | null
+          id?: string
+          max_uploads?: number
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notification_reads: {
         Row: {
           id: string
