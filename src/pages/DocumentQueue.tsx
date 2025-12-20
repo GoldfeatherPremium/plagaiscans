@@ -214,25 +214,47 @@ export default function DocumentQueue() {
       }
     }
 
-    // Pick all selected documents
+    // Pick all selected documents (no auto-download)
     for (const doc of pendingSelected) {
       await updateDocumentStatus(doc.id, 'in_progress');
     }
+    
+    toast({
+      title: 'Documents Assigned',
+      description: `${pendingSelected.length} document(s) assigned. Use "Batch Download" to download files.`,
+    });
+    setSelectedDocIds(new Set());
+  };
+
+  // Batch download picked documents
+  const handleBatchDownload = async () => {
+    const myInProgressSelected = availableDocs.filter(
+      d => selectedDocIds.has(d.id) && d.assigned_staff_id === user?.id && d.status === 'in_progress'
+    );
+    
+    if (myInProgressSelected.length === 0) {
+      toast({
+        title: 'No Documents Selected',
+        description: 'Please select your in-progress documents to download.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    toast({
+      title: 'Downloads Starting',
+      description: `Downloading ${myInProgressSelected.length} file(s)...`,
+    });
 
     // Download files with small delay between each to prevent browser blocking
-    for (let i = 0; i < pendingSelected.length; i++) {
-      const doc = pendingSelected[i];
-      // Small delay between downloads to allow browser to process each
+    for (let i = 0; i < myInProgressSelected.length; i++) {
+      const doc = myInProgressSelected[i];
       if (i > 0) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       downloadFile(doc.file_path, 'documents', doc.file_name);
     }
     
-    toast({
-      title: 'Documents Assigned',
-      description: `${pendingSelected.length} document(s) assigned and downloads started.`,
-    });
     setSelectedDocIds(new Set());
   };
 
@@ -507,6 +529,14 @@ export default function DocumentQueue() {
                 <Button size="sm" onClick={handleBatchPick}>
                   <CheckSquare className="h-4 w-4 mr-1" />
                   Batch Pick
+                </Button>
+                <Button size="sm" variant="secondary" onClick={handleBatchDownload}>
+                  <Download className="h-4 w-4 mr-1" />
+                  Batch Download
+                </Button>
+                <Button size="sm" variant="default" onClick={handleOpenBatchUpload}>
+                  <Upload className="h-4 w-4 mr-1" />
+                  Batch Upload Reports
                 </Button>
               </div>
             )}
