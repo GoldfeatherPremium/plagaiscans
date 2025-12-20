@@ -15,12 +15,10 @@ import AdminUsers from "./pages/AdminUsers";
 import AdminAnalytics from "./pages/AdminAnalytics";
 import AdminSettings from "./pages/AdminSettings";
 import AdminPricing from "./pages/AdminPricing";
-import AdminMagicLinks from "./pages/AdminMagicLinks";
 import StaffStats from "./pages/StaffStats";
 import StaffProcessed from "./pages/StaffProcessed";
 import Profile from "./pages/Profile";
 import AdminStaffWork from "./pages/AdminStaffWork";
-import GuestUpload from "./pages/GuestUpload";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -64,7 +62,6 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/" element={<Landing />} />
     <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
-    <Route path="/upload" element={<GuestUpload />} />
     
     {/* Customer Routes */}
     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -81,7 +78,6 @@ const AppRoutes = () => (
     <Route path="/dashboard/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsers /></ProtectedRoute>} />
     <Route path="/dashboard/analytics" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnalytics /></ProtectedRoute>} />
     <Route path="/dashboard/pricing" element={<ProtectedRoute allowedRoles={['admin']}><AdminPricing /></ProtectedRoute>} />
-    <Route path="/dashboard/magic-links" element={<ProtectedRoute allowedRoles={['admin']}><AdminMagicLinks /></ProtectedRoute>} />
     <Route path="/dashboard/settings" element={<ProtectedRoute allowedRoles={['admin']}><AdminSettings /></ProtectedRoute>} />
     <Route path="/dashboard/staff-work" element={<ProtectedRoute allowedRoles={['admin']}><AdminStaffWork /></ProtectedRoute>} />
     <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
