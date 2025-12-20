@@ -295,6 +295,38 @@ export const useMagicLinks = () => {
 
       if (linkError || !linkData) return [];
 
+      // Fetch documents by magic_link_id to get processing results
+      const { data: documents, error: docsError } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('magic_link_id', linkData.id)
+        .order('uploaded_at', { ascending: false });
+
+      if (docsError) {
+        console.error('Error fetching guest documents:', docsError);
+        // Fall back to magic_upload_files if documents query fails
+        return await getMagicLinkFiles(linkData.id);
+      }
+
+      // Map documents to MagicUploadFile format for compatibility
+      if (documents && documents.length > 0) {
+        return documents.map(doc => ({
+          id: doc.id,
+          magic_link_id: doc.magic_link_id || linkData.id,
+          file_name: doc.file_name.replace('[Guest] ', ''), // Remove [Guest] prefix for display
+          file_path: doc.file_path,
+          file_size: null,
+          uploaded_at: doc.uploaded_at,
+          status: doc.status as 'pending' | 'in_progress' | 'completed',
+          similarity_percentage: doc.similarity_percentage,
+          ai_percentage: doc.ai_percentage,
+          similarity_report_path: doc.similarity_report_path,
+          ai_report_path: doc.ai_report_path,
+          remarks: doc.remarks,
+        }));
+      }
+
+      // Fall back to magic_upload_files if no documents found
       return await getMagicLinkFiles(linkData.id);
     } catch (error) {
       console.error('Error fetching files by token:', error);
@@ -302,10 +334,10 @@ export const useMagicLinks = () => {
     }
   };
 
-  const downloadMagicFile = async (path: string, originalFileName?: string) => {
+  const downloadMagicFile = async (path: string, originalFileName?: string, bucket: string = 'magic-uploads') => {
     try {
       const { data, error } = await supabase.storage
-        .from('magic-uploads')
+        .from(bucket)
         .createSignedUrl(path, 60, {
           download: originalFileName || path.split('/').pop() || 'download',
         });
