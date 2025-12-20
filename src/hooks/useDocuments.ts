@@ -205,8 +205,11 @@ export const useDocuments = () => {
 
   const downloadFile = async (path: string, bucket: string = 'documents', originalFileName?: string) => {
     try {
+      // Auto-detect bucket for guest/magic-link uploads
+      const effectiveBucket = bucket === 'documents' && path.startsWith('magic/') ? 'magic-uploads' : bucket;
+
       const { data, error } = await supabase.storage
-        .from(bucket)
+        .from(effectiveBucket)
         .createSignedUrl(path, 300);
 
       if (error) throw error;
@@ -291,8 +294,8 @@ export const useDocuments = () => {
         try {
           const { error: notifError } = await supabase.from('user_notifications').insert({
             user_id: documentUserId,
-            title: 'Document Completed! 🎉',
-            message: `Your document "${fileName}" has been processed. Similarity: ${updates?.similarity_percentage || 0}%, AI Detection: ${updates?.ai_percentage || 0}%. View your results in My Documents.`,
+            title: 'Document Completed',
+            message: `Your document "${fileName}" has been processed. View your results in My Documents.`,
             created_by: user?.id,
           });
           

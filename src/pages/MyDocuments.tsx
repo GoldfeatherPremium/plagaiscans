@@ -17,19 +17,6 @@ import {
 export default function MyDocuments() {
   const { documents, loading, downloadFile } = useDocuments();
 
-  const handleDownloadSimilarityReport = (doc: Document) => {
-    if (doc.similarity_report_path) {
-      const baseName = doc.file_name.replace(/\.[^/.]+$/, '');
-      downloadFile(doc.similarity_report_path, 'reports', `${baseName}_similarity.pdf`);
-    }
-  };
-
-  const handleDownloadAIReport = (doc: Document) => {
-    if (doc.ai_report_path) {
-      const baseName = doc.file_name.replace(/\.[^/.]+$/, '');
-      downloadFile(doc.ai_report_path, 'reports', `${baseName}_ai.pdf`);
-    }
-  };
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -77,8 +64,6 @@ export default function MyDocuments() {
                       <TableHead>Document</TableHead>
                       <TableHead>Upload Time</TableHead>
                       <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-center">Similarity %</TableHead>
-                      <TableHead className="text-center">AI %</TableHead>
                       <TableHead className="text-center">Similarity Report</TableHead>
                       <TableHead className="text-center">AI Report</TableHead>
                       <TableHead>Remarks</TableHead>
@@ -87,11 +72,10 @@ export default function MyDocuments() {
                   <TableBody>
                     {documents.map((doc, index) => {
                       const { date, time } = formatDateTime(doc.uploaded_at);
+                      const baseName = doc.file_name.replace(/\.[^/.]+$/, '');
                       return (
                         <TableRow key={doc.id}>
-                          <TableCell className="text-center font-medium">
-                            {index + 1}
-                          </TableCell>
+                          <TableCell className="text-center font-medium">{index + 1}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <FileText className="h-4 w-4 text-primary flex-shrink-0" />
@@ -110,29 +94,11 @@ export default function MyDocuments() {
                             <StatusBadge status={doc.status} />
                           </TableCell>
                           <TableCell className="text-center">
-                            {doc.status === 'completed' ? (
-                              <span className="font-semibold text-primary">
-                                {doc.similarity_percentage}%
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {doc.status === 'completed' ? (
-                              <span className="font-semibold text-secondary">
-                                {doc.ai_percentage}%
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center">
                             {doc.similarity_report_path ? (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleDownloadSimilarityReport(doc)}
+                                onClick={() => downloadFile(doc.similarity_report_path!, 'reports', `${baseName}_similarity.pdf`)}
                               >
                                 <Download className="h-4 w-4" />
                               </Button>
@@ -145,7 +111,7 @@ export default function MyDocuments() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleDownloadAIReport(doc)}
+                                onClick={() => downloadFile(doc.ai_report_path!, 'reports', `${baseName}_ai.pdf`)}
                               >
                                 <Download className="h-4 w-4" />
                               </Button>
