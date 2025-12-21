@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.admin-send-email]
 verify_jwt = false
+
+[functions.viva-payments]
+verify_jwt = false

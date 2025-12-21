@@ -162,12 +162,13 @@ export default function Auth() {
 
     setLoading(true);
     try {
-      const redirectUrl = `${window.location.origin}/auth?reset=true`;
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: redirectUrl,
+      // Use custom edge function to send password reset email from our domain
+      const { data, error } = await supabase.functions.invoke('send-password-reset', {
+        body: { email: forgotEmail }
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: 'Check your email',
@@ -178,7 +179,7 @@ export default function Auth() {
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: 'Failed to send reset email. Please try again.',
+        description: error.message || 'Failed to send reset email. Please try again.',
         variant: 'destructive',
       });
     } finally {
