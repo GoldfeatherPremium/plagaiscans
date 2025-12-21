@@ -276,7 +276,10 @@ export const NotificationBell: React.FC = () => {
       );
     } else {
       // Mark broadcast notification as read
-      if (readIds.has(notif.id)) return;
+      if (readIds.has(notif.id)) {
+        setOpen(false);
+        return;
+      }
       
       await supabase
         .from('notification_reads')
@@ -284,6 +287,9 @@ export const NotificationBell: React.FC = () => {
 
       setReadIds(prev => new Set([...prev, notif.id]));
     }
+    
+    // Close popover after clicking
+    setOpen(false);
   };
 
   const markAllAsRead = async () => {
