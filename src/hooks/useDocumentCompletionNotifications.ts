@@ -2,11 +2,13 @@ import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePushNotifications } from './usePushNotifications';
+import { useNotificationSound } from './useNotificationSound';
 import { toast } from 'sonner';
 
 export const useDocumentCompletionNotifications = () => {
   const { user } = useAuth();
   const { sendPushNotification, requestPermission } = usePushNotifications();
+  const { playSound, settings: soundSettings } = useNotificationSound();
   const hasRequestedPermission = useRef(false);
 
   // Request permission on first use
@@ -18,6 +20,9 @@ export const useDocumentCompletionNotifications = () => {
   }, [user, requestPermission]);
 
   const handleDocumentCompleted = useCallback((fileName: string) => {
+    // Play notification sound
+    playSound();
+
     // Show toast notification
     toast.success('Document Completed', {
       description: `Your document "${fileName}" has been processed and is ready for download.`,
@@ -30,7 +35,7 @@ export const useDocumentCompletionNotifications = () => {
       tag: `doc-complete-${Date.now()}`,
       requireInteraction: true,
     });
-  }, [sendPushNotification]);
+  }, [sendPushNotification, playSound]);
 
   useEffect(() => {
     if (!user) return;
@@ -66,5 +71,6 @@ export const useDocumentCompletionNotifications = () => {
 
   return {
     requestPermission,
+    soundSettings,
   };
 };
