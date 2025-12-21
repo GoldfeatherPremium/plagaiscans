@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -41,7 +41,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface NavLink {
   to: string;
@@ -67,9 +67,11 @@ interface BadgeCounts {
 export const DashboardSidebar: React.FC = () => {
   const { role, profile, signOut } = useAuth();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch badge counts for admin
   const { data: badgeCounts } = useQuery({
@@ -90,8 +92,67 @@ export const DashboardSidebar: React.FC = () => {
       };
     },
     enabled: role === 'admin',
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 30000,
   });
+
+  // Real-time subscriptions for badge updates
+  useEffect(() => {
+    if (role !== 'admin') return;
+
+    const channels = [
+      supabase
+        .channel('documents-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'documents' }, () => {
+          queryClient.invalidateQueries({ queryKey: ['admin-badge-counts'] });
+        })
+        .subscribe(),
+      supabase
+        .channel('manual-payments-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_payments' }, () => {
+          queryClient.invalidateQueries({ queryKey: ['admin-badge-counts'] });
+        })
+        .subscribe(),
+      supabase
+        .channel('support-tickets-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => {
+          queryClient.invalidateQueries({ queryKey: ['admin-badge-counts'] });
+        })
+        .subscribe(),
+      supabase
+        .channel('crypto-payments-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'crypto_payments' }, () => {
+          queryClient.invalidateQueries({ queryKey: ['admin-badge-counts'] });
+        })
+        .subscribe(),
+    ];
+
+    return () => {
+      channels.forEach(channel => supabase.removeChannel(channel));
+    };
+  }, [role, queryClient]);
+
+  // Keyboard shortcut for search (Cmd/Ctrl + K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        if (!isOpen) {
+          setIsOpen(true);
+        }
+        setTimeout(() => {
+          searchInputRef.current?.focus();
+        }, 100);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery('');
+    searchInputRef.current?.focus();
+  }, []);
 
   const customerLinks: NavLink[] = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -275,12 +336,21 @@ export const DashboardSidebar: React.FC = () => {
       <div className="relative mb-3">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
+          ref={searchInputRef}
           type="text"
-          placeholder="Search menu..."
+          placeholder="Search... (⌘K)"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9 h-9 text-sm bg-muted/50"
+          className="pl-9 pr-8 h-9 text-sm bg-muted/50"
         />
+        {searchQuery && (
+          <button
+            onClick={clearSearch}
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-muted-foreground/20 hover:bg-muted-foreground/30 flex items-center justify-center transition-colors"
+          >
+            <X className="h-3 w-3 text-muted-foreground" />
+          </button>
+        )}
       </div>
 
       {/* Dashboard - standalone */}
