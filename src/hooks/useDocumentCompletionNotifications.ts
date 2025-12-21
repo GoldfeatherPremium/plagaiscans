@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 
 export const useDocumentCompletionNotifications = () => {
   const { user } = useAuth();
-  const { sendPushNotification, requestPermission } = usePushNotifications();
+  const { sendLocalNotification, requestPermission } = usePushNotifications();
   const { playSound, settings: soundSettings } = useNotificationSound();
   const hasRequestedPermission = useRef(false);
 
@@ -29,13 +29,13 @@ export const useDocumentCompletionNotifications = () => {
       duration: 8000,
     });
 
-    // Send browser push notification
-    sendPushNotification('Document Completed! 📄', {
+    // Send browser local notification
+    sendLocalNotification('Document Completed! 📄', {
       body: `Your document "${fileName}" has been processed and is ready for download.`,
       tag: `doc-complete-${Date.now()}`,
       requireInteraction: true,
     });
-  }, [sendPushNotification, playSound]);
+  }, [sendLocalNotification, playSound]);
 
   useEffect(() => {
     if (!user) return;
