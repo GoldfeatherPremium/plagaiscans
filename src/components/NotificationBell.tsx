@@ -70,7 +70,7 @@ export const NotificationBell: React.FC = () => {
     return true;
   });
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const { sendPushNotification, requestPermission } = usePushNotifications();
+  const { sendLocalNotification, requestPermission, subscribe, isSubscribed } = usePushNotifications();
 
   // Initialize audio element
   useEffect(() => {
@@ -220,8 +220,8 @@ export const NotificationBell: React.FC = () => {
             duration: 5000,
           });
           
-          // Send browser push notification
-          sendPushNotification(newNotif.title, {
+          // Send browser local notification
+          sendLocalNotification(newNotif.title, {
             body: newNotif.message,
             tag: newNotif.id,
           });
@@ -246,8 +246,8 @@ export const NotificationBell: React.FC = () => {
             duration: 5000,
           });
           
-          // Send browser push notification
-          sendPushNotification(newNotif.title, {
+          // Send browser local notification
+          sendLocalNotification(newNotif.title, {
             body: newNotif.message,
             tag: newNotif.id,
           });
