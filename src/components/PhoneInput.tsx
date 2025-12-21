@@ -121,12 +121,6 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({ value, onChange, disable
         />
       </div>
       
-      <p className="text-xs text-muted-foreground">
-        {selectedCountry.name}: {selectedCountry.minLength === selectedCountry.maxLength 
-          ? `${selectedCountry.minLength} digits required`
-          : `${selectedCountry.minLength}-${selectedCountry.maxLength} digits`
-        }
-      </p>
       
       {(validationError || error) && (
         <p className="text-sm text-destructive">{validationError || error}</p>
