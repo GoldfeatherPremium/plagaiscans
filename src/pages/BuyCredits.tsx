@@ -159,15 +159,32 @@ export default function BuyCredits() {
     
     setSubmittingBinance(true);
     try {
-      const { error } = await supabase.from('manual_payments').insert({
+      const { data: paymentData, error } = await supabase.from('manual_payments').insert({
         user_id: user.id,
         payment_method: 'binance_pay',
         amount_usd: selectedPlan.price,
         credits: selectedPlan.credits,
         status: 'pending',
-      });
+      }).select().single();
 
       if (error) throw error;
+
+      // Notify all admins about the new payment
+      const { data: adminRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+
+      if (adminRoles && adminRoles.length > 0) {
+        const notifications = adminRoles.map(admin => ({
+          user_id: admin.user_id,
+          title: 'New Binance Pay Payment',
+          message: `A user has submitted a Binance Pay payment of $${selectedPlan.price} for ${selectedPlan.credits} credits. Please verify.`,
+          created_by: user.id,
+        }));
+
+        await supabase.from('user_notifications').insert(notifications);
+      }
 
       toast.success('Payment submitted! Admin will verify and credit your account.');
       setShowBinanceDialog(false);
