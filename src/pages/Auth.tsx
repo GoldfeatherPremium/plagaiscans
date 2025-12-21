@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 import { WhatsAppSupportButton } from '@/components/WhatsAppSupportButton';
 import { PhoneInput } from '@/components/PhoneInput';
+import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
 
 // Strong password validation: 8+ chars, uppercase, lowercase, number, special char
 const strongPasswordSchema = z.string()
@@ -266,6 +267,7 @@ export default function Auth() {
                       {showResetPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                     </Button>
                   </div>
+                  <PasswordStrengthIndicator password={resetPasswordData.password} />
                   {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                 </div>
                 <div className="space-y-2">
@@ -492,9 +494,7 @@ export default function Auth() {
                         {showSignupPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Must be 8+ characters with uppercase, lowercase, number, and special character
-                    </p>
+                    <PasswordStrengthIndicator password={signupData.password} />
                     {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                   </div>
                   <div className="space-y-2">
