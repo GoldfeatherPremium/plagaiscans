@@ -36,6 +36,7 @@ import StaffProcessed from "./pages/StaffProcessed";
 import Profile from "./pages/Profile";
 import AdminStaffWork from "./pages/AdminStaffWork";
 import GuestUpload from "./pages/GuestUpload";
+import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,6 +80,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/" element={<Landing />} />
     <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
+    <Route path="/install" element={<Install />} />
     <Route path="/guest-upload" element={<GuestUpload />} />
     
     {/* Customer Routes */}
