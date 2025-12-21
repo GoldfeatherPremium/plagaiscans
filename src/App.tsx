@@ -31,6 +31,7 @@ import AdminSupportTickets from "./pages/AdminSupportTickets";
 import AdminBlockedUsers from "./pages/AdminBlockedUsers";
 import AdminCryptoPayments from "./pages/AdminCryptoPayments";
 import AdminManualPayments from "./pages/AdminManualPayments";
+import AdminVivaPayments from "./pages/AdminVivaPayments";
 import AdminStaffPermissions from "./pages/AdminStaffPermissions";
 import AdminEmails from "./pages/AdminEmails";
 import StaffStats from "./pages/StaffStats";
@@ -115,6 +116,7 @@ const AppRoutes = () => (
     <Route path="/dashboard/blocked-users" element={<ProtectedRoute allowedRoles={['admin']}><AdminBlockedUsers /></ProtectedRoute>} />
     <Route path="/dashboard/crypto-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminCryptoPayments /></ProtectedRoute>} />
     <Route path="/dashboard/manual-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminManualPayments /></ProtectedRoute>} />
+    <Route path="/dashboard/viva-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminVivaPayments /></ProtectedRoute>} />
     <Route path="/dashboard/staff-permissions" element={<ProtectedRoute allowedRoles={['admin']}><AdminStaffPermissions /></ProtectedRoute>} />
     <Route path="/dashboard/emails" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmails /></ProtectedRoute>} />
     <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
