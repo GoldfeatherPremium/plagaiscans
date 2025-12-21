@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, UserPlus, Clock, Users, Settings2 } from 'lucide-react';
+import { MessageCircle, Save, Loader2, UserPlus, Clock, Users, Settings2, CreditCard, Bitcoin } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AdminNotificationSender } from '@/components/AdminNotificationSender';
 import {
@@ -37,8 +38,11 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingTimeout, setSavingTimeout] = useState(false);
+  const [savingPaymentMethods, setSavingPaymentMethods] = useState(false);
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [processingTimeout, setProcessingTimeout] = useState('30');
+  const [whatsappEnabled, setWhatsappEnabled] = useState(true);
+  const [usdtEnabled, setUsdtEnabled] = useState(true);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [selectedUser, setSelectedUser] = useState('');
   const [selectedRole, setSelectedRole] = useState<'admin' | 'staff' | 'customer'>('staff');
@@ -52,12 +56,21 @@ export default function AdminSettings() {
   }, []);
 
   const fetchSettings = async () => {
-    const { data } = await supabase.from('settings').select('*').in('key', ['whatsapp_number', 'processing_timeout_minutes']);
+    const { data } = await supabase.from('settings').select('*').in('key', [
+      'whatsapp_number', 
+      'processing_timeout_minutes',
+      'payment_whatsapp_enabled',
+      'payment_usdt_enabled'
+    ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
       const timeout = data.find(s => s.key === 'processing_timeout_minutes');
+      const whatsappPayment = data.find(s => s.key === 'payment_whatsapp_enabled');
+      const usdtPayment = data.find(s => s.key === 'payment_usdt_enabled');
       if (whatsapp) setWhatsappNumber(whatsapp.value);
       if (timeout) setProcessingTimeout(timeout.value);
+      setWhatsappEnabled(whatsappPayment?.value !== 'false');
+      setUsdtEnabled(usdtPayment?.value !== 'false');
     }
     setLoading(false);
   };
@@ -130,6 +143,27 @@ export default function AdminSettings() {
     }
   };
 
+  const savePaymentMethods = async () => {
+    setSavingPaymentMethods(true);
+    
+    // Upsert both settings
+    const { error: error1 } = await supabase
+      .from('settings')
+      .upsert({ key: 'payment_whatsapp_enabled', value: whatsappEnabled.toString() }, { onConflict: 'key' });
+    
+    const { error: error2 } = await supabase
+      .from('settings')
+      .upsert({ key: 'payment_usdt_enabled', value: usdtEnabled.toString() }, { onConflict: 'key' });
+    
+    setSavingPaymentMethods(false);
+    
+    if (error1 || error2) {
+      toast({ title: 'Error', description: 'Failed to save payment settings', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: 'Payment methods updated' });
+    }
+  };
+
   const assignRole = async () => {
     if (!selectedUser || !selectedRole) return;
 
@@ -194,6 +228,53 @@ export default function AdminSettings() {
           <h1 className="text-3xl font-display font-bold">Settings</h1>
           <p className="text-muted-foreground mt-1">Manage platform settings</p>
         </div>
+
+        {/* Payment Methods */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-primary" />
+              Payment Methods
+            </CardTitle>
+            <CardDescription>Enable or disable payment options for customers</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-[#25D366]/10 flex items-center justify-center">
+                  <MessageCircle className="h-5 w-5 text-[#25D366]" />
+                </div>
+                <div>
+                  <p className="font-medium">WhatsApp Payment</p>
+                  <p className="text-sm text-muted-foreground">Manual payment via WhatsApp</p>
+                </div>
+              </div>
+              <Switch
+                checked={whatsappEnabled}
+                onCheckedChange={setWhatsappEnabled}
+              />
+            </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Bitcoin className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium">USDT Payment (TRC20)</p>
+                  <p className="text-sm text-muted-foreground">Crypto payment via NOWPayments (min. $15)</p>
+                </div>
+              </div>
+              <Switch
+                checked={usdtEnabled}
+                onCheckedChange={setUsdtEnabled}
+              />
+            </div>
+            <Button onClick={savePaymentMethods} disabled={savingPaymentMethods}>
+              {savingPaymentMethods ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Payment Settings
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* WhatsApp Settings */}
         <Card>
