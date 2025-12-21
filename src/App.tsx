@@ -16,6 +16,10 @@ import AdminAnalytics from "./pages/AdminAnalytics";
 import AdminSettings from "./pages/AdminSettings";
 import AdminPricing from "./pages/AdminPricing";
 import AdminMagicLinks from "./pages/AdminMagicLinks";
+import AdminActivityLogs from "./pages/AdminActivityLogs";
+import AdminSystemHealth from "./pages/AdminSystemHealth";
+import AdminRevenue from "./pages/AdminRevenue";
+import AdminReports from "./pages/AdminReports";
 import StaffStats from "./pages/StaffStats";
 import StaffProcessed from "./pages/StaffProcessed";
 import Profile from "./pages/Profile";
@@ -84,6 +88,10 @@ const AppRoutes = () => (
     <Route path="/dashboard/magic-links" element={<ProtectedRoute allowedRoles={['admin']}><AdminMagicLinks /></ProtectedRoute>} />
     <Route path="/dashboard/settings" element={<ProtectedRoute allowedRoles={['admin']}><AdminSettings /></ProtectedRoute>} />
     <Route path="/dashboard/staff-work" element={<ProtectedRoute allowedRoles={['admin']}><AdminStaffWork /></ProtectedRoute>} />
+    <Route path="/dashboard/activity-logs" element={<ProtectedRoute allowedRoles={['admin']}><AdminActivityLogs /></ProtectedRoute>} />
+    <Route path="/dashboard/system-health" element={<ProtectedRoute allowedRoles={['admin']}><AdminSystemHealth /></ProtectedRoute>} />
+    <Route path="/dashboard/revenue" element={<ProtectedRoute allowedRoles={['admin']}><AdminRevenue /></ProtectedRoute>} />
+    <Route path="/dashboard/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminReports /></ProtectedRoute>} />
     <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
     
     <Route path="*" element={<NotFound />} />
