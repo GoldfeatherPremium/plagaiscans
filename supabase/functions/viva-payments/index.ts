@@ -85,7 +85,7 @@ serve(async (req) => {
         allowRecurring: false,
         maxInstallments: 0,
         paymentNotification: true,
-        sourceCode: 'Default',
+        sourceCode: '2984',
         merchantTrns: orderId,
         tags: ['credits', `user_${userId}`],
       };
