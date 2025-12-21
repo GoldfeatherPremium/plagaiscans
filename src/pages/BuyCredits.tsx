@@ -32,19 +32,36 @@ export default function BuyCredits() {
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [whatsappEnabled, setWhatsappEnabled] = useState(true);
+  const [usdtEnabled, setUsdtEnabled] = useState(true);
 
   useEffect(() => {
-    const fetchPackages = async () => {
-      const { data } = await supabase
+    const fetchData = async () => {
+      // Fetch packages
+      const { data: packagesData } = await supabase
         .from('pricing_packages')
         .select('*')
         .eq('is_active', true)
         .order('credits', { ascending: true });
       
-      setPackages(data || []);
+      setPackages(packagesData || []);
+
+      // Fetch payment method settings
+      const { data: settings } = await supabase
+        .from('settings')
+        .select('key, value')
+        .in('key', ['payment_whatsapp_enabled', 'payment_usdt_enabled']);
+
+      if (settings) {
+        const whatsapp = settings.find(s => s.key === 'payment_whatsapp_enabled');
+        const usdt = settings.find(s => s.key === 'payment_usdt_enabled');
+        setWhatsappEnabled(whatsapp?.value !== 'false');
+        setUsdtEnabled(usdt?.value !== 'false');
+      }
+
       setLoading(false);
     };
-    fetchPackages();
+    fetchData();
   }, []);
 
   const createCryptoPayment = async (plan: PricingPackage) => {
@@ -189,32 +206,43 @@ export default function BuyCredits() {
                   </li>
                 </ul>
                 <div className="space-y-2">
-                  <Button
-                    className="w-full"
-                    variant="default"
-                    onClick={() => createCryptoPayment(plan)}
-                    disabled={creatingPayment === plan.id || plan.price < 15}
-                    title={plan.price < 15 ? 'Minimum $15 for USDT payments' : undefined}
-                  >
-                    {creatingPayment === plan.id ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Bitcoin className="h-4 w-4 mr-2" />
-                    )}
-                    Pay with USDT
-                  </Button>
-                  {plan.price < 15 && (
-                    <p className="text-xs text-muted-foreground text-center">
-                      Min. $15 for USDT
+                  {usdtEnabled && (
+                    <>
+                      <Button
+                        className="w-full"
+                        variant="default"
+                        onClick={() => createCryptoPayment(plan)}
+                        disabled={creatingPayment === plan.id || plan.price < 15}
+                        title={plan.price < 15 ? 'Minimum $15 for USDT payments' : undefined}
+                      >
+                        {creatingPayment === plan.id ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Bitcoin className="h-4 w-4 mr-2" />
+                        )}
+                        Pay with USDT
+                      </Button>
+                      {plan.price < 15 && (
+                        <p className="text-xs text-muted-foreground text-center">
+                          Min. $15 for USDT
+                        </p>
+                      )}
+                    </>
+                  )}
+                  {whatsappEnabled && (
+                    <Button
+                      className="w-full bg-[#25D366] hover:bg-[#128C7E]"
+                      onClick={() => openWhatsApp(plan.credits)}
+                    >
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Buy via WhatsApp
+                    </Button>
+                  )}
+                  {!usdtEnabled && !whatsappEnabled && (
+                    <p className="text-sm text-muted-foreground text-center py-2">
+                      No payment methods available
                     </p>
                   )}
-                  <Button
-                    className="w-full bg-[#25D366] hover:bg-[#128C7E]"
-                    onClick={() => openWhatsApp(plan.credits)}
-                  >
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Buy via WhatsApp
-                  </Button>
                 </div>
               </CardContent>
             </Card>
