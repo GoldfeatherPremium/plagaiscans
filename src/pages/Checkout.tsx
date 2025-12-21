@@ -40,6 +40,14 @@ export default function Checkout() {
   const [vivaEnabled, setVivaEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
   
+  // Payment fees
+  const [fees, setFees] = useState<{ whatsapp: number; usdt: number; binance: number; viva: number }>({
+    whatsapp: 0,
+    usdt: 0,
+    binance: 0,
+    viva: 0,
+  });
+  
   // Payment processing states
   const [creatingPayment, setCreatingPayment] = useState<string | null>(null);
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
@@ -55,12 +63,24 @@ export default function Checkout() {
   // Viva payment state
   const [creatingVivaPayment, setCreatingVivaPayment] = useState(false);
 
+  // Calculate total with fee
+  const calculateTotalWithFee = (method: 'whatsapp' | 'usdt' | 'binance' | 'viva') => {
+    const baseTotal = getCartTotal();
+    const feePercent = fees[method] || 0;
+    const feeAmount = baseTotal * (feePercent / 100);
+    return Math.round((baseTotal + feeAmount) * 100) / 100;
+  };
+
   useEffect(() => {
     const fetchSettings = async () => {
       const { data: settings } = await supabase
         .from('settings')
         .select('key, value')
-        .in('key', ['payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'binance_pay_id']);
+        .in('key', [
+          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 
+          'binance_pay_id',
+          'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva'
+        ]);
 
       if (settings) {
         const whatsapp = settings.find(s => s.key === 'payment_whatsapp_enabled');
@@ -68,11 +88,25 @@ export default function Checkout() {
         const binance = settings.find(s => s.key === 'payment_binance_enabled');
         const viva = settings.find(s => s.key === 'payment_viva_enabled');
         const binanceId = settings.find(s => s.key === 'binance_pay_id');
+        
+        // Get fees
+        const feeWhatsapp = settings.find(s => s.key === 'fee_whatsapp');
+        const feeUsdt = settings.find(s => s.key === 'fee_usdt');
+        const feeBinance = settings.find(s => s.key === 'fee_binance');
+        const feeViva = settings.find(s => s.key === 'fee_viva');
+        
         setWhatsappEnabled(whatsapp?.value !== 'false');
         setUsdtEnabled(usdt?.value !== 'false');
         setBinanceEnabled(binance?.value === 'true');
         setVivaEnabled(viva?.value === 'true');
         if (binanceId) setBinancePayId(binanceId.value);
+        
+        setFees({
+          whatsapp: parseFloat(feeWhatsapp?.value || '0') || 0,
+          usdt: parseFloat(feeUsdt?.value || '0') || 0,
+          binance: parseFloat(feeBinance?.value || '0') || 0,
+          viva: parseFloat(feeViva?.value || '0') || 0,
+        });
       }
       setLoading(false);
     };
@@ -95,12 +129,13 @@ export default function Checkout() {
     setCreatingPayment('usdt');
     try {
       const orderId = `order_${Date.now()}_${user.id.slice(0, 8)}`;
+      const totalWithFee = calculateTotalWithFee('usdt');
       
       const response = await supabase.functions.invoke('nowpayments?action=create', {
         body: {
           userId: user.id,
           credits: getCartCredits(),
-          amountUsd: getCartTotal(),
+          amountUsd: totalWithFee,
           orderId,
         },
       });
@@ -196,7 +231,7 @@ export default function Checkout() {
       return;
     }
 
-    const totalAmount = getCartTotal();
+    const totalWithFee = calculateTotalWithFee('binance');
     const totalCredits = getCartCredits();
     
     setSubmittingBinance(true);
@@ -204,7 +239,7 @@ export default function Checkout() {
       const { error } = await supabase.from('manual_payments').insert({
         user_id: user.id,
         payment_method: 'binance_pay',
-        amount_usd: totalAmount,
+        amount_usd: totalWithFee,
         credits: totalCredits,
         status: 'pending',
         transaction_id: binanceOrderId.trim(),
@@ -222,7 +257,7 @@ export default function Checkout() {
         const notifications = adminRoles.map(admin => ({
           user_id: admin.user_id,
           title: '🔔 New Binance Pay Payment',
-          message: `New payment of $${totalAmount} for ${totalCredits} credits.\nOrder ID: ${binanceOrderId.trim()}\nUser: ${profile?.email || user.email}\nPlease verify in Admin Panel.`,
+          message: `New payment of $${totalWithFee} for ${totalCredits} credits.\nOrder ID: ${binanceOrderId.trim()}\nUser: ${profile?.email || user.email}\nPlease verify in Admin Panel.`,
           created_by: user.id,
         }));
 
@@ -252,14 +287,14 @@ export default function Checkout() {
     setCreatingVivaPayment(true);
     try {
       const totalCredits = getCartCredits();
-      const totalAmount = getCartTotal();
+      const totalWithFee = calculateTotalWithFee('viva');
       const orderId = `viva_${Date.now()}_${user.id.slice(0, 8)}`;
 
       const response = await supabase.functions.invoke('viva-payments?action=create', {
         body: {
           userId: user.id,
           credits: totalCredits,
-          amountUsd: totalAmount,
+          amountUsd: totalWithFee,
           orderId,
           customerEmail: profile?.email || user.email,
           customerName: profile?.full_name || '',
@@ -287,7 +322,8 @@ export default function Checkout() {
   };
 
   const handleWhatsAppPayment = () => {
-    const message = `Hi, I want to buy ${getCartCredits()} credits for $${getCartTotal()}. Please help me with the payment.`;
+    const totalWithFee = calculateTotalWithFee('whatsapp');
+    const message = `Hi, I want to buy ${getCartCredits()} credits for $${totalWithFee}. Please help me with the payment.`;
     openWhatsAppCustom(message);
   };
 
@@ -412,6 +448,7 @@ export default function Checkout() {
                           </h3>
                           <p className="text-sm text-muted-foreground">
                             Pay securely with Visa, Mastercard, or other debit/credit cards
+                            {fees.viva > 0 && <span className="text-amber-600"> (+{fees.viva}% fee)</span>}
                           </p>
                         </div>
                         <Button 
@@ -427,7 +464,7 @@ export default function Checkout() {
                           ) : (
                             <>
                               <CreditCard className="h-4 w-4 mr-2" />
-                              Pay ${getCartTotal()} with Card
+                              Pay ${calculateTotalWithFee('viva')} with Card
                             </>
                           )}
                         </Button>

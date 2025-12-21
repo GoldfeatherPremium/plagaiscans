@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe } from 'lucide-react';
+import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function AdminSettings() {
   const { toast } = useToast();
@@ -23,6 +24,17 @@ export default function AdminSettings() {
   const [vivaEnabled, setVivaEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
   const [savingBinance, setSavingBinance] = useState(false);
+  
+  // Viva.com settings
+  const [vivaSourceCode, setVivaSourceCode] = useState('');
+  const [savingViva, setSavingViva] = useState(false);
+  
+  // Payment handling fees
+  const [whatsappFee, setWhatsappFee] = useState('0');
+  const [usdtFee, setUsdtFee] = useState('0');
+  const [binanceFee, setBinanceFee] = useState('0');
+  const [vivaFee, setVivaFee] = useState('0');
+  const [savingFees, setSavingFees] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -36,7 +48,12 @@ export default function AdminSettings() {
       'payment_usdt_enabled',
       'payment_binance_enabled',
       'payment_viva_enabled',
-      'binance_pay_id'
+      'binance_pay_id',
+      'viva_source_code',
+      'fee_whatsapp',
+      'fee_usdt',
+      'fee_binance',
+      'fee_viva'
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
@@ -46,6 +63,12 @@ export default function AdminSettings() {
       const binancePayment = data.find(s => s.key === 'payment_binance_enabled');
       const vivaPayment = data.find(s => s.key === 'payment_viva_enabled');
       const binanceId = data.find(s => s.key === 'binance_pay_id');
+      const vivaSource = data.find(s => s.key === 'viva_source_code');
+      const feeWhatsapp = data.find(s => s.key === 'fee_whatsapp');
+      const feeUsdt = data.find(s => s.key === 'fee_usdt');
+      const feeBinance = data.find(s => s.key === 'fee_binance');
+      const feeViva = data.find(s => s.key === 'fee_viva');
+      
       if (whatsapp) setWhatsappNumber(whatsapp.value);
       if (timeout) setProcessingTimeout(timeout.value);
       setWhatsappEnabled(whatsappPayment?.value !== 'false');
@@ -53,6 +76,11 @@ export default function AdminSettings() {
       setBinanceEnabled(binancePayment?.value === 'true');
       setVivaEnabled(vivaPayment?.value === 'true');
       if (binanceId) setBinancePayId(binanceId.value);
+      if (vivaSource) setVivaSourceCode(vivaSource.value);
+      if (feeWhatsapp) setWhatsappFee(feeWhatsapp.value);
+      if (feeUsdt) setUsdtFee(feeUsdt.value);
+      if (feeBinance) setBinanceFee(feeBinance.value);
+      if (feeViva) setVivaFee(feeViva.value);
     }
     setLoading(false);
   };
@@ -120,6 +148,44 @@ export default function AdminSettings() {
       toast({ title: 'Error', description: 'Failed to save Binance Pay ID', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Binance Pay ID updated' });
+    }
+  };
+
+  const saveVivaSettings = async () => {
+    setSavingViva(true);
+    
+    const { error } = await supabase
+      .from('settings')
+      .upsert({ key: 'viva_source_code', value: vivaSourceCode }, { onConflict: 'key' });
+    
+    setSavingViva(false);
+    
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to save Viva.com settings', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: 'Viva.com settings updated' });
+    }
+  };
+
+  const savePaymentFees = async () => {
+    setSavingFees(true);
+    
+    const updates = [
+      supabase.from('settings').upsert({ key: 'fee_whatsapp', value: whatsappFee }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'fee_usdt', value: usdtFee }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'fee_binance', value: binanceFee }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'fee_viva', value: vivaFee }, { onConflict: 'key' }),
+    ];
+    
+    const results = await Promise.all(updates);
+    const hasError = results.some(r => r.error);
+    
+    setSavingFees(false);
+    
+    if (hasError) {
+      toast({ title: 'Error', description: 'Failed to save payment fees', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: 'Payment handling fees updated' });
     }
   };
 
@@ -214,6 +280,131 @@ export default function AdminSettings() {
             <Button onClick={savePaymentMethods} disabled={savingPaymentMethods}>
               {savingPaymentMethods ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Payment Settings
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Payment Handling Fees */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Percent className="h-5 w-5 text-amber-500" />
+              Payment Handling Fees
+            </CardTitle>
+            <CardDescription>Set additional fees for each payment method (percentage added to total)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                These fees will be added to the customer's total at checkout. For example, a 2.5% fee on a $10 order would charge $10.25.
+              </AlertDescription>
+            </Alert>
+            
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4 text-[#25D366]" />
+                  WhatsApp Fee (%)
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.1"
+                  placeholder="0"
+                  value={whatsappFee}
+                  onChange={(e) => setWhatsappFee(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Bitcoin className="h-4 w-4 text-green-500" />
+                  USDT Fee (%)
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.1"
+                  placeholder="0"
+                  value={usdtFee}
+                  onChange={(e) => setUsdtFee(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-[#F0B90B]" />
+                  Binance Pay Fee (%)
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.1"
+                  placeholder="0"
+                  value={binanceFee}
+                  onChange={(e) => setBinanceFee(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-[#1A1F71]" />
+                  Viva.com Card Fee (%)
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.1"
+                  placeholder="0"
+                  value={vivaFee}
+                  onChange={(e) => setVivaFee(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            <Button onClick={savePaymentFees} disabled={savingFees}>
+              {savingFees ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Payment Fees
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Viva.com Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-[#1A1F71]" />
+              Viva.com Configuration
+            </CardTitle>
+            <CardDescription>Configure your Viva.com payment gateway settings</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="vivaSourceCode">Source Code</Label>
+              <Input
+                id="vivaSourceCode"
+                placeholder="Enter your Viva.com Source Code (e.g., 2984)"
+                value={vivaSourceCode}
+                onChange={(e) => setVivaSourceCode(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                The source code from your Viva.com payment source configuration
+              </p>
+            </div>
+            
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>API Credentials:</strong> The Viva.com Client ID and Secret are stored securely as environment secrets. 
+                To update them, please use the Secrets management in the admin area or contact support.
+              </AlertDescription>
+            </Alert>
+            
+            <Button onClick={saveVivaSettings} disabled={savingViva}>
+              {savingViva ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Viva.com Settings
             </Button>
           </CardContent>
         </Card>
