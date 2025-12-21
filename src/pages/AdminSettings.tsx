@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, UserPlus, Clock, Users, Settings2, CreditCard, Bitcoin } from 'lucide-react';
+import { MessageCircle, Save, Loader2, UserPlus, Clock, Users, Settings2, CreditCard, Bitcoin, Wallet } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AdminNotificationSender } from '@/components/AdminNotificationSender';
 import {
@@ -43,6 +44,9 @@ export default function AdminSettings() {
   const [processingTimeout, setProcessingTimeout] = useState('30');
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
   const [usdtEnabled, setUsdtEnabled] = useState(true);
+  const [binanceEnabled, setBinanceEnabled] = useState(false);
+  const [binancePayId, setBinancePayId] = useState('');
+  const [savingBinance, setSavingBinance] = useState(false);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [selectedUser, setSelectedUser] = useState('');
   const [selectedRole, setSelectedRole] = useState<'admin' | 'staff' | 'customer'>('staff');
@@ -60,17 +64,23 @@ export default function AdminSettings() {
       'whatsapp_number', 
       'processing_timeout_minutes',
       'payment_whatsapp_enabled',
-      'payment_usdt_enabled'
+      'payment_usdt_enabled',
+      'payment_binance_enabled',
+      'binance_pay_id'
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
       const timeout = data.find(s => s.key === 'processing_timeout_minutes');
       const whatsappPayment = data.find(s => s.key === 'payment_whatsapp_enabled');
       const usdtPayment = data.find(s => s.key === 'payment_usdt_enabled');
+      const binancePayment = data.find(s => s.key === 'payment_binance_enabled');
+      const binanceId = data.find(s => s.key === 'binance_pay_id');
       if (whatsapp) setWhatsappNumber(whatsapp.value);
       if (timeout) setProcessingTimeout(timeout.value);
       setWhatsappEnabled(whatsappPayment?.value !== 'false');
       setUsdtEnabled(usdtPayment?.value !== 'false');
+      setBinanceEnabled(binancePayment?.value === 'true');
+      if (binanceId) setBinancePayId(binanceId.value);
     }
     setLoading(false);
   };
@@ -146,7 +156,7 @@ export default function AdminSettings() {
   const savePaymentMethods = async () => {
     setSavingPaymentMethods(true);
     
-    // Upsert both settings
+    // Upsert all payment settings
     const { error: error1 } = await supabase
       .from('settings')
       .upsert({ key: 'payment_whatsapp_enabled', value: whatsappEnabled.toString() }, { onConflict: 'key' });
@@ -155,12 +165,32 @@ export default function AdminSettings() {
       .from('settings')
       .upsert({ key: 'payment_usdt_enabled', value: usdtEnabled.toString() }, { onConflict: 'key' });
     
+    const { error: error3 } = await supabase
+      .from('settings')
+      .upsert({ key: 'payment_binance_enabled', value: binanceEnabled.toString() }, { onConflict: 'key' });
+    
     setSavingPaymentMethods(false);
     
-    if (error1 || error2) {
+    if (error1 || error2 || error3) {
       toast({ title: 'Error', description: 'Failed to save payment settings', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Payment methods updated' });
+    }
+  };
+
+  const saveBinanceSettings = async () => {
+    setSavingBinance(true);
+    
+    const { error } = await supabase
+      .from('settings')
+      .upsert({ key: 'binance_pay_id', value: binancePayId }, { onConflict: 'key' });
+    
+    setSavingBinance(false);
+    
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to save Binance Pay ID', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: 'Binance Pay ID updated' });
     }
   };
 
@@ -269,9 +299,53 @@ export default function AdminSettings() {
                 onCheckedChange={setUsdtEnabled}
               />
             </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-[#F0B90B]/10 flex items-center justify-center">
+                  <Wallet className="h-5 w-5 text-[#F0B90B]" />
+                </div>
+                <div>
+                  <p className="font-medium">Binance Pay</p>
+                  <p className="text-sm text-muted-foreground">Manual payment with admin verification</p>
+                </div>
+              </div>
+              <Switch
+                checked={binanceEnabled}
+                onCheckedChange={setBinanceEnabled}
+              />
+            </div>
             <Button onClick={savePaymentMethods} disabled={savingPaymentMethods}>
               {savingPaymentMethods ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Payment Settings
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Binance Pay Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-[#F0B90B]" />
+              Binance Pay Configuration
+            </CardTitle>
+            <CardDescription>Configure your Binance Pay ID for manual payments</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="binancePay">Binance Pay ID</Label>
+              <Input
+                id="binancePay"
+                placeholder="Enter your Binance Pay ID"
+                value={binancePayId}
+                onChange={(e) => setBinancePayId(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Customers will send payments to this Binance Pay ID
+              </p>
+            </div>
+            <Button onClick={saveBinanceSettings} disabled={savingBinance}>
+              {savingBinance ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Binance Settings
             </Button>
           </CardContent>
         </Card>

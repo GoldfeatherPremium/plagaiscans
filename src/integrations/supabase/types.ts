@@ -326,6 +326,48 @@ export type Database = {
         }
         Relationships: []
       }
+      manual_payments: {
+        Row: {
+          amount_usd: number
+          created_at: string
+          credits: number
+          id: string
+          notes: string | null
+          payment_method: string
+          status: string
+          transaction_id: string | null
+          user_id: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          amount_usd: number
+          created_at?: string
+          credits: number
+          id?: string
+          notes?: string | null
+          payment_method: string
+          status?: string
+          transaction_id?: string | null
+          user_id: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          amount_usd?: number
+          created_at?: string
+          credits?: number
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          status?: string
+          transaction_id?: string | null
+          user_id?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: []
+      }
       notification_reads: {
         Row: {
           id: string
