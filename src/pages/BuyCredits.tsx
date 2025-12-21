@@ -453,51 +453,14 @@ export default function BuyCredits() {
                     </li>
                   </ul>
 
-                  <div className="space-y-2 pt-2">
-                    {binanceEnabled && (
-                      <Button
-                        className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black font-medium"
-                        onClick={() => addToCart(plan)}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add to Cart
-                      </Button>
-                    )}
-                    {usdtEnabled && (
-                      <Button
-                        className="w-full"
-                        variant={binanceEnabled ? "outline" : "default"}
-                        onClick={() => createCryptoPayment(plan)}
-                        disabled={creatingPayment === plan.id || plan.price < 15}
-                        title={plan.price < 15 ? 'Minimum $15 for USDT payments' : undefined}
-                      >
-                        {creatingPayment === plan.id ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Bitcoin className="h-4 w-4 mr-2" />
-                        )}
-                        Pay with USDT
-                      </Button>
-                    )}
-                    {plan.price < 15 && usdtEnabled && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        Min. $15 for USDT
-                      </p>
-                    )}
-                    {whatsappEnabled && (
-                      <Button
-                        className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white"
-                        onClick={() => openWhatsApp(plan.credits)}
-                      >
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Buy via WhatsApp
-                      </Button>
-                    )}
-                    {!usdtEnabled && !whatsappEnabled && !binanceEnabled && (
-                      <p className="text-sm text-muted-foreground text-center py-2">
-                        No payment methods available
-                      </p>
-                    )}
+                  <div className="pt-2">
+                    <Button
+                      className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black font-medium"
+                      onClick={() => addToCart(plan)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add to Cart
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -745,22 +708,67 @@ export default function BuyCredits() {
                   </div>
                 </div>
 
-                <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1" onClick={clearCart}>
+                <div className="border-t pt-4 space-y-3">
+                  <p className="text-sm font-medium text-center text-muted-foreground">Choose Payment Method</p>
+                  
+                  <div className="space-y-2">
+                    {binanceEnabled && (
+                      <Button 
+                        className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black font-semibold"
+                        onClick={() => {
+                          setShowCartDialog(false);
+                          openBinancePayment();
+                        }}
+                      >
+                        <Wallet className="h-4 w-4 mr-2" />
+                        Pay with Binance
+                      </Button>
+                    )}
+                    
+                    {usdtEnabled && (
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        onClick={() => {
+                          if (getCartTotal() < 15) {
+                            toast.error('Minimum $15 for USDT payments. Add more to cart.');
+                            return;
+                          }
+                          setShowCartDialog(false);
+                          // Create USDT payment with cart total
+                          const totalCredits = getCartCredits();
+                          const totalPrice = getCartTotal();
+                          createCryptoPayment({ id: 'cart', credits: totalCredits, price: totalPrice });
+                        }}
+                        disabled={creatingPayment !== null}
+                      >
+                        {creatingPayment !== null ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Bitcoin className="h-4 w-4 mr-2" />
+                        )}
+                        Pay with USDT {getCartTotal() < 15 && '(Min. $15)'}
+                      </Button>
+                    )}
+                    
+                    {whatsappEnabled && (
+                      <Button
+                        className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white"
+                        onClick={() => {
+                          setShowCartDialog(false);
+                          openWhatsApp(getCartCredits());
+                        }}
+                      >
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        Buy via WhatsApp
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <Button variant="ghost" className="w-full text-muted-foreground" onClick={clearCart}>
+                    <Trash2 className="h-4 w-4 mr-2" />
                     Clear Cart
                   </Button>
-                  {binanceEnabled && (
-                    <Button 
-                      className="flex-1 bg-[#F0B90B] hover:bg-[#D4A50A] text-black font-semibold"
-                      onClick={() => {
-                        setShowCartDialog(false);
-                        openBinancePayment();
-                      }}
-                    >
-                      <Wallet className="h-4 w-4 mr-2" />
-                      Checkout
-                    </Button>
-                  )}
                 </div>
               </>
             )}
