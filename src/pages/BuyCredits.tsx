@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useWhatsApp } from '@/hooks/useWhatsApp';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { MessageCircle, CreditCard, CheckCircle, Loader2, Bitcoin, Copy, ExternalLink, RefreshCw, Wallet, ShoppingCart, Plus, Minus, Trash2, Sparkles, Zap, Star } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -16,11 +17,6 @@ interface PricingPackage {
   id: string;
   credits: number;
   price: number;
-}
-
-interface CartItem {
-  package: PricingPackage;
-  quantity: number;
 }
 
 interface PaymentDetails {
@@ -34,6 +30,8 @@ interface PaymentDetails {
 export default function BuyCredits() {
   const { profile, user } = useAuth();
   const { openWhatsApp } = useWhatsApp();
+  const { cart, addToCart, updateCartQuantity, removeFromCart, clearCart, getCartTotal, getCartCredits } = useCart();
+  
   const [packages, setPackages] = useState<PricingPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingPayment, setCreatingPayment] = useState<string | null>(null);
@@ -47,8 +45,7 @@ export default function BuyCredits() {
   const [showBinanceDialog, setShowBinanceDialog] = useState(false);
   const [submittingBinance, setSubmittingBinance] = useState(false);
   
-  // Cart state
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // Cart dialog state
   const [showCartDialog, setShowCartDialog] = useState(false);
   
   // Binance order ID state
@@ -86,48 +83,9 @@ export default function BuyCredits() {
     fetchData();
   }, []);
 
-  const addToCart = (plan: PricingPackage) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.package.id === plan.id);
-      if (existing) {
-        return prev.map(item => 
-          item.package.id === plan.id 
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      }
-      return [...prev, { package: plan, quantity: 1 }];
-    });
+  const handleAddToCart = (plan: PricingPackage) => {
+    addToCart(plan);
     toast.success(`Added ${plan.credits} credits to cart`);
-  };
-
-  const updateCartQuantity = (packageId: string, delta: number) => {
-    setCart(prev => {
-      return prev.map(item => {
-        if (item.package.id === packageId) {
-          const newQuantity = item.quantity + delta;
-          if (newQuantity <= 0) return null;
-          return { ...item, quantity: newQuantity };
-        }
-        return item;
-      }).filter(Boolean) as CartItem[];
-    });
-  };
-
-  const removeFromCart = (packageId: string) => {
-    setCart(prev => prev.filter(item => item.package.id !== packageId));
-  };
-
-  const getCartTotal = () => {
-    return cart.reduce((sum, item) => sum + (item.package.price * item.quantity), 0);
-  };
-
-  const getCartCredits = () => {
-    return cart.reduce((sum, item) => sum + (item.package.credits * item.quantity), 0);
-  };
-
-  const clearCart = () => {
-    setCart([]);
   };
 
   const createCryptoPayment = async (plan: PricingPackage) => {
@@ -456,7 +414,7 @@ export default function BuyCredits() {
                   <div className="pt-2">
                     <Button
                       className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black font-medium"
-                      onClick={() => addToCart(plan)}
+                      onClick={() => handleAddToCart(plan)}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add to Cart
