@@ -2,17 +2,25 @@ import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useWhatsApp } from '@/hooks/useWhatsApp';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, CreditCard, CheckCircle, Loader2, Bitcoin, Copy, ExternalLink, RefreshCw, Wallet } from 'lucide-react';
+import { MessageCircle, CreditCard, CheckCircle, Loader2, Bitcoin, Copy, ExternalLink, RefreshCw, Wallet, ShoppingCart, Plus, Minus, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
 
 interface PricingPackage {
   id: string;
   credits: number;
   price: number;
+}
+
+interface CartItem {
+  package: PricingPackage;
+  quantity: number;
 }
 
 interface PaymentDetails {
@@ -37,8 +45,15 @@ export default function BuyCredits() {
   const [binanceEnabled, setBinanceEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
   const [showBinanceDialog, setShowBinanceDialog] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<PricingPackage | null>(null);
   const [submittingBinance, setSubmittingBinance] = useState(false);
+  
+  // Cart state
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [showCartDialog, setShowCartDialog] = useState(false);
+  
+  // Binance order ID state
+  const [binanceOrderId, setBinanceOrderId] = useState('');
+  const [showOrderIdStep, setShowOrderIdStep] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -72,6 +87,51 @@ export default function BuyCredits() {
     };
     fetchData();
   }, []);
+
+  // Cart functions
+  const addToCart = (plan: PricingPackage) => {
+    setCart(prev => {
+      const existing = prev.find(item => item.package.id === plan.id);
+      if (existing) {
+        return prev.map(item => 
+          item.package.id === plan.id 
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...prev, { package: plan, quantity: 1 }];
+    });
+    toast.success(`Added ${plan.credits} credits to cart`);
+  };
+
+  const updateCartQuantity = (packageId: string, delta: number) => {
+    setCart(prev => {
+      return prev.map(item => {
+        if (item.package.id === packageId) {
+          const newQuantity = item.quantity + delta;
+          if (newQuantity <= 0) return null;
+          return { ...item, quantity: newQuantity };
+        }
+        return item;
+      }).filter(Boolean) as CartItem[];
+    });
+  };
+
+  const removeFromCart = (packageId: string) => {
+    setCart(prev => prev.filter(item => item.package.id !== packageId));
+  };
+
+  const getCartTotal = () => {
+    return cart.reduce((sum, item) => sum + (item.package.price * item.quantity), 0);
+  };
+
+  const getCartCredits = () => {
+    return cart.reduce((sum, item) => sum + (item.package.credits * item.quantity), 0);
+  };
+
+  const clearCart = () => {
+    setCart([]);
+  };
 
   const createCryptoPayment = async (plan: PricingPackage) => {
     if (!user) {
@@ -145,31 +205,50 @@ export default function BuyCredits() {
     }
   };
 
-  const openBinancePayment = (plan: PricingPackage) => {
+  const openBinancePayment = () => {
     if (!user) {
       toast.error('Please login to make a payment');
       return;
     }
-    setSelectedPlan(plan);
+    if (cart.length === 0) {
+      toast.error('Please add items to your cart first');
+      return;
+    }
+    setShowOrderIdStep(false);
+    setBinanceOrderId('');
     setShowBinanceDialog(true);
   };
 
+  const proceedToOrderId = () => {
+    setShowOrderIdStep(true);
+  };
+
   const submitBinancePayment = async () => {
-    if (!user || !selectedPlan) return;
+    if (!user || cart.length === 0) return;
+    
+    if (!binanceOrderId.trim()) {
+      toast.error('Please enter the Binance transaction order ID');
+      return;
+    }
+
+    const totalAmount = getCartTotal();
+    const totalCredits = getCartCredits();
     
     setSubmittingBinance(true);
     try {
       const { data: paymentData, error } = await supabase.from('manual_payments').insert({
         user_id: user.id,
         payment_method: 'binance_pay',
-        amount_usd: selectedPlan.price,
-        credits: selectedPlan.credits,
+        amount_usd: totalAmount,
+        credits: totalCredits,
         status: 'pending',
+        transaction_id: binanceOrderId.trim(),
+        notes: `Cart: ${cart.map(item => `${item.package.credits}x${item.quantity}`).join(', ')}`,
       }).select().single();
 
       if (error) throw error;
 
-      // Notify all admins about the new payment
+      // Notify all admins about the new payment with order ID
       const { data: adminRoles } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -178,8 +257,8 @@ export default function BuyCredits() {
       if (adminRoles && adminRoles.length > 0) {
         const notifications = adminRoles.map(admin => ({
           user_id: admin.user_id,
-          title: 'New Binance Pay Payment',
-          message: `A user has submitted a Binance Pay payment of $${selectedPlan.price} for ${selectedPlan.credits} credits. Please verify.`,
+          title: '🔔 New Binance Pay Payment',
+          message: `New payment of $${totalAmount} for ${totalCredits} credits.\nOrder ID: ${binanceOrderId.trim()}\nUser: ${profile?.email || user.email}\nPlease verify in Admin Panel.`,
           created_by: user.id,
         }));
 
@@ -188,7 +267,9 @@ export default function BuyCredits() {
 
       toast.success('Payment submitted! Admin will verify and credit your account.');
       setShowBinanceDialog(false);
-      setSelectedPlan(null);
+      setBinanceOrderId('');
+      setShowOrderIdStep(false);
+      clearCart();
     } catch (error: any) {
       console.error('Binance payment error:', error);
       toast.error('Failed to submit payment');
@@ -232,91 +313,133 @@ export default function BuyCredits() {
           </CardContent>
         </Card>
 
-        {/* Pricing Plans */}
-        <div className="grid md:grid-cols-2 gap-4">
-          {packages.map((plan) => (
-            <Card key={plan.id} className="hover:border-primary/50 transition-colors">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-2xl font-bold">
-                      {plan.credits} {plan.credits === 1 ? 'Credit' : 'Credits'}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      ${(plan.price / plan.credits).toFixed(2)} per document
-                    </p>
+        {/* Cart Summary (if items in cart) */}
+        {cart.length > 0 && (
+          <Card className="border-primary">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <ShoppingCart className="h-5 w-5 text-primary" />
                   </div>
-                  <p className="text-3xl font-bold text-primary">${plan.price}</p>
+                  <div>
+                    <p className="font-semibold">{getCartCredits()} Credits in Cart</p>
+                    <p className="text-sm text-muted-foreground">Total: ${getCartTotal()}</p>
+                  </div>
                 </div>
-                <ul className="space-y-2 mb-4 text-sm">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-secondary" />
-                    Similarity Detection
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-secondary" />
-                    AI Content Detection
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-secondary" />
-                    Detailed PDF Reports
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-secondary" />
-                    Credits Never Expire
-                  </li>
-                </ul>
-                <div className="space-y-2">
-                  {usdtEnabled && (
-                    <>
-                      <Button
-                        className="w-full"
-                        variant="default"
-                        onClick={() => createCryptoPayment(plan)}
-                        disabled={creatingPayment === plan.id || plan.price < 15}
-                        title={plan.price < 15 ? 'Minimum $15 for USDT payments' : undefined}
-                      >
-                        {creatingPayment === plan.id ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Bitcoin className="h-4 w-4 mr-2" />
-                        )}
-                        Pay with USDT
-                      </Button>
-                      {plan.price < 15 && (
-                        <p className="text-xs text-muted-foreground text-center">
-                          Min. $15 for USDT
-                        </p>
-                      )}
-                    </>
-                  )}
-                  {whatsappEnabled && (
-                    <Button
-                      className="w-full bg-[#25D366] hover:bg-[#128C7E]"
-                      onClick={() => openWhatsApp(plan.credits)}
-                    >
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      Buy via WhatsApp
-                    </Button>
-                  )}
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowCartDialog(true)}>
+                    View Cart
+                  </Button>
                   {binanceEnabled && (
-                    <Button
-                      className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
-                      onClick={() => openBinancePayment(plan)}
+                    <Button 
+                      size="sm" 
+                      className="bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
+                      onClick={openBinancePayment}
                     >
                       <Wallet className="h-4 w-4 mr-2" />
-                      Pay with Binance
+                      Checkout with Binance
                     </Button>
                   )}
-                  {!usdtEnabled && !whatsappEnabled && !binanceEnabled && (
-                    <p className="text-sm text-muted-foreground text-center py-2">
-                      No payment methods available
-                    </p>
-                  )}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pricing Plans */}
+        <div className="grid md:grid-cols-2 gap-4">
+          {packages.map((plan) => {
+            const cartItem = cart.find(item => item.package.id === plan.id);
+            return (
+              <Card key={plan.id} className="hover:border-primary/50 transition-colors relative">
+                {cartItem && (
+                  <Badge className="absolute -top-2 -right-2 bg-primary">
+                    {cartItem.quantity} in cart
+                  </Badge>
+                )}
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-2xl font-bold">
+                        {plan.credits} {plan.credits === 1 ? 'Credit' : 'Credits'}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        ${(plan.price / plan.credits).toFixed(2)} per document
+                      </p>
+                    </div>
+                    <p className="text-3xl font-bold text-primary">${plan.price}</p>
+                  </div>
+                  <ul className="space-y-2 mb-4 text-sm">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-secondary" />
+                      Similarity Detection
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-secondary" />
+                      AI Content Detection
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-secondary" />
+                      Detailed PDF Reports
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-secondary" />
+                      Credits Never Expire
+                    </li>
+                  </ul>
+                  <div className="space-y-2">
+                    {binanceEnabled && (
+                      <Button
+                        className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
+                        onClick={() => addToCart(plan)}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add to Cart
+                      </Button>
+                    )}
+                    {usdtEnabled && (
+                      <>
+                        <Button
+                          className="w-full"
+                          variant="default"
+                          onClick={() => createCryptoPayment(plan)}
+                          disabled={creatingPayment === plan.id || plan.price < 15}
+                          title={plan.price < 15 ? 'Minimum $15 for USDT payments' : undefined}
+                        >
+                          {creatingPayment === plan.id ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Bitcoin className="h-4 w-4 mr-2" />
+                          )}
+                          Pay with USDT
+                        </Button>
+                        {plan.price < 15 && (
+                          <p className="text-xs text-muted-foreground text-center">
+                            Min. $15 for USDT
+                          </p>
+                        )}
+                      </>
+                    )}
+                    {whatsappEnabled && (
+                      <Button
+                        className="w-full bg-[#25D366] hover:bg-[#128C7E]"
+                        onClick={() => openWhatsApp(plan.credits)}
+                      >
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        Buy via WhatsApp
+                      </Button>
+                    )}
+                    {!usdtEnabled && !whatsappEnabled && !binanceEnabled && (
+                      <p className="text-sm text-muted-foreground text-center py-2">
+                        No payment methods available
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* How it works */}
@@ -476,68 +599,216 @@ export default function BuyCredits() {
         </DialogContent>
       </Dialog>
 
-      {/* Binance Pay Dialog */}
-      <Dialog open={showBinanceDialog} onOpenChange={setShowBinanceDialog}>
+      {/* Cart Dialog */}
+      <Dialog open={showCartDialog} onOpenChange={setShowCartDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-[#F0B90B]" />
-              Pay with Binance
+              <ShoppingCart className="h-5 w-5" />
+              Your Cart
             </DialogTitle>
             <DialogDescription>
-              Send ${selectedPlan?.price} to complete your purchase of {selectedPlan?.credits} credits
+              Review your items before checkout
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="p-4 bg-muted rounded-lg space-y-3">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Amount to send</p>
-                <p className="text-2xl font-bold text-[#F0B90B]">
-                  ${selectedPlan?.price} USD
+            {cart.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">Your cart is empty</p>
+            ) : (
+              <>
+                {cart.map(item => (
+                  <div key={item.package.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div>
+                      <p className="font-semibold">{item.package.credits} Credits</p>
+                      <p className="text-sm text-muted-foreground">${item.package.price} each</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        size="icon" 
+                        variant="outline" 
+                        className="h-8 w-8"
+                        onClick={() => updateCartQuantity(item.package.id, -1)}
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="w-8 text-center font-semibold">{item.quantity}</span>
+                      <Button 
+                        size="icon" 
+                        variant="outline" 
+                        className="h-8 w-8"
+                        onClick={() => updateCartQuantity(item.package.id, 1)}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => removeFromCart(item.package.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="border-t pt-4">
+                  <div className="flex justify-between text-lg font-bold">
+                    <span>Total:</span>
+                    <span>${getCartTotal()} ({getCartCredits()} Credits)</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={clearCart}>
+                    Clear Cart
+                  </Button>
+                  {binanceEnabled && (
+                    <Button 
+                      className="flex-1 bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
+                      onClick={() => {
+                        setShowCartDialog(false);
+                        openBinancePayment();
+                      }}
+                    >
+                      <Wallet className="h-4 w-4 mr-2" />
+                      Pay with Binance
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Binance Pay Dialog */}
+      <Dialog open={showBinanceDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowOrderIdStep(false);
+          setBinanceOrderId('');
+        }
+        setShowBinanceDialog(open);
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-[#F0B90B]" />
+              {showOrderIdStep ? 'Enter Order ID' : 'Pay with Binance'}
+            </DialogTitle>
+            <DialogDescription>
+              {showOrderIdStep 
+                ? 'Enter your Binance transaction order ID to complete verification'
+                : `Send $${getCartTotal()} to complete your purchase of ${getCartCredits()} credits`
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          {!showOrderIdStep ? (
+            <div className="space-y-4">
+              {/* Cart summary */}
+              <div className="p-3 bg-muted/50 rounded-lg space-y-2 max-h-32 overflow-y-auto">
+                {cart.map(item => (
+                  <div key={item.package.id} className="flex justify-between text-sm">
+                    <span>{item.package.credits} Credits × {item.quantity}</span>
+                    <span className="font-medium">${item.package.price * item.quantity}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-4 bg-muted rounded-lg space-y-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Total Amount to Send</p>
+                  <p className="text-2xl font-bold text-[#F0B90B]">
+                    ${getCartTotal()} USD
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    for {getCartCredits()} credits
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Send to Binance Pay ID</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-sm bg-background p-2 rounded border">
+                      {binancePayId || 'Contact admin for Pay ID'}
+                    </code>
+                    <Button 
+                      size="icon" 
+                      variant="outline" 
+                      onClick={() => {
+                        navigator.clipboard.writeText(binancePayId);
+                        toast.success('Pay ID copied!');
+                      }}
+                      disabled={!binancePayId}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>⚠️ Send the exact amount shown above</p>
+                <p>⚠️ After payment, click "I Have Paid" below</p>
+                <p>⚠️ You'll need to provide the transaction Order ID</p>
+              </div>
+
+              <Button 
+                className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
+                onClick={proceedToOrderId}
+                disabled={!binancePayId}
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                I Have Paid
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm mb-2">
+                  Please enter the <strong>Order ID</strong> from your Binance transaction.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  You can find this in your Binance Pay transaction history.
                 </p>
               </div>
 
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Send to Binance Pay ID</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 text-sm bg-background p-2 rounded border">
-                    {binancePayId || 'Contact admin for Pay ID'}
-                  </code>
-                  <Button 
-                    size="icon" 
-                    variant="outline" 
-                    onClick={() => {
-                      navigator.clipboard.writeText(binancePayId);
-                      toast.success('Pay ID copied!');
-                    }}
-                    disabled={!binancePayId}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="binance-order-id">Transaction Order ID</Label>
+                <Input
+                  id="binance-order-id"
+                  placeholder="e.g., 123456789012345678"
+                  value={binanceOrderId}
+                  onChange={(e) => setBinanceOrderId(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => setShowOrderIdStep(false)}
+                >
+                  Back
+                </Button>
+                <Button 
+                  className="flex-1 bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
+                  onClick={submitBinancePayment}
+                  disabled={submittingBinance || !binanceOrderId.trim()}
+                >
+                  {submittingBinance ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                  )}
+                  Submit for Verification
+                </Button>
               </div>
             </div>
-
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p>⚠️ Send the exact amount shown above</p>
-              <p>⚠️ After payment, click "I Paid" below</p>
-              <p>⚠️ Admin will verify and credits will be added</p>
-            </div>
-
-            <Button 
-              className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
-              onClick={submitBinancePayment}
-              disabled={submittingBinance || !binancePayId}
-            >
-              {submittingBinance ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <CheckCircle className="h-4 w-4 mr-2" />
-              )}
-              I Paid - Submit for Verification
-            </Button>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
