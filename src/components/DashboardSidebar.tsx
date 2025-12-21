@@ -24,6 +24,7 @@ import {
   MessageSquare,
   Wallet,
   Receipt,
+  Shield,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -69,6 +70,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/announcements', icon: Megaphone, label: 'Announcements' },
     { to: '/dashboard/support-tickets', icon: MessageSquare, label: 'Support' },
     { to: '/dashboard/blocked-users', icon: ShieldBan, label: 'Blocked Users' },
+    { to: '/dashboard/staff-permissions', icon: Shield, label: 'Staff Permissions' },
     { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
     { to: '/dashboard/profile', icon: User, label: 'Profile' },
   ];
