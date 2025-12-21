@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileText,
@@ -33,6 +33,7 @@ import {
   Bell,
   Wrench,
   Search,
+  ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from '@/hooks/use-toast';
 
 interface NavLink {
   to: string;
@@ -67,6 +69,7 @@ interface BadgeCounts {
 export const DashboardSidebar: React.FC = () => {
   const { role, profile, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
@@ -74,6 +77,30 @@ export const DashboardSidebar: React.FC = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [previousCounts, setPreviousCounts] = useState<BadgeCounts | null>(null);
   const [animatingBadges, setAnimatingBadges] = useState<Set<string>>(new Set());
+
+  // Notification config for each badge type
+  const notificationConfig: Record<keyof BadgeCounts, { title: string; description: string; path: string }> = {
+    pendingDocuments: {
+      title: 'New Document Pending',
+      description: 'A new document is waiting in the queue',
+      path: '/dashboard/queue',
+    },
+    pendingManualPayments: {
+      title: 'New Manual Payment',
+      description: 'A manual payment requires verification',
+      path: '/dashboard/manual-payments',
+    },
+    openTickets: {
+      title: 'New Support Ticket',
+      description: 'A new support ticket has been opened',
+      path: '/dashboard/support-tickets',
+    },
+    pendingCrypto: {
+      title: 'New Crypto Payment',
+      description: 'A crypto payment is awaiting confirmation',
+      path: '/dashboard/crypto-payments',
+    },
+  };
 
   // Fetch badge counts for admin
   const { data: badgeCounts } = useQuery({
@@ -97,7 +124,7 @@ export const DashboardSidebar: React.FC = () => {
     refetchInterval: 30000,
   });
 
-  // Detect new items and trigger animation
+  // Detect new items, trigger animation and show toast
   useEffect(() => {
     if (!badgeCounts || !previousCounts) {
       if (badgeCounts) setPreviousCounts(badgeCounts);
@@ -105,28 +132,53 @@ export const DashboardSidebar: React.FC = () => {
     }
 
     const newAnimating = new Set<string>();
+    const notifications: Array<{ key: keyof BadgeCounts; diff: number }> = [];
     
     if (badgeCounts.pendingDocuments > previousCounts.pendingDocuments) {
       newAnimating.add('pendingDocuments');
+      notifications.push({ key: 'pendingDocuments', diff: badgeCounts.pendingDocuments - previousCounts.pendingDocuments });
     }
     if (badgeCounts.pendingManualPayments > previousCounts.pendingManualPayments) {
       newAnimating.add('pendingManualPayments');
+      notifications.push({ key: 'pendingManualPayments', diff: badgeCounts.pendingManualPayments - previousCounts.pendingManualPayments });
     }
     if (badgeCounts.openTickets > previousCounts.openTickets) {
       newAnimating.add('openTickets');
+      notifications.push({ key: 'openTickets', diff: badgeCounts.openTickets - previousCounts.openTickets });
     }
     if (badgeCounts.pendingCrypto > previousCounts.pendingCrypto) {
       newAnimating.add('pendingCrypto');
+      notifications.push({ key: 'pendingCrypto', diff: badgeCounts.pendingCrypto - previousCounts.pendingCrypto });
     }
 
     if (newAnimating.size > 0) {
       setAnimatingBadges(newAnimating);
-      // Clear animation after it completes (3 pulses × 1s = 3s)
       setTimeout(() => setAnimatingBadges(new Set()), 3000);
     }
 
+    // Show toast notifications for new items
+    notifications.forEach(({ key, diff }) => {
+      const config = notificationConfig[key];
+      toast({
+        title: config.title,
+        description: (
+          <div className="flex items-center justify-between gap-2">
+            <span>{diff > 1 ? `${diff} new items` : config.description}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={() => navigate(config.path)}
+            >
+              View <ExternalLink className="h-3 w-3" />
+            </Button>
+          </div>
+        ),
+      });
+    });
+
     setPreviousCounts(badgeCounts);
-  }, [badgeCounts]);
+  }, [badgeCounts, navigate]);
 
   // Real-time subscriptions for badge updates
   useEffect(() => {
