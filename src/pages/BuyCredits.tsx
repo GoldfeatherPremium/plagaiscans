@@ -57,15 +57,12 @@ export default function BuyCredits() {
     try {
       const orderId = `order_${Date.now()}_${user.id.slice(0, 8)}`;
       
-      const response = await supabase.functions.invoke('nowpayments', {
+      const response = await supabase.functions.invoke('nowpayments?action=create', {
         body: {
           userId: user.id,
           credits: plan.credits,
           amountUsd: plan.price,
           orderId,
-        },
-        headers: {
-          'Content-Type': 'application/json',
         },
       });
 
@@ -101,14 +98,6 @@ export default function BuyCredits() {
 
     setCheckingStatus(true);
     try {
-      const response = await supabase.functions.invoke('nowpayments', {
-        body: {},
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      // Use query params for GET-like behavior
       const { data } = await supabase.functions.invoke(`nowpayments?action=status&payment_id=${paymentDetails.paymentId}`, {});
 
       if (data?.status) {
