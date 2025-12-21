@@ -163,7 +163,8 @@ export const useMagicLinks = () => {
     }
   };
 
-  const validateMagicLink = async (token: string): Promise<MagicUploadLink | null> => {
+  // Validates magic link for access (viewing/downloading) - doesn't check upload limits
+  const validateMagicLinkForAccess = async (token: string): Promise<MagicUploadLink | null> => {
     try {
       const { data, error } = await supabase
         .from('magic_upload_links')
@@ -181,16 +182,26 @@ export const useMagicLinks = () => {
         return null;
       }
 
-      // Check if upload limit reached
-      if (data.current_uploads >= data.max_uploads) {
-        return null;
-      }
-
+      // Access is allowed even if upload limit is reached
       return data;
     } catch (error) {
-      console.error('Error validating magic link:', error);
+      console.error('Error validating magic link for access:', error);
       return null;
     }
+  };
+
+  // Validates magic link for uploading - checks upload limits
+  const validateMagicLink = async (token: string): Promise<MagicUploadLink | null> => {
+    const data = await validateMagicLinkForAccess(token);
+    
+    if (!data) return null;
+
+    // Check if upload limit reached
+    if (data.current_uploads >= data.max_uploads) {
+      return null;
+    }
+
+    return data;
   };
 
   const uploadFileWithMagicLink = async (token: string, file: File): Promise<boolean> => {
@@ -375,6 +386,7 @@ export const useMagicLinks = () => {
     disableMagicLink,
     deleteMagicLink,
     validateMagicLink,
+    validateMagicLinkForAccess,
     uploadFileWithMagicLink,
     getMagicLinkFiles,
     getFilesByToken,

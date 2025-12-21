@@ -42,7 +42,7 @@ export default function GuestUpload() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   
-  const { validateMagicLink, uploadFileWithMagicLink, getFilesByToken, downloadMagicFile } = useMagicLinks();
+  const { validateMagicLink, validateMagicLinkForAccess, uploadFileWithMagicLink, getFilesByToken, downloadMagicFile } = useMagicLinks();
   
   const [linkData, setLinkData] = useState<MagicUploadLink | null>(null);
   const [files, setFiles] = useState<MagicUploadFile[]>([]);
@@ -71,9 +71,10 @@ export default function GuestUpload() {
         return;
       }
 
-      const data = await validateMagicLink(token);
+      // Use validateMagicLinkForAccess to allow access even when upload limit is reached
+      const data = await validateMagicLinkForAccess(token);
       if (!data) {
-        setLinkError('This link is invalid, expired, or has reached its upload limit');
+        setLinkError('This link is invalid or expired');
         setValidating(false);
         return;
       }
@@ -151,15 +152,10 @@ export default function GuestUpload() {
       setUploadSuccess(true);
       setSelectedFile(null);
       
-      // Refresh link data and files
-      const data = await validateMagicLink(token);
+      // Refresh link data and files using access validation (allows viewing after limit reached)
+      const data = await validateMagicLinkForAccess(token);
       setLinkData(data);
       await refreshFiles();
-      
-      // Check if limit reached after upload
-      if (data && data.current_uploads >= data.max_uploads) {
-        setLinkError('Upload limit reached');
-      }
     }
   };
 
