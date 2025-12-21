@@ -66,6 +66,16 @@ serve(async (req) => {
 
       console.log(`Creating Viva payment for user ${userId}: ${credits} credits, $${amountUsd}`);
 
+      // Get source code from settings
+      const { data: sourceCodeSetting } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'viva_source_code')
+        .single();
+      
+      const sourceCode = sourceCodeSetting?.value || '2984';
+      console.log(`Using Viva source code: ${sourceCode}`);
+
       // Get access token
       const accessToken = await getAccessToken();
 
@@ -85,7 +95,7 @@ serve(async (req) => {
         allowRecurring: false,
         maxInstallments: 0,
         paymentNotification: true,
-        sourceCode: '2984',
+        sourceCode: sourceCode,
         merchantTrns: orderId,
         tags: ['credits', `user_${userId}`],
       };
