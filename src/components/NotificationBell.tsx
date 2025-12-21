@@ -316,6 +316,9 @@ export const NotificationBell: React.FC = () => {
 
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     setReadIds(new Set(notifications.map(n => n.id)));
+    
+    // Close popover after marking all as read
+    setOpen(false);
   };
 
   const isUnread = (notif: Notification) => {
