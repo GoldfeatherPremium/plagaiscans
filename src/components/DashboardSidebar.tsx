@@ -66,6 +66,29 @@ interface BadgeCounts {
   pendingCrypto: number;
 }
 
+interface SeenCounts {
+  pendingCrypto: number;
+  pendingManualPayments: number;
+  openTickets: number;
+  pendingDocuments: number;
+}
+
+const SEEN_COUNTS_KEY = 'admin-seen-badge-counts';
+
+const getSeenCounts = (): SeenCounts => {
+  try {
+    const stored = localStorage.getItem(SEEN_COUNTS_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return { pendingCrypto: 0, pendingManualPayments: 0, openTickets: 0, pendingDocuments: 0 };
+};
+
+const setSeenCount = (key: keyof SeenCounts, count: number) => {
+  const current = getSeenCounts();
+  current[key] = count;
+  localStorage.setItem(SEEN_COUNTS_KEY, JSON.stringify(current));
+};
+
 export const DashboardSidebar: React.FC = () => {
   const { role, profile, signOut } = useAuth();
   const location = useLocation();
@@ -77,6 +100,7 @@ export const DashboardSidebar: React.FC = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [previousCounts, setPreviousCounts] = useState<BadgeCounts | null>(null);
   const [animatingBadges, setAnimatingBadges] = useState<Set<string>>(new Set());
+  const [seenCounts, setSeenCounts] = useState<SeenCounts>(getSeenCounts);
 
   // Notification config for each badge type
   const notificationConfig: Record<keyof BadgeCounts, { title: string; description: string; path: string }> = {
@@ -330,12 +354,21 @@ export const DashboardSidebar: React.FC = () => {
     },
   ];
 
-  // Calculate group badge counts
+  // Calculate unseen count (only show badge for new items since last visit)
+  const getUnseenCount = useCallback((key: keyof BadgeCounts): number => {
+    if (!badgeCounts) return 0;
+    const currentCount = badgeCounts[key];
+    const seen = seenCounts[key as keyof SeenCounts] || 0;
+    // Show badge only if current count is greater than what was seen
+    return currentCount > seen ? currentCount - seen : 0;
+  }, [badgeCounts, seenCounts]);
+
+  // Calculate group badge counts (using unseen counts)
   const getGroupBadgeCount = (group: NavGroup): number => {
     if (!badgeCounts) return 0;
     return group.links.reduce((total, link) => {
-      if (link.badgeKey && badgeCounts[link.badgeKey as keyof BadgeCounts]) {
-        return total + badgeCounts[link.badgeKey as keyof BadgeCounts];
+      if (link.badgeKey) {
+        return total + getUnseenCount(link.badgeKey as keyof BadgeCounts);
       }
       return total;
     }, 0);
@@ -383,11 +416,28 @@ export const DashboardSidebar: React.FC = () => {
     }
   }, [searchQuery, filteredAdminGroups]);
 
-  // Close sidebar when route changes
+  // Close sidebar when route changes and mark items as seen
   useEffect(() => {
     setIsOpen(false);
     setSearchQuery('');
-  }, [location.pathname]);
+    
+    // Mark badges as "seen" when visiting their respective pages
+    if (badgeCounts) {
+      const pathToKey: Record<string, keyof SeenCounts> = {
+        '/dashboard/crypto-payments': 'pendingCrypto',
+        '/dashboard/manual-payments': 'pendingManualPayments',
+        '/dashboard/support-tickets': 'openTickets',
+        '/dashboard/queue': 'pendingDocuments',
+      };
+      
+      const seenKey = pathToKey[location.pathname];
+      if (seenKey && badgeCounts[seenKey] > 0) {
+        setSeenCount(seenKey, badgeCounts[seenKey]);
+        setSeenCounts(getSeenCounts());
+      }
+    }
+  }, [location.pathname, badgeCounts]);
+
 
   const renderBadge = (count: number, badgeKey?: string) => {
     if (count === 0) return null;
@@ -407,7 +457,7 @@ export const DashboardSidebar: React.FC = () => {
 
   const renderLink = (link: NavLink, compact = false) => {
     const isActive = location.pathname === link.to;
-    const badgeCount = link.badgeKey && badgeCounts ? badgeCounts[link.badgeKey as keyof BadgeCounts] : 0;
+    const badgeCount = link.badgeKey ? getUnseenCount(link.badgeKey as keyof BadgeCounts) : 0;
     
     return (
       <Link
