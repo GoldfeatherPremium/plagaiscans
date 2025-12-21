@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet } from 'lucide-react';
+import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe } from 'lucide-react';
 
 export default function AdminSettings() {
   const { toast } = useToast();
@@ -20,6 +20,7 @@ export default function AdminSettings() {
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
   const [usdtEnabled, setUsdtEnabled] = useState(true);
   const [binanceEnabled, setBinanceEnabled] = useState(false);
+  const [vivaEnabled, setVivaEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
   const [savingBinance, setSavingBinance] = useState(false);
 
@@ -34,6 +35,7 @@ export default function AdminSettings() {
       'payment_whatsapp_enabled',
       'payment_usdt_enabled',
       'payment_binance_enabled',
+      'payment_viva_enabled',
       'binance_pay_id'
     ]);
     if (data) {
@@ -42,12 +44,14 @@ export default function AdminSettings() {
       const whatsappPayment = data.find(s => s.key === 'payment_whatsapp_enabled');
       const usdtPayment = data.find(s => s.key === 'payment_usdt_enabled');
       const binancePayment = data.find(s => s.key === 'payment_binance_enabled');
+      const vivaPayment = data.find(s => s.key === 'payment_viva_enabled');
       const binanceId = data.find(s => s.key === 'binance_pay_id');
       if (whatsapp) setWhatsappNumber(whatsapp.value);
       if (timeout) setProcessingTimeout(timeout.value);
       setWhatsappEnabled(whatsappPayment?.value !== 'false');
       setUsdtEnabled(usdtPayment?.value !== 'false');
       setBinanceEnabled(binancePayment?.value === 'true');
+      setVivaEnabled(vivaPayment?.value === 'true');
       if (binanceId) setBinancePayId(binanceId.value);
     }
     setLoading(false);
@@ -90,9 +94,13 @@ export default function AdminSettings() {
       .from('settings')
       .upsert({ key: 'payment_binance_enabled', value: binanceEnabled.toString() }, { onConflict: 'key' });
     
+    const { error: error4 } = await supabase
+      .from('settings')
+      .upsert({ key: 'payment_viva_enabled', value: vivaEnabled.toString() }, { onConflict: 'key' });
+    
     setSavingPaymentMethods(false);
     
-    if (error1 || error2 || error3) {
+    if (error1 || error2 || error3 || error4) {
       toast({ title: 'Error', description: 'Failed to save payment settings', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Payment methods updated' });
@@ -186,6 +194,21 @@ export default function AdminSettings() {
               <Switch
                 checked={binanceEnabled}
                 onCheckedChange={setBinanceEnabled}
+              />
+            </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-[#1A1F71]/10 flex items-center justify-center">
+                  <Globe className="h-5 w-5 text-[#1A1F71]" />
+                </div>
+                <div>
+                  <p className="font-medium">Viva.com (Card Payment)</p>
+                  <p className="text-sm text-muted-foreground">Credit/debit card via Viva.com checkout</p>
+                </div>
+              </div>
+              <Switch
+                checked={vivaEnabled}
+                onCheckedChange={setVivaEnabled}
               />
             </div>
             <Button onClick={savePaymentMethods} disabled={savingPaymentMethods}>

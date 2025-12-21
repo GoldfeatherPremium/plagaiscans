@@ -8,7 +8,7 @@ import { useWhatsApp } from '@/hooks/useWhatsApp';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, CreditCard, CheckCircle, Loader2, Bitcoin, Copy, ExternalLink, RefreshCw, Wallet, ShoppingCart, Plus, Minus, Trash2, Sparkles, Zap, Star } from 'lucide-react';
+import { MessageCircle, CreditCard, CheckCircle, Loader2, Bitcoin, Copy, ExternalLink, RefreshCw, Wallet, ShoppingCart, Plus, Minus, Trash2, Sparkles, Zap, Star, Globe } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +41,7 @@ export default function BuyCredits() {
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
   const [usdtEnabled, setUsdtEnabled] = useState(true);
   const [binanceEnabled, setBinanceEnabled] = useState(false);
+  const [vivaEnabled, setVivaEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
   const [showBinanceDialog, setShowBinanceDialog] = useState(false);
   const [submittingBinance, setSubmittingBinance] = useState(false);
@@ -51,6 +52,9 @@ export default function BuyCredits() {
   // Binance order ID state
   const [binanceOrderId, setBinanceOrderId] = useState('');
   const [showOrderIdStep, setShowOrderIdStep] = useState(false);
+  
+  // Viva payment state
+  const [creatingVivaPayment, setCreatingVivaPayment] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,16 +69,18 @@ export default function BuyCredits() {
       const { data: settings } = await supabase
         .from('settings')
         .select('key, value')
-        .in('key', ['payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'binance_pay_id']);
+        .in('key', ['payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'binance_pay_id']);
 
       if (settings) {
         const whatsapp = settings.find(s => s.key === 'payment_whatsapp_enabled');
         const usdt = settings.find(s => s.key === 'payment_usdt_enabled');
         const binance = settings.find(s => s.key === 'payment_binance_enabled');
+        const viva = settings.find(s => s.key === 'payment_viva_enabled');
         const binanceId = settings.find(s => s.key === 'binance_pay_id');
         setWhatsappEnabled(whatsapp?.value !== 'false');
         setUsdtEnabled(usdt?.value !== 'false');
         setBinanceEnabled(binance?.value === 'true');
+        setVivaEnabled(viva?.value === 'true');
         if (binanceId) setBinancePayId(binanceId.value);
       }
 
@@ -248,6 +254,50 @@ export default function BuyCredits() {
       toast.error('Failed to submit payment');
     } finally {
       setSubmittingBinance(false);
+    }
+  };
+
+  const createVivaPayment = async () => {
+    if (!user || cart.length === 0) {
+      toast.error('Please login and add items to cart');
+      return;
+    }
+
+    setCreatingVivaPayment(true);
+    try {
+      const totalCredits = getCartCredits();
+      const totalAmount = getCartTotal();
+      const orderId = `viva_${Date.now()}_${user.id.slice(0, 8)}`;
+
+      const response = await supabase.functions.invoke('viva-payments?action=create', {
+        body: {
+          userId: user.id,
+          credits: totalCredits,
+          amountUsd: totalAmount,
+          orderId,
+          customerEmail: profile?.email || user.email,
+          customerName: profile?.full_name || '',
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const data = response.data;
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create payment');
+      }
+
+      // Redirect to Viva checkout
+      toast.success('Redirecting to payment page...');
+      clearCart();
+      window.location.href = data.checkoutUrl;
+    } catch (error: any) {
+      console.error('Viva payment error:', error);
+      toast.error(error.message || 'Failed to create payment');
+    } finally {
+      setCreatingVivaPayment(false);
     }
   };
 
@@ -435,7 +485,33 @@ export default function BuyCredits() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {/* Viva.com Card Payment */}
+              {vivaEnabled && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-[#1A1F71]/10 flex items-center justify-center">
+                      <Globe className="h-5 w-5 text-[#1A1F71]" />
+                    </div>
+                    <h4 className="font-semibold">Card Payment</h4>
+                  </div>
+                  <ol className="space-y-3 text-sm">
+                    <li className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-[#1A1F71] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">1</span>
+                      <span>Add credits to your cart</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-[#1A1F71] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
+                      <span>Click "Pay with Card" and checkout</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-[#1A1F71] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">3</span>
+                      <span>Credits added automatically</span>
+                    </li>
+                  </ol>
+                </div>
+              )}
+
               {/* Binance Pay */}
               {binanceEnabled && (
                 <div className="space-y-4">
@@ -669,7 +745,25 @@ export default function BuyCredits() {
                 <div className="border-t pt-4 space-y-3">
                   <p className="text-sm font-medium text-center text-muted-foreground">Choose Payment Method</p>
                   
-                  <div className="space-y-2">
+                   <div className="space-y-2">
+                    {vivaEnabled && (
+                      <Button 
+                        className="w-full bg-[#1A1F71] hover:bg-[#131654] text-white font-semibold"
+                        onClick={() => {
+                          setShowCartDialog(false);
+                          createVivaPayment();
+                        }}
+                        disabled={creatingVivaPayment}
+                      >
+                        {creatingVivaPayment ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Globe className="h-4 w-4 mr-2" />
+                        )}
+                        Pay with Card (Viva)
+                      </Button>
+                    )}
+                    
                     {binanceEnabled && (
                       <Button 
                         className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black font-semibold"
