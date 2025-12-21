@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { InstallPromptBanner } from "@/components/InstallPromptBanner";
+import { DocumentCompletionNotifier } from "@/components/DocumentCompletionNotifier";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -130,6 +131,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <CartProvider>
+            <DocumentCompletionNotifier />
             <AppRoutes />
             <InstallPromptBanner />
           </CartProvider>
