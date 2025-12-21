@@ -173,3 +173,19 @@
   animation: bell-ring 0.5s ease-in-out;
   transform-origin: top center;
 }
+
+/* Badge pulse animation for new items */
+@keyframes badge-pulse {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 0 0 0 hsl(var(--destructive) / 0.7);
+  }
+  50% { 
+    transform: scale(1.1);
+    box-shadow: 0 0 0 6px hsl(var(--destructive) / 0);
+  }
+}
+
+.animate-badge-pulse {
+  animation: badge-pulse 1s ease-in-out 3;
+}
