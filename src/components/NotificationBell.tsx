@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -10,6 +10,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { toast } from 'sonner';
 
 interface Notification {
   id: string;
@@ -20,23 +22,62 @@ interface Notification {
   type: 'broadcast' | 'personal';
 }
 
+// Better notification sound - a pleasant chime
+const NOTIFICATION_SOUND_BASE64 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYZNYXz2AAAAAAAAAAAAAAAAAAAAAAD/+9DEAAAGtAFptAAAJTITq/c0wAkAAAANIAAAAAEJGJEIhCEIf/LEIQhCEIT//+UIT/KE85znOc5znOc5znOc+c5znOc5znOc5znOc5znOc5znOc5z3EhYWFhYWFhYWFhYX//uxCEIQhCEIQh/5QhCEIQhD/ygAAADSAMYxjGMYxjGHVdV1XVQAAAAD/+9DEDYPQAAGkAAAAIAAANIAAAAT/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////';
+
 export const NotificationBell: React.FC = () => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
   const [isRinging, setIsRinging] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('notificationSound') !== 'disabled';
+    }
+    return true;
+  });
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { sendPushNotification, requestPermission } = usePushNotifications();
+
+  // Initialize audio element
+  useEffect(() => {
+    audioRef.current = new Audio(NOTIFICATION_SOUND_BASE64);
+    audioRef.current.volume = 0.5;
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // Toggle sound
+  const toggleSound = () => {
+    const newState = !soundEnabled;
+    setSoundEnabled(newState);
+    localStorage.setItem('notificationSound', newState ? 'enabled' : 'disabled');
+    
+    if (newState) {
+      requestPermission();
+      toast.success('Notification sound enabled');
+    } else {
+      toast.info('Notification sound disabled');
+    }
+  };
 
   // Play notification sound
   const playNotificationSound = useCallback(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2JkI+Kf3R0fYiRlI+Eg3x6fYKGhYOAfXx9f4GBf3x5eHh6fH5/fn18fH1/gYKCgoB+fXx8fX5/f4B/fn5+f4CCg4ODgoF/fn19fX5/gIGBgYB/fn19fX5/gIGBgYB/fn19fX5/gIGBgYB/fn19fX5/gIGBgYB/fn18fH1+f4CAgH9+fXx8fX5/gIB/fn18fHx9fn+AgH9+fXx8fH1+f4B/fn18fHx9fn9/fn18fHx9fn9/fn18fHx8fX5/f359fHx8fH1+f399fXx8fHx9fn9/fXx8fHx8fX5/f318fHx8fH1+f399fHx8fHx9fn9/fXx8fHx8fX5+f318fHx8fH19fn99fXx8fHx8fX5+fXx8fHx8fH19fn58fHx8fHx8fX5+fXx8fHx8fHx9fn58fHx8fHx8fX1+fnx8fHx8fHx9fX5+fHx8fHx8fH19fn18fHx8fHx8fX1+fXx8fHx8fHx9fX59fHx8fHx8fH19fn18fHx8fHx8fH19fnx8fHx8fHx8fX1+fHx8fHx8fHx9fX58fHx8fHx8fHx9fXx8fHx8fHx8fH19fHx8fHx8fHx8fX18fHx8fHx8fHx9fXx8fHx8fHx8fHx9fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8');
+    if (!soundEnabled) return;
+    
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch((err) => {
+        console.log('Could not play notification sound:', err);
+      });
     }
-    audioRef.current.currentTime = 0;
-    audioRef.current.volume = 0.3;
-    audioRef.current.play().catch(() => {});
-  }, []);
+  }, [soundEnabled]);
 
   // Trigger bell animation
   const triggerBellRing = useCallback(() => {
@@ -88,8 +129,21 @@ export const NotificationBell: React.FC = () => {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications' },
         (payload) => {
-          setNotifications(prev => [{ ...payload.new as Notification, type: 'broadcast' }, ...prev]);
+          const newNotif = payload.new as Notification;
+          setNotifications(prev => [{ ...newNotif, type: 'broadcast' }, ...prev]);
           triggerBellRing();
+          
+          // Show toast notification
+          toast.info(newNotif.title, {
+            description: newNotif.message,
+            duration: 5000,
+          });
+          
+          // Send browser push notification
+          sendPushNotification(newNotif.title, {
+            body: newNotif.message,
+            tag: newNotif.id,
+          });
         }
       )
       .subscribe();
@@ -101,8 +155,21 @@ export const NotificationBell: React.FC = () => {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${user.id}` },
         (payload) => {
-          setNotifications(prev => [{ ...payload.new as Notification, type: 'personal' }, ...prev]);
+          const newNotif = payload.new as Notification;
+          setNotifications(prev => [{ ...newNotif, type: 'personal' }, ...prev]);
           triggerBellRing();
+          
+          // Show toast notification
+          toast.info(newNotif.title, {
+            description: newNotif.message,
+            duration: 5000,
+          });
+          
+          // Send browser push notification
+          sendPushNotification(newNotif.title, {
+            body: newNotif.message,
+            tag: newNotif.id,
+          });
         }
       )
       .subscribe();
@@ -177,7 +244,7 @@ export const NotificationBell: React.FC = () => {
         <Button 
           variant="ghost" 
           size="icon" 
-          className="fixed top-4 right-4 z-40 bg-card border border-border shadow-lg rounded-full"
+          className="relative rounded-full hover:bg-muted"
         >
           <Bell className={`h-5 w-5 ${isRinging ? 'animate-bell-ring' : ''} ${unreadCount > 0 ? 'text-primary' : ''}`} />
           {unreadCount > 0 && (
@@ -190,11 +257,26 @@ export const NotificationBell: React.FC = () => {
       <PopoverContent className="w-80 p-0" align="end">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="font-semibold">Notifications</h3>
-          {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={markAllAsRead}>
-              Mark all read
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleSound}
+              title={soundEnabled ? 'Disable sound' : 'Enable sound'}
+            >
+              {soundEnabled ? (
+                <Volume2 className="h-4 w-4 text-primary" />
+              ) : (
+                <VolumeX className="h-4 w-4 text-muted-foreground" />
+              )}
             </Button>
-          )}
+            {unreadCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={markAllAsRead}>
+                Mark all read
+              </Button>
+            )}
+          </div>
         </div>
         <ScrollArea className="h-80">
           {notifications.length === 0 ? (
