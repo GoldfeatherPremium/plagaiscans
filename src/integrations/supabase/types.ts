@@ -804,6 +804,190 @@ export type Database = {
         }
         Relationships: []
       }
+      usdt_audit_log: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          payment_id: string | null
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          payment_id?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          payment_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usdt_audit_log_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "usdt_trc20_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usdt_payment_rate_limits: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      usdt_trc20_payments: {
+        Row: {
+          admin_notes: string | null
+          admin_verified_at: string | null
+          admin_verified_by: string | null
+          confirmed_at: string | null
+          created_at: string
+          credits_added: number | null
+          credits_to_add: number
+          expected_usdt_amount: number
+          expires_at: string
+          id: string
+          ip_address: string | null
+          order_id: string
+          received_usdt_amount: number | null
+          refund_amount: number | null
+          refund_tx_hash: string | null
+          refund_wallet_address: string | null
+          refunded_at: string | null
+          refunded_by: string | null
+          status: string
+          tx_confirmations: number | null
+          tx_hash: string | null
+          updated_at: string
+          user_id: string
+          wallet_address: string
+          wallet_index: number
+        }
+        Insert: {
+          admin_notes?: string | null
+          admin_verified_at?: string | null
+          admin_verified_by?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          credits_added?: number | null
+          credits_to_add: number
+          expected_usdt_amount: number
+          expires_at: string
+          id?: string
+          ip_address?: string | null
+          order_id: string
+          received_usdt_amount?: number | null
+          refund_amount?: number | null
+          refund_tx_hash?: string | null
+          refund_wallet_address?: string | null
+          refunded_at?: string | null
+          refunded_by?: string | null
+          status?: string
+          tx_confirmations?: number | null
+          tx_hash?: string | null
+          updated_at?: string
+          user_id: string
+          wallet_address: string
+          wallet_index: number
+        }
+        Update: {
+          admin_notes?: string | null
+          admin_verified_at?: string | null
+          admin_verified_by?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          credits_added?: number | null
+          credits_to_add?: number
+          expected_usdt_amount?: number
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          order_id?: string
+          received_usdt_amount?: number | null
+          refund_amount?: number | null
+          refund_tx_hash?: string | null
+          refund_wallet_address?: string | null
+          refunded_at?: string | null
+          refunded_by?: string | null
+          status?: string
+          tx_confirmations?: number | null
+          tx_hash?: string | null
+          updated_at?: string
+          user_id?: string
+          wallet_address?: string
+          wallet_index?: number
+        }
+        Relationships: []
+      }
+      usdt_used_tx_hashes: {
+        Row: {
+          payment_id: string
+          tx_hash: string
+          used_at: string
+        }
+        Insert: {
+          payment_id: string
+          tx_hash: string
+          used_at?: string
+        }
+        Update: {
+          payment_id?: string
+          tx_hash?: string
+          used_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usdt_used_tx_hashes_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "usdt_trc20_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usdt_wallet_counter: {
+        Row: {
+          current_index: number
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          current_index?: number
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          current_index?: number
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_notification_preferences: {
         Row: {
           created_at: string
