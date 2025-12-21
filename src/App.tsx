@@ -41,6 +41,7 @@ import AdminStaffWork from "./pages/AdminStaffWork";
 import GuestUpload from "./pages/GuestUpload";
 import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
+import Checkout from "./pages/Checkout";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +93,7 @@ const AppRoutes = () => (
     <Route path="/dashboard/documents" element={<ProtectedRoute><MyDocuments /></ProtectedRoute>} />
     <Route path="/dashboard/credits" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><BuyCredits /></ProtectedRoute>} />
     <Route path="/dashboard/payments" element={<ProtectedRoute allowedRoles={['customer']}><PaymentHistory /></ProtectedRoute>} />
+    <Route path="/dashboard/checkout" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><Checkout /></ProtectedRoute>} />
     
     {/* Staff Routes */}
     <Route path="/dashboard/queue" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><DocumentQueue /></ProtectedRoute>} />
