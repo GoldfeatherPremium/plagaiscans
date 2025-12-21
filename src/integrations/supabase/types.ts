@@ -885,6 +885,48 @@ export type Database = {
         }
         Relationships: []
       }
+      viva_payments: {
+        Row: {
+          amount_usd: number
+          completed_at: string | null
+          created_at: string
+          credits: number
+          id: string
+          merchant_trns: string | null
+          order_code: string
+          status: string
+          transaction_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_usd: number
+          completed_at?: string | null
+          created_at?: string
+          credits: number
+          id?: string
+          merchant_trns?: string | null
+          order_code: string
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_usd?: number
+          completed_at?: string | null
+          created_at?: string
+          credits?: number
+          id?: string
+          merchant_trns?: string | null
+          order_code?: string
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
