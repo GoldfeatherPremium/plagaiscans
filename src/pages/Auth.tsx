@@ -11,19 +11,17 @@ import { FileCheck, Loader2, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 import { WhatsAppSupportButton } from '@/components/WhatsAppSupportButton';
+import { PhoneInput } from '@/components/PhoneInput';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
-const phoneSchema = z.string()
-  .regex(/^\+?[0-9]{10,15}$/, 'Phone number must be 10-15 digits (can start with +)');
-
 const signupSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters').max(100),
   email: z.string().email('Invalid email address'),
-  phone: phoneSchema,
+  phone: z.string().min(1, 'Phone number is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -50,6 +48,7 @@ export default function Auth() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [resetPasswordData, setResetPasswordData] = useState({ password: '', confirmPassword: '' });
+  const [isPhoneValid, setIsPhoneValid] = useState(false);
 
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [signupData, setSignupData] = useState({
@@ -93,6 +92,12 @@ export default function Auth() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
+
+    // Check phone validation first
+    if (!isPhoneValid) {
+      setErrors({ phone: 'Please enter a valid phone number for the selected country' });
+      return;
+    }
 
     const result = signupSchema.safeParse(signupData);
     if (!result.success) {
@@ -406,20 +411,14 @@ export default function Auth() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-phone">Phone Number</Label>
-                    <Input
-                      id="signup-phone"
-                      type="tel"
-                      placeholder="+923001234567"
+                    <PhoneInput
                       value={signupData.phone}
-                      onChange={(e) => {
-                        // Only allow digits and + sign
-                        const value = e.target.value.replace(/[^\d+]/g, '');
-                        setSignupData({ ...signupData, phone: value });
+                      onChange={(fullNumber, isValid) => {
+                        setSignupData({ ...signupData, phone: fullNumber });
+                        setIsPhoneValid(isValid);
                       }}
-                      maxLength={16}
+                      error={errors.phone}
                     />
-                    <p className="text-xs text-muted-foreground">10-15 digits, can start with +</p>
-                    {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
