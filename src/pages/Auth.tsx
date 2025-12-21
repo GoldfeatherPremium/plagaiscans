@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { FileCheck, Loader2, ArrowLeft } from 'lucide-react';
+import { FileCheck, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 import { WhatsAppSupportButton } from '@/components/WhatsAppSupportButton';
@@ -57,6 +57,13 @@ export default function Auth() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [resetPasswordData, setResetPasswordData] = useState({ password: '', confirmPassword: '' });
   const [isPhoneValid, setIsPhoneValid] = useState(false);
+  
+  // Password visibility states
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
 
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [signupData, setSignupData] = useState({
@@ -240,24 +247,48 @@ export default function Auth() {
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="new-password">New Password</Label>
-                  <Input
-                    id="new-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={resetPasswordData.password}
-                    onChange={(e) => setResetPasswordData({ ...resetPasswordData, password: e.target.value })}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="new-password"
+                      type={showResetPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={resetPasswordData.password}
+                      onChange={(e) => setResetPasswordData({ ...resetPasswordData, password: e.target.value })}
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowResetPassword(!showResetPassword)}
+                    >
+                      {showResetPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                    </Button>
+                  </div>
                   {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirm-new-password">Confirm New Password</Label>
-                  <Input
-                    id="confirm-new-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={resetPasswordData.confirmPassword}
-                    onChange={(e) => setResetPasswordData({ ...resetPasswordData, confirmPassword: e.target.value })}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="confirm-new-password"
+                      type={showResetConfirmPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={resetPasswordData.confirmPassword}
+                      onChange={(e) => setResetPasswordData({ ...resetPasswordData, confirmPassword: e.target.value })}
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
+                    >
+                      {showResetConfirmPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                    </Button>
+                  </div>
                   {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
@@ -376,13 +407,25 @@ export default function Auth() {
                         Forgot password?
                       </Button>
                     </div>
-                    <Input
-                      id="login-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={loginData.password}
-                      onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="login-password"
+                        type={showLoginPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={loginData.password}
+                        onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      >
+                        {showLoginPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                      </Button>
+                    </div>
                     {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
@@ -430,13 +473,25 @@ export default function Auth() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={signupData.password}
-                      onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="signup-password"
+                        type={showSignupPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={signupData.password}
+                        onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowSignupPassword(!showSignupPassword)}
+                      >
+                        {showSignupPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                      </Button>
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       Must be 8+ characters with uppercase, lowercase, number, and special character
                     </p>
@@ -444,13 +499,25 @@ export default function Auth() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-confirm">Confirm Password</Label>
-                    <Input
-                      id="signup-confirm"
-                      type="password"
-                      placeholder="••••••••"
-                      value={signupData.confirmPassword}
-                      onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="signup-confirm"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={signupData.confirmPassword}
+                        onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                      </Button>
+                    </div>
                     {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
