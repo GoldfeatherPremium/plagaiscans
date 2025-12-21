@@ -1,411 +1,230 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import {
-  FileCheck,
-  Shield,
-  Zap,
-  Clock,
-  FileText,
-  Bot,
-  CheckCircle,
-  ArrowRight,
-  Star,
-  Users,
-  Award,
-  Lock,
-  Globe,
-  Sparkles,
-} from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { WhatsAppSupportButton } from '@/components/WhatsAppSupportButton';
+import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { FileText, Bot, Clock, Shield, ArrowRight, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
 
-export default function Landing() {
+const Landing = () => {
   const { user } = useAuth();
 
   const features = [
     {
       icon: FileText,
-      title: 'Turnitin Database Check',
-      description: 'Documents checked against Turnitin\'s comprehensive database of billions of academic papers, journals, and web sources',
-      gradient: 'from-blue-500 to-cyan-500',
+      title: "Similarity Detection",
+      description: "Documents checked against Turnitin's database of billions of academic papers, websites, and publications",
     },
     {
       icon: Bot,
-      title: 'AI Content Detection',
-      description: 'Advanced detection for AI-generated text from ChatGPT, Claude, Gemini, and other AI writing tools',
-      gradient: 'from-purple-500 to-pink-500',
+      title: "AI Content Detection",
+      description: "Identify AI-generated text from ChatGPT, Claude, and other AI tools",
     },
     {
       icon: Clock,
-      title: 'Fast Processing',
-      description: 'Get your detailed similarity and AI detection reports back within hours, not days',
-      gradient: 'from-orange-500 to-amber-500',
+      title: "Fast Processing",
+      description: "Get your detailed reports back within hours, not days",
     },
     {
       icon: Shield,
-      title: 'Secure & Private',
-      description: 'Your documents are encrypted, processed securely, and never shared with third parties',
-      gradient: 'from-emerald-500 to-teal-500',
+      title: "Secure & Private",
+      description: "Your documents are encrypted and never shared with third parties",
     },
   ];
 
   const steps = [
-    { step: 1, title: 'Create Account', description: 'Sign up with your email and get started in seconds', icon: Users },
-    { step: 2, title: 'Purchase Credits', description: 'Buy credits via crypto, Binance Pay, or manual transfer', icon: Zap },
-    { step: 3, title: 'Upload Document', description: 'Upload your file - each document costs just 1 credit', icon: FileText },
-    { step: 4, title: 'Get Reports', description: 'Download detailed similarity and AI detection reports', icon: FileCheck },
-  ];
-
-  const stats = [
-    { value: '10K+', label: 'Documents Processed', icon: FileText },
-    { value: '99.9%', label: 'Accuracy Rate', icon: CheckCircle },
-    { value: '<2hrs', label: 'Average Turnaround', icon: Clock },
-    { value: '24/7', label: 'Support Available', icon: Users },
-  ];
-
-  const testimonials = [
     {
-      name: 'Dr. Sarah K.',
-      role: 'University Professor',
-      content: 'PlagaiScans has become an essential tool for checking student submissions. The Turnitin integration is seamless.',
-      rating: 5,
+      number: "1",
+      title: "Create Account",
+      description: "Sign up with your email, phone, and password",
     },
     {
-      name: 'Ahmed M.',
-      role: 'PhD Researcher',
-      content: 'Fast, accurate, and affordable. I use it before every thesis submission to ensure originality.',
-      rating: 5,
+      number: "2",
+      title: "Purchase Credits",
+      description: "Contact us on WhatsApp to buy credits",
     },
     {
-      name: 'Lisa T.',
-      role: 'Content Writer',
-      content: 'The AI detection feature helped me ensure my articles were flagged as human-written. Great service!',
-      rating: 5,
+      number: "3",
+      title: "Upload Document",
+      description: "Upload your file (1 credit per document)",
+    },
+    {
+      number: "4",
+      title: "Get Reports",
+      description: "Download similarity and AI detection reports",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-background overflow-hidden">
+    <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
-        <div className="container-width section-padding py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center shadow-lg shadow-primary/25 group-hover:shadow-primary/40 transition-shadow">
-              <FileCheck className="h-5 w-5 text-primary-foreground" />
+      <nav className="border-b border-gray-100 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-xl font-semibold text-gray-900">PlagaiScans</span>
             </div>
-            <span className="font-display font-bold text-xl">PlagaiScans</span>
-          </Link>
-          <div className="flex items-center gap-3">
-            {user ? (
-              <Button asChild size="lg" className="rounded-full px-6">
-                <Link to="/dashboard">Dashboard</Link>
-              </Button>
-            ) : (
-              <>
-                <Button variant="ghost" asChild className="hidden sm:inline-flex">
-                  <Link to="/auth">Login</Link>
-                </Button>
-                <Button asChild size="lg" className="rounded-full px-6 shadow-lg shadow-primary/25">
-                  <Link to="/auth">Get Started</Link>
-                </Button>
-              </>
-            )}
+            <div className="flex items-center gap-4">
+              {user ? (
+                <Link to="/dashboard">
+                  <Button className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-6">
+                    Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link to="/auth" className="text-gray-600 hover:text-gray-900 font-medium">
+                    Login
+                  </Link>
+                  <Link to="/auth">
+                    <Button className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-6">
+                      Get Started
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 section-padding overflow-hidden">
-        {/* Animated Background */}
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[120px] animate-pulse" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent/10 rounded-full blur-[150px]" />
-        </div>
+      <section className="py-20 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          {/* Trust Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-full border border-gray-200 mb-8">
+            <Sparkles className="w-4 h-4 text-blue-500" />
+            <span className="text-sm text-gray-600">Trusted by 10,000+ academics & researchers</span>
+          </div>
 
-        <div className="container-width">
-          <div className="text-center max-w-4xl mx-auto">
-            {/* Trust Badge */}
-            <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-card border border-border/50 shadow-lg mb-8 animate-fade-in">
-              <div className="flex items-center gap-1">
-                <Award className="h-5 w-5 text-primary" />
-                <span className="text-sm font-medium">Trusted by 10,000+ academics & researchers</span>
-              </div>
-              <div className="h-4 w-px bg-border" />
-              <div className="flex items-center gap-1.5">
-                <span className="text-lg font-bold text-[#1f4e79]">turnitin</span>
-                <span className="text-[#d9534f] text-lg">®</span>
-              </div>
-            </div>
+          {/* Main Heading */}
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-4">
+            Detect Plagiarism & AI Content
+            <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+              With Confidence
+            </span>
+          </h1>
 
-            {/* Heading */}
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-bold mb-6 leading-tight animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              Detect Plagiarism & AI
-              <span className="block mt-2">
-                <span className="gradient-text">With Confidence</span>
-              </span>
-            </h1>
+          {/* Subtitle */}
+          <p className="text-lg text-gray-500 mb-8 max-w-2xl mx-auto">
+            Professional document checking service for students, educators, and businesses. 
+            Get detailed similarity and AI detection reports in hours.
+          </p>
 
-            {/* Subtitle */}
-            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              Professional document checking service powered by Turnitin's database. 
-              Get accurate plagiarism and AI content detection reports in hours.
-            </p>
+          {/* Turnitin Badge */}
+          <div className="inline-flex items-center gap-2 px-6 py-3 bg-white rounded-lg border border-gray-200 shadow-sm mb-8">
+            <span className="text-red-600 font-bold text-lg">turnitin</span>
+            <span className="text-red-600">®</span>
+            <span className="text-gray-500 ml-2">Powered Database</span>
+          </div>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in" style={{ animationDelay: '0.3s' }}>
-              <Button size="lg" asChild className="rounded-full px-8 py-6 text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all">
-                <Link to="/auth">
-                  Start Checking Now <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
+          {/* CTA Button */}
+          <div>
+            <Link to="/auth">
+              <Button className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-8 py-6 text-lg font-medium">
+                Start Checking
+                <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
-              <Button size="lg" variant="outline" asChild className="rounded-full px-8 py-6 text-lg">
-                <a href="#how-it-works">
-                  Learn More
-                </a>
-              </Button>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-              {stats.map((stat, idx) => (
-                <div key={idx} className="p-4 rounded-2xl bg-card/50 backdrop-blur border border-border/50">
-                  <stat.icon className="h-5 w-5 text-primary mx-auto mb-2" />
-                  <p className="text-2xl font-bold font-display">{stat.value}</p>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                </div>
-              ))}
-            </div>
+            </Link>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="section-padding bg-muted/30 relative">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
-        
-        <div className="container-width">
+      <section className="py-20 px-4 bg-gray-50">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 px-4 py-1.5">
-              <Sparkles className="h-3.5 w-3.5 mr-2" />
-              Powerful Features
-            </Badge>
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-4">
-              Everything You Need
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Comprehensive Document Analysis
             </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Comprehensive document analysis powered by industry-leading technology
+            <p className="text-gray-500 text-lg">
+              Our platform provides thorough checking to ensure document authenticity
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((feature, index) => (
-              <Card key={index} className="group border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 overflow-hidden">
-                <CardHeader className="pb-4">
-                  <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
-                    <feature.icon className="h-7 w-7 text-white" />
-                  </div>
-                  <CardTitle className="text-xl">{feature.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-base">{feature.description}</CardDescription>
-                </CardContent>
-              </Card>
+              <div
+                key={index}
+                className="bg-white rounded-xl p-6 border border-gray-100 hover:shadow-lg transition-shadow"
+              >
+                <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-4">
+                  <feature.icon className="w-6 h-6 text-blue-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {feature.title}
+                </h3>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  {feature.description}
+                </p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="section-padding">
-        <div className="container-width">
+      {/* How It Works Section */}
+      <section className="py-20 px-4 bg-white">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 px-4 py-1.5">
-              <Zap className="h-3.5 w-3.5 mr-2" />
-              Simple Process
-            </Badge>
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-4">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
               How It Works
             </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            <p className="text-gray-500 text-lg">
               Get your document checked in four simple steps
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {steps.map((item, index) => (
-              <div key={item.step} className="relative text-center group">
-                {/* Connector Line */}
-                {index < steps.length - 1 && (
-                  <div className="hidden lg:block absolute top-12 left-[60%] w-full h-0.5 bg-gradient-to-r from-primary/30 to-transparent" />
-                )}
-                
-                <div className="relative z-10">
-                  <div className="h-24 w-24 rounded-3xl gradient-primary flex items-center justify-center mx-auto mb-6 shadow-xl shadow-primary/25 group-hover:shadow-primary/40 transition-all group-hover:scale-105">
-                    <item.icon className="h-10 w-10 text-primary-foreground" />
-                  </div>
-                  <div className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-secondary-foreground shadow-lg">
-                    {item.step}
-                  </div>
+            {steps.map((step, index) => (
+              <div key={index} className="text-center">
+                <div className="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">
+                  {step.number}
                 </div>
-                <h3 className="font-display font-semibold text-lg mb-2">{item.title}</h3>
-                <p className="text-muted-foreground">{item.description}</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {step.title}
+                </h3>
+                <p className="text-gray-500 text-sm">
+                  {step.description}
+                </p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="section-padding bg-muted/30">
-        <div className="container-width">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4 px-4 py-1.5">
-              <Star className="h-3.5 w-3.5 mr-2 fill-current" />
-              Testimonials
-            </Badge>
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-4">
-              Loved by Academics
-            </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              See what our users have to say about PlagaiScans
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="border-border/50">
-                <CardContent className="pt-6">
-                  <div className="flex gap-1 mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="h-5 w-5 fill-amber-400 text-amber-400" />
-                    ))}
-                  </div>
-                  <p className="text-foreground mb-6">"{testimonial.content}"</p>
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="font-semibold text-primary">{testimonial.name[0]}</span>
-                    </div>
-                    <div>
-                      <p className="font-semibold">{testimonial.name}</p>
-                      <p className="text-sm text-muted-foreground">{testimonial.role}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Security Section */}
-      <section className="section-padding">
-        <div className="container-width">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <Badge variant="outline" className="mb-4 px-4 py-1.5">
-                <Lock className="h-3.5 w-3.5 mr-2" />
-                Security First
-              </Badge>
-              <h2 className="text-3xl md:text-4xl font-display font-bold mb-6">
-                Your Documents Are Safe With Us
-              </h2>
-              <p className="text-muted-foreground text-lg mb-8">
-                We take security seriously. Your documents are encrypted during upload and processing, 
-                and are never stored or shared with anyone.
-              </p>
-              
-              <div className="space-y-4">
-                {[
-                  { icon: Lock, text: 'End-to-end encryption' },
-                  { icon: Shield, text: 'Non-repository processing' },
-                  { icon: FileCheck, text: 'Documents deleted after processing' },
-                  { icon: Globe, text: 'GDPR compliant' },
-                ].map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-secondary/10 flex items-center justify-center">
-                      <item.icon className="h-5 w-5 text-secondary" />
-                    </div>
-                    <span className="font-medium">{item.text}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-3xl blur-3xl" />
-              <div className="relative bg-card border border-border/50 rounded-3xl p-8 shadow-2xl">
-                <div className="text-center">
-                  <div className="h-20 w-20 rounded-2xl gradient-primary flex items-center justify-center mx-auto mb-6 shadow-lg">
-                    <Shield className="h-10 w-10 text-primary-foreground" />
-                  </div>
-                  <h3 className="text-2xl font-display font-bold mb-2">100% Secure</h3>
-                  <p className="text-muted-foreground mb-6">Your privacy is our priority</p>
-                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle className="h-4 w-4 text-secondary" />
-                    <span>Trusted by universities worldwide</span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="section-padding">
-        <div className="container-width">
-          <div className="relative overflow-hidden rounded-3xl">
-            <div className="absolute inset-0 gradient-primary" />
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48Y2lyY2xlIGN4PSIzMCIgY3k9IjMwIiByPSIyIi8+PC9nPjwvZz48L3N2Zz4=')] opacity-30" />
-            
-            <div className="relative p-12 md:p-16 text-center text-primary-foreground">
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-4">
-                Ready to Check Your Documents?
-              </h2>
-              <p className="text-lg opacity-90 mb-8 max-w-2xl mx-auto">
-                Join thousands of academics and researchers who trust PlagaiScans 
-                for accurate plagiarism and AI detection.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" variant="secondary" asChild className="rounded-full px-8 py-6 text-lg shadow-xl">
-                  <Link to="/auth">
-                    Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </div>
+      <section className="py-20 px-4 bg-gray-50">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            Ready to Check Your Documents?
+          </h2>
+          <p className="text-gray-500 text-lg mb-8">
+            Join thousands of users who trust PlagaiScans for accurate plagiarism and AI detection.
+          </p>
+          <Link to="/auth">
+            <Button className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-8 py-6 text-lg font-medium">
+              Get Started Free
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </Link>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/50 section-padding py-12 bg-muted/20">
-        <div className="container-width">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
-                <FileCheck className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div>
-                <span className="font-display font-bold text-lg">PlagaiScans</span>
-                <p className="text-xs text-muted-foreground">Turnitin Powered Detection</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-6 text-sm text-muted-foreground">
-              <span>© {new Date().getFullYear()} PlagaiScans</span>
-              <span>•</span>
-              <span>All rights reserved</span>
-            </div>
-          </div>
+      <footer className="py-8 px-4 border-t border-gray-100 bg-white">
+        <div className="max-w-6xl mx-auto text-center">
+          <p className="text-gray-400 text-sm">
+            © {new Date().getFullYear()} PlagaiScans. All rights reserved.
+          </p>
         </div>
       </footer>
 
       <WhatsAppSupportButton />
     </div>
   );
-}
+};
+
+export default Landing;
