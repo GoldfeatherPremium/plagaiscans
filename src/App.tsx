@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
+import { InstallPromptBanner } from "@/components/InstallPromptBanner";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -130,6 +131,7 @@ const App = () => (
         <AuthProvider>
           <CartProvider>
             <AppRoutes />
+            <InstallPromptBanner />
           </CartProvider>
         </AuthProvider>
       </BrowserRouter>

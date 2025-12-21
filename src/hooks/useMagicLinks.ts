@@ -338,12 +338,21 @@ export const useMagicLinks = () => {
     try {
       const { data, error } = await supabase.storage
         .from(bucket)
-        .createSignedUrl(path, 300);
+        .createSignedUrl(path, 300, {
+          download: originalFileName || true
+        });
 
       if (error) throw error;
 
-      // Open in new window for faster download experience
-      window.open(data.signedUrl, '_blank');
+      // Use anchor with download attribute to preserve filename
+      const link = document.createElement('a');
+      link.href = data.signedUrl;
+      if (originalFileName) {
+        link.download = originalFileName;
+      }
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (error) {
       console.error('Error downloading file:', error);
       toast({
