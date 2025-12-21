@@ -316,21 +316,30 @@ export const useDocuments = () => {
 
       const { data, error } = await supabase.storage
         .from(effectiveBucket)
-        .createSignedUrl(path, 300, {
-          download: originalFileName || true
-        });
+        .createSignedUrl(path, 300);
 
       if (error) throw error;
 
-      // Use anchor with download attribute to preserve filename
+      // Fetch the file as blob to force download
+      const response = await fetch(data.signedUrl);
+      if (!response.ok) throw new Error('Failed to fetch file');
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Create anchor and force download
       const link = document.createElement('a');
-      link.href = data.signedUrl;
-      if (originalFileName) {
-        link.download = originalFileName;
-      }
+      link.href = blobUrl;
+      link.download = originalFileName || path.split('/').pop() || 'download';
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      }, 100);
     } catch (error) {
       console.error('Error downloading file:', error);
       toast({
