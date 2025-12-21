@@ -25,16 +25,38 @@ import {
   Wallet,
   Receipt,
   Shield,
+  ChevronDown,
+  ChevronRight,
+  FolderOpen,
+  UserCog,
+  PieChart,
+  Bell,
+  Wrench,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
+
+interface NavLink {
+  to: string;
+  icon: React.ElementType;
+  label: string;
+}
+
+interface NavGroup {
+  label: string;
+  icon: React.ElementType;
+  links: NavLink[];
+}
 
 export const DashboardSidebar: React.FC = () => {
   const { role, profile, signOut } = useAuth();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
 
-  const customerLinks = [
+  const customerLinks: NavLink[] = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/dashboard/upload', icon: Upload, label: 'Upload Document' },
     { to: '/dashboard/documents', icon: FileText, label: 'My Documents' },
@@ -43,7 +65,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/profile', icon: User, label: 'Profile' },
   ];
 
-  const staffLinks = [
+  const staffLinks: NavLink[] = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/dashboard/queue', icon: FileCheck, label: 'Document Queue' },
     { to: '/dashboard/my-work', icon: FileText, label: 'My Processed' },
@@ -51,36 +73,166 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/profile', icon: User, label: 'Profile' },
   ];
 
-  const adminLinks = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/dashboard/queue', icon: FileCheck, label: 'Document Queue' },
-    { to: '/dashboard/documents', icon: FileText, label: 'All Documents' },
-    { to: '/dashboard/staff-work', icon: ClipboardList, label: 'Staff Work' },
-    { to: '/dashboard/users', icon: Users, label: 'User Management' },
-    { to: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
-    { to: '/dashboard/promo-codes', icon: Ticket, label: 'Promo Codes' },
-    { to: '/dashboard/magic-links', icon: Upload, label: 'Magic Links' },
-    { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
-    { to: '/dashboard/revenue', icon: DollarSign, label: 'Revenue' },
-    { to: '/dashboard/crypto-payments', icon: CreditCard, label: 'Crypto Payments' },
-    { to: '/dashboard/manual-payments', icon: Wallet, label: 'Manual Payments' },
-    { to: '/dashboard/activity-logs', icon: Activity, label: 'Activity Logs' },
-    { to: '/dashboard/system-health', icon: Server, label: 'System Health' },
-    { to: '/dashboard/reports', icon: FileDown, label: 'Reports' },
-    { to: '/dashboard/announcements', icon: Megaphone, label: 'Announcements' },
-    { to: '/dashboard/support-tickets', icon: MessageSquare, label: 'Support' },
-    { to: '/dashboard/blocked-users', icon: ShieldBan, label: 'Blocked Users' },
-    { to: '/dashboard/staff-permissions', icon: Shield, label: 'Staff Permissions' },
-    { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
-    { to: '/dashboard/profile', icon: User, label: 'Profile' },
+  // Admin grouped navigation
+  const adminGroups: NavGroup[] = [
+    {
+      label: 'Documents',
+      icon: FolderOpen,
+      links: [
+        { to: '/dashboard/queue', icon: FileCheck, label: 'Queue' },
+        { to: '/dashboard/documents', icon: FileText, label: 'All Documents' },
+        { to: '/dashboard/magic-links', icon: Upload, label: 'Magic Links' },
+      ],
+    },
+    {
+      label: 'Users & Staff',
+      icon: UserCog,
+      links: [
+        { to: '/dashboard/users', icon: Users, label: 'Users' },
+        { to: '/dashboard/staff-work', icon: ClipboardList, label: 'Staff Work' },
+        { to: '/dashboard/staff-permissions', icon: Shield, label: 'Permissions' },
+        { to: '/dashboard/blocked-users', icon: ShieldBan, label: 'Blocked' },
+      ],
+    },
+    {
+      label: 'Payments',
+      icon: Wallet,
+      links: [
+        { to: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
+        { to: '/dashboard/promo-codes', icon: Ticket, label: 'Promo Codes' },
+        { to: '/dashboard/revenue', icon: DollarSign, label: 'Revenue' },
+        { to: '/dashboard/crypto-payments', icon: CreditCard, label: 'Crypto' },
+        { to: '/dashboard/manual-payments', icon: Wallet, label: 'Manual' },
+      ],
+    },
+    {
+      label: 'Analytics',
+      icon: PieChart,
+      links: [
+        { to: '/dashboard/analytics', icon: BarChart3, label: 'Overview' },
+        { to: '/dashboard/activity-logs', icon: Activity, label: 'Activity Logs' },
+        { to: '/dashboard/system-health', icon: Server, label: 'System Health' },
+        { to: '/dashboard/reports', icon: FileDown, label: 'Reports' },
+      ],
+    },
+    {
+      label: 'Communication',
+      icon: Bell,
+      links: [
+        { to: '/dashboard/announcements', icon: Megaphone, label: 'Announcements' },
+        { to: '/dashboard/support-tickets', icon: MessageSquare, label: 'Support' },
+      ],
+    },
+    {
+      label: 'Settings',
+      icon: Wrench,
+      links: [
+        { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
+        { to: '/dashboard/profile', icon: User, label: 'Profile' },
+      ],
+    },
   ];
 
-  const links = role === 'admin' ? adminLinks : role === 'staff' ? staffLinks : customerLinks;
+  const toggleGroup = (groupLabel: string) => {
+    setOpenGroups(prev => 
+      prev.includes(groupLabel) 
+        ? prev.filter(g => g !== groupLabel)
+        : [...prev, groupLabel]
+    );
+  };
+
+  // Auto-expand group containing current route
+  useEffect(() => {
+    if (role === 'admin') {
+      const currentGroup = adminGroups.find(group => 
+        group.links.some(link => link.to === location.pathname)
+      );
+      if (currentGroup && !openGroups.includes(currentGroup.label)) {
+        setOpenGroups(prev => [...prev, currentGroup.label]);
+      }
+    }
+  }, [location.pathname, role]);
 
   // Close sidebar when route changes
   useEffect(() => {
     setIsOpen(false);
   }, [location.pathname]);
+
+  const renderLink = (link: NavLink, compact = false) => {
+    const isActive = location.pathname === link.to;
+    return (
+      <Link
+        key={link.to}
+        to={link.to}
+        className={cn(
+          "flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors",
+          compact && "pl-10",
+          isActive
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+        )}
+      >
+        <link.icon className="h-4 w-4" />
+        <span className="text-sm font-medium">{link.label}</span>
+      </Link>
+    );
+  };
+
+  const renderAdminNav = () => (
+    <>
+      {/* Dashboard - standalone */}
+      <Link
+        to="/dashboard"
+        className={cn(
+          "flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors",
+          location.pathname === '/dashboard'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+        )}
+      >
+        <LayoutDashboard className="h-4 w-4" />
+        <span className="text-sm font-medium">Dashboard</span>
+      </Link>
+
+      {/* Grouped navigation */}
+      {adminGroups.map((group) => {
+        const isGroupOpen = openGroups.includes(group.label);
+        const hasActiveLink = group.links.some(link => link.to === location.pathname);
+        
+        return (
+          <Collapsible
+            key={group.label}
+            open={isGroupOpen}
+            onOpenChange={() => toggleGroup(group.label)}
+          >
+            <CollapsibleTrigger asChild>
+              <button
+                className={cn(
+                  "w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg transition-colors",
+                  hasActiveLink 
+                    ? "bg-primary/10 text-primary" 
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <group.icon className="h-4 w-4" />
+                  <span className="text-sm font-medium">{group.label}</span>
+                </div>
+                {isGroupOpen ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-1 space-y-1">
+              {group.links.map(link => renderLink(link, true))}
+            </CollapsibleContent>
+          </Collapsible>
+        );
+      })}
+    </>
+  );
 
   return (
     <>
@@ -123,23 +275,11 @@ export const DashboardSidebar: React.FC = () => {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {links.map((link) => {
-            const isActive = location.pathname === link.to;
-            return (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                <link.icon className="h-5 w-5" />
-                <span className="font-medium">{link.label}</span>
-              </Link>
-            );
-          })}
+          {role === 'admin' ? (
+            renderAdminNav()
+          ) : (
+            (role === 'staff' ? staffLinks : customerLinks).map((link) => renderLink(link))
+          )}
         </nav>
 
         <div className="p-4 border-t border-border space-y-4">
