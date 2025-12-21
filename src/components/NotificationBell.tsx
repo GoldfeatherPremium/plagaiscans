@@ -326,6 +326,7 @@ export const NotificationBell: React.FC = () => {
           variant="ghost" 
           size="icon" 
           className="relative rounded-full hover:bg-muted"
+          onClick={() => setOpen(prev => !prev)}
         >
           <Bell className={`h-5 w-5 ${isRinging ? 'animate-bell-ring' : ''} ${unreadCount > 0 ? 'text-primary' : ''}`} />
           {unreadCount > 0 && (
