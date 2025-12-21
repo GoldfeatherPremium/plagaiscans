@@ -193,7 +193,8 @@ export default function BuyCredits() {
                     className="w-full"
                     variant="default"
                     onClick={() => createCryptoPayment(plan)}
-                    disabled={creatingPayment === plan.id}
+                    disabled={creatingPayment === plan.id || plan.price < 5}
+                    title={plan.price < 5 ? 'Minimum $5 for USDT payments' : undefined}
                   >
                     {creatingPayment === plan.id ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -202,6 +203,11 @@ export default function BuyCredits() {
                     )}
                     Pay with USDT
                   </Button>
+                  {plan.price < 5 && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      Min. $5 for USDT
+                    </p>
+                  )}
                   <Button
                     className="w-full bg-[#25D366] hover:bg-[#128C7E]"
                     onClick={() => openWhatsApp(plan.credits)}
