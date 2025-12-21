@@ -12,6 +12,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { Settings2, Sparkles, Megaphone } from 'lucide-react';
+
+type NotificationCategory = 'system' | 'promotional' | 'updates';
+type TargetAudience = 'all' | 'customers' | 'staff' | 'admins';
 
 interface Notification {
   id: string;
@@ -20,7 +26,33 @@ interface Notification {
   created_at: string;
   is_read?: boolean;
   type: 'broadcast' | 'personal';
+  category?: NotificationCategory;
+  target_audience?: TargetAudience;
 }
+
+interface NotificationPreferences {
+  system_enabled: boolean;
+  promotional_enabled: boolean;
+  updates_enabled: boolean;
+}
+
+const defaultPreferences: NotificationPreferences = {
+  system_enabled: true,
+  promotional_enabled: true,
+  updates_enabled: true,
+};
+
+const categoryIcons: Record<NotificationCategory, React.ElementType> = {
+  system: Settings2,
+  promotional: Sparkles,
+  updates: Megaphone,
+};
+
+const categoryColors: Record<NotificationCategory, string> = {
+  system: 'text-blue-500',
+  promotional: 'text-purple-500',
+  updates: 'text-green-500',
+};
 
 // Better notification sound - a pleasant chime
 const NOTIFICATION_SOUND_BASE64 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYZNYXz2AAAAAAAAAAAAAAAAAAAAAAD/+9DEAAAGtAFptAAAJTITq/c0wAkAAAANIAAAAAEJGJEIhCEIf/LEIQhCEIT//+UIT/KE85znOc5znOc5znOc+c5znOc5znOc5znOc5znOc5znOc5z3EhYWFhYWFhYWFhYX//uxCEIQhCEIQh/5QhCEIQhD/ygAAADSAMYxjGMYxjGHVdV1XVQAAAAD/+9DEDYPQAAGkAAAAIAAANIAAAAT/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////';
@@ -90,13 +122,28 @@ export const NotificationBell: React.FC = () => {
     if (!user) return;
 
     const fetchNotifications = async () => {
-      // First, get user's profile to find their signup date
+      // First, get user's profile and role to find their signup date and filter by audience
       const { data: profile } = await supabase
         .from('profiles')
         .select('created_at')
         .eq('id', user.id)
         .single();
 
+      const { data: userRole } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      // Fetch user notification preferences
+      const { data: prefs } = await supabase
+        .from('user_notification_preferences')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const preferences: NotificationPreferences = prefs || defaultPreferences;
+      const role = userRole?.role || 'customer';
       const userCreatedAt = profile?.created_at || user.created_at || new Date().toISOString();
 
       // Fetch broadcast notifications created AFTER user signed up
@@ -106,6 +153,25 @@ export const NotificationBell: React.FC = () => {
         .eq('is_active', true)
         .gte('created_at', userCreatedAt)
         .order('created_at', { ascending: false });
+
+      // Filter broadcasts by target audience and user preferences
+      const filteredBroadcasts = (broadcasts || []).filter(n => {
+        // Check target audience
+        const audience = n.target_audience as TargetAudience;
+        if (audience !== 'all') {
+          if (audience === 'customers' && role !== 'customer') return false;
+          if (audience === 'staff' && role !== 'staff') return false;
+          if (audience === 'admins' && role !== 'admin') return false;
+        }
+
+        // Check user preferences by category
+        const category = n.category as NotificationCategory;
+        if (category === 'promotional' && !preferences.promotional_enabled) return false;
+        if (category === 'updates' && !preferences.updates_enabled) return false;
+        // System notifications are always shown
+
+        return true;
+      });
 
       // Fetch personal notifications for this user (these are already user-specific)
       const { data: personal } = await supabase
@@ -122,7 +188,12 @@ export const NotificationBell: React.FC = () => {
 
       // Combine and sort all notifications
       const allNotifications: Notification[] = [
-        ...(broadcasts || []).map(n => ({ ...n, type: 'broadcast' as const })),
+        ...filteredBroadcasts.map(n => ({ 
+          ...n, 
+          type: 'broadcast' as const,
+          category: n.category as NotificationCategory,
+          target_audience: n.target_audience as TargetAudience,
+        })),
         ...(personal || []).map(n => ({ ...n, type: 'personal' as const, is_read: !!n.read_at })),
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -295,26 +366,36 @@ export const NotificationBell: React.FC = () => {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {notifications.map((notif) => (
-                <div
-                  key={notif.id}
-                  className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors ${
-                    isUnread(notif) ? 'bg-primary/5' : ''
-                  }`}
-                  onClick={() => markAsRead(notif)}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="font-medium text-sm">{notif.title}</h4>
-                    {isUnread(notif) && (
-                      <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-1.5" />
-                    )}
+              {notifications.map((notif) => {
+                const CategoryIcon = notif.category ? categoryIcons[notif.category] : null;
+                const categoryColor = notif.category ? categoryColors[notif.category] : '';
+                
+                return (
+                  <div
+                    key={notif.id}
+                    className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors ${
+                      isUnread(notif) ? 'bg-primary/5' : ''
+                    }`}
+                    onClick={() => markAsRead(notif)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {CategoryIcon && (
+                          <CategoryIcon className={cn("h-4 w-4", categoryColor)} />
+                        )}
+                        <h4 className="font-medium text-sm">{notif.title}</h4>
+                      </div>
+                      {isUnread(notif) && (
+                        <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-1.5" />
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{notif.message}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">{notif.message}</p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </ScrollArea>

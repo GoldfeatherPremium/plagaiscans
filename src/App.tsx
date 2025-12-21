@@ -23,6 +23,7 @@ import AdminRevenue from "./pages/AdminRevenue";
 import AdminReports from "./pages/AdminReports";
 import AdminPromoCodes from "./pages/AdminPromoCodes";
 import AdminAnnouncements from "./pages/AdminAnnouncements";
+import AdminNotifications from "./pages/AdminNotifications";
 import AdminSupportTickets from "./pages/AdminSupportTickets";
 import AdminBlockedUsers from "./pages/AdminBlockedUsers";
 import AdminCryptoPayments from "./pages/AdminCryptoPayments";
@@ -103,6 +104,7 @@ const AppRoutes = () => (
     <Route path="/dashboard/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminReports /></ProtectedRoute>} />
     <Route path="/dashboard/promo-codes" element={<ProtectedRoute allowedRoles={['admin']}><AdminPromoCodes /></ProtectedRoute>} />
     <Route path="/dashboard/announcements" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnnouncements /></ProtectedRoute>} />
+    <Route path="/dashboard/notifications" element={<ProtectedRoute allowedRoles={['admin']}><AdminNotifications /></ProtectedRoute>} />
     <Route path="/dashboard/support-tickets" element={<ProtectedRoute allowedRoles={['admin']}><AdminSupportTickets /></ProtectedRoute>} />
     <Route path="/dashboard/blocked-users" element={<ProtectedRoute allowedRoles={['admin']}><AdminBlockedUsers /></ProtectedRoute>} />
     <Route path="/dashboard/crypto-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminCryptoPayments /></ProtectedRoute>} />
