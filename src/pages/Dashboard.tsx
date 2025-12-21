@@ -61,6 +61,36 @@ export default function Dashboard() {
     };
     
     fetchPendingPayments();
+
+    // Real-time subscription for payment status updates
+    if (role === 'customer' && user) {
+      const channel = supabase
+        .channel('payment-status-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'manual_payments',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log('Payment update received:', payload);
+            if (payload.eventType === 'UPDATE') {
+              setPendingPayments(prev => 
+                prev.map(p => p.id === payload.new.id ? payload.new as ManualPayment : p)
+              );
+            } else if (payload.eventType === 'INSERT') {
+              setPendingPayments(prev => [payload.new as ManualPayment, ...prev].slice(0, 5));
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
   }, [role, user]);
 
   const getPaymentStatusBadge = (status: string) => {
