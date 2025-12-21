@@ -112,7 +112,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({ value, onChange, disable
         
         <Input
           type="tel"
-          placeholder={`${selectedCountry.minLength}-${selectedCountry.maxLength} digits`}
+          placeholder="Enter phone number"
           value={phoneNumber}
           onChange={handlePhoneChange}
           disabled={disabled}
