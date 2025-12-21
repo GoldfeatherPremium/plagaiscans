@@ -90,7 +90,7 @@ serve(async (req) => {
         // Provide user-friendly error messages
         let errorMessage = paymentData.message || 'Failed to create payment';
         if (paymentData.code === 'AMOUNT_MINIMAL_ERROR') {
-          errorMessage = 'Minimum payment amount is $5 for USDT. Please select a larger package.';
+          errorMessage = 'Minimum payment amount is $15 for USDT TRC20. Please select a larger package.';
         }
         throw new Error(errorMessage);
       }
