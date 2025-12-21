@@ -90,14 +90,24 @@ export const NotificationBell: React.FC = () => {
     if (!user) return;
 
     const fetchNotifications = async () => {
-      // Fetch broadcast notifications
+      // First, get user's profile to find their signup date
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('created_at')
+        .eq('id', user.id)
+        .single();
+
+      const userCreatedAt = profile?.created_at || user.created_at || new Date().toISOString();
+
+      // Fetch broadcast notifications created AFTER user signed up
       const { data: broadcasts } = await supabase
         .from('notifications')
         .select('*')
         .eq('is_active', true)
+        .gte('created_at', userCreatedAt)
         .order('created_at', { ascending: false });
 
-      // Fetch personal notifications for this user
+      // Fetch personal notifications for this user (these are already user-specific)
       const { data: personal } = await supabase
         .from('user_notifications')
         .select('*')
