@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useWhatsApp } from '@/hooks/useWhatsApp';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, CreditCard, CheckCircle, Loader2, Bitcoin, Copy, ExternalLink, RefreshCw } from 'lucide-react';
+import { MessageCircle, CreditCard, CheckCircle, Loader2, Bitcoin, Copy, ExternalLink, RefreshCw, Wallet } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
@@ -34,6 +34,11 @@ export default function BuyCredits() {
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
   const [usdtEnabled, setUsdtEnabled] = useState(true);
+  const [binanceEnabled, setBinanceEnabled] = useState(false);
+  const [binancePayId, setBinancePayId] = useState('');
+  const [showBinanceDialog, setShowBinanceDialog] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<PricingPackage | null>(null);
+  const [submittingBinance, setSubmittingBinance] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -50,13 +55,17 @@ export default function BuyCredits() {
       const { data: settings } = await supabase
         .from('settings')
         .select('key, value')
-        .in('key', ['payment_whatsapp_enabled', 'payment_usdt_enabled']);
+        .in('key', ['payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'binance_pay_id']);
 
       if (settings) {
         const whatsapp = settings.find(s => s.key === 'payment_whatsapp_enabled');
         const usdt = settings.find(s => s.key === 'payment_usdt_enabled');
+        const binance = settings.find(s => s.key === 'payment_binance_enabled');
+        const binanceId = settings.find(s => s.key === 'binance_pay_id');
         setWhatsappEnabled(whatsapp?.value !== 'false');
         setUsdtEnabled(usdt?.value !== 'false');
+        setBinanceEnabled(binance?.value === 'true');
+        if (binanceId) setBinancePayId(binanceId.value);
       }
 
       setLoading(false);
@@ -133,6 +142,41 @@ export default function BuyCredits() {
       console.error('Status check error:', error);
     } finally {
       setCheckingStatus(false);
+    }
+  };
+
+  const openBinancePayment = (plan: PricingPackage) => {
+    if (!user) {
+      toast.error('Please login to make a payment');
+      return;
+    }
+    setSelectedPlan(plan);
+    setShowBinanceDialog(true);
+  };
+
+  const submitBinancePayment = async () => {
+    if (!user || !selectedPlan) return;
+    
+    setSubmittingBinance(true);
+    try {
+      const { error } = await supabase.from('manual_payments').insert({
+        user_id: user.id,
+        payment_method: 'binance_pay',
+        amount_usd: selectedPlan.price,
+        credits: selectedPlan.credits,
+        status: 'pending',
+      });
+
+      if (error) throw error;
+
+      toast.success('Payment submitted! Admin will verify and credit your account.');
+      setShowBinanceDialog(false);
+      setSelectedPlan(null);
+    } catch (error: any) {
+      console.error('Binance payment error:', error);
+      toast.error('Failed to submit payment');
+    } finally {
+      setSubmittingBinance(false);
     }
   };
 
@@ -238,7 +282,16 @@ export default function BuyCredits() {
                       Buy via WhatsApp
                     </Button>
                   )}
-                  {!usdtEnabled && !whatsappEnabled && (
+                  {binanceEnabled && (
+                    <Button
+                      className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
+                      onClick={() => openBinancePayment(plan)}
+                    >
+                      <Wallet className="h-4 w-4 mr-2" />
+                      Pay with Binance
+                    </Button>
+                  )}
+                  {!usdtEnabled && !whatsappEnabled && !binanceEnabled && (
                     <p className="text-sm text-muted-foreground text-center py-2">
                       No payment methods available
                     </p>
@@ -299,6 +352,27 @@ export default function BuyCredits() {
                   <li className="flex gap-3">
                     <span className="h-6 w-6 rounded-full bg-[#25D366] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">3</span>
                     <span>Credits added after confirmation</span>
+                  </li>
+                </ol>
+              </div>
+              {/* Binance Pay */}
+              <div>
+                <h4 className="font-semibold mb-4 flex items-center gap-2">
+                  <Wallet className="h-5 w-5 text-[#F0B90B]" />
+                  Pay with Binance
+                </h4>
+                <ol className="space-y-3 text-sm">
+                  <li className="flex gap-3">
+                    <span className="h-6 w-6 rounded-full bg-[#F0B90B] text-black flex items-center justify-center font-bold flex-shrink-0 text-xs">1</span>
+                    <span>Click "Pay with Binance" on your chosen package</span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="h-6 w-6 rounded-full bg-[#F0B90B] text-black flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
+                    <span>Send exact amount to our Binance Pay ID</span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="h-6 w-6 rounded-full bg-[#F0B90B] text-black flex items-center justify-center font-bold flex-shrink-0 text-xs">3</span>
+                    <span>Click "I Paid" and wait for verification</span>
                   </li>
                 </ol>
               </div>
@@ -382,6 +456,71 @@ export default function BuyCredits() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Binance Pay Dialog */}
+      <Dialog open={showBinanceDialog} onOpenChange={setShowBinanceDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-[#F0B90B]" />
+              Pay with Binance
+            </DialogTitle>
+            <DialogDescription>
+              Send ${selectedPlan?.price} to complete your purchase of {selectedPlan?.credits} credits
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="p-4 bg-muted rounded-lg space-y-3">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Amount to send</p>
+                <p className="text-2xl font-bold text-[#F0B90B]">
+                  ${selectedPlan?.price} USD
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Send to Binance Pay ID</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-sm bg-background p-2 rounded border">
+                    {binancePayId || 'Contact admin for Pay ID'}
+                  </code>
+                  <Button 
+                    size="icon" 
+                    variant="outline" 
+                    onClick={() => {
+                      navigator.clipboard.writeText(binancePayId);
+                      toast.success('Pay ID copied!');
+                    }}
+                    disabled={!binancePayId}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>⚠️ Send the exact amount shown above</p>
+              <p>⚠️ After payment, click "I Paid" below</p>
+              <p>⚠️ Admin will verify and credits will be added</p>
+            </div>
+
+            <Button 
+              className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
+              onClick={submitBinancePayment}
+              disabled={submittingBinance || !binancePayId}
+            >
+              {submittingBinance ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-2" />
+              )}
+              I Paid - Submit for Verification
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

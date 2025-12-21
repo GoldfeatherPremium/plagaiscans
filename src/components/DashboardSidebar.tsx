@@ -22,6 +22,7 @@ import {
   Megaphone,
   ShieldBan,
   MessageSquare,
+  Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -59,6 +60,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
     { to: '/dashboard/revenue', icon: DollarSign, label: 'Revenue' },
     { to: '/dashboard/crypto-payments', icon: CreditCard, label: 'Crypto Payments' },
+    { to: '/dashboard/manual-payments', icon: Wallet, label: 'Manual Payments' },
     { to: '/dashboard/activity-logs', icon: Activity, label: 'Activity Logs' },
     { to: '/dashboard/system-health', icon: Server, label: 'System Health' },
     { to: '/dashboard/reports', icon: FileDown, label: 'Reports' },
