@@ -23,6 +23,7 @@ import {
   ShieldBan,
   MessageSquare,
   Wallet,
+  Receipt,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/upload', icon: Upload, label: 'Upload Document' },
     { to: '/dashboard/documents', icon: FileText, label: 'My Documents' },
     { to: '/dashboard/credits', icon: CreditCard, label: 'Buy Credits' },
+    { to: '/dashboard/payments', icon: Receipt, label: 'Payment History' },
     { to: '/dashboard/profile', icon: User, label: 'Profile' },
   ];
 
