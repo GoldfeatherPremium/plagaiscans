@@ -223,11 +223,33 @@ export default function BuyCredits() {
     setShowOrderIdStep(true);
   };
 
+  // Validate Binance Order ID format (typically 18-20 digits)
+  const validateBinanceOrderId = (orderId: string): { isValid: boolean; error: string } => {
+    const trimmed = orderId.trim();
+    
+    if (!trimmed) {
+      return { isValid: false, error: 'Order ID is required' };
+    }
+    
+    // Check if it's numeric only
+    if (!/^\d+$/.test(trimmed)) {
+      return { isValid: false, error: 'Order ID should contain only numbers' };
+    }
+    
+    // Check length (Binance order IDs are typically 18-20 digits)
+    if (trimmed.length < 15 || trimmed.length > 25) {
+      return { isValid: false, error: 'Order ID should be 15-25 digits long' };
+    }
+    
+    return { isValid: true, error: '' };
+  };
+
   const submitBinancePayment = async () => {
     if (!user || cart.length === 0) return;
     
-    if (!binanceOrderId.trim()) {
-      toast.error('Please enter the Binance transaction order ID');
+    const validation = validateBinanceOrderId(binanceOrderId);
+    if (!validation.isValid) {
+      toast.error(validation.error);
       return;
     }
 

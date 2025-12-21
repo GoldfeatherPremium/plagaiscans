@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import UploadDocument from "./pages/UploadDocument";
 import MyDocuments from "./pages/MyDocuments";
 import BuyCredits from "./pages/BuyCredits";
+import PaymentHistory from "./pages/PaymentHistory";
 import DocumentQueue from "./pages/DocumentQueue";
 import AdminUsers from "./pages/AdminUsers";
 import AdminAnalytics from "./pages/AdminAnalytics";
@@ -81,6 +82,7 @@ const AppRoutes = () => (
     <Route path="/dashboard/upload" element={<ProtectedRoute allowedRoles={['customer']}><UploadDocument /></ProtectedRoute>} />
     <Route path="/dashboard/documents" element={<ProtectedRoute><MyDocuments /></ProtectedRoute>} />
     <Route path="/dashboard/credits" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><BuyCredits /></ProtectedRoute>} />
+    <Route path="/dashboard/payments" element={<ProtectedRoute allowedRoles={['customer']}><PaymentHistory /></ProtectedRoute>} />
     
     {/* Staff Routes */}
     <Route path="/dashboard/queue" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><DocumentQueue /></ProtectedRoute>} />
