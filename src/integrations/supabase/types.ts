@@ -579,6 +579,36 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_permissions: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_enabled: boolean
+          permission_key: string
+          permission_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          permission_key: string
+          permission_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          permission_key?: string
+          permission_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_settings: {
         Row: {
           created_at: string | null

@@ -27,6 +27,7 @@ import AdminSupportTickets from "./pages/AdminSupportTickets";
 import AdminBlockedUsers from "./pages/AdminBlockedUsers";
 import AdminCryptoPayments from "./pages/AdminCryptoPayments";
 import AdminManualPayments from "./pages/AdminManualPayments";
+import AdminStaffPermissions from "./pages/AdminStaffPermissions";
 import StaffStats from "./pages/StaffStats";
 import StaffProcessed from "./pages/StaffProcessed";
 import Profile from "./pages/Profile";
@@ -106,6 +107,7 @@ const AppRoutes = () => (
     <Route path="/dashboard/blocked-users" element={<ProtectedRoute allowedRoles={['admin']}><AdminBlockedUsers /></ProtectedRoute>} />
     <Route path="/dashboard/crypto-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminCryptoPayments /></ProtectedRoute>} />
     <Route path="/dashboard/manual-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminManualPayments /></ProtectedRoute>} />
+    <Route path="/dashboard/staff-permissions" element={<ProtectedRoute allowedRoles={['admin']}><AdminStaffPermissions /></ProtectedRoute>} />
     <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
     
     <Route path="*" element={<NotFound />} />

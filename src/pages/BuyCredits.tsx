@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useWhatsApp } from '@/hooks/useWhatsApp';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, CreditCard, CheckCircle, Loader2, Bitcoin, Copy, ExternalLink, RefreshCw, Wallet, ShoppingCart, Plus, Minus, Trash2 } from 'lucide-react';
+import { MessageCircle, CreditCard, CheckCircle, Loader2, Bitcoin, Copy, ExternalLink, RefreshCw, Wallet, ShoppingCart, Plus, Minus, Trash2, Sparkles, Zap, Star } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -57,7 +57,6 @@ export default function BuyCredits() {
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch packages
       const { data: packagesData } = await supabase
         .from('pricing_packages')
         .select('*')
@@ -66,7 +65,6 @@ export default function BuyCredits() {
       
       setPackages(packagesData || []);
 
-      // Fetch payment method settings
       const { data: settings } = await supabase
         .from('settings')
         .select('key, value')
@@ -88,7 +86,6 @@ export default function BuyCredits() {
     fetchData();
   }, []);
 
-  // Cart functions
   const addToCart = (plan: PricingPackage) => {
     setCart(prev => {
       const existing = prev.find(item => item.package.id === plan.id);
@@ -223,7 +220,6 @@ export default function BuyCredits() {
     setShowOrderIdStep(true);
   };
 
-  // Validate Binance Order ID format (typically 18-20 digits)
   const validateBinanceOrderId = (orderId: string): { isValid: boolean; error: string } => {
     const trimmed = orderId.trim();
     
@@ -231,12 +227,10 @@ export default function BuyCredits() {
       return { isValid: false, error: 'Order ID is required' };
     }
     
-    // Check if it's numeric only
     if (!/^\d+$/.test(trimmed)) {
       return { isValid: false, error: 'Order ID should contain only numbers' };
     }
     
-    // Check length (Binance order IDs are typically 18-20 digits)
     if (trimmed.length < 15 || trimmed.length > 25) {
       return { isValid: false, error: 'Order ID should be 15-25 digits long' };
     }
@@ -270,7 +264,6 @@ export default function BuyCredits() {
 
       if (error) throw error;
 
-      // Notify all admins about the new payment with order ID
       const { data: adminRoles } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -300,6 +293,19 @@ export default function BuyCredits() {
     }
   };
 
+  const getPackageIcon = (index: number) => {
+    if (index === 0) return <Zap className="h-5 w-5" />;
+    if (index === packages.length - 1) return <Star className="h-5 w-5" />;
+    return <Sparkles className="h-5 w-5" />;
+  };
+
+  const getPackageStyle = (index: number) => {
+    if (index === packages.length - 1) {
+      return 'border-2 border-primary bg-gradient-to-br from-primary/5 via-transparent to-secondary/5';
+    }
+    return 'border border-border hover:border-primary/50';
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -312,55 +318,69 @@ export default function BuyCredits() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-3xl font-display font-bold">Buy Credits</h1>
-          <p className="text-muted-foreground mt-1">
-            Purchase credits to check your documents
+      <div className="max-w-5xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="text-center">
+          <h1 className="text-4xl font-display font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Buy Credits
+          </h1>
+          <p className="text-muted-foreground mt-2 text-lg">
+            Get credits to check your documents for similarity and AI content
           </p>
         </div>
 
-        {/* Current Balance */}
-        <Card className="gradient-primary text-primary-foreground">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="h-14 w-14 rounded-xl bg-primary-foreground/20 flex items-center justify-center">
-                <CreditCard className="h-7 w-7" />
+        {/* Current Balance Card */}
+        <Card className="overflow-hidden">
+          <div className="gradient-primary p-6 sm:p-8">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4 text-primary-foreground">
+                <div className="h-16 w-16 rounded-2xl bg-primary-foreground/20 backdrop-blur-sm flex items-center justify-center">
+                  <CreditCard className="h-8 w-8" />
+                </div>
+                <div>
+                  <p className="text-primary-foreground/80 text-sm font-medium">Current Balance</p>
+                  <p className="text-4xl font-bold">{profile?.credit_balance || 0}</p>
+                  <p className="text-primary-foreground/80 text-sm">Available Credits</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm opacity-80">Current Balance</p>
-                <p className="text-3xl font-bold">{profile?.credit_balance || 0} Credits</p>
-              </div>
+              {cart.length > 0 && (
+                <div className="flex flex-col items-center sm:items-end gap-2">
+                  <Badge variant="secondary" className="text-lg px-4 py-2 bg-primary-foreground/20 text-primary-foreground border-0">
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    {getCartCredits()} credits in cart
+                  </Badge>
+                  <p className="text-primary-foreground/80 text-sm">Total: ${getCartTotal()}</p>
+                </div>
+              )}
             </div>
-          </CardContent>
+          </div>
         </Card>
 
-        {/* Cart Summary (if items in cart) */}
+        {/* Cart Summary Bar */}
         {cart.length > 0 && (
-          <Card className="border-primary">
+          <Card className="border-2 border-primary/30 bg-primary/5">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <ShoppingCart className="h-5 w-5 text-primary" />
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <ShoppingCart className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold">{getCartCredits()} Credits in Cart</p>
-                    <p className="text-sm text-muted-foreground">Total: ${getCartTotal()}</p>
+                    <p className="font-bold text-lg">{getCartCredits()} Credits</p>
+                    <p className="text-muted-foreground">Total: ${getCartTotal()}</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setShowCartDialog(true)}>
-                    View Cart
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setShowCartDialog(true)}>
+                    View Cart ({cart.length})
                   </Button>
                   {binanceEnabled && (
                     <Button 
-                      size="sm" 
-                      className="bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
                       onClick={openBinancePayment}
+                      className="bg-[#F0B90B] hover:bg-[#D4A50A] text-black font-semibold"
                     >
                       <Wallet className="h-4 w-4 mr-2" />
-                      Checkout with Binance
+                      Checkout
                     </Button>
                   )}
                 </div>
@@ -369,51 +389,74 @@ export default function BuyCredits() {
           </Card>
         )}
 
-        {/* Pricing Plans */}
-        <div className="grid md:grid-cols-2 gap-4">
-          {packages.map((plan) => {
+        {/* Pricing Packages Grid */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {packages.map((plan, index) => {
             const cartItem = cart.find(item => item.package.id === plan.id);
+            const isPopular = index === packages.length - 1;
+            
             return (
-              <Card key={plan.id} className="hover:border-primary/50 transition-colors relative">
+              <Card 
+                key={plan.id} 
+                className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${getPackageStyle(index)}`}
+              >
+                {isPopular && (
+                  <div className="absolute top-0 right-0">
+                    <Badge className="rounded-none rounded-bl-lg bg-primary text-primary-foreground">
+                      Best Value
+                    </Badge>
+                  </div>
+                )}
+                
                 {cartItem && (
-                  <Badge className="absolute -top-2 -right-2 bg-primary">
+                  <Badge className="absolute -top-1 -left-1 bg-secondary text-secondary-foreground shadow-lg">
                     {cartItem.quantity} in cart
                   </Badge>
                 )}
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-2xl font-bold">
-                        {plan.credits} {plan.credits === 1 ? 'Credit' : 'Credits'}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        ${(plan.price / plan.credits).toFixed(2)} per document
-                      </p>
-                    </div>
-                    <p className="text-3xl font-bold text-primary">${plan.price}</p>
+                
+                <CardHeader className="text-center pb-2">
+                  <div className={`mx-auto h-12 w-12 rounded-xl flex items-center justify-center mb-2 ${isPopular ? 'bg-primary text-primary-foreground' : 'bg-muted text-primary'}`}>
+                    {getPackageIcon(index)}
                   </div>
-                  <ul className="space-y-2 mb-4 text-sm">
+                  <CardTitle className="text-3xl font-bold">
+                    {plan.credits}
+                  </CardTitle>
+                  <CardDescription className="text-lg">
+                    {plan.credits === 1 ? 'Credit' : 'Credits'}
+                  </CardDescription>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  <div className="text-center">
+                    <p className="text-4xl font-bold text-primary">${plan.price}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      ${(plan.price / plan.credits).toFixed(2)} per credit
+                    </p>
+                  </div>
+
+                  <ul className="space-y-2 text-sm">
                     <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-secondary" />
-                      Similarity Detection
+                      <CheckCircle className="h-4 w-4 text-secondary flex-shrink-0" />
+                      <span>Similarity Detection</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-secondary" />
-                      AI Content Detection
+                      <CheckCircle className="h-4 w-4 text-secondary flex-shrink-0" />
+                      <span>AI Content Detection</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-secondary" />
-                      Detailed PDF Reports
+                      <CheckCircle className="h-4 w-4 text-secondary flex-shrink-0" />
+                      <span>Detailed PDF Reports</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-secondary" />
-                      Credits Never Expire
+                      <CheckCircle className="h-4 w-4 text-secondary flex-shrink-0" />
+                      <span>Credits Never Expire</span>
                     </li>
                   </ul>
-                  <div className="space-y-2">
+
+                  <div className="space-y-2 pt-2">
                     {binanceEnabled && (
                       <Button
-                        className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
+                        className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black font-medium"
                         onClick={() => addToCart(plan)}
                       >
                         <Plus className="h-4 w-4 mr-2" />
@@ -421,31 +464,29 @@ export default function BuyCredits() {
                       </Button>
                     )}
                     {usdtEnabled && (
-                      <>
-                        <Button
-                          className="w-full"
-                          variant="default"
-                          onClick={() => createCryptoPayment(plan)}
-                          disabled={creatingPayment === plan.id || plan.price < 15}
-                          title={plan.price < 15 ? 'Minimum $15 for USDT payments' : undefined}
-                        >
-                          {creatingPayment === plan.id ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          ) : (
-                            <Bitcoin className="h-4 w-4 mr-2" />
-                          )}
-                          Pay with USDT
-                        </Button>
-                        {plan.price < 15 && (
-                          <p className="text-xs text-muted-foreground text-center">
-                            Min. $15 for USDT
-                          </p>
+                      <Button
+                        className="w-full"
+                        variant={binanceEnabled ? "outline" : "default"}
+                        onClick={() => createCryptoPayment(plan)}
+                        disabled={creatingPayment === plan.id || plan.price < 15}
+                        title={plan.price < 15 ? 'Minimum $15 for USDT payments' : undefined}
+                      >
+                        {creatingPayment === plan.id ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Bitcoin className="h-4 w-4 mr-2" />
                         )}
-                      </>
+                        Pay with USDT
+                      </Button>
+                    )}
+                    {plan.price < 15 && usdtEnabled && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        Min. $15 for USDT
+                      </p>
                     )}
                     {whatsappEnabled && (
                       <Button
-                        className="w-full bg-[#25D366] hover:bg-[#128C7E]"
+                        className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white"
                         onClick={() => openWhatsApp(plan.credits)}
                       >
                         <MessageCircle className="h-4 w-4 mr-2" />
@@ -467,77 +508,90 @@ export default function BuyCredits() {
         {/* How it works */}
         <Card>
           <CardHeader>
-            <CardTitle>How to Purchase Credits</CardTitle>
+            <CardTitle className="text-xl">How to Purchase Credits</CardTitle>
             <CardDescription>
               Follow these simple steps to add credits to your account
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-3 gap-8">
+              {/* Binance Pay */}
+              {binanceEnabled && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-[#F0B90B]/10 flex items-center justify-center">
+                      <Wallet className="h-5 w-5 text-[#F0B90B]" />
+                    </div>
+                    <h4 className="font-semibold">Binance Pay</h4>
+                  </div>
+                  <ol className="space-y-3 text-sm">
+                    <li className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-[#F0B90B] text-black flex items-center justify-center font-bold flex-shrink-0 text-xs">1</span>
+                      <span>Add credits to your cart</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-[#F0B90B] text-black flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
+                      <span>Send payment to our Binance Pay ID</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-[#F0B90B] text-black flex items-center justify-center font-bold flex-shrink-0 text-xs">3</span>
+                      <span>Enter Order ID and wait for verification</span>
+                    </li>
+                  </ol>
+                </div>
+              )}
+
               {/* USDT Payment */}
-              <div>
-                <h4 className="font-semibold mb-4 flex items-center gap-2">
-                  <Bitcoin className="h-5 w-5 text-primary" />
-                  Pay with USDT (TRC20)
-                </h4>
-                <ol className="space-y-3 text-sm">
-                  <li className="flex gap-3">
-                    <span className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold flex-shrink-0 text-xs">1</span>
-                    <span>Click "Pay with USDT" on your chosen package</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
-                    <span>Send exact USDT amount to the provided address</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold flex-shrink-0 text-xs">3</span>
-                    <span>Credits added automatically after confirmation</span>
-                  </li>
-                </ol>
-              </div>
+              {usdtEnabled && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Bitcoin className="h-5 w-5 text-primary" />
+                    </div>
+                    <h4 className="font-semibold">USDT (TRC20)</h4>
+                  </div>
+                  <ol className="space-y-3 text-sm">
+                    <li className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold flex-shrink-0 text-xs">1</span>
+                      <span>Click "Pay with USDT" on your chosen package</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
+                      <span>Send exact USDT amount to the provided address</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold flex-shrink-0 text-xs">3</span>
+                      <span>Credits added automatically after confirmation</span>
+                    </li>
+                  </ol>
+                </div>
+              )}
 
               {/* WhatsApp Payment */}
-              <div>
-                <h4 className="font-semibold mb-4 flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5 text-[#25D366]" />
-                  Buy via WhatsApp
-                </h4>
-                <ol className="space-y-3 text-sm">
-                  <li className="flex gap-3">
-                    <span className="h-6 w-6 rounded-full bg-[#25D366] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">1</span>
-                    <span>Click "Buy via WhatsApp" button</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="h-6 w-6 rounded-full bg-[#25D366] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
-                    <span>Complete payment via our team</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="h-6 w-6 rounded-full bg-[#25D366] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">3</span>
-                    <span>Credits added after confirmation</span>
-                  </li>
-                </ol>
-              </div>
-              {/* Binance Pay */}
-              <div>
-                <h4 className="font-semibold mb-4 flex items-center gap-2">
-                  <Wallet className="h-5 w-5 text-[#F0B90B]" />
-                  Pay with Binance
-                </h4>
-                <ol className="space-y-3 text-sm">
-                  <li className="flex gap-3">
-                    <span className="h-6 w-6 rounded-full bg-[#F0B90B] text-black flex items-center justify-center font-bold flex-shrink-0 text-xs">1</span>
-                    <span>Click "Pay with Binance" on your chosen package</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="h-6 w-6 rounded-full bg-[#F0B90B] text-black flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
-                    <span>Send exact amount to our Binance Pay ID</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="h-6 w-6 rounded-full bg-[#F0B90B] text-black flex items-center justify-center font-bold flex-shrink-0 text-xs">3</span>
-                    <span>Click "I Paid" and wait for verification</span>
-                  </li>
-                </ol>
-              </div>
+              {whatsappEnabled && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-[#25D366]/10 flex items-center justify-center">
+                      <MessageCircle className="h-5 w-5 text-[#25D366]" />
+                    </div>
+                    <h4 className="font-semibold">WhatsApp</h4>
+                  </div>
+                  <ol className="space-y-3 text-sm">
+                    <li className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-[#25D366] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">1</span>
+                      <span>Click "Buy via WhatsApp" button</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-[#25D366] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
+                      <span>Complete payment via our team</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="h-6 w-6 rounded-full bg-[#25D366] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">3</span>
+                      <span>Credits added after confirmation</span>
+                    </li>
+                  </ol>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -548,7 +602,7 @@ export default function BuyCredits() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Bitcoin className="h-5 w-5" />
+              <Bitcoin className="h-5 w-5 text-primary" />
               Complete Your Payment
             </DialogTitle>
             <DialogDescription>
@@ -558,7 +612,7 @@ export default function BuyCredits() {
 
           {paymentDetails && (
             <div className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg space-y-3">
+              <div className="p-4 bg-muted rounded-xl space-y-3">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Amount to send</p>
                   <p className="text-2xl font-bold text-primary">
@@ -570,7 +624,7 @@ export default function BuyCredits() {
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Send to this address</p>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 text-xs bg-background p-2 rounded border break-all">
+                    <code className="flex-1 text-xs bg-background p-2 rounded-lg border break-all">
                       {paymentDetails.payAddress}
                     </code>
                     <Button size="icon" variant="outline" onClick={copyAddress}>
@@ -600,7 +654,7 @@ export default function BuyCredits() {
                 </div>
               </div>
 
-              <div className="text-xs text-muted-foreground space-y-1">
+              <div className="text-xs text-muted-foreground space-y-1 bg-destructive/5 p-3 rounded-lg">
                 <p>⚠️ Send only USDT on <strong>TRC20</strong> network</p>
                 <p>⚠️ Send the exact amount shown above</p>
                 <p>⚠️ Payment will be confirmed after network confirmations</p>
@@ -626,7 +680,7 @@ export default function BuyCredits() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5" />
+              <ShoppingCart className="h-5 w-5 text-primary" />
               Your Cart
             </DialogTitle>
             <DialogDescription>
@@ -636,66 +690,75 @@ export default function BuyCredits() {
 
           <div className="space-y-4">
             {cart.length === 0 ? (
-              <p className="text-center text-muted-foreground py-4">Your cart is empty</p>
+              <div className="text-center py-8">
+                <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                <p className="text-muted-foreground">Your cart is empty</p>
+              </div>
             ) : (
               <>
-                {cart.map(item => (
-                  <div key={item.package.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                    <div>
-                      <p className="font-semibold">{item.package.credits} Credits</p>
-                      <p className="text-sm text-muted-foreground">${item.package.price} each</p>
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {cart.map(item => (
+                    <div key={item.package.id} className="flex items-center justify-between p-4 bg-muted rounded-xl">
+                      <div>
+                        <p className="font-semibold">{item.package.credits} Credits</p>
+                        <p className="text-sm text-muted-foreground">${item.package.price} each</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          size="icon" 
+                          variant="outline" 
+                          className="h-8 w-8"
+                          onClick={() => updateCartQuantity(item.package.id, -1)}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-8 text-center font-bold">{item.quantity}</span>
+                        <Button 
+                          size="icon" 
+                          variant="outline" 
+                          className="h-8 w-8"
+                          onClick={() => updateCartQuantity(item.package.id, 1)}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => removeFromCart(item.package.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        size="icon" 
-                        variant="outline" 
-                        className="h-8 w-8"
-                        onClick={() => updateCartQuantity(item.package.id, -1)}
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-8 text-center font-semibold">{item.quantity}</span>
-                      <Button 
-                        size="icon" 
-                        variant="outline" 
-                        className="h-8 w-8"
-                        onClick={() => updateCartQuantity(item.package.id, 1)}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        className="h-8 w-8 text-destructive"
-                        onClick={() => removeFromCart(item.package.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
 
-                <div className="border-t pt-4">
+                <div className="border-t pt-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Credits</span>
+                    <span className="font-semibold">{getCartCredits()}</span>
+                  </div>
                   <div className="flex justify-between text-lg font-bold">
-                    <span>Total:</span>
-                    <span>${getCartTotal()} ({getCartCredits()} Credits)</span>
+                    <span>Total</span>
+                    <span className="text-primary">${getCartTotal()}</span>
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <Button variant="outline" className="flex-1" onClick={clearCart}>
                     Clear Cart
                   </Button>
                   {binanceEnabled && (
                     <Button 
-                      className="flex-1 bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
+                      className="flex-1 bg-[#F0B90B] hover:bg-[#D4A50A] text-black font-semibold"
                       onClick={() => {
                         setShowCartDialog(false);
                         openBinancePayment();
                       }}
                     >
                       <Wallet className="h-4 w-4 mr-2" />
-                      Pay with Binance
+                      Checkout
                     </Button>
                   )}
                 </div>
@@ -729,8 +792,7 @@ export default function BuyCredits() {
 
           {!showOrderIdStep ? (
             <div className="space-y-4">
-              {/* Cart summary */}
-              <div className="p-3 bg-muted/50 rounded-lg space-y-2 max-h-32 overflow-y-auto">
+              <div className="p-3 bg-muted/50 rounded-xl space-y-2 max-h-32 overflow-y-auto">
                 {cart.map(item => (
                   <div key={item.package.id} className="flex justify-between text-sm">
                     <span>{item.package.credits} Credits × {item.quantity}</span>
@@ -739,10 +801,10 @@ export default function BuyCredits() {
                 ))}
               </div>
 
-              <div className="p-4 bg-muted rounded-lg space-y-3">
+              <div className="p-4 bg-[#F0B90B]/10 rounded-xl space-y-3">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Total Amount to Send</p>
-                  <p className="text-2xl font-bold text-[#F0B90B]">
+                  <p className="text-3xl font-bold text-[#F0B90B]">
                     ${getCartTotal()} USD
                   </p>
                   <p className="text-sm text-muted-foreground">
@@ -753,7 +815,7 @@ export default function BuyCredits() {
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Send to Binance Pay ID</p>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 text-sm bg-background p-2 rounded border">
+                    <code className="flex-1 text-sm bg-background p-2 rounded-lg border font-mono">
                       {binancePayId || 'Contact admin for Pay ID'}
                     </code>
                     <Button 
@@ -771,14 +833,14 @@ export default function BuyCredits() {
                 </div>
               </div>
 
-              <div className="text-xs text-muted-foreground space-y-1">
+              <div className="text-xs text-muted-foreground space-y-1 bg-amber-500/10 p-3 rounded-lg">
                 <p>⚠️ Send the exact amount shown above</p>
                 <p>⚠️ After payment, click "I Have Paid" below</p>
                 <p>⚠️ You'll need to provide the transaction Order ID</p>
               </div>
 
               <Button 
-                className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
+                className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black font-semibold"
                 onClick={proceedToOrderId}
                 disabled={!binancePayId}
               >
@@ -788,7 +850,7 @@ export default function BuyCredits() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg">
+              <div className="p-4 bg-muted rounded-xl">
                 <p className="text-sm mb-2">
                   Please enter the <strong>Order ID</strong> from your Binance transaction.
                 </p>
@@ -808,7 +870,7 @@ export default function BuyCredits() {
                 />
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <Button 
                   variant="outline" 
                   className="flex-1"
@@ -817,7 +879,7 @@ export default function BuyCredits() {
                   Back
                 </Button>
                 <Button 
-                  className="flex-1 bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
+                  className="flex-1 bg-[#F0B90B] hover:bg-[#D4A50A] text-black font-semibold"
                   onClick={submitBinancePayment}
                   disabled={submittingBinance || !binanceOrderId.trim()}
                 >
@@ -826,7 +888,7 @@ export default function BuyCredits() {
                   ) : (
                     <CheckCircle className="h-4 w-4 mr-2" />
                   )}
-                  Submit for Verification
+                  Submit
                 </Button>
               </div>
             </div>
