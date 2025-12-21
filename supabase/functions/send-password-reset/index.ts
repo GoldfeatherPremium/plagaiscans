@@ -13,6 +13,27 @@ interface PasswordResetRequest {
   email: string;
 }
 
+// Check if email setting is enabled
+async function isEmailEnabled(supabase: any, settingKey: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("email_settings")
+      .select("is_enabled")
+      .eq("setting_key", settingKey)
+      .single();
+    
+    if (error || !data) {
+      console.log(`Email setting ${settingKey} not found, defaulting to enabled`);
+      return true;
+    }
+    
+    return data.is_enabled;
+  } catch (error) {
+    console.error("Error checking email setting:", error);
+    return true;
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -33,6 +54,16 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Check if password reset emails are enabled
+    const isEnabled = await isEmailEnabled(supabase, "password_reset");
+    if (!isEnabled) {
+      console.log("Password reset emails are disabled by admin");
+      return new Response(
+        JSON.stringify({ success: false, error: "Password reset is currently disabled. Please contact support." }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     // Check if user exists in profiles
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -50,7 +81,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Generate password reset link using Supabase Auth
-    const siteUrl = Deno.env.get("SITE_URL") || "https://fyssbzgmhnolazjfwafm.lovable.app";
+    const siteUrl = Deno.env.get("SITE_URL") || "https://plagaiscans.com";
     
     const { data: resetData, error: resetError } = await supabase.auth.admin.generateLink({
       type: "recovery",
