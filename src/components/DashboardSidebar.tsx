@@ -315,6 +315,7 @@ export const DashboardSidebar: React.FC = () => {
       icon: Bell,
       badgeKey: 'communication',
       links: [
+        { to: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
         { to: '/dashboard/announcements', icon: Megaphone, label: 'Announcements' },
         { to: '/dashboard/support-tickets', icon: MessageSquare, label: 'Support', badgeKey: 'openTickets' },
       ],

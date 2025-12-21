@@ -399,27 +399,33 @@ export type Database = {
       }
       notifications: {
         Row: {
+          category: string
           created_at: string
           created_by: string | null
           id: string
           is_active: boolean
           message: string
+          target_audience: string
           title: string
         }
         Insert: {
+          category?: string
           created_at?: string
           created_by?: string | null
           id?: string
           is_active?: boolean
           message: string
+          target_audience?: string
           title: string
         }
         Update: {
+          category?: string
           created_at?: string
           created_by?: string | null
           id?: string
           is_active?: boolean
           message?: string
+          target_audience?: string
           title?: string
         }
         Relationships: []
@@ -674,6 +680,36 @@ export type Database = {
           status?: string
           subject?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_notification_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          promotional_enabled: boolean
+          system_enabled: boolean
+          updated_at: string
+          updates_enabled: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          promotional_enabled?: boolean
+          system_enabled?: boolean
+          updated_at?: string
+          updates_enabled?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          promotional_enabled?: boolean
+          system_enabled?: boolean
+          updated_at?: string
+          updates_enabled?: boolean
           user_id?: string
         }
         Relationships: []

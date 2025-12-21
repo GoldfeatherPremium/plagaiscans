@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, User, Lock, Phone, Mail } from 'lucide-react';
 import { z } from 'zod';
+import { NotificationPreferences } from '@/components/NotificationPreferences';
 
 const phoneSchema = z.string()
   .regex(/^\+?[0-9]{10,15}$/, 'Phone number must be 10-15 digits (can start with +)');
@@ -272,6 +273,10 @@ export default function Profile() {
               </form>
             </CardContent>
           </Card>
+          {/* Notification Preferences */}
+          <div className="md:col-span-2">
+            <NotificationPreferences />
+          </div>
         </div>
       </div>
     </DashboardLayout>
