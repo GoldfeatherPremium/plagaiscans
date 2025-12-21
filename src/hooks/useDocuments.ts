@@ -154,6 +154,7 @@ export const useDocuments = () => {
     }
 
     try {
+      const currentBalance = profile.credit_balance;
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
@@ -166,22 +167,34 @@ export const useDocuments = () => {
       if (uploadError) throw uploadError;
 
       // Create document record
-      const { error: insertError } = await supabase.from('documents').insert({
+      const { data: docData, error: insertError } = await supabase.from('documents').insert({
         user_id: user.id,
         file_name: file.name,
         file_path: filePath,
         status: 'pending',
-      });
+      }).select().single();
 
       if (insertError) throw insertError;
 
       // Deduct credit
+      const newBalance = currentBalance - 1;
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ credit_balance: profile.credit_balance - 1 })
+        .update({ credit_balance: newBalance })
         .eq('id', user.id);
 
       if (updateError) throw updateError;
+
+      // Log credit transaction
+      await supabase.from('credit_transactions').insert({
+        user_id: user.id,
+        amount: -1,
+        balance_before: currentBalance,
+        balance_after: newBalance,
+        transaction_type: 'deduction',
+        description: `Document upload: ${file.name}`,
+        performed_by: user.id,
+      });
 
       await refreshProfile();
       await fetchDocuments();
@@ -201,6 +214,99 @@ export const useDocuments = () => {
       });
       return { success: false };
     }
+  };
+
+  const uploadDocuments = async (
+    files: File[],
+    onProgress?: (current: number, total: number) => void
+  ): Promise<{ success: number; failed: number }> => {
+    if (!user || !profile) return { success: 0, failed: files.length };
+
+    const availableCredits = profile.credit_balance;
+    if (availableCredits < files.length) {
+      toast({
+        title: 'Insufficient Credits',
+        description: `You need ${files.length} credits but only have ${availableCredits}`,
+        variant: 'destructive',
+      });
+      return { success: 0, failed: files.length };
+    }
+
+    let successCount = 0;
+    let failedCount = 0;
+    let currentBalance = availableCredits;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      onProgress?.(i + 1, files.length);
+
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${i}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        // Upload file to storage
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        // Create document record
+        const { error: insertError } = await supabase.from('documents').insert({
+          user_id: user.id,
+          file_name: file.name,
+          file_path: filePath,
+          status: 'pending',
+        });
+
+        if (insertError) throw insertError;
+
+        // Deduct credit
+        const newBalance = currentBalance - 1;
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ credit_balance: newBalance })
+          .eq('id', user.id);
+
+        if (updateError) throw updateError;
+
+        // Log credit transaction
+        await supabase.from('credit_transactions').insert({
+          user_id: user.id,
+          amount: -1,
+          balance_before: currentBalance,
+          balance_after: newBalance,
+          transaction_type: 'deduction',
+          description: `Document upload: ${file.name}`,
+          performed_by: user.id,
+        });
+
+        currentBalance = newBalance;
+        successCount++;
+      } catch (error) {
+        console.error(`Error uploading file ${file.name}:`, error);
+        failedCount++;
+      }
+    }
+
+    await refreshProfile();
+    await fetchDocuments();
+
+    if (successCount > 0) {
+      toast({
+        title: 'Upload Complete',
+        description: `${successCount} document${successCount !== 1 ? 's' : ''} uploaded successfully${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
+      });
+    } else {
+      toast({
+        title: 'Upload Failed',
+        description: 'Failed to upload documents',
+        variant: 'destructive',
+      });
+    }
+
+    return { success: successCount, failed: failedCount };
   };
 
   const downloadFile = async (path: string, bucket: string = 'documents', originalFileName?: string) => {
@@ -416,6 +522,7 @@ export const useDocuments = () => {
     documents,
     loading,
     uploadDocument,
+    uploadDocuments,
     downloadFile,
     updateDocumentStatus,
     uploadReport,
