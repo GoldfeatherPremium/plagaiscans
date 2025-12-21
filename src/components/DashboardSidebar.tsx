@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -32,22 +32,36 @@ import {
   PieChart,
   Bell,
   Wrench,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 interface NavLink {
   to: string;
   icon: React.ElementType;
   label: string;
+  badgeKey?: string;
 }
 
 interface NavGroup {
   label: string;
   icon: React.ElementType;
   links: NavLink[];
+  badgeKey?: string;
+}
+
+interface BadgeCounts {
+  pendingDocuments: number;
+  pendingManualPayments: number;
+  openTickets: number;
+  pendingCrypto: number;
 }
 
 export const DashboardSidebar: React.FC = () => {
@@ -55,6 +69,29 @@ export const DashboardSidebar: React.FC = () => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Fetch badge counts for admin
+  const { data: badgeCounts } = useQuery({
+    queryKey: ['admin-badge-counts'],
+    queryFn: async (): Promise<BadgeCounts> => {
+      const [documentsRes, manualPaymentsRes, ticketsRes, cryptoRes] = await Promise.all([
+        supabase.from('documents').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('manual_payments').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('support_tickets').select('id', { count: 'exact', head: true }).eq('status', 'open'),
+        supabase.from('crypto_payments').select('id', { count: 'exact', head: true }).eq('status', 'waiting'),
+      ]);
+      
+      return {
+        pendingDocuments: documentsRes.count || 0,
+        pendingManualPayments: manualPaymentsRes.count || 0,
+        openTickets: ticketsRes.count || 0,
+        pendingCrypto: cryptoRes.count || 0,
+      };
+    },
+    enabled: role === 'admin',
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
 
   const customerLinks: NavLink[] = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -78,8 +115,9 @@ export const DashboardSidebar: React.FC = () => {
     {
       label: 'Documents',
       icon: FolderOpen,
+      badgeKey: 'documents',
       links: [
-        { to: '/dashboard/queue', icon: FileCheck, label: 'Queue' },
+        { to: '/dashboard/queue', icon: FileCheck, label: 'Queue', badgeKey: 'pendingDocuments' },
         { to: '/dashboard/documents', icon: FileText, label: 'All Documents' },
         { to: '/dashboard/magic-links', icon: Upload, label: 'Magic Links' },
       ],
@@ -97,12 +135,13 @@ export const DashboardSidebar: React.FC = () => {
     {
       label: 'Payments',
       icon: Wallet,
+      badgeKey: 'payments',
       links: [
         { to: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
         { to: '/dashboard/promo-codes', icon: Ticket, label: 'Promo Codes' },
         { to: '/dashboard/revenue', icon: DollarSign, label: 'Revenue' },
-        { to: '/dashboard/crypto-payments', icon: CreditCard, label: 'Crypto' },
-        { to: '/dashboard/manual-payments', icon: Wallet, label: 'Manual' },
+        { to: '/dashboard/crypto-payments', icon: CreditCard, label: 'Crypto', badgeKey: 'pendingCrypto' },
+        { to: '/dashboard/manual-payments', icon: Wallet, label: 'Manual', badgeKey: 'pendingManualPayments' },
       ],
     },
     {
@@ -118,9 +157,10 @@ export const DashboardSidebar: React.FC = () => {
     {
       label: 'Communication',
       icon: Bell,
+      badgeKey: 'communication',
       links: [
         { to: '/dashboard/announcements', icon: Megaphone, label: 'Announcements' },
-        { to: '/dashboard/support-tickets', icon: MessageSquare, label: 'Support' },
+        { to: '/dashboard/support-tickets', icon: MessageSquare, label: 'Support', badgeKey: 'openTickets' },
       ],
     },
     {
@@ -132,6 +172,32 @@ export const DashboardSidebar: React.FC = () => {
       ],
     },
   ];
+
+  // Calculate group badge counts
+  const getGroupBadgeCount = (group: NavGroup): number => {
+    if (!badgeCounts) return 0;
+    return group.links.reduce((total, link) => {
+      if (link.badgeKey && badgeCounts[link.badgeKey as keyof BadgeCounts]) {
+        return total + badgeCounts[link.badgeKey as keyof BadgeCounts];
+      }
+      return total;
+    }, 0);
+  };
+
+  // Filter links based on search
+  const filteredAdminGroups = useMemo(() => {
+    if (!searchQuery.trim()) return adminGroups;
+    
+    const query = searchQuery.toLowerCase();
+    return adminGroups
+      .map(group => ({
+        ...group,
+        links: group.links.filter(link => 
+          link.label.toLowerCase().includes(query)
+        ),
+      }))
+      .filter(group => group.links.length > 0 || group.label.toLowerCase().includes(query));
+  }, [searchQuery]);
 
   const toggleGroup = (groupLabel: string) => {
     setOpenGroups(prev => 
@@ -153,51 +219,91 @@ export const DashboardSidebar: React.FC = () => {
     }
   }, [location.pathname, role]);
 
+  // Auto-expand all groups when searching
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      setOpenGroups(filteredAdminGroups.map(g => g.label));
+    }
+  }, [searchQuery, filteredAdminGroups]);
+
   // Close sidebar when route changes
   useEffect(() => {
     setIsOpen(false);
+    setSearchQuery('');
   }, [location.pathname]);
+
+  const renderBadge = (count: number) => {
+    if (count === 0) return null;
+    return (
+      <Badge 
+        variant="destructive" 
+        className="h-5 min-w-5 px-1.5 text-xs font-medium"
+      >
+        {count > 99 ? '99+' : count}
+      </Badge>
+    );
+  };
 
   const renderLink = (link: NavLink, compact = false) => {
     const isActive = location.pathname === link.to;
+    const badgeCount = link.badgeKey && badgeCounts ? badgeCounts[link.badgeKey as keyof BadgeCounts] : 0;
+    
     return (
       <Link
         key={link.to}
         to={link.to}
         className={cn(
-          "flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors",
+          "flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg transition-colors",
           compact && "pl-10",
           isActive
             ? 'bg-primary text-primary-foreground'
             : 'text-muted-foreground hover:bg-muted hover:text-foreground'
         )}
       >
-        <link.icon className="h-4 w-4" />
-        <span className="text-sm font-medium">{link.label}</span>
+        <div className="flex items-center gap-3">
+          <link.icon className="h-4 w-4" />
+          <span className="text-sm font-medium">{link.label}</span>
+        </div>
+        {badgeCount > 0 && !isActive && renderBadge(badgeCount)}
       </Link>
     );
   };
 
   const renderAdminNav = () => (
     <>
+      {/* Search Box */}
+      <div className="relative mb-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Search menu..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 h-9 text-sm bg-muted/50"
+        />
+      </div>
+
       {/* Dashboard - standalone */}
-      <Link
-        to="/dashboard"
-        className={cn(
-          "flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors",
-          location.pathname === '/dashboard'
-            ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-        )}
-      >
-        <LayoutDashboard className="h-4 w-4" />
-        <span className="text-sm font-medium">Dashboard</span>
-      </Link>
+      {(!searchQuery.trim() || 'dashboard'.includes(searchQuery.toLowerCase())) && (
+        <Link
+          to="/dashboard"
+          className={cn(
+            "flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors",
+            location.pathname === '/dashboard'
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          )}
+        >
+          <LayoutDashboard className="h-4 w-4" />
+          <span className="text-sm font-medium">Dashboard</span>
+        </Link>
+      )}
 
       {/* Grouped navigation */}
-      {adminGroups.map((group) => {
+      {filteredAdminGroups.map((group) => {
         const isGroupOpen = openGroups.includes(group.label);
         const hasActiveLink = group.links.some(link => link.to === location.pathname);
+        const groupBadgeCount = getGroupBadgeCount(group);
         
         return (
           <Collapsible
@@ -218,11 +324,14 @@ export const DashboardSidebar: React.FC = () => {
                   <group.icon className="h-4 w-4" />
                   <span className="text-sm font-medium">{group.label}</span>
                 </div>
-                {isGroupOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
+                <div className="flex items-center gap-2">
+                  {!isGroupOpen && groupBadgeCount > 0 && renderBadge(groupBadgeCount)}
+                  {isGroupOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </div>
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-1 space-y-1">
@@ -231,6 +340,11 @@ export const DashboardSidebar: React.FC = () => {
           </Collapsible>
         );
       })}
+
+      {/* No results */}
+      {searchQuery.trim() && filteredAdminGroups.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-4">No menu items found</p>
+      )}
     </>
   );
 
