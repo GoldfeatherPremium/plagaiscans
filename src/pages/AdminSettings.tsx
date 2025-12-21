@@ -8,9 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { MessageCircle, Save, Loader2, UserPlus, Clock, Users, Settings2, CreditCard, Bitcoin, Wallet } from 'lucide-react';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AdminNotificationSender } from '@/components/AdminNotificationSender';
 import {
   Table,
   TableBody,
@@ -532,9 +530,6 @@ export default function AdminSettings() {
             </Button>
           </CardContent>
         </Card>
-
-        {/* Notification Sender */}
-        <AdminNotificationSender />
       </div>
     </DashboardLayout>
   );
