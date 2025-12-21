@@ -126,6 +126,22 @@ export default function AdminManualPayments() {
         performed_by: user?.id,
       });
 
+      // Send email notification to user
+      try {
+        await supabase.functions.invoke('send-payment-verified-email', {
+          body: {
+            userId: payment.user_id,
+            credits: payment.credits,
+            amountUsd: payment.amount_usd,
+            paymentMethod: payment.payment_method,
+          },
+        });
+        console.log('Payment verified email sent');
+      } catch (emailError) {
+        console.error('Failed to send email:', emailError);
+        // Don't fail the whole operation if email fails
+      }
+
       toast({ title: 'Success', description: `Payment verified and ${payment.credits} credits added to user account` });
       fetchPayments();
     } catch (error: any) {
