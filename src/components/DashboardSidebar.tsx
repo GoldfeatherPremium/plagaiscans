@@ -58,6 +58,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/magic-links', icon: Upload, label: 'Magic Links' },
     { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
     { to: '/dashboard/revenue', icon: DollarSign, label: 'Revenue' },
+    { to: '/dashboard/crypto-payments', icon: CreditCard, label: 'Crypto Payments' },
     { to: '/dashboard/activity-logs', icon: Activity, label: 'Activity Logs' },
     { to: '/dashboard/system-health', icon: Server, label: 'System Health' },
     { to: '/dashboard/reports', icon: FileDown, label: 'Reports' },

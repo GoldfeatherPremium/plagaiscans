@@ -142,6 +142,51 @@ export type Database = {
         }
         Relationships: []
       }
+      crypto_payments: {
+        Row: {
+          amount_usd: number
+          created_at: string
+          credits: number
+          id: string
+          order_id: string | null
+          pay_address: string | null
+          pay_amount: number | null
+          pay_currency: string | null
+          payment_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_usd: number
+          created_at?: string
+          credits: number
+          id?: string
+          order_id?: string | null
+          pay_address?: string | null
+          pay_amount?: number | null
+          pay_currency?: string | null
+          payment_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_usd?: number
+          created_at?: string
+          credits?: number
+          id?: string
+          order_id?: string | null
+          pay_address?: string | null
+          pay_amount?: number | null
+          pay_currency?: string | null
+          payment_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           ai_percentage: number | null
