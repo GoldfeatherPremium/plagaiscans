@@ -72,6 +72,8 @@ export const DashboardSidebar: React.FC = () => {
   const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [previousCounts, setPreviousCounts] = useState<BadgeCounts | null>(null);
+  const [animatingBadges, setAnimatingBadges] = useState<Set<string>>(new Set());
 
   // Fetch badge counts for admin
   const { data: badgeCounts } = useQuery({
@@ -94,6 +96,37 @@ export const DashboardSidebar: React.FC = () => {
     enabled: role === 'admin',
     refetchInterval: 30000,
   });
+
+  // Detect new items and trigger animation
+  useEffect(() => {
+    if (!badgeCounts || !previousCounts) {
+      if (badgeCounts) setPreviousCounts(badgeCounts);
+      return;
+    }
+
+    const newAnimating = new Set<string>();
+    
+    if (badgeCounts.pendingDocuments > previousCounts.pendingDocuments) {
+      newAnimating.add('pendingDocuments');
+    }
+    if (badgeCounts.pendingManualPayments > previousCounts.pendingManualPayments) {
+      newAnimating.add('pendingManualPayments');
+    }
+    if (badgeCounts.openTickets > previousCounts.openTickets) {
+      newAnimating.add('openTickets');
+    }
+    if (badgeCounts.pendingCrypto > previousCounts.pendingCrypto) {
+      newAnimating.add('pendingCrypto');
+    }
+
+    if (newAnimating.size > 0) {
+      setAnimatingBadges(newAnimating);
+      // Clear animation after it completes (3 pulses × 1s = 3s)
+      setTimeout(() => setAnimatingBadges(new Set()), 3000);
+    }
+
+    setPreviousCounts(badgeCounts);
+  }, [badgeCounts]);
 
   // Real-time subscriptions for badge updates
   useEffect(() => {
@@ -131,9 +164,10 @@ export const DashboardSidebar: React.FC = () => {
     };
   }, [role, queryClient]);
 
-  // Keyboard shortcut for search (Cmd/Ctrl + K)
+  // Keyboard shortcuts (Cmd/Ctrl + K for search, Escape to close)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K to focus search
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         if (!isOpen) {
@@ -143,11 +177,20 @@ export const DashboardSidebar: React.FC = () => {
           searchInputRef.current?.focus();
         }, 100);
       }
+      
+      // Escape to close sidebar or clear search
+      if (e.key === 'Escape') {
+        if (searchQuery) {
+          setSearchQuery('');
+        } else if (isOpen) {
+          setIsOpen(false);
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  }, [isOpen, searchQuery]);
 
   const clearSearch = useCallback(() => {
     setSearchQuery('');
@@ -293,12 +336,16 @@ export const DashboardSidebar: React.FC = () => {
     setSearchQuery('');
   }, [location.pathname]);
 
-  const renderBadge = (count: number) => {
+  const renderBadge = (count: number, badgeKey?: string) => {
     if (count === 0) return null;
+    const isAnimating = badgeKey && animatingBadges.has(badgeKey);
     return (
       <Badge 
         variant="destructive" 
-        className="h-5 min-w-5 px-1.5 text-xs font-medium"
+        className={cn(
+          "h-5 min-w-5 px-1.5 text-xs font-medium",
+          isAnimating && "animate-badge-pulse"
+        )}
       >
         {count > 99 ? '99+' : count}
       </Badge>
@@ -325,7 +372,7 @@ export const DashboardSidebar: React.FC = () => {
           <link.icon className="h-4 w-4" />
           <span className="text-sm font-medium">{link.label}</span>
         </div>
-        {badgeCount > 0 && !isActive && renderBadge(badgeCount)}
+        {badgeCount > 0 && !isActive && renderBadge(badgeCount, link.badgeKey)}
       </Link>
     );
   };
@@ -395,7 +442,7 @@ export const DashboardSidebar: React.FC = () => {
                   <span className="text-sm font-medium">{group.label}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {!isGroupOpen && groupBadgeCount > 0 && renderBadge(groupBadgeCount)}
+                  {!isGroupOpen && groupBadgeCount > 0 && renderBadge(groupBadgeCount, group.badgeKey)}
                   {isGroupOpen ? (
                     <ChevronDown className="h-4 w-4" />
                   ) : (
