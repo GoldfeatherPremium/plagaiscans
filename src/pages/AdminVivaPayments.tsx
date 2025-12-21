@@ -3,9 +3,22 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
-import { Loader2, Globe, DollarSign, CheckCircle, Clock, CreditCard } from 'lucide-react';
+import { Loader2, Globe, DollarSign, CheckCircle, Clock, CreditCard, RefreshCcw, XCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface VivaPayment {
   id: string;
@@ -23,8 +36,11 @@ interface VivaPayment {
 }
 
 export default function AdminVivaPayments() {
+  const { user } = useAuth();
   const [payments, setPayments] = useState<VivaPayment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ id: string; action: 'complete' | 'refund' } | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
@@ -94,6 +110,121 @@ export default function AdminVivaPayments() {
     setLoading(false);
   };
 
+  const handleMarkCompleted = async (payment: VivaPayment) => {
+    setProcessingId(payment.id);
+    try {
+      // Update payment status
+      const { error: updateError } = await supabase
+        .from('viva_payments')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', payment.id);
+
+      if (updateError) throw updateError;
+
+      // Add credits to user's balance
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('credit_balance')
+        .eq('id', payment.user_id)
+        .single();
+
+      const currentBalance = profile?.credit_balance || 0;
+      const newBalance = currentBalance + payment.credits;
+
+      await supabase
+        .from('profiles')
+        .update({ credit_balance: newBalance })
+        .eq('id', payment.user_id);
+
+      // Log the transaction
+      await supabase.from('credit_transactions').insert({
+        user_id: payment.user_id,
+        amount: payment.credits,
+        balance_before: currentBalance,
+        balance_after: newBalance,
+        transaction_type: 'purchase',
+        description: `Manual Viva.com verification - ${payment.credits} credits`,
+        performed_by: user?.id,
+      });
+
+      // Send notification
+      await supabase.from('user_notifications').insert({
+        user_id: payment.user_id,
+        title: '✅ Payment Verified',
+        message: `Your Viva.com payment of $${payment.amount_usd} has been verified. ${payment.credits} credits have been added to your account.`,
+        created_by: user?.id,
+      });
+
+      toast.success('Payment marked as completed and credits added');
+      setConfirmAction(null);
+      fetchPayments();
+    } catch (error: any) {
+      console.error('Error completing payment:', error);
+      toast.error('Failed to complete payment');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleMarkRefunded = async (payment: VivaPayment) => {
+    setProcessingId(payment.id);
+    try {
+      // If already completed, deduct credits
+      if (payment.status === 'completed') {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('credit_balance')
+          .eq('id', payment.user_id)
+          .single();
+
+        const currentBalance = profile?.credit_balance || 0;
+        const newBalance = Math.max(0, currentBalance - payment.credits);
+
+        await supabase
+          .from('profiles')
+          .update({ credit_balance: newBalance })
+          .eq('id', payment.user_id);
+
+        // Log the transaction
+        await supabase.from('credit_transactions').insert({
+          user_id: payment.user_id,
+          amount: -payment.credits,
+          balance_before: currentBalance,
+          balance_after: newBalance,
+          transaction_type: 'refund',
+          description: `Viva.com refund - ${payment.credits} credits`,
+          performed_by: user?.id,
+        });
+      }
+
+      // Update payment status
+      await supabase
+        .from('viva_payments')
+        .update({ status: 'refunded' })
+        .eq('id', payment.id);
+
+      // Send notification
+      await supabase.from('user_notifications').insert({
+        user_id: payment.user_id,
+        title: '💸 Payment Refunded',
+        message: `Your Viva.com payment of $${payment.amount_usd} has been refunded.`,
+        created_by: user?.id,
+      });
+
+      toast.success('Payment marked as refunded');
+      setConfirmAction(null);
+      fetchPayments();
+    } catch (error: any) {
+      console.error('Error refunding payment:', error);
+      toast.error('Failed to refund payment');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
@@ -102,6 +233,8 @@ export default function AdminVivaPayments() {
         return <Badge variant="outline" className="text-amber-600 border-amber-600">Pending</Badge>;
       case 'failed':
         return <Badge variant="destructive">Failed</Badge>;
+      case 'refunded':
+        return <Badge variant="outline" className="text-purple-600 border-purple-600">Refunded</Badge>;
       case 'expired':
         return <Badge variant="secondary">Expired</Badge>;
       default:
@@ -226,7 +359,7 @@ export default function AdminVivaPayments() {
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Order Code</TableHead>
-                      <TableHead>Transaction ID</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -248,11 +381,43 @@ export default function AdminVivaPayments() {
                           <code className="text-xs bg-muted px-2 py-1 rounded">{payment.order_code}</code>
                         </TableCell>
                         <TableCell>
-                          {payment.transaction_id ? (
-                            <code className="text-xs bg-muted px-2 py-1 rounded">{payment.transaction_id}</code>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
+                          <div className="flex gap-2">
+                            {payment.status === 'pending' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-secondary border-secondary hover:bg-secondary/10"
+                                onClick={() => setConfirmAction({ id: payment.id, action: 'complete' })}
+                                disabled={processingId === payment.id}
+                              >
+                                {processingId === payment.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                )}
+                                Complete
+                              </Button>
+                            )}
+                            {(payment.status === 'pending' || payment.status === 'completed') && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive border-destructive hover:bg-destructive/10"
+                                onClick={() => setConfirmAction({ id: payment.id, action: 'refund' })}
+                                disabled={processingId === payment.id}
+                              >
+                                {processingId === payment.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <RefreshCcw className="h-3 w-3 mr-1" />
+                                )}
+                                Refund
+                              </Button>
+                            )}
+                            {payment.status !== 'pending' && payment.status !== 'completed' && (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -263,6 +428,42 @@ export default function AdminVivaPayments() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction?.action === 'complete' ? 'Complete Payment?' : 'Refund Payment?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction?.action === 'complete' 
+                ? 'This will add credits to the user\'s account and mark the payment as completed.'
+                : 'This will mark the payment as refunded. If already completed, credits will be deducted from the user\'s account.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!processingId}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const payment = payments.find(p => p.id === confirmAction?.id);
+                if (payment) {
+                  if (confirmAction?.action === 'complete') {
+                    handleMarkCompleted(payment);
+                  } else {
+                    handleMarkRefunded(payment);
+                  }
+                }
+              }}
+              disabled={!!processingId}
+              className={confirmAction?.action === 'refund' ? 'bg-destructive hover:bg-destructive/90' : ''}
+            >
+              {processingId ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {confirmAction?.action === 'complete' ? 'Complete' : 'Refund'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
