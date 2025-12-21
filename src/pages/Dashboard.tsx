@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDocuments, Document } from '@/hooks/useDocuments';
-import { FileText, Clock, CheckCircle, CreditCard, Upload, Download } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { FileText, Clock, CheckCircle, CreditCard, Upload, Download, Wallet, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';
 import { AnnouncementBanner } from '@/components/AnnouncementBanner';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 import {
   Table,
   TableBody,
@@ -17,9 +20,19 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
+interface ManualPayment {
+  id: string;
+  payment_method: string;
+  amount_usd: number;
+  credits: number;
+  status: string;
+  created_at: string;
+}
+
 export default function Dashboard() {
-  const { role, profile } = useAuth();
+  const { role, profile, user } = useAuth();
   const { documents, downloadFile } = useDocuments();
+  const [pendingPayments, setPendingPayments] = useState<ManualPayment[]>([]);
 
   const stats = {
     pending: documents.filter((d) => d.status === 'pending').length,
@@ -30,7 +43,38 @@ export default function Dashboard() {
 
   const recentDocs = documents.slice(0, 5);
 
+  // Fetch pending payments for customers
+  useEffect(() => {
+    const fetchPendingPayments = async () => {
+      if (role !== 'customer' || !user) return;
+      
+      const { data } = await supabase
+        .from('manual_payments')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (data) {
+        setPendingPayments(data);
+      }
+    };
+    
+    fetchPendingPayments();
+  }, [role, user]);
 
+  const getPaymentStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20"><Clock className="h-3 w-3 mr-1" /> Pending</Badge>;
+      case 'verified':
+        return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20"><CheckCircle className="h-3 w-3 mr-1" /> Verified</Badge>;
+      case 'rejected':
+        return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20"><XCircle className="h-3 w-3 mr-1" /> Rejected</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
     return {
@@ -118,6 +162,42 @@ export default function Dashboard() {
             </Card>
           )}
         </div>
+
+        {/* Pending Payments - Customer Only */}
+        {role === 'customer' && pendingPayments.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-[#F0B90B]" />
+                My Payments
+              </CardTitle>
+              <CardDescription>Track your recent payment submissions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {pendingPayments.map((payment) => (
+                  <div 
+                    key={payment.id}
+                    className="flex items-center justify-between p-4 border rounded-lg"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-lg bg-[#F0B90B]/10 flex items-center justify-center">
+                        <Wallet className="h-5 w-5 text-[#F0B90B]" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{payment.credits} Credits</p>
+                        <p className="text-sm text-muted-foreground">
+                          ${payment.amount_usd} • {format(new Date(payment.created_at), 'MMM dd, HH:mm')}
+                        </p>
+                      </div>
+                    </div>
+                    {getPaymentStatusBadge(payment.status)}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Quick Actions */}
         {role === 'customer' && (
