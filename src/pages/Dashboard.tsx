@@ -7,6 +7,7 @@ import { FileText, Clock, CheckCircle, CreditCard, Upload, Download } from 'luci
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';
+import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import {
   Table,
   TableBody,
@@ -41,6 +42,9 @@ export default function Dashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
+        {/* Announcements */}
+        <AnnouncementBanner />
+
         {/* Header */}
         <div>
           <h1 className="text-3xl font-display font-bold">

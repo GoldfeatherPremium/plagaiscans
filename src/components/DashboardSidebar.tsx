@@ -18,6 +18,10 @@ import {
   Server,
   DollarSign,
   FileDown,
+  Ticket,
+  Megaphone,
+  ShieldBan,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -50,12 +54,16 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/staff-work', icon: ClipboardList, label: 'Staff Work' },
     { to: '/dashboard/users', icon: Users, label: 'User Management' },
     { to: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
+    { to: '/dashboard/promo-codes', icon: Ticket, label: 'Promo Codes' },
     { to: '/dashboard/magic-links', icon: Upload, label: 'Magic Links' },
     { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
     { to: '/dashboard/revenue', icon: DollarSign, label: 'Revenue' },
     { to: '/dashboard/activity-logs', icon: Activity, label: 'Activity Logs' },
     { to: '/dashboard/system-health', icon: Server, label: 'System Health' },
     { to: '/dashboard/reports', icon: FileDown, label: 'Reports' },
+    { to: '/dashboard/announcements', icon: Megaphone, label: 'Announcements' },
+    { to: '/dashboard/support-tickets', icon: MessageSquare, label: 'Support' },
+    { to: '/dashboard/blocked-users', icon: ShieldBan, label: 'Blocked Users' },
     { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
     { to: '/dashboard/profile', icon: User, label: 'Profile' },
   ];

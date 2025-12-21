@@ -20,6 +20,10 @@ import AdminActivityLogs from "./pages/AdminActivityLogs";
 import AdminSystemHealth from "./pages/AdminSystemHealth";
 import AdminRevenue from "./pages/AdminRevenue";
 import AdminReports from "./pages/AdminReports";
+import AdminPromoCodes from "./pages/AdminPromoCodes";
+import AdminAnnouncements from "./pages/AdminAnnouncements";
+import AdminSupportTickets from "./pages/AdminSupportTickets";
+import AdminBlockedUsers from "./pages/AdminBlockedUsers";
 import StaffStats from "./pages/StaffStats";
 import StaffProcessed from "./pages/StaffProcessed";
 import Profile from "./pages/Profile";
@@ -92,6 +96,10 @@ const AppRoutes = () => (
     <Route path="/dashboard/system-health" element={<ProtectedRoute allowedRoles={['admin']}><AdminSystemHealth /></ProtectedRoute>} />
     <Route path="/dashboard/revenue" element={<ProtectedRoute allowedRoles={['admin']}><AdminRevenue /></ProtectedRoute>} />
     <Route path="/dashboard/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminReports /></ProtectedRoute>} />
+    <Route path="/dashboard/promo-codes" element={<ProtectedRoute allowedRoles={['admin']}><AdminPromoCodes /></ProtectedRoute>} />
+    <Route path="/dashboard/announcements" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnnouncements /></ProtectedRoute>} />
+    <Route path="/dashboard/support-tickets" element={<ProtectedRoute allowedRoles={['admin']}><AdminSupportTickets /></ProtectedRoute>} />
+    <Route path="/dashboard/blocked-users" element={<ProtectedRoute allowedRoles={['admin']}><AdminBlockedUsers /></ProtectedRoute>} />
     <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
     
     <Route path="*" element={<NotFound />} />
