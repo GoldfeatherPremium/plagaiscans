@@ -73,32 +73,39 @@ serve(async (req) => {
       const amountCents = Math.round(amountUsd * 100);
 
       // Create payment order
+      const orderPayload = {
+        amount: amountCents,
+        customerTrns: `Purchase ${credits} credits`,
+        customer: {
+          email: customerEmail || '',
+          fullName: customerName || '',
+        },
+        paymentTimeout: 1800, // 30 minutes
+        preauth: false,
+        allowRecurring: false,
+        maxInstallments: 0,
+        paymentNotification: true,
+        sourceCode: 'Default',
+        merchantTrns: orderId,
+        tags: ['credits', `user_${userId}`],
+      };
+
       const orderResponse = await fetch(`${VIVA_API_URL}/checkout/v2/orders`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          amount: amountCents,
-          customerTrns: `Purchase ${credits} credits`,
-          customer: {
-            email: customerEmail || '',
-            fullName: customerName || '',
-          },
-          paymentTimeout: 1800, // 30 minutes
-          preauth: false,
-          allowRecurring: false,
-          maxInstallments: 0,
-          paymentNotification: true,
-          merchantTrns: orderId,
-          tags: ['credits', `user_${userId}`],
-        }),
+        body: JSON.stringify(orderPayload),
       });
 
       if (!orderResponse.ok) {
         const errorText = await orderResponse.text();
-        console.error('Order creation error:', errorText);
+        console.error('Order creation error:', {
+          status: orderResponse.status,
+          statusText: orderResponse.statusText,
+          body: errorText,
+        });
         throw new Error('Failed to create Viva payment order');
       }
 
