@@ -87,7 +87,12 @@ serve(async (req) => {
       console.log('NOWPayments response:', paymentData);
 
       if (!response.ok || paymentData.code) {
-        throw new Error(paymentData.message || 'Failed to create payment');
+        // Provide user-friendly error messages
+        let errorMessage = paymentData.message || 'Failed to create payment';
+        if (paymentData.code === 'AMOUNT_MINIMAL_ERROR') {
+          errorMessage = 'Minimum payment amount is $5 for USDT. Please select a larger package.';
+        }
+        throw new Error(errorMessage);
       }
 
       // Store payment in database
