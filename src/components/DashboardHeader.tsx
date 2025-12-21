@@ -1,11 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Moon, Sun, Menu, Coins } from 'lucide-react';
+import { Moon, Sun, Coins, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
+import { useNavigate } from 'react-router-dom';
 
 export const DashboardHeader: React.FC = () => {
   const { user, profile, role } = useAuth();
+  const { getCartCount } = useCart();
+  const navigate = useNavigate();
+  const cartCount = getCartCount();
+  
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
       return document.documentElement.classList.contains('dark');
@@ -61,6 +67,24 @@ export const DashboardHeader: React.FC = () => {
               <span className="text-sm font-semibold text-primary">{profile.credit_balance}</span>
               <span className="text-xs text-muted-foreground hidden sm:inline">credits</span>
             </div>
+          )}
+
+          {/* Cart Icon for customers */}
+          {role === 'customer' && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/dashboard/credits')}
+              className="rounded-full hover:bg-muted relative"
+              aria-label="Shopping cart"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-secondary text-secondary-foreground text-xs font-bold flex items-center justify-center">
+                  {cartCount > 9 ? '9+' : cartCount}
+                </span>
+              )}
+            </Button>
           )}
 
           {/* Theme Toggle */}
