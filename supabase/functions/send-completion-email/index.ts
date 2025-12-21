@@ -56,7 +56,7 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "PlagaiScans <onboarding@resend.dev>",
+        from: "PlagaiScans <noreply@plagaiscans.com>",
         to: [profile.email],
         subject: "Your Document Has Been Processed!",
         html: `

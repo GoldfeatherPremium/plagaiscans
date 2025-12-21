@@ -24,6 +24,7 @@ import {
   MessageSquare,
   Wallet,
   Receipt,
+  Mail,
   Shield,
   ChevronDown,
   ChevronRight,
@@ -340,6 +341,8 @@ export const DashboardSidebar: React.FC = () => {
       badgeKey: 'communication',
       links: [
         { to: '/dashboard/announcements', icon: Megaphone, label: 'Announcements' },
+        { to: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
+        { to: '/dashboard/emails', icon: Mail, label: 'Email Center' },
         { to: '/dashboard/support-tickets', icon: MessageSquare, label: 'Support', badgeKey: 'openTickets' },
       ],
     },
