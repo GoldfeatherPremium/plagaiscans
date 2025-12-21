@@ -255,6 +255,63 @@ export type Database = {
           },
         ]
       }
+      email_logs: {
+        Row: {
+          created_at: string
+          cta_text: string | null
+          cta_url: string | null
+          failed_count: number
+          id: string
+          message: string
+          recipient_count: number
+          scheduled_at: string | null
+          sent_at: string | null
+          sent_by: string | null
+          status: string
+          subject: string
+          success_count: number
+          target_audience: string
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          cta_text?: string | null
+          cta_url?: string | null
+          failed_count?: number
+          id?: string
+          message: string
+          recipient_count?: number
+          scheduled_at?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string
+          subject: string
+          success_count?: number
+          target_audience?: string
+          title: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          cta_text?: string | null
+          cta_url?: string | null
+          failed_count?: number
+          id?: string
+          message?: string
+          recipient_count?: number
+          scheduled_at?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string
+          subject?: string
+          success_count?: number
+          target_audience?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       magic_upload_files: {
         Row: {
           file_name: string
