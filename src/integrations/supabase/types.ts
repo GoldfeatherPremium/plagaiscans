@@ -312,6 +312,39 @@ export type Database = {
         }
         Relationships: []
       }
+      email_settings: {
+        Row: {
+          category: string
+          description: string | null
+          id: string
+          is_enabled: boolean
+          setting_key: string
+          setting_name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          category?: string
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          setting_key: string
+          setting_name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          category?: string
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          setting_key?: string
+          setting_name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       magic_upload_files: {
         Row: {
           file_name: string

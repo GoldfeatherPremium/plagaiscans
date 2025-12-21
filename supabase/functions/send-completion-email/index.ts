@@ -17,6 +17,27 @@ interface EmailRequest {
   aiPercentage: number;
 }
 
+// Check if email setting is enabled
+async function isEmailEnabled(supabase: any, settingKey: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("email_settings")
+      .select("is_enabled")
+      .eq("setting_key", settingKey)
+      .single();
+    
+    if (error || !data) {
+      console.log(`Email setting ${settingKey} not found, defaulting to enabled`);
+      return true;
+    }
+    
+    return data.is_enabled;
+  } catch (error) {
+    console.error("Error checking email setting:", error);
+    return true;
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -33,6 +54,16 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Check if document completion emails are enabled
+    const isEnabled = await isEmailEnabled(supabase, "document_completion");
+    if (!isEnabled) {
+      console.log("Document completion emails are disabled by admin, skipping");
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: "Email disabled by admin" }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     // Get user email from profiles
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -46,7 +77,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const userName = profile.full_name || "Customer";
-    const siteUrl = Deno.env.get("SITE_URL") || "https://fyssbzgmhnolazjfwafm.lovable.app";
+    const siteUrl = Deno.env.get("SITE_URL") || "https://plagaiscans.com";
 
     // Send email using Resend API directly
     const emailResponse = await fetch("https://api.resend.com/emails", {
