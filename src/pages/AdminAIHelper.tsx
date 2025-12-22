@@ -11,6 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   Bot, 
   Send, 
@@ -22,7 +25,10 @@ import {
   AlertTriangle,
   RotateCcw,
   Trash2,
-  MessageSquare
+  MessageSquare,
+  FileText,
+  Eye,
+  RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -31,18 +37,25 @@ export default function AdminAIHelper() {
     isAdmin,
     messages,
     isLoading,
+    isApplying,
     settings,
     settingsLoading,
     versions,
+    auditLogs,
+    auditLogsLoading,
+    auditFilter,
+    setAuditFilter,
     toggleAIHelper,
     sendMessage,
     approveChanges,
     rejectChanges,
     rollbackVersion,
     clearChat,
+    refreshAuditLogs,
   } = useAIAdminHelper();
 
   const [input, setInput] = useState('');
+  const [selectedLog, setSelectedLog] = useState<typeof auditLogs[0] | null>(null);
 
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
@@ -66,6 +79,19 @@ export default function AdminAIHelper() {
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30"><Shield className="w-3 h-3 mr-1" /> Not Allowed</Badge>;
       default:
         return null;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/30">Pending</Badge>;
+      case 'approved':
+        return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">Approved</Badge>;
+      case 'rejected':
+        return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">Rejected</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -102,6 +128,10 @@ export default function AdminAIHelper() {
               <History className="w-4 h-4" />
               Version History
             </TabsTrigger>
+            <TabsTrigger value="audit" className="gap-2">
+              <FileText className="w-4 h-4" />
+              Audit Logs
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="chat" className="space-y-4">
@@ -130,6 +160,12 @@ export default function AdminAIHelper() {
                       <Bot className="w-12 h-12 mb-4 opacity-50" />
                       <p className="text-lg font-medium">Start a conversation</p>
                       <p className="text-sm">Ask me to help with UI changes, configuration updates, or feature toggles.</p>
+                      <div className="mt-4 text-xs space-y-1">
+                        <p>Examples:</p>
+                        <p className="text-primary">"Change the WhatsApp support number to +1234567890"</p>
+                        <p className="text-primary">"Enable maintenance mode"</p>
+                        <p className="text-primary">"Update the processing timeout to 60 minutes"</p>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -163,6 +199,24 @@ export default function AdminAIHelper() {
                                     <span className="text-muted-foreground">Affected Areas:</span>{' '}
                                     {message.proposedChanges.affected_areas.join(', ')}
                                   </div>
+                                  {message.proposedChanges.changes && message.proposedChanges.changes.length > 0 && (
+                                    <div className="mt-2 p-2 bg-background/50 rounded text-xs">
+                                      <p className="font-medium mb-1">Changes to apply:</p>
+                                      {message.proposedChanges.changes.map((change, i) => (
+                                        <div key={i} className="py-1 border-b border-border/30 last:border-0">
+                                          <span className="text-muted-foreground">{change.target}:</span>{' '}
+                                          <span className="text-red-400 line-through">{change.current_value || 'N/A'}</span>
+                                          {' → '}
+                                          <span className="text-green-400">{change.new_value}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {message.proposedChanges.requires_code_change && (
+                                    <p className="text-yellow-400 text-xs mt-2">
+                                      ⚠️ This change requires code modifications
+                                    </p>
+                                  )}
                                 </div>
 
                                 {message.proposedChanges.safety_level !== 'not_allowed' && (
@@ -170,15 +224,21 @@ export default function AdminAIHelper() {
                                     <Button
                                       size="sm"
                                       onClick={() => approveChanges(message.id, message.proposedChanges!)}
+                                      disabled={isApplying}
                                       className="gap-1"
                                     >
-                                      <Check className="w-3 h-3" />
-                                      Approve
+                                      {isApplying ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <Check className="w-3 h-3" />
+                                      )}
+                                      Apply Changes
                                     </Button>
                                     <Button
                                       size="sm"
                                       variant="outline"
                                       onClick={() => rejectChanges(message.id)}
+                                      disabled={isApplying}
                                       className="gap-1"
                                     >
                                       <X className="w-3 h-3" />
@@ -337,6 +397,141 @@ export default function AdminAIHelper() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="audit" className="space-y-4">
+            <Card className="border-border/50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">Audit Logs</CardTitle>
+                    <CardDescription>
+                      Complete history of all AI prompts, responses, and admin actions
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={auditFilter}
+                      onValueChange={(value: 'all' | 'pending' | 'approved' | 'rejected') => setAuditFilter(value)}
+                    >
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue placeholder="Filter" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button variant="outline" size="icon" onClick={refreshAuditLogs}>
+                      <RefreshCw className={`w-4 h-4 ${auditLogsLoading ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {auditLogsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : auditLogs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No audit logs found</p>
+                  </div>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Prompt</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Resolved</TableHead>
+                          <TableHead className="w-[80px]">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {auditLogs.map((log) => (
+                          <TableRow key={log.id}>
+                            <TableCell className="text-xs whitespace-nowrap">
+                              {format(new Date(log.created_at), 'PP')}
+                              <br />
+                              <span className="text-muted-foreground">
+                                {format(new Date(log.created_at), 'p')}
+                              </span>
+                            </TableCell>
+                            <TableCell className="max-w-[300px]">
+                              <p className="truncate text-sm">{log.prompt_text}</p>
+                            </TableCell>
+                            <TableCell>{getStatusBadge(log.status)}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {log.resolved_at 
+                                ? format(new Date(log.resolved_at), 'PP p') 
+                                : '-'
+                              }
+                            </TableCell>
+                            <TableCell>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setSelectedLog(log)}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden">
+                                  <DialogHeader>
+                                    <DialogTitle className="flex items-center gap-2">
+                                      Audit Log Details
+                                      {getStatusBadge(log.status)}
+                                    </DialogTitle>
+                                    <DialogDescription>
+                                      {format(new Date(log.created_at), 'PPpp')}
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <ScrollArea className="max-h-[60vh]">
+                                    <div className="space-y-4">
+                                      <div>
+                                        <h4 className="font-medium text-sm mb-2">Admin Prompt</h4>
+                                        <div className="p-3 bg-muted rounded-lg text-sm">
+                                          {log.prompt_text}
+                                        </div>
+                                      </div>
+                                      <Separator />
+                                      <div>
+                                        <h4 className="font-medium text-sm mb-2">AI Response</h4>
+                                        <div className="p-3 bg-muted rounded-lg text-sm whitespace-pre-wrap max-h-[300px] overflow-y-auto">
+                                          {log.ai_response}
+                                        </div>
+                                      </div>
+                                      {log.proposed_changes && (
+                                        <>
+                                          <Separator />
+                                          <div>
+                                            <h4 className="font-medium text-sm mb-2">Proposed Changes</h4>
+                                            <pre className="p-3 bg-muted rounded-lg text-xs overflow-x-auto">
+                                              {JSON.stringify(log.proposed_changes, null, 2)}
+                                            </pre>
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
+                                  </ScrollArea>
+                                </DialogContent>
+                              </Dialog>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 )}
               </CardContent>
