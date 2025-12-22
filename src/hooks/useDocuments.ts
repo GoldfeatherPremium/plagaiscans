@@ -145,27 +145,64 @@ export const useDocuments = () => {
   const uploadDocument = async (file: File) => {
     if (!user || !profile) return { success: false };
 
-    if (profile.credit_balance < 1) {
-      toast({
-        title: 'Insufficient Credits',
-        description: 'You need at least 1 credit to upload a document',
-        variant: 'destructive',
-      });
-      return { success: false };
-    }
-
     try {
-      const currentBalance = profile.credit_balance;
+      // Fetch fresh balance from database to prevent race conditions
+      const { data: freshProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('credit_balance')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      const currentBalance = freshProfile.credit_balance;
+
+      if (currentBalance < 1) {
+        toast({
+          title: 'Insufficient Credits',
+          description: 'You need at least 1 credit to upload a document',
+          variant: 'destructive',
+        });
+        return { success: false };
+      }
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
+
+      // Deduct credit FIRST to prevent race conditions
+      const newBalance = currentBalance - 1;
+      const { error: updateError, data: updateData } = await supabase
+        .from('profiles')
+        .update({ credit_balance: newBalance })
+        .eq('id', user.id)
+        .eq('credit_balance', currentBalance) // Optimistic lock - only update if balance hasn't changed
+        .select('credit_balance')
+        .single();
+
+      if (updateError || !updateData) {
+        // Balance changed between check and update (race condition), retry
+        toast({
+          title: 'Upload Failed',
+          description: 'Credit balance changed. Please try again.',
+          variant: 'destructive',
+        });
+        return { success: false };
+      }
 
       // Upload file to storage
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, file);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        // Refund credit if upload fails
+        await supabase
+          .from('profiles')
+          .update({ credit_balance: currentBalance })
+          .eq('id', user.id);
+        throw uploadError;
+      }
 
       // Create document record
       const { data: docData, error: insertError } = await supabase.from('documents').insert({
@@ -175,16 +212,14 @@ export const useDocuments = () => {
         status: 'pending',
       }).select().single();
 
-      if (insertError) throw insertError;
-
-      // Deduct credit
-      const newBalance = currentBalance - 1;
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ credit_balance: newBalance })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
+      if (insertError) {
+        // Refund credit if insert fails
+        await supabase
+          .from('profiles')
+          .update({ credit_balance: currentBalance })
+          .eq('id', user.id);
+        throw insertError;
+      }
 
       // Log credit transaction
       await supabase.from('credit_transactions').insert({
@@ -230,7 +265,23 @@ export const useDocuments = () => {
   ): Promise<{ success: number; failed: number }> => {
     if (!user || !profile) return { success: 0, failed: files.length };
 
-    const availableCredits = profile.credit_balance;
+    // Fetch fresh balance from database to prevent race conditions
+    const { data: freshProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('credit_balance')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      toast({
+        title: 'Error',
+        description: 'Failed to verify credit balance',
+        variant: 'destructive',
+      });
+      return { success: 0, failed: files.length };
+    }
+
+    const availableCredits = freshProfile.credit_balance;
     if (availableCredits < files.length) {
       toast({
         title: 'Insufficient Credits',
@@ -242,23 +293,66 @@ export const useDocuments = () => {
 
     let successCount = 0;
     let failedCount = 0;
-    let currentBalance = availableCredits;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       onProgress?.(i + 1, files.length);
 
       try {
+        // Fetch current balance fresh for each file to prevent race conditions
+        const { data: currentProfile, error: balanceError } = await supabase
+          .from('profiles')
+          .select('credit_balance')
+          .eq('id', user.id)
+          .single();
+
+        if (balanceError) throw balanceError;
+
+        const currentBalance = currentProfile.credit_balance;
+
+        if (currentBalance < 1) {
+          toast({
+            title: 'Insufficient Credits',
+            description: `Stopped at file ${i + 1}. No more credits available.`,
+            variant: 'destructive',
+          });
+          failedCount += (files.length - i);
+          break;
+        }
+
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}_${i}.${fileExt}`;
         const filePath = `${user.id}/${fileName}`;
+
+        // Deduct credit FIRST with optimistic locking
+        const newBalance = currentBalance - 1;
+        const { error: updateError, data: updateData } = await supabase
+          .from('profiles')
+          .update({ credit_balance: newBalance })
+          .eq('id', user.id)
+          .eq('credit_balance', currentBalance) // Optimistic lock
+          .select('credit_balance')
+          .single();
+
+        if (updateError || !updateData) {
+          // Balance changed, retry this file on next iteration
+          i--; // Retry this file
+          continue;
+        }
 
         // Upload file to storage
         const { error: uploadError } = await supabase.storage
           .from('documents')
           .upload(filePath, file);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          // Refund credit if upload fails
+          await supabase
+            .from('profiles')
+            .update({ credit_balance: currentBalance })
+            .eq('id', user.id);
+          throw uploadError;
+        }
 
         // Create document record
         const { error: insertError } = await supabase.from('documents').insert({
@@ -268,16 +362,14 @@ export const useDocuments = () => {
           status: 'pending',
         });
 
-        if (insertError) throw insertError;
-
-        // Deduct credit
-        const newBalance = currentBalance - 1;
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ credit_balance: newBalance })
-          .eq('id', user.id);
-
-        if (updateError) throw updateError;
+        if (insertError) {
+          // Refund credit if insert fails
+          await supabase
+            .from('profiles')
+            .update({ credit_balance: currentBalance })
+            .eq('id', user.id);
+          throw insertError;
+        }
 
         // Log credit transaction
         await supabase.from('credit_transactions').insert({
@@ -290,7 +382,6 @@ export const useDocuments = () => {
           performed_by: user.id,
         });
 
-        currentBalance = newBalance;
         successCount++;
       } catch (error) {
         console.error(`Error uploading file ${file.name}:`, error);
