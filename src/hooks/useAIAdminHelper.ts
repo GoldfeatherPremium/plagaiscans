@@ -35,9 +35,21 @@ interface ChangeVersion {
   change_type: string;
   change_description: string;
   affected_areas: string[];
+  changes_json: Record<string, unknown>;
   applied_at: string;
   is_active: boolean;
   rolled_back_at: string | null;
+}
+
+interface AuditLog {
+  id: string;
+  admin_id: string;
+  prompt_text: string;
+  ai_response: string;
+  proposed_changes: Record<string, unknown> | null;
+  status: string;
+  created_at: string;
+  resolved_at: string | null;
 }
 
 export function useAIAdminHelper() {
@@ -45,9 +57,13 @@ export function useAIAdminHelper() {
   const { toast } = useToast();
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
   const [settings, setSettings] = useState<AISettings>({ is_enabled: false });
   const [versions, setVersions] = useState<ChangeVersion[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [settingsLoading, setSettingsLoading] = useState(true);
+  const [auditLogsLoading, setAuditLogsLoading] = useState(true);
+  const [auditFilter, setAuditFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
   const isAdmin = role === 'admin';
 
@@ -55,6 +71,7 @@ export function useAIAdminHelper() {
     if (isAdmin) {
       fetchSettings();
       fetchVersions();
+      fetchAuditLogs();
     }
   }, [isAdmin]);
 
@@ -82,6 +99,32 @@ export function useAIAdminHelper() {
       setVersions(data as ChangeVersion[]);
     }
   };
+
+  const fetchAuditLogs = async () => {
+    setAuditLogsLoading(true);
+    let query = supabase
+      .from('ai_audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (auditFilter !== 'all') {
+      query = query.eq('status', auditFilter);
+    }
+
+    const { data, error } = await query;
+
+    if (!error && data) {
+      setAuditLogs(data as AuditLog[]);
+    }
+    setAuditLogsLoading(false);
+  };
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchAuditLogs();
+    }
+  }, [auditFilter, isAdmin]);
 
   const toggleAIHelper = async (enabled: boolean) => {
     const { error } = await supabase
@@ -169,6 +212,7 @@ export function useAIAdminHelper() {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      fetchAuditLogs(); // Refresh audit logs
     } catch (error) {
       console.error('AI Helper error:', error);
       toast({
@@ -181,6 +225,72 @@ export function useAIAdminHelper() {
     }
   };
 
+  // Apply settings changes to the settings table
+  const applySettingsChanges = async (changes: ProposedChanges): Promise<boolean> => {
+    const settingsChanges = changes.changes.filter(
+      c => c.action === 'update' && (c.target.includes('setting') || changes.change_type === 'configuration')
+    );
+
+    if (settingsChanges.length === 0) {
+      return true; // No settings to apply
+    }
+
+    let appliedCount = 0;
+    
+    for (const change of settingsChanges) {
+      // Try to find the setting key from the target
+      const settingKey = change.target
+        .replace(/\s+/g, '_')
+        .toLowerCase()
+        .replace(/setting[s]?:?\s*/i, '')
+        .trim();
+
+      if (!settingKey) continue;
+
+      // Check if the setting exists
+      const { data: existingSetting } = await supabase
+        .from('settings')
+        .select('id, key, value')
+        .eq('key', settingKey)
+        .single();
+
+      if (existingSetting) {
+        // Update existing setting
+        const { error } = await supabase
+          .from('settings')
+          .update({ 
+            value: change.new_value,
+            updated_at: new Date().toISOString()
+          })
+          .eq('key', settingKey);
+
+        if (!error) {
+          appliedCount++;
+          console.log(`Updated setting: ${settingKey} = ${change.new_value}`);
+        } else {
+          console.error(`Failed to update setting ${settingKey}:`, error);
+        }
+      } else {
+        // Insert new setting
+        const { error } = await supabase
+          .from('settings')
+          .insert({ 
+            key: settingKey,
+            value: change.new_value 
+          });
+
+        if (!error) {
+          appliedCount++;
+          console.log(`Created setting: ${settingKey} = ${change.new_value}`);
+        } else {
+          console.error(`Failed to create setting ${settingKey}:`, error);
+        }
+      }
+    }
+
+    return appliedCount > 0;
+  };
+
   const approveChanges = async (messageId: string, changes: ProposedChanges) => {
     if (changes.safety_level === 'not_allowed') {
       toast({
@@ -190,6 +300,8 @@ export function useAIAdminHelper() {
       });
       return;
     }
+
+    setIsApplying(true);
 
     try {
       // Create a version record - cast changes to JSON
@@ -209,6 +321,9 @@ export function useAIAdminHelper() {
 
       if (versionError) throw versionError;
 
+      // Actually apply the changes to settings table
+      const applied = await applySettingsChanges(changes);
+
       // Update the audit log
       await supabase
         .from('ai_audit_logs')
@@ -222,12 +337,25 @@ export function useAIAdminHelper() {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      toast({
-        title: 'Changes Approved',
-        description: `Version ${versionData.version_number} created. Changes logged for implementation.`,
-      });
+      if (applied && !changes.requires_code_change) {
+        toast({
+          title: 'Changes Applied Successfully',
+          description: `Version ${versionData.version_number} created and settings updated.`,
+        });
+      } else if (changes.requires_code_change) {
+        toast({
+          title: 'Changes Logged',
+          description: `Version ${versionData.version_number} created. Code changes require manual implementation.`,
+        });
+      } else {
+        toast({
+          title: 'Changes Approved',
+          description: `Version ${versionData.version_number} created. Configuration changes logged.`,
+        });
+      }
 
       fetchVersions();
+      fetchAuditLogs();
     } catch (error) {
       console.error('Error approving changes:', error);
       toast({
@@ -235,6 +363,8 @@ export function useAIAdminHelper() {
         description: 'Failed to approve changes',
         variant: 'destructive',
       });
+    } finally {
+      setIsApplying(false);
     }
   };
 
@@ -253,33 +383,72 @@ export function useAIAdminHelper() {
       title: 'Changes Rejected',
       description: 'The proposed changes have been rejected',
     });
+
+    fetchAuditLogs();
   };
 
   const rollbackVersion = async (versionId: string) => {
-    const { error } = await supabase
-      .from('ai_change_versions')
-      .update({
-        is_active: false,
-        rolled_back_at: new Date().toISOString(),
-        rolled_back_by: user?.id,
-      })
-      .eq('id', versionId);
-
-    if (error) {
+    const version = versions.find(v => v.id === versionId);
+    
+    if (!version) {
       toast({
         title: 'Error',
-        description: 'Failed to rollback version',
+        description: 'Version not found',
         variant: 'destructive',
       });
       return;
     }
 
-    toast({
-      title: 'Version Rolled Back',
-      description: 'The changes have been marked as rolled back',
-    });
+    try {
+      // Rollback settings changes if they were applied
+      const changesJson = version.changes_json as unknown as ProposedChanges;
+      if (changesJson?.changes) {
+        for (const change of changesJson.changes) {
+          if (change.current_value !== undefined) {
+            const settingKey = change.target
+              .replace(/\s+/g, '_')
+              .toLowerCase()
+              .replace(/setting[s]?:?\s*/i, '')
+              .trim();
 
-    fetchVersions();
+            if (settingKey) {
+              await supabase
+                .from('settings')
+                .update({ 
+                  value: change.current_value,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('key', settingKey);
+            }
+          }
+        }
+      }
+
+      const { error } = await supabase
+        .from('ai_change_versions')
+        .update({
+          is_active: false,
+          rolled_back_at: new Date().toISOString(),
+          rolled_back_by: user?.id,
+        })
+        .eq('id', versionId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Version Rolled Back',
+        description: 'The changes have been reverted successfully',
+      });
+
+      fetchVersions();
+    } catch (error) {
+      console.error('Rollback error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to rollback version',
+        variant: 'destructive',
+      });
+    }
   };
 
   const clearChat = () => {
@@ -290,14 +459,20 @@ export function useAIAdminHelper() {
     isAdmin,
     messages,
     isLoading,
+    isApplying,
     settings,
     settingsLoading,
     versions,
+    auditLogs,
+    auditLogsLoading,
+    auditFilter,
+    setAuditFilter,
     toggleAIHelper,
     sendMessage,
     approveChanges,
     rejectChanges,
     rollbackVersion,
     clearChat,
+    refreshAuditLogs: fetchAuditLogs,
   };
 }
