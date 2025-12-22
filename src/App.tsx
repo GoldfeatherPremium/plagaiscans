@@ -79,6 +79,30 @@ const ProtectedRoute = ({ children, allowedRoles, bypassMaintenance = false }: {
 
 const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+  const { isMaintenanceMode, loading: maintenanceLoading } = useMaintenanceMode();
+  
+  if (loading || maintenanceLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+  
+  // If user is logged in, check their role before redirecting
+  if (user) {
+    // During maintenance, only redirect admins to dashboard
+    // Others will be handled by ProtectedRoute's maintenance check
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  // Allow access to auth page even during maintenance (so users can login)
+  return <>{children}</>;
+};
+
+// Wrapper for public routes that should show maintenance page
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isMaintenanceMode, loading } = useMaintenanceMode();
   
   if (loading) {
     return (
@@ -88,16 +112,20 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  if (user) return <Navigate to="/dashboard" replace />;
+  // Show maintenance page for public routes during maintenance
+  if (isMaintenanceMode) {
+    return <Maintenance />;
+  }
+  
   return <>{children}</>;
 };
 
 const AppRoutes = () => (
   <Routes>
-    <Route path="/" element={<Landing />} />
+    <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
     <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
     <Route path="/install" element={<Install />} />
-    <Route path="/guest-upload" element={<GuestUpload />} />
+    <Route path="/guest-upload" element={<PublicRoute><GuestUpload /></PublicRoute>} />
     
     {/* Customer Routes */}
     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
