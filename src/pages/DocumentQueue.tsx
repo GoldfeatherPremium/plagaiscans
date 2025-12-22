@@ -590,7 +590,6 @@ export default function DocumentQueue() {
                         </TableHead>
                         <TableHead className="w-12 text-center">#</TableHead>
                         <TableHead>Document</TableHead>
-                        <TableHead>Customer</TableHead>
                         <TableHead>Upload Time</TableHead>
                         <TableHead className="text-center">Status</TableHead>
                         <TableHead className="text-center">Processing By</TableHead>
@@ -620,15 +619,15 @@ export default function DocumentQueue() {
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <FileText className="h-4 w-4 text-primary flex-shrink-0" />
-                                <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
-                                  {doc.file_name}
-                                </span>
+                                <div className="flex flex-col">
+                                  <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
+                                    {doc.file_name}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={doc.customer_profile?.email}>
+                                    {doc.customer_profile?.full_name || doc.customer_profile?.email || (doc.magic_link_id ? 'Guest' : '-')}
+                                  </span>
+                                </div>
                               </div>
-                            </TableCell>
-                            <TableCell>
-                              <span className="text-sm truncate max-w-[150px]" title={doc.customer_profile?.email}>
-                                {doc.customer_profile?.full_name || doc.customer_profile?.email || (doc.magic_link_id ? 'Guest' : '-')}
-                              </span>
                             </TableCell>
                             <TableCell>
                               <div className="text-sm">

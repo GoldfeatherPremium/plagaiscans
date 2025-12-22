@@ -282,7 +282,6 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/analytics', icon: PieChart, label: 'Analytics' },
     { to: '/dashboard/credits', icon: CreditCard, label: 'Buy Credits' },
     { to: '/dashboard/payments', icon: Receipt, label: 'Payment History' },
-    { to: '/dashboard/referrals', icon: Users, label: 'Referral Program' },
     { to: '/dashboard/profile', icon: User, label: 'Profile' },
   ];
 
@@ -340,7 +339,6 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/system-health', icon: Server, label: 'System Health' },
         { to: '/dashboard/reports', icon: FileDown, label: 'Reports' },
         { to: '/dashboard/performance', icon: Activity, label: 'Staff Performance' },
-        { to: '/dashboard/referral-admin', icon: Users, label: 'Referrals' },
       ],
     },
     {
