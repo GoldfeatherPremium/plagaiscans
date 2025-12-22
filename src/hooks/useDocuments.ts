@@ -23,6 +23,7 @@ export interface Document {
   uploaded_at: string;
   completed_at: string | null;
   updated_at: string;
+  is_favorite?: boolean | null;
   profiles?: {
     email: string;
     full_name: string | null;
