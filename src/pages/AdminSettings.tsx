@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle } from 'lucide-react';
+import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function AdminSettings() {
@@ -35,6 +35,11 @@ export default function AdminSettings() {
   const [binanceFee, setBinanceFee] = useState('0');
   const [vivaFee, setVivaFee] = useState('0');
   const [savingFees, setSavingFees] = useState(false);
+  
+  // Push notification settings
+  const [vapidPublicKey, setVapidPublicKey] = useState('');
+  const [savingVapid, setSavingVapid] = useState(false);
+  const [testingPush, setTestingPush] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -53,7 +58,8 @@ export default function AdminSettings() {
       'fee_whatsapp',
       'fee_usdt',
       'fee_binance',
-      'fee_viva'
+      'fee_viva',
+      'vapid_public_key'
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
@@ -81,6 +87,9 @@ export default function AdminSettings() {
       if (feeUsdt) setUsdtFee(feeUsdt.value);
       if (feeBinance) setBinanceFee(feeBinance.value);
       if (feeViva) setVivaFee(feeViva.value);
+      
+      const vapidKey = data.find(s => s.key === 'vapid_public_key');
+      if (vapidKey) setVapidPublicKey(vapidKey.value);
     }
     setLoading(false);
   };
@@ -186,6 +195,50 @@ export default function AdminSettings() {
       toast({ title: 'Error', description: 'Failed to save payment fees', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Payment handling fees updated' });
+    }
+  };
+
+  const saveVapidKey = async () => {
+    setSavingVapid(true);
+    
+    const { error } = await supabase
+      .from('settings')
+      .upsert({ key: 'vapid_public_key', value: vapidPublicKey }, { onConflict: 'key' });
+    
+    setSavingVapid(false);
+    
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to save VAPID public key', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: 'VAPID public key updated' });
+    }
+  };
+
+  const sendTestPush = async () => {
+    setTestingPush(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: 'Error', description: 'You must be logged in', variant: 'destructive' });
+        return;
+      }
+      
+      const { error } = await supabase.functions.invoke('send-push-notification', {
+        body: {
+          user_id: user.id,
+          title: 'Test Push Notification 🔔',
+          body: 'Push notifications are working correctly!',
+          url: '/dashboard/settings'
+        }
+      });
+      
+      if (error) throw error;
+      toast({ title: 'Success', description: 'Test notification sent! Check your device.' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to send test notification', variant: 'destructive' });
+    } finally {
+      setTestingPush(false);
     }
   };
 
@@ -496,6 +549,55 @@ export default function AdminSettings() {
               {savingTimeout ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Default Timeout
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Push Notifications Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-primary" />
+              Push Notifications
+            </CardTitle>
+            <CardDescription>Configure Web Push notifications for users</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="vapidKey">VAPID Public Key</Label>
+              <Input
+                id="vapidKey"
+                placeholder="Enter your VAPID public key"
+                value={vapidPublicKey}
+                onChange={(e) => setVapidPublicKey(e.target.value)}
+                className="font-mono text-xs"
+              />
+              <p className="text-xs text-muted-foreground">
+                Generate VAPID keys at{' '}
+                <a href="https://web-push-codelab.glitch.me/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  web-push-codelab.glitch.me
+                </a>
+                {' '}or via <code className="bg-muted px-1 rounded">npx web-push generate-vapid-keys</code>
+              </p>
+            </div>
+            
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Private Key:</strong> The VAPID private key must be stored as a secret named <code className="bg-muted px-1 rounded">VAPID_PRIVATE_KEY</code>.
+                Make sure both keys are from the same pair!
+              </AlertDescription>
+            </Alert>
+            
+            <div className="flex gap-2">
+              <Button onClick={saveVapidKey} disabled={savingVapid}>
+                {savingVapid ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Save VAPID Key
+              </Button>
+              <Button variant="outline" onClick={sendTestPush} disabled={testingPush || !vapidPublicKey}>
+                {testingPush ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                Send Test Push
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
