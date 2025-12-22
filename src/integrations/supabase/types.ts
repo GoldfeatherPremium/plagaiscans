@@ -187,6 +187,66 @@ export type Database = {
         }
         Relationships: []
       }
+      document_tag_assignments: {
+        Row: {
+          created_at: string | null
+          document_id: string
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          document_id: string
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string | null
+          document_id?: string
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_tag_assignments_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_tag_assignments_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "document_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_tags: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       document_upload_notifications: {
         Row: {
           created_at: string | null
@@ -228,6 +288,7 @@ export type Database = {
           file_name: string
           file_path: string
           id: string
+          is_favorite: boolean | null
           magic_link_id: string | null
           remarks: string | null
           similarity_percentage: number | null
@@ -247,6 +308,7 @@ export type Database = {
           file_name: string
           file_path: string
           id?: string
+          is_favorite?: boolean | null
           magic_link_id?: string | null
           remarks?: string | null
           similarity_percentage?: number | null
@@ -266,6 +328,7 @@ export type Database = {
           file_name?: string
           file_path?: string
           id?: string
+          is_favorite?: boolean | null
           magic_link_id?: string | null
           remarks?: string | null
           similarity_percentage?: number | null
@@ -585,6 +648,8 @@ export type Database = {
           full_name: string | null
           id: string
           phone: string | null
+          referral_code: string | null
+          referred_by: string | null
           updated_at: string
         }
         Insert: {
@@ -594,6 +659,8 @@ export type Database = {
           full_name?: string | null
           id: string
           phone?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           updated_at?: string
         }
         Update: {
@@ -603,6 +670,8 @@ export type Database = {
           full_name?: string | null
           id?: string
           phone?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -711,6 +780,39 @@ export type Database = {
           p256dh?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          credits_earned: number | null
+          id: string
+          referral_code: string
+          referred_user_id: string | null
+          referrer_id: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          credits_earned?: number | null
+          id?: string
+          referral_code: string
+          referred_user_id?: string | null
+          referrer_id: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          credits_earned?: number | null
+          id?: string
+          referral_code?: string
+          referred_user_id?: string | null
+          referrer_id?: string
+          status?: string
         }
         Relationships: []
       }
