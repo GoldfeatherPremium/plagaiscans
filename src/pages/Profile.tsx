@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { NotificationPreferences } from '@/components/NotificationPreferences';
 import { NotificationSoundSettings } from '@/components/NotificationSoundSettings';
 import { PushNotificationSettings } from '@/components/PushNotificationSettings';
+import { DocumentUploadNotificationToggle } from '@/components/DocumentUploadNotificationToggle';
 
 const phoneSchema = z.string()
   .regex(/^\+?[0-9]{10,15}$/, 'Phone number must be 10-15 digits (can start with +)');
@@ -280,6 +281,9 @@ export default function Profile() {
           
           {/* Push Notification Settings */}
           <PushNotificationSettings />
+          
+          {/* Document Upload Notifications (Staff/Admin only) */}
+          <DocumentUploadNotificationToggle />
           
           {/* Notification Sound Settings */}
           <NotificationSoundSettings />

@@ -199,6 +199,13 @@ export const useDocuments = () => {
       await refreshProfile();
       await fetchDocuments();
 
+      // Trigger push notifications to staff/admin
+      try {
+        await supabase.functions.invoke('notify-document-upload');
+      } catch (err) {
+        console.log('Push notification trigger failed (non-critical):', err);
+      }
+
       toast({
         title: 'Success',
         description: 'Document uploaded successfully',
@@ -292,6 +299,15 @@ export const useDocuments = () => {
 
     await refreshProfile();
     await fetchDocuments();
+
+    // Trigger push notifications to staff/admin for new uploads
+    if (successCount > 0) {
+      try {
+        await supabase.functions.invoke('notify-document-upload');
+      } catch (err) {
+        console.log('Push notification trigger failed (non-critical):', err);
+      }
+    }
 
     if (successCount > 0) {
       toast({

@@ -187,6 +187,36 @@ export type Database = {
         }
         Relationships: []
       }
+      document_upload_notifications: {
+        Row: {
+          created_at: string | null
+          customer_email: string | null
+          customer_name: string | null
+          document_id: string
+          file_name: string
+          id: string
+          processed: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          document_id: string
+          file_name: string
+          id?: string
+          processed?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          document_id?: string
+          file_name?: string
+          id?: string
+          processed?: boolean | null
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           ai_percentage: number | null
@@ -991,6 +1021,7 @@ export type Database = {
       user_notification_preferences: {
         Row: {
           created_at: string
+          document_upload_enabled: boolean
           id: string
           promotional_enabled: boolean
           system_enabled: boolean
@@ -1000,6 +1031,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          document_upload_enabled?: boolean
           id?: string
           promotional_enabled?: boolean
           system_enabled?: boolean
@@ -1009,6 +1041,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          document_upload_enabled?: boolean
           id?: string
           promotional_enabled?: boolean
           system_enabled?: boolean
