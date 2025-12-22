@@ -1,7 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const SENDPULSE_API_KEY = Deno.env.get("SENDPLUS_API_KEY");
+const SENDPULSE_API_SECRET = Deno.env.get("SENDPLUS_API_SECRET");
+const SENDPULSE_FROM_EMAIL = Deno.env.get("SENDPLUS_FROM_EMAIL") || "noreply@plagaiscans.com";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +19,74 @@ interface EmailRequest {
   aiPercentage: number;
 }
 
+// Get SendPulse access token
+async function getSendPulseToken(): Promise<string> {
+  const response = await fetch("https://api.sendpulse.com/oauth/access_token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      grant_type: "client_credentials",
+      client_id: SENDPULSE_API_KEY,
+      client_secret: SENDPULSE_API_SECRET,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("SendPulse auth error:", errorText);
+    throw new Error("Failed to authenticate with SendPulse");
+  }
+
+  const data = await response.json();
+  return data.access_token;
+}
+
+// Send email via SendPulse SMTP API
+async function sendEmailViaSendPulse(
+  token: string,
+  to: { email: string; name?: string },
+  subject: string,
+  htmlContent: string
+): Promise<void> {
+  // Encode HTML content to Base64
+  const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
+
+  const response = await fetch("https://api.sendpulse.com/smtp/emails", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      email: {
+        html: htmlBase64,
+        subject: subject,
+        from: {
+          name: "PlagaiScans",
+          email: SENDPULSE_FROM_EMAIL,
+        },
+        to: [
+          {
+            email: to.email,
+            name: to.name || to.email,
+          },
+        ],
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("SendPulse send error:", errorText);
+    throw new Error(`Failed to send email: ${errorText}`);
+  }
+
+  const result = await response.json();
+  console.log("SendPulse response:", result);
+}
+
 // Check if email setting is enabled
 async function isEmailEnabled(supabase: any, settingKey: string): Promise<boolean> {
   try {
@@ -24,7 +94,7 @@ async function isEmailEnabled(supabase: any, settingKey: string): Promise<boolea
       .from("email_settings")
       .select("is_enabled")
       .eq("setting_key", settingKey)
-      .single();
+      .maybeSingle();
     
     if (error || !data) {
       console.log(`Email setting ${settingKey} not found, defaulting to enabled`);
@@ -48,6 +118,12 @@ const handler = async (req: Request): Promise<Response> => {
     const { documentId, userId, fileName, similarityPercentage, aiPercentage }: EmailRequest = await req.json();
 
     console.log("Sending completion email for document:", documentId);
+
+    // Check if SendPulse credentials are configured
+    if (!SENDPULSE_API_KEY || !SENDPULSE_API_SECRET) {
+      console.error("SendPulse credentials not configured");
+      throw new Error("Email service is not configured");
+    }
 
     // Create Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -79,78 +155,74 @@ const handler = async (req: Request): Promise<Response> => {
     const userName = profile.full_name || "Customer";
     const siteUrl = Deno.env.get("SITE_URL") || "https://plagaiscans.com";
 
-    // Send email using Resend API directly
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: "PlagaiScans <noreply@plagaiscans.com>",
-        to: [profile.email],
-        subject: "Your Document Has Been Processed!",
-        html: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          </head>
-          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-              <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-                <div style="text-align: center; margin-bottom: 30px;">
-                  <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); width: 60px; height: 60px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;">
-                    <span style="color: white; font-size: 28px;">✓</span>
-                  </div>
-                </div>
-                
-                <h1 style="color: #18181b; text-align: center; margin: 0 0 10px 0; font-size: 24px;">Document Processing Complete!</h1>
-                
-                <p style="color: #71717a; text-align: center; margin: 0 0 30px 0;">Hello ${userName}, your document has been analyzed.</p>
-                
-                <div style="background-color: #f4f4f5; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-                  <p style="margin: 0 0 10px 0; color: #71717a; font-size: 14px;">Document</p>
-                  <p style="margin: 0; color: #18181b; font-weight: 600;">${fileName}</p>
-                </div>
-                
-                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;">
-                  <tr>
-                    <td style="width: 48%; background-color: #fef3c7; border-radius: 8px; padding: 20px; text-align: center;">
-                      <p style="margin: 0 0 5px 0; color: #92400e; font-size: 14px;">Similarity</p>
-                      <p style="margin: 0; color: #92400e; font-size: 28px; font-weight: bold;">${similarityPercentage}%</p>
-                    </td>
-                    <td style="width: 4%;"></td>
-                    <td style="width: 48%; background-color: #dbeafe; border-radius: 8px; padding: 20px; text-align: center;">
-                      <p style="margin: 0 0 5px 0; color: #1e40af; font-size: 14px;">AI Detection</p>
-                      <p style="margin: 0; color: #1e40af; font-size: 28px; font-weight: bold;">${aiPercentage}%</p>
-                    </td>
-                  </tr>
-                </table>
-                
-                <div style="text-align: center;">
-                  <a href="${siteUrl}/dashboard/documents" 
-                     style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600;">
-                    View Full Report
-                  </a>
-                </div>
-                
-                <p style="color: #a1a1aa; text-align: center; margin: 30px 0 0 0; font-size: 12px;">
-                  This is an automated email from PlagaiScans. Please do not reply.
-                </p>
+    // Get SendPulse token
+    const token = await getSendPulseToken();
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+          <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); width: 60px; height: 60px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;">
+                <span style="color: white; font-size: 28px;">✓</span>
               </div>
             </div>
-          </body>
-          </html>
-        `,
-      }),
-    });
+            
+            <h1 style="color: #18181b; text-align: center; margin: 0 0 10px 0; font-size: 24px;">Document Processing Complete!</h1>
+            
+            <p style="color: #71717a; text-align: center; margin: 0 0 30px 0;">Hello ${userName}, your document has been analyzed.</p>
+            
+            <div style="background-color: #f4f4f5; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+              <p style="margin: 0 0 10px 0; color: #71717a; font-size: 14px;">Document</p>
+              <p style="margin: 0; color: #18181b; font-weight: 600;">${fileName}</p>
+            </div>
+            
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;">
+              <tr>
+                <td style="width: 48%; background-color: #fef3c7; border-radius: 8px; padding: 20px; text-align: center;">
+                  <p style="margin: 0 0 5px 0; color: #92400e; font-size: 14px;">Similarity</p>
+                  <p style="margin: 0; color: #92400e; font-size: 28px; font-weight: bold;">${similarityPercentage}%</p>
+                </td>
+                <td style="width: 4%;"></td>
+                <td style="width: 48%; background-color: #dbeafe; border-radius: 8px; padding: 20px; text-align: center;">
+                  <p style="margin: 0 0 5px 0; color: #1e40af; font-size: 14px;">AI Detection</p>
+                  <p style="margin: 0; color: #1e40af; font-size: 28px; font-weight: bold;">${aiPercentage}%</p>
+                </td>
+              </tr>
+            </table>
+            
+            <div style="text-align: center;">
+              <a href="${siteUrl}/dashboard/documents" 
+                 style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600;">
+                View Full Report
+              </a>
+            </div>
+            
+            <p style="color: #a1a1aa; text-align: center; margin: 30px 0 0 0; font-size: 12px;">
+              This is an automated email from PlagaiScans. Please do not reply.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
 
-    const emailResult = await emailResponse.json();
-    console.log("Email sent successfully:", emailResult);
+    await sendEmailViaSendPulse(
+      token,
+      { email: profile.email, name: userName },
+      "Your Document Has Been Processed! - PlagaiScans",
+      htmlContent
+    );
 
-    return new Response(JSON.stringify({ success: true, emailResult }), {
+    console.log("Completion email sent successfully");
+
+    return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
