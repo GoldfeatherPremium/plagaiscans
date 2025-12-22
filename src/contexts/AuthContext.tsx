@@ -220,7 +220,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, fullName: string, phone: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { error, data } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -231,6 +231,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       },
     });
+    
+    // Send welcome email if signup was successful
+    if (!error && data?.user) {
+      try {
+        console.log('Sending welcome email for new user:', data.user.id);
+        await supabase.functions.invoke('send-welcome-email', {
+          body: {
+            userId: data.user.id,
+            email: email,
+            fullName: fullName || null,
+          },
+        });
+        console.log('Welcome email sent successfully');
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError);
+      }
+    }
     
     return { error };
   };
