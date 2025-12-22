@@ -91,6 +91,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRole(null);
   }, []);
 
+  // Handle session-only mode (when "Remember me" is unchecked)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const sessionOnly = sessionStorage.getItem('session_only');
+      if (sessionOnly === 'true' && session) {
+        // Clear auth data when browser closes if "Remember me" was not checked
+        localStorage.removeItem('sb-fyssbzgmhnolazjfwafm-auth-token');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [session]);
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);

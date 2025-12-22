@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { FileCheck, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -67,6 +68,7 @@ export default function Auth() {
   const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
 
   const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [rememberMe, setRememberMe] = useState(true);
   const [signupData, setSignupData] = useState({
     fullName: '',
     email: '',
@@ -90,6 +92,15 @@ export default function Auth() {
     }
 
     setLoading(true);
+    
+    // Store preference for session persistence
+    if (!rememberMe) {
+      // If not remembering, we'll clear session on browser close via sessionStorage flag
+      sessionStorage.setItem('session_only', 'true');
+    } else {
+      sessionStorage.removeItem('session_only');
+    }
+    
     const { error } = await signIn(loginData.email, loginData.password);
     setLoading(false);
 
@@ -430,6 +441,19 @@ export default function Auth() {
                       </Button>
                     </div>
                     {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="remember-me" 
+                      checked={rememberMe}
+                      onCheckedChange={(checked) => setRememberMe(checked === true)}
+                    />
+                    <Label 
+                      htmlFor="remember-me" 
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      Remember me
+                    </Label>
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
