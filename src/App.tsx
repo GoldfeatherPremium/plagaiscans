@@ -44,8 +44,6 @@ import NotFound from "./pages/NotFound";
 import Checkout from "./pages/Checkout";
 import AdminDashboardOverview from "./pages/AdminDashboardOverview";
 import StaffPerformance from "./pages/StaffPerformance";
-import AdminReferrals from "./pages/AdminReferrals";
-import ReferralProgram from "./pages/ReferralProgram";
 import CustomerDocumentAnalytics from "./pages/CustomerDocumentAnalytics";
 
 const queryClient = new QueryClient();
@@ -99,7 +97,6 @@ const AppRoutes = () => (
     <Route path="/dashboard/credits" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><BuyCredits /></ProtectedRoute>} />
     <Route path="/dashboard/payments" element={<ProtectedRoute allowedRoles={['customer']}><PaymentHistory /></ProtectedRoute>} />
     <Route path="/dashboard/checkout" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><Checkout /></ProtectedRoute>} />
-    <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['customer']}><ReferralProgram /></ProtectedRoute>} />
     <Route path="/dashboard/analytics" element={<ProtectedRoute allowedRoles={['customer']}><CustomerDocumentAnalytics /></ProtectedRoute>} />
     
     {/* Staff Routes */}
@@ -130,7 +127,6 @@ const AppRoutes = () => (
     <Route path="/dashboard/emails" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmails /></ProtectedRoute>} />
     <Route path="/dashboard/overview" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboardOverview /></ProtectedRoute>} />
     <Route path="/dashboard/staff-performance" element={<ProtectedRoute allowedRoles={['admin']}><StaffPerformance /></ProtectedRoute>} />
-    <Route path="/dashboard/admin-referrals" element={<ProtectedRoute allowedRoles={['admin']}><AdminReferrals /></ProtectedRoute>} />
     <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
     
     <Route path="*" element={<NotFound />} />
