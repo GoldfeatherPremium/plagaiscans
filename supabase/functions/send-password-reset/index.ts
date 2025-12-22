@@ -49,6 +49,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Processing password reset request for:", email);
 
+    // Check if RESEND_API_KEY is configured
+    if (!RESEND_API_KEY) {
+      console.error("RESEND_API_KEY is not configured");
+      throw new Error("Email service is not configured");
+    }
+
     // Create Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -64,14 +70,18 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check if user exists in profiles
+    // Check if user exists in profiles using maybeSingle to avoid errors
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("email, full_name")
       .eq("email", email)
-      .single();
+      .maybeSingle();
 
-    if (profileError || !profile) {
+    if (profileError) {
+      console.error("Error checking profile:", profileError);
+    }
+
+    if (!profile) {
       // Return success even if user doesn't exist (security best practice)
       console.log("User not found, returning success anyway for security");
       return new Response(JSON.stringify({ success: true }), {
@@ -102,6 +112,10 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending password reset email to:", email);
 
     // Send email using Resend API
+    // Note: Using onboarding@resend.dev for testing - replace with verified domain for production
+    const fromEmail = "PlagaiScans <onboarding@resend.dev>";
+    console.log("Sending email from:", fromEmail, "to:", email);
+    
     const emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -109,9 +123,9 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "PlagaiScans <no-reply@plagaiscans.com>",
+        from: fromEmail,
         to: [email],
-        subject: "Reset Your Password",
+        subject: "Reset Your Password - PlagaiScans",
         html: `
           <!DOCTYPE html>
           <html>
