@@ -226,10 +226,10 @@ export default function AdminSettings() {
       
       const { error } = await supabase.functions.invoke('send-push-notification', {
         body: {
-          user_id: user.id,
+          userId: user.id,
           title: 'Test Push Notification 🔔',
           body: 'Push notifications are working correctly!',
-          url: '/dashboard/settings'
+          data: { url: '/dashboard/settings' }
         }
       });
       
