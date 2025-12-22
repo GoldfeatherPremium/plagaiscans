@@ -11,6 +11,7 @@ import { Loader2, User, Lock, Phone, Mail } from 'lucide-react';
 import { z } from 'zod';
 import { NotificationPreferences } from '@/components/NotificationPreferences';
 import { NotificationSoundSettings } from '@/components/NotificationSoundSettings';
+import { PushNotificationSettings } from '@/components/PushNotificationSettings';
 
 const phoneSchema = z.string()
   .regex(/^\+?[0-9]{10,15}$/, 'Phone number must be 10-15 digits (can start with +)');
@@ -276,6 +277,9 @@ export default function Profile() {
           </Card>
           {/* Notification Preferences */}
           <NotificationPreferences />
+          
+          {/* Push Notification Settings */}
+          <PushNotificationSettings />
           
           {/* Notification Sound Settings */}
           <NotificationSoundSettings />
