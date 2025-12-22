@@ -7,6 +7,8 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { InstallPromptBanner } from "@/components/InstallPromptBanner";
 import { DocumentCompletionNotifier } from "@/components/DocumentCompletionNotifier";
+import { MaintenanceBanner } from "@/components/MaintenanceBanner";
+import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -45,13 +47,15 @@ import Checkout from "./pages/Checkout";
 import AdminDashboardOverview from "./pages/AdminDashboardOverview";
 import StaffPerformance from "./pages/StaffPerformance";
 import CustomerDocumentAnalytics from "./pages/CustomerDocumentAnalytics";
+import Maintenance from "./pages/Maintenance";
 
 const queryClient = new QueryClient();
 
-const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) => {
+const ProtectedRoute = ({ children, allowedRoles, bypassMaintenance = false }: { children: React.ReactNode; allowedRoles?: string[]; bypassMaintenance?: boolean }) => {
   const { user, role, loading } = useAuth();
+  const { isMaintenanceMode, loading: maintenanceLoading } = useMaintenanceMode();
   
-  if (loading) {
+  if (loading || maintenanceLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
@@ -60,6 +64,11 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode;
   }
   
   if (!user) return <Navigate to="/auth" replace />;
+  
+  // Allow admins to bypass maintenance mode, block customers and staff
+  if (isMaintenanceMode && !bypassMaintenance && role !== 'admin') {
+    return <Maintenance />;
+  }
   
   if (allowedRoles && role && !allowedRoles.includes(role)) {
     return <Navigate to="/dashboard" replace />;

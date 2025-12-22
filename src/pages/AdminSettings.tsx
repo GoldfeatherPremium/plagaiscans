@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send } from 'lucide-react';
+import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function AdminSettings() {
@@ -40,6 +41,11 @@ export default function AdminSettings() {
   const [vapidPublicKey, setVapidPublicKey] = useState('');
   const [savingVapid, setSavingVapid] = useState(false);
   const [testingPush, setTestingPush] = useState(false);
+  
+  // Maintenance mode settings
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState('We are currently under maintenance. Please check back later.');
+  const [savingMaintenance, setSavingMaintenance] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -59,7 +65,9 @@ export default function AdminSettings() {
       'fee_usdt',
       'fee_binance',
       'fee_viva',
-      'vapid_public_key'
+      'vapid_public_key',
+      'maintenance_mode_enabled',
+      'maintenance_message'
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
@@ -90,6 +98,11 @@ export default function AdminSettings() {
       
       const vapidKey = data.find(s => s.key === 'vapid_public_key');
       if (vapidKey) setVapidPublicKey(vapidKey.value);
+      
+      const maintenanceEnabledSetting = data.find(s => s.key === 'maintenance_mode_enabled');
+      const maintenanceMessageSetting = data.find(s => s.key === 'maintenance_message');
+      setMaintenanceEnabled(maintenanceEnabledSetting?.value === 'true');
+      if (maintenanceMessageSetting) setMaintenanceMessage(maintenanceMessageSetting.value);
     }
     setLoading(false);
   };
@@ -242,6 +255,31 @@ export default function AdminSettings() {
     }
   };
 
+  const saveMaintenanceSettings = async () => {
+    setSavingMaintenance(true);
+    
+    const updates = [
+      supabase.from('settings').upsert({ key: 'maintenance_mode_enabled', value: maintenanceEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'maintenance_message', value: maintenanceMessage }, { onConflict: 'key' }),
+    ];
+    
+    const results = await Promise.all(updates);
+    const hasError = results.some(r => r.error);
+    
+    setSavingMaintenance(false);
+    
+    if (hasError) {
+      toast({ title: 'Error', description: 'Failed to save maintenance settings', variant: 'destructive' });
+    } else {
+      toast({ 
+        title: maintenanceEnabled ? '⚠️ Maintenance Mode Enabled' : 'Maintenance Mode Disabled', 
+        description: maintenanceEnabled 
+          ? 'The site is now in maintenance mode. Customers will see a maintenance page.' 
+          : 'The site is now accessible to all users.'
+      });
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -259,6 +297,65 @@ export default function AdminSettings() {
           <h1 className="text-3xl font-display font-bold">Settings</h1>
           <p className="text-muted-foreground mt-1">Manage platform settings</p>
         </div>
+
+        {/* Maintenance Mode */}
+        <Card className={maintenanceEnabled ? 'border-amber-500/50 bg-amber-500/5' : ''}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-amber-500" />
+              Maintenance Mode
+            </CardTitle>
+            <CardDescription>Temporarily close the site for maintenance</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className={`h-10 w-10 rounded-lg ${maintenanceEnabled ? 'bg-amber-500/20' : 'bg-muted'} flex items-center justify-center`}>
+                  <Wrench className={`h-5 w-5 ${maintenanceEnabled ? 'text-amber-500' : 'text-muted-foreground'}`} />
+                </div>
+                <div>
+                  <p className="font-medium">Enable Maintenance Mode</p>
+                  <p className="text-sm text-muted-foreground">
+                    {maintenanceEnabled ? 'Site is currently under maintenance' : 'Site is accessible to all users'}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={maintenanceEnabled}
+                onCheckedChange={setMaintenanceEnabled}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="maintenanceMessage">Maintenance Message</Label>
+              <Textarea
+                id="maintenanceMessage"
+                placeholder="Enter a message to display to users during maintenance..."
+                value={maintenanceMessage}
+                onChange={(e) => setMaintenanceMessage(e.target.value)}
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">
+                This message will be shown to customers when they try to access the site during maintenance.
+              </p>
+            </div>
+            
+            {maintenanceEnabled && (
+              <Alert className="border-amber-500/50 bg-amber-500/10">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <AlertDescription className="text-amber-700 dark:text-amber-400">
+                  <strong>Warning:</strong> When enabled, customers will not be able to access the site. 
+                  Only administrators will have full access. Make sure to disable this when maintenance is complete.
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            <Button onClick={saveMaintenanceSettings} disabled={savingMaintenance}>
+              {savingMaintenance ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Maintenance Settings
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Payment Methods */}
         <Card>
