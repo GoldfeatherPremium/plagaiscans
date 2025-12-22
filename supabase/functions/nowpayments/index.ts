@@ -193,7 +193,7 @@ serve(async (req) => {
             description: `USDT Payment - ${payment.amount_usd} USD`,
           });
 
-        // Send notification
+        // Send in-app notification
         await supabase
           .from('user_notifications')
           .insert({
@@ -201,6 +201,46 @@ serve(async (req) => {
             title: 'Payment Received! 🎉',
             message: `Your payment of $${payment.amount_usd} has been confirmed. ${payment.credits} credits have been added to your account.`,
           });
+
+        // Send payment verified email
+        try {
+          const emailResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-payment-verified-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            },
+            body: JSON.stringify({
+              userId: payment.user_id,
+              credits: payment.credits,
+              amount: payment.amount_usd,
+              paymentMethod: 'Cryptocurrency (NOWPayments)',
+            }),
+          });
+          console.log('Payment email sent:', await emailResponse.text());
+        } catch (emailError) {
+          console.error('Failed to send payment email:', emailError);
+        }
+
+        // Send push notification
+        try {
+          const pushResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-push-notification`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            },
+            body: JSON.stringify({
+              userId: payment.user_id,
+              title: 'Payment Successful! 💰',
+              body: `${payment.credits} credits have been added to your account.`,
+              data: { type: 'payment_success', url: '/dashboard' },
+            }),
+          });
+          console.log('Push notification sent:', await pushResponse.text());
+        } catch (pushError) {
+          console.error('Failed to send push notification:', pushError);
+        }
 
         console.log('Credits added successfully');
       }

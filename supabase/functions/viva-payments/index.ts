@@ -215,12 +215,52 @@ serve(async (req) => {
             description: `Viva.com payment - ${payment.credits} credits`,
           });
 
-          // Send notification to user
+          // Send in-app notification
           await supabase.from('user_notifications').insert({
             user_id: payment.user_id,
             title: '✅ Payment Successful',
             message: `Your payment of $${payment.amount_usd} was successful! ${payment.credits} credits have been added to your account.`,
           });
+
+          // Send payment verified email
+          try {
+            const emailResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-payment-verified-email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              },
+              body: JSON.stringify({
+                userId: payment.user_id,
+                credits: payment.credits,
+                amount: payment.amount_usd,
+                paymentMethod: 'Viva.com Card Payment',
+              }),
+            });
+            console.log('Payment email sent:', await emailResponse.text());
+          } catch (emailError) {
+            console.error('Failed to send payment email:', emailError);
+          }
+
+          // Send push notification
+          try {
+            const pushResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-push-notification`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              },
+              body: JSON.stringify({
+                userId: payment.user_id,
+                title: 'Payment Successful! 💳',
+                body: `${payment.credits} credits have been added to your account.`,
+                data: { type: 'payment_success', url: '/dashboard' },
+              }),
+            });
+            console.log('Push notification sent:', await pushResponse.text());
+          } catch (pushError) {
+            console.error('Failed to send push notification:', pushError);
+          }
 
           console.log(`Credits added: ${payment.credits} to user ${payment.user_id}`);
         }
