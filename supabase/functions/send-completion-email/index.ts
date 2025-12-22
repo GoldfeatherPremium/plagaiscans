@@ -15,8 +15,8 @@ interface EmailRequest {
   documentId: string;
   userId: string;
   fileName: string;
-  similarityPercentage: number;
-  aiPercentage: number;
+  similarityPercentage?: number;
+  aiPercentage?: number;
 }
 
 // Get SendPulse access token
@@ -115,9 +115,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { documentId, userId, fileName, similarityPercentage, aiPercentage }: EmailRequest = await req.json();
+    const { documentId, userId, fileName, similarityPercentage = 0, aiPercentage = 0 }: EmailRequest = await req.json();
 
-    console.log("Sending completion email for document:", documentId);
+    console.log("Sending completion email for document:", documentId, "userId:", userId, "fileName:", fileName);
 
     // Check if SendPulse credentials are configured
     if (!SENDPULSE_API_KEY || !SENDPULSE_API_SECRET) {

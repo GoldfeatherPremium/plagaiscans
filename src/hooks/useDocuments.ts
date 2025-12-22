@@ -425,6 +425,7 @@ export const useDocuments = () => {
 
       // Create personal notification for the document owner when completed
       if (status === 'completed' && documentUserId && fileName) {
+        // Create in-app notification
         try {
           const { error: notifError } = await supabase.from('user_notifications').insert({
             user_id: documentUserId,
@@ -440,6 +441,53 @@ export const useDocuments = () => {
           }
         } catch (notifError) {
           console.error('Exception creating notification:', notifError);
+        }
+
+        // Send completion email
+        try {
+          console.log('Sending completion email for document:', documentId);
+          const { error: emailError } = await supabase.functions.invoke('send-completion-email', {
+            body: {
+              userId: documentUserId,
+              documentId: documentId,
+              fileName: fileName,
+              similarityPercentage: updates?.similarity_percentage ?? 0,
+              aiPercentage: updates?.ai_percentage ?? 0,
+            },
+          });
+          
+          if (emailError) {
+            console.error('Error sending completion email:', emailError);
+          } else {
+            console.log('Completion email sent successfully');
+          }
+        } catch (emailError) {
+          console.error('Exception sending completion email:', emailError);
+        }
+
+        // Send push notification
+        try {
+          console.log('Sending push notification for document:', documentId);
+          const { error: pushError } = await supabase.functions.invoke('send-push-notification', {
+            body: {
+              userId: documentUserId,
+              title: 'Document Completed! 📄',
+              body: `Your document "${fileName}" has been processed and is ready for download.`,
+              data: {
+                type: 'document_completed',
+                documentId: documentId,
+                url: '/dashboard/documents',
+              },
+            },
+          });
+          
+          if (pushError) {
+            console.error('Error sending push notification:', pushError);
+          } else {
+            console.log('Push notification sent successfully');
+          }
+        } catch (pushError) {
+          console.error('Exception sending push notification:', pushError);
         }
       }
 
