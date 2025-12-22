@@ -3,6 +3,7 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useDocuments, Document } from '@/hooks/useDocuments';
+import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
 import { DocumentTagManager } from '@/components/DocumentTagManager';
@@ -21,7 +22,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 export default function MyDocuments() {
   const { documents, loading, downloadFile } = useDocuments();
+  const { role } = useAuth();
   const { toast } = useToast();
+  const isStaffOrAdmin = role === 'staff' || role === 'admin';
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [filters, setFilters] = useState<DocumentFilters>({
@@ -240,9 +243,16 @@ export default function MyDocuments() {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <FileText className="h-4 w-4 text-primary flex-shrink-0" />
-                              <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
-                                {doc.file_name}
-                              </span>
+                              <div className="flex flex-col">
+                                <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
+                                  {doc.file_name}
+                                </span>
+                                {isStaffOrAdmin && (
+                                  <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={doc.customer_profile?.email}>
+                                    {doc.customer_profile?.full_name || doc.customer_profile?.email || (doc.magic_link_id ? 'Guest' : '-')}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell>
