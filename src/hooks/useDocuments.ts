@@ -364,8 +364,8 @@ export const useDocuments = () => {
     fileName?: string
   ) => {
     try {
-      // Staff (not admin) must upload both reports to complete a document
-      if (status === 'completed' && role === 'staff') {
+      // Staff AND Admin must upload both reports to complete a document
+      if (status === 'completed' && (role === 'staff' || role === 'admin')) {
         const hasSimReport = updates?.similarity_report_path;
         const hasAiReport = updates?.ai_report_path;
         
@@ -453,8 +453,8 @@ export const useDocuments = () => {
   ) => {
     if (!user) return;
 
-    // Staff (not admin) MUST upload both reports to complete a document
-    if (role === 'staff') {
+    // Staff AND Admin MUST upload both reports to complete a document
+    if (role === 'staff' || role === 'admin') {
       if (!similarityReport || !aiReport) {
         toast({
           title: 'Reports Required',

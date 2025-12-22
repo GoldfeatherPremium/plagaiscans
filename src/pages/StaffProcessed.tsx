@@ -38,7 +38,8 @@ export default function StaffProcessed() {
     (d) => d.assigned_staff_id === user?.id && d.status === 'completed'
   );
 
-  const canEdit = role === 'admin' || permissions.can_edit_completed_documents;
+  // Both staff and admin can edit their completed documents
+  const canEdit = role === 'admin' || role === 'staff';
 
   const handleDownloadDocument = (doc: Document) => {
     downloadFile(doc.file_path, doc.magic_link_id ? 'magic-uploads' : 'documents', doc.file_name);

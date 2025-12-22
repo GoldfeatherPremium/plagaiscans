@@ -291,9 +291,9 @@ export default function DocumentQueue() {
 
   // Submit batch reports
   const handleBatchSubmit = async () => {
-    // Validate all entries
+    // Validate all entries - both staff and admin must upload both reports
     for (const data of batchReportData) {
-      if (role === 'staff' && (!data.similarityFile || !data.aiFile)) {
+      if (!data.similarityFile || !data.aiFile) {
         toast({
           title: 'Reports Required',
           description: `Both reports required for ${data.fileName}`,
@@ -757,8 +757,8 @@ export default function DocumentQueue() {
                 />
               </div>
               
-              {/* Staff must upload both reports warning */}
-              {role === 'staff' && (!similarityFile || !aiFile) && (
+              {/* All staff/admin must upload both reports warning */}
+              {(!similarityFile || !aiFile) && (
                 <p className="text-sm text-destructive flex items-center gap-1">
                   <span className="font-medium">Required:</span> Both Similarity and AI reports must be uploaded
                 </p>
@@ -767,7 +767,7 @@ export default function DocumentQueue() {
               <Button 
                 className="w-full" 
                 onClick={handleSubmitReport} 
-                disabled={submitting || (role === 'staff' && (!similarityFile || !aiFile))}
+                disabled={submitting || !similarityFile || !aiFile}
               >
                 {submitting ? 'Submitting...' : 'Complete & Submit'}
               </Button>
@@ -828,7 +828,7 @@ export default function DocumentQueue() {
                     />
                   </div>
                   
-                  {role === 'staff' && (!data.similarityFile || !data.aiFile) && (
+                  {(!data.similarityFile || !data.aiFile) && (
                     <p className="text-xs text-destructive">Both reports required</p>
                   )}
                 </div>
@@ -837,7 +837,7 @@ export default function DocumentQueue() {
               <Button 
                 className="w-full" 
                 onClick={handleBatchSubmit}
-                disabled={batchSubmitting || (role === 'staff' && batchReportData.some(d => !d.similarityFile || !d.aiFile))}
+                disabled={batchSubmitting || batchReportData.some(d => !d.similarityFile || !d.aiFile)}
               >
                 {batchSubmitting ? (
                   <>
