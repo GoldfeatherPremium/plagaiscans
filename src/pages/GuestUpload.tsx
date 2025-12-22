@@ -131,6 +131,7 @@ export default function GuestUpload() {
       setSelectedFile(e.dataTransfer.files[0]);
       setUploadSuccess(false);
     }
+    if (inputRef.current) inputRef.current.value = '';
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -139,19 +140,22 @@ export default function GuestUpload() {
       setSelectedFile(e.target.files[0]);
       setUploadSuccess(false);
     }
+    // Clear to avoid stale FileList sticking around
+    if (inputRef.current) inputRef.current.value = '';
   };
 
   const handleUpload = async () => {
     if (!selectedFile || !token) return;
-    
+
     setUploading(true);
     const success = await uploadFileWithMagicLink(token, selectedFile);
     setUploading(false);
-    
+
     if (success) {
       setUploadSuccess(true);
       setSelectedFile(null);
-      
+      if (inputRef.current) inputRef.current.value = '';
+
       // Refresh link data and files using access validation (allows viewing after limit reached)
       const data = await validateMagicLinkForAccess(token);
       setLinkData(data);
@@ -399,6 +403,7 @@ export default function GuestUpload() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedFile(null);
+                              if (inputRef.current) inputRef.current.value = '';
                             }}
                           >
                             Remove

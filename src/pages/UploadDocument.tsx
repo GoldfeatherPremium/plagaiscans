@@ -56,9 +56,20 @@ export default function UploadDocument() {
 
   const addFiles = (newFiles: File[]) => {
     setUploadResults(null);
-    const availableSlots = maxFilesAllowed - selectedFiles.length;
-    const filesToAdd = newFiles.slice(0, availableSlots);
-    setSelectedFiles(prev => [...prev, ...filesToAdd]);
+
+    setSelectedFiles((prev) => {
+      // Avoid accidentally re-adding the same file multiple times
+      const existingKeys = new Set(prev.map((f) => `${f.name}::${f.size}::${f.lastModified}`));
+      const deduped = newFiles.filter((f) => !existingKeys.has(`${f.name}::${f.size}::${f.lastModified}`));
+
+      const maxAllowed = Math.max(0, maxFilesAllowed);
+      const availableSlots = Math.max(0, maxAllowed - prev.length);
+      const filesToAdd = deduped.slice(0, availableSlots);
+      return [...prev, ...filesToAdd];
+    });
+
+    // Ensure the file input doesn't keep an old FileList around
+    if (inputRef.current) inputRef.current.value = '';
   };
 
   const removeFile = (index: number) => {
@@ -67,21 +78,23 @@ export default function UploadDocument() {
 
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return;
-    
+
     setUploading(true);
     setUploadProgress({ current: 0, total: selectedFiles.length });
-    
+
     const results = await uploadDocuments(selectedFiles, (current, total) => {
       setUploadProgress({ current, total });
     });
-    
+
     setUploading(false);
     setUploadResults(results);
     setSelectedFiles([]);
+    if (inputRef.current) inputRef.current.value = '';
   };
 
   const handleCancel = () => {
     setSelectedFiles([]);
+    if (inputRef.current) inputRef.current.value = '';
     navigate('/dashboard/documents');
   };
 
