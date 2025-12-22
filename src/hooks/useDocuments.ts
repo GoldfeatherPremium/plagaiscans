@@ -77,8 +77,8 @@ export const useDocuments = () => {
         }
       }
 
-      // Fetch customer profiles (document owners)
-      const customerIds = [...new Set((data || []).map(d => d.user_id))];
+      // Fetch customer profiles (document owners) - filter out null user_ids
+      const customerIds = [...new Set((data || []).filter(d => d.user_id).map(d => d.user_id as string))];
       let customerProfiles: Record<string, { email: string; full_name: string | null }> = {};
       
       if (customerIds.length > 0) {
@@ -98,7 +98,7 @@ export const useDocuments = () => {
       const docsWithProfiles = (data || []).map(doc => ({
         ...doc,
         staff_profile: doc.assigned_staff_id ? staffProfiles[doc.assigned_staff_id] : undefined,
-        customer_profile: customerProfiles[doc.user_id] || undefined
+        customer_profile: doc.user_id ? customerProfiles[doc.user_id] : undefined
       }));
 
       setDocuments(docsWithProfiles as Document[]);
