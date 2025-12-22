@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { useDocuments, Document } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare, CheckCheck } from 'lucide-react';
+import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -66,6 +67,14 @@ export default function DocumentQueue() {
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [batchReportData, setBatchReportData] = useState<BatchReportData[]>([]);
   const [batchSubmitting, setBatchSubmitting] = useState(false);
+  
+  // Search filters state
+  const [filters, setFilters] = useState<DocumentFilters>({
+    search: '',
+    status: 'all',
+    dateFrom: undefined,
+    dateTo: undefined
+  });
 
   // Fetch settings
   useEffect(() => {
@@ -113,8 +122,8 @@ export default function DocumentQueue() {
 
   // Filter documents: show pending (not assigned) or assigned to current user
   // Sort by uploaded_at ascending (oldest first, newest last)
-  const availableDocs = documents
-    .filter((d) => {
+  const availableDocs = useMemo(() => {
+    const roleFiltered = documents.filter((d) => {
       if (role === 'admin') {
         return d.status === 'pending' || d.status === 'in_progress';
       }
@@ -123,8 +132,13 @@ export default function DocumentQueue() {
         (d.status === 'pending' && !d.assigned_staff_id) ||
         (d.assigned_staff_id === user?.id && d.status === 'in_progress')
       );
-    })
-    .sort((a, b) => new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime());
+    });
+    
+    // Apply search filters
+    const filtered = filterDocuments(roleFiltered, filters);
+    
+    return filtered.sort((a, b) => new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime());
+  }, [documents, role, user?.id, filters]);
 
   const handlePickDocument = async (doc: Document) => {
     if (!canPickMore && doc.assigned_staff_id !== user?.id) {
@@ -498,6 +512,13 @@ export default function DocumentQueue() {
           )}
         </div>
 
+        {/* Search Filters */}
+        <DocumentSearchFilters 
+          filters={filters} 
+          onFiltersChange={setFilters}
+          showStatusFilter={role === 'admin'}
+        />
+
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -569,7 +590,7 @@ export default function DocumentQueue() {
                         </TableHead>
                         <TableHead className="w-12 text-center">#</TableHead>
                         <TableHead>Document</TableHead>
-                        {role === 'admin' && <TableHead>Customer</TableHead>}
+                        <TableHead>Customer</TableHead>
                         <TableHead>Upload Time</TableHead>
                         <TableHead className="text-center">Status</TableHead>
                         <TableHead className="text-center">Processing By</TableHead>
@@ -604,13 +625,11 @@ export default function DocumentQueue() {
                                 </span>
                               </div>
                             </TableCell>
-                            {role === 'admin' && (
-                              <TableCell>
-                                <span className="text-sm truncate max-w-[150px]" title={doc.customer_profile?.email}>
-                                  {doc.customer_profile?.full_name || doc.customer_profile?.email || '-'}
-                                </span>
-                              </TableCell>
-                            )}
+                            <TableCell>
+                              <span className="text-sm truncate max-w-[150px]" title={doc.customer_profile?.email}>
+                                {doc.customer_profile?.full_name || doc.customer_profile?.email || (doc.magic_link_id ? 'Guest' : '-')}
+                              </span>
+                            </TableCell>
                             <TableCell>
                               <div className="text-sm">
                                 <div>{date}</div>

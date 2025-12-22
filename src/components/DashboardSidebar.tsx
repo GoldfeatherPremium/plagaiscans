@@ -279,8 +279,10 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/dashboard/upload', icon: Upload, label: 'Upload Document' },
     { to: '/dashboard/documents', icon: FileText, label: 'My Documents' },
+    { to: '/dashboard/analytics', icon: PieChart, label: 'Analytics' },
     { to: '/dashboard/credits', icon: CreditCard, label: 'Buy Credits' },
     { to: '/dashboard/payments', icon: Receipt, label: 'Payment History' },
+    { to: '/dashboard/referrals', icon: Users, label: 'Referral Program' },
     { to: '/dashboard/profile', icon: User, label: 'Profile' },
   ];
 
@@ -289,6 +291,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/queue', icon: FileCheck, label: 'Document Queue' },
     { to: '/dashboard/my-work', icon: FileText, label: 'My Processed' },
     { to: '/dashboard/stats', icon: BarChart3, label: 'My Stats' },
+    { to: '/dashboard/performance', icon: Activity, label: 'Performance' },
     { to: '/dashboard/profile', icon: User, label: 'Profile' },
   ];
 
@@ -331,10 +334,13 @@ export const DashboardSidebar: React.FC = () => {
       label: 'Analytics',
       icon: PieChart,
       links: [
-        { to: '/dashboard/analytics', icon: BarChart3, label: 'Overview' },
+        { to: '/dashboard/overview', icon: LayoutDashboard, label: 'Overview' },
+        { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
         { to: '/dashboard/activity-logs', icon: Activity, label: 'Activity Logs' },
         { to: '/dashboard/system-health', icon: Server, label: 'System Health' },
         { to: '/dashboard/reports', icon: FileDown, label: 'Reports' },
+        { to: '/dashboard/performance', icon: Activity, label: 'Staff Performance' },
+        { to: '/dashboard/referral-admin', icon: Users, label: 'Referrals' },
       ],
     },
     {
