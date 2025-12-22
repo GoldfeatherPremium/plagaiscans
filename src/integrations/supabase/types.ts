@@ -46,6 +46,113 @@ export type Database = {
           },
         ]
       }
+      ai_admin_settings: {
+        Row: {
+          id: string
+          is_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      ai_audit_logs: {
+        Row: {
+          admin_id: string
+          ai_response: string
+          created_at: string
+          id: string
+          prompt_text: string
+          proposed_changes: Json | null
+          resolved_at: string | null
+          status: string
+          version_id: string | null
+        }
+        Insert: {
+          admin_id: string
+          ai_response: string
+          created_at?: string
+          id?: string
+          prompt_text: string
+          proposed_changes?: Json | null
+          resolved_at?: string | null
+          status?: string
+          version_id?: string | null
+        }
+        Update: {
+          admin_id?: string
+          ai_response?: string
+          created_at?: string
+          id?: string
+          prompt_text?: string
+          proposed_changes?: Json | null
+          resolved_at?: string | null
+          status?: string
+          version_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_audit_logs_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "ai_change_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_change_versions: {
+        Row: {
+          affected_areas: string[]
+          applied_at: string
+          applied_by: string
+          change_description: string
+          change_type: string
+          changes_json: Json
+          id: string
+          is_active: boolean
+          rolled_back_at: string | null
+          rolled_back_by: string | null
+          version_number: number
+        }
+        Insert: {
+          affected_areas?: string[]
+          applied_at?: string
+          applied_by: string
+          change_description: string
+          change_type: string
+          changes_json: Json
+          id?: string
+          is_active?: boolean
+          rolled_back_at?: string | null
+          rolled_back_by?: string | null
+          version_number?: number
+        }
+        Update: {
+          affected_areas?: string[]
+          applied_at?: string
+          applied_by?: string
+          change_description?: string
+          change_type?: string
+          changes_json?: Json
+          id?: string
+          is_active?: boolean
+          rolled_back_at?: string | null
+          rolled_back_by?: string | null
+          version_number?: number
+        }
+        Relationships: []
+      }
       announcements: {
         Row: {
           created_at: string
