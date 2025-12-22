@@ -36,6 +36,7 @@ import {
   Wrench,
   Search,
   ExternalLink,
+  Bot,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -357,6 +358,7 @@ export const DashboardSidebar: React.FC = () => {
       icon: Wrench,
       links: [
         { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
+        { to: '/dashboard/ai-helper', icon: Bot, label: 'AI Helper' },
         { to: '/dashboard/profile', icon: User, label: 'Profile' },
       ],
     },

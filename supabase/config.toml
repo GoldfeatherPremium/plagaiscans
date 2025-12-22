@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.send-welcome-email]
 verify_jwt = false
+
+[functions.ai-admin-helper]
+verify_jwt = false
