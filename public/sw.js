@@ -1,8 +1,8 @@
 // Service Worker for Push Notifications and Offline Support
-// Version 2 - Fixed network-first for navigation
+// Version 3 - Fixed false offline on pull-to-refresh + avoid caching dev server assets
 
-const CACHE_NAME = 'plagaiscans-v2';
-const STATIC_CACHE_NAME = 'plagaiscans-static-v2';
+const CACHE_NAME = 'plagaiscans-v3';
+const STATIC_CACHE_NAME = 'plagaiscans-static-v3';
 
 // Static assets to cache (cache-first strategy)
 const STATIC_ASSETS = [
@@ -14,7 +14,7 @@ const STATIC_ASSETS = [
 
 // Install event - cache static assets and offline page
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker v2...');
+  console.log('[SW] Installing service worker v3...');
   event.waitUntil(
     Promise.all([
       caches.open(STATIC_CACHE_NAME).then((cache) => {
@@ -29,7 +29,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches and take control immediately
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker v2...');
+  console.log('[SW] Activating service worker v3...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -66,15 +66,21 @@ function isStaticAsset(url) {
   );
 }
 
-// Helper: Check if request is an API call
+// Helper: Check if request is an API call / should bypass SW
 function isApiRequest(url) {
-  const pathname = new URL(url).pathname;
-  return (
-    pathname.startsWith('/api/') ||
-    pathname.startsWith('/rest/') ||
-    pathname.startsWith('/functions/') ||
-    url.includes('supabase.co')
-  );
+  const { pathname, origin } = new URL(url);
+
+  // Bypass any dev-server / HMR assets to avoid caching issues ("server connection lost")
+  if (pathname.startsWith('/@vite') || pathname.startsWith('/src/')) return true;
+
+  // Our backend/api paths
+  if (pathname.startsWith('/api/') || pathname.startsWith('/rest/') || pathname.startsWith('/functions/')) return true;
+
+  // External backends
+  if (!url.startsWith(origin)) return true;
+  if (url.includes('supabase.co')) return true;
+
+  return false;
 }
 
 // Fetch event - Network-first for navigation, Cache-first for static assets
