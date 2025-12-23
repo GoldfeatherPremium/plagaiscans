@@ -28,6 +28,36 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Check global push notifications toggle
+    const { data: globalSetting } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'push_notifications_enabled')
+      .maybeSingle();
+
+    if (globalSetting?.value === 'false') {
+      console.log('Push notifications are globally disabled');
+      return new Response(
+        JSON.stringify({ message: 'Push notifications are globally disabled' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check document upload notifications toggle
+    const { data: docUploadSetting } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'push_document_upload_notifications_enabled')
+      .maybeSingle();
+
+    if (docUploadSetting?.value === 'false') {
+      console.log('Document upload notifications are disabled');
+      return new Response(
+        JSON.stringify({ message: 'Document upload notifications are disabled' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get unprocessed document upload notifications
     const { data: notifications, error: notifError } = await supabase
       .from('document_upload_notifications')
@@ -143,7 +173,7 @@ serve(async (req) => {
 
     // Configure web-push
     webpush.setVapidDetails(
-      'mailto:support@turnitincheck.com',
+      'mailto:support@plagaiscans.com',
       vapidPublicKey,
       vapidPrivateKey
     );
@@ -154,6 +184,16 @@ serve(async (req) => {
 
     // Process each notification
     for (const notification of notifications) {
+      // Create log entry for this notification
+      await supabase.from('push_notification_logs').insert({
+        event_type: 'document_upload',
+        title: 'New Document Uploaded',
+        body: `${notification.customer_name} uploaded "${notification.file_name}"`,
+        target_audience: 'staff',
+        recipient_count: subscriptions.length,
+        status: 'sending',
+      });
+
       const payload = JSON.stringify({
         title: '📄 New Document Uploaded',
         body: `${notification.customer_name} uploaded "${notification.file_name}"`,
@@ -165,27 +205,40 @@ serve(async (req) => {
         },
       });
 
-      // Send to all subscriptions
+      // Send to all subscriptions with retry
       for (const sub of subscriptions) {
-        try {
-          const pushSubscription = {
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth,
-            },
-          };
+        let retryCount = 0;
+        const maxRetries = 1;
+        let success = false;
 
-          await webpush.sendNotification(pushSubscription, payload);
-          sentCount++;
-          console.log(`Sent notification to user ${sub.user_id}`);
-        } catch (error: any) {
-          console.error(`Failed to send to ${sub.endpoint}:`, error.message);
-          failedCount++;
+        while (retryCount <= maxRetries && !success) {
+          try {
+            const pushSubscription = {
+              endpoint: sub.endpoint,
+              keys: {
+                p256dh: sub.p256dh,
+                auth: sub.auth,
+              },
+            };
 
-          // Remove invalid subscriptions
-          if (error.statusCode === 410 || error.statusCode === 404) {
-            invalidSubscriptions.push(sub.id);
+            await webpush.sendNotification(pushSubscription, payload);
+            sentCount++;
+            success = true;
+            console.log(`Sent notification to user ${sub.user_id}`);
+          } catch (error: unknown) {
+            const err = error as { statusCode?: number; message?: string };
+            console.error(`Failed to send to ${sub.endpoint} (attempt ${retryCount + 1}):`, err.message);
+            
+            // Remove invalid subscriptions
+            if (err.statusCode === 410 || err.statusCode === 404) {
+              invalidSubscriptions.push(sub.id);
+              break;
+            }
+            
+            retryCount++;
+            if (retryCount > maxRetries) {
+              failedCount++;
+            }
           }
         }
       }
@@ -206,6 +259,7 @@ serve(async (req) => {
         .in('id', invalidSubscriptions);
     }
 
+    // Update log with final counts
     console.log(`Completed: ${sentCount} sent, ${failedCount} failed`);
 
     return new Response(
