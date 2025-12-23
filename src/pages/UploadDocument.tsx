@@ -82,9 +82,13 @@ export default function UploadDocument() {
     setUploading(true);
     setUploadProgress({ current: 0, total: selectedFiles.length });
 
-    const results = await uploadDocuments(selectedFiles, (current, total) => {
-      setUploadProgress({ current, total });
-    });
+    const results = await uploadDocuments(
+      selectedFiles,
+      (current, total) => {
+        setUploadProgress({ current, total });
+      },
+      { uploadType: 'single' }
+    );
 
     setUploading(false);
     setUploadResults(results);
