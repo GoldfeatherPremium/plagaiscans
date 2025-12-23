@@ -35,15 +35,44 @@ interface ProcessingResult {
   };
 }
 
-// Normalize filename using the same logic as the database function
-function normalizeFilename(filename: string): string {
+/**
+ * Normalize filename for CUSTOMER documents (base name).
+ * Just removes the file extension, keeps everything else including brackets.
+ * Examples:
+ *   fileA1.pdf → fileA1
+ *   fileA1 (1).pdf → fileA1 (1)
+ */
+function getDocumentBaseName(filename: string): string {
+  let result = filename.toLowerCase();
+  // Remove file extension only
+  result = result.replace(/\.[^.]+$/, '');
+  return result.trim();
+}
+
+/**
+ * Normalize filename for REPORT files (admin-uploaded).
+ * Removes extension AND only the LAST trailing " (number)" suffix.
+ * This allows matching to customer documents that may have earlier brackets.
+ * 
+ * Examples:
+ *   fileA1 (1).pdf → fileA1 (report for "fileA1.pdf")
+ *   fileA1 (2).pdf → fileA1 (report for "fileA1.pdf")
+ *   fileA1 (1) (1).pdf → fileA1 (1) (report for "fileA1 (1).pdf")
+ *   fileA1 (1) (2).pdf → fileA1 (1) (report for "fileA1 (1).pdf")
+ *   fileA1.pdf → fileA1 (exact match for "fileA1.pdf")
+ */
+function normalizeReportFilename(filename: string): string {
   let result = filename.toLowerCase();
   // Remove file extension
   result = result.replace(/\.[^.]+$/, '');
-  // Remove trailing counters like (1), (2), etc.
-  result = result.replace(/\s*\(\d+\)\s*$/, '');
-  // Trim whitespace
+  // Remove ONLY the last trailing " (number)" suffix - single pass, no global flag
+  result = result.replace(/\s*\(\d+\)$/, '');
   return result.trim();
+}
+
+// Keep for backwards compatibility - used for customer documents
+function normalizeFilename(filename: string): string {
+  return getDocumentBaseName(filename);
 }
 
 serve(async (req: Request) => {
@@ -116,10 +145,27 @@ serve(async (req: Request) => {
 
     console.log(`Found ${documents?.length || 0} pending/in_progress documents`);
 
-    // Group reports by normalized filename
+    // Group documents by their BASE NAME (just extension removed, keeps brackets)
+    // This is the "identity" of the customer document
+    const docsByBaseName = new Map<string, typeof documents>();
+    for (const doc of documents || []) {
+      // Use the stored normalized_filename or compute base name
+      const baseName = doc.normalized_filename || getDocumentBaseName(doc.file_name);
+      
+      if (!docsByBaseName.has(baseName)) {
+        docsByBaseName.set(baseName, []);
+      }
+      docsByBaseName.get(baseName)!.push(doc);
+    }
+
+    console.log(`Document base names:`, Array.from(docsByBaseName.keys()));
+
+    // Group reports by their NORMALIZED filename (last trailing suffix removed)
+    // This determines which customer document base name they match
     const reportsByNormalized = new Map<string, ReportFile[]>();
     for (const report of reports) {
-      const normalized = normalizeFilename(report.fileName);
+      // Use the advanced normalization that removes only the LAST trailing (number)
+      const normalized = normalizeReportFilename(report.fileName);
       report.normalizedFilename = normalized;
       
       if (!reportsByNormalized.has(normalized)) {
@@ -128,16 +174,7 @@ serve(async (req: Request) => {
       reportsByNormalized.get(normalized)!.push(report);
     }
 
-    // Group documents by normalized filename
-    const docsByNormalized = new Map<string, typeof documents>();
-    for (const doc of documents || []) {
-      const normalized = doc.normalized_filename || normalizeFilename(doc.file_name);
-      
-      if (!docsByNormalized.has(normalized)) {
-        docsByNormalized.set(normalized, []);
-      }
-      docsByNormalized.get(normalized)!.push(doc);
-    }
+    console.log(`Report normalized names:`, Array.from(reportsByNormalized.keys()));
 
     const result: ProcessingResult = {
       success: true,
@@ -156,7 +193,8 @@ serve(async (req: Request) => {
 
     // Process each group of reports
     for (const [normalized, matchingReports] of reportsByNormalized) {
-      const matchingDocs = docsByNormalized.get(normalized) || [];
+      // Look up documents by the normalized report name (which should match document base name)
+      const matchingDocs = docsByBaseName.get(normalized) || [];
 
       console.log(`Processing normalized filename "${normalized}": ${matchingReports.length} reports, ${matchingDocs.length} matching documents`);
 
