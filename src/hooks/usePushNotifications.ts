@@ -28,21 +28,25 @@ export const usePushNotifications = () => {
     ? Notification.permission 
     : 'denied';
 
-  // Fetch VAPID public key from settings
+  // Fetch VAPID public key from settings - deferred to not block initial render
   useEffect(() => {
-    const fetchVapidKey = async () => {
-      const { data } = await supabase
-        .from('settings')
-        .select('value')
-        .eq('key', 'vapid_public_key')
-        .maybeSingle();
-      
-      if (data?.value) {
-        setVapidPublicKey(data.value.trim());
-        console.log('VAPID public key loaded');
-      }
-    };
-    fetchVapidKey();
+    const timeoutId = setTimeout(() => {
+      const fetchVapidKey = async () => {
+        const { data } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'vapid_public_key')
+          .maybeSingle();
+        
+        if (data?.value) {
+          setVapidPublicKey(data.value.trim());
+          console.log('VAPID public key loaded');
+        }
+      };
+      fetchVapidKey();
+    }, 200);
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // Register service worker
