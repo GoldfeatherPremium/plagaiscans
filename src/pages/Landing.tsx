@@ -89,8 +89,10 @@ const Landing = () => {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="py-20 px-4">
+      {/* Main Content */}
+      <main>
+        {/* Hero Section */}
+        <section className="py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
           {/* Trust Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-full border border-gray-200 mb-8">
@@ -211,7 +213,8 @@ const Landing = () => {
             </Button>
           </Link>
         </div>
-      </section>
+        </section>
+      </main>
 
       {/* Footer */}
       <footer className="py-8 px-4 border-t border-gray-100 bg-white">
