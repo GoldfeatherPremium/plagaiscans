@@ -14,9 +14,21 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: "autoUpdate",
-      injectRegister: "script-defer",
-      includeAssets: ["favicon.png", "robots.txt", "pwa-icon-192.png", "pwa-icon-512.png", "offline.html"],
+      // IMPORTANT: use our custom service worker (public/sw.js) so there is only ONE SW.
+      // This prevents Workbox navigateFallback from showing offline.html while online.
+      strategies: 'injectManifest',
+      injectRegister: 'script-defer',
+      registerType: 'autoUpdate',
+      injectManifest: {
+        swSrc: 'public/sw.js',
+      },
+      includeAssets: [
+        'favicon.png',
+        'robots.txt',
+        'pwa-icon-192.png',
+        'pwa-icon-512.png',
+        'offline.html',
+      ],
       manifest: {
         name: "Plagaiscans",
         short_name: "Plagaiscans",
@@ -34,78 +46,46 @@ export default defineConfig(({ mode }) => ({
             src: "/pwa-icon-192.png",
             sizes: "192x192",
             type: "image/png",
-            purpose: "any"
+            purpose: "any",
           },
           {
             src: "/pwa-icon-192.png",
             sizes: "192x192",
             type: "image/png",
-            purpose: "maskable"
+            purpose: "maskable",
           },
           {
             src: "/pwa-icon-512.png",
             sizes: "512x512",
             type: "image/png",
-            purpose: "any"
+            purpose: "any",
           },
           {
             src: "/pwa-icon-512.png",
             sizes: "512x512",
             type: "image/png",
-            purpose: "maskable"
-          }
+            purpose: "maskable",
+          },
         ],
         screenshots: [
           {
             src: "/pwa-icon-512.png",
             sizes: "512x512",
             type: "image/png",
-            form_factor: "wide"
+            form_factor: "wide",
           },
           {
             src: "/pwa-icon-512.png",
             sizes: "512x512",
             type: "image/png",
-            form_factor: "narrow"
-          }
-        ]
-      },
-      workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        navigateFallback: "/offline.html",
-        navigateFallbackDenylist: [/^\/api/, /^\/supabase/],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "google-fonts-cache",
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
+            form_factor: "narrow",
           },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "google-fonts-webfonts",
-              expiration: {
-                maxEntries: 30,
-                maxAgeSeconds: 60 * 60 * 24 * 365
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          }
-        ]
-      }
-    })
+        ],
+      },
+      devOptions: {
+        enabled: true,
+      },
+    }),
   ].filter(Boolean),
   resolve: {
     alias: {

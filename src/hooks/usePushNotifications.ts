@@ -58,10 +58,27 @@ export const usePushNotifications = () => {
 
     const registerServiceWorker = async () => {
       try {
-        const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-        console.log('Service worker registered:', reg);
+        // Prefer an existing registration (VitePWA auto-registers). This avoids double-registering.
+        let reg = await navigator.serviceWorker.getRegistration('/');
+
+        if (!reg) {
+          reg = await navigator.serviceWorker.register('/sw.js', {
+            scope: '/',
+            // Ensure the browser doesn't serve a cached SW script (critical on Android)
+            updateViaCache: 'none',
+          });
+        }
+
+        // Force an update check ASAP (replaces old buggy SW)
+        try {
+          await reg.update();
+        } catch (e) {
+          console.log('Service worker update check failed (non-fatal):', e);
+        }
+
+        console.log('Service worker ready:', reg);
         setRegistration(reg);
-        
+
         // Check if already subscribed
         const existingSub = await reg.pushManager.getSubscription();
         if (existingSub) {
