@@ -10,6 +10,7 @@ import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 
 // Lazy load non-critical components
 const InstallPromptBanner = lazy(() => import("@/components/InstallPromptBanner").then(m => ({ default: m.InstallPromptBanner })));
+const SmartInstallPopup = lazy(() => import("@/components/SmartInstallPopup").then(m => ({ default: m.SmartInstallPopup })));
 const DocumentCompletionNotifier = lazy(() => import("@/components/DocumentCompletionNotifier").then(m => ({ default: m.DocumentCompletionNotifier })));
 
 // Lazy load all pages for better code splitting and LCP
@@ -201,6 +202,7 @@ const App = () => (
             <AppRoutes />
             <Suspense fallback={null}>
               <InstallPromptBanner />
+              <SmartInstallPopup />
             </Suspense>
           </CartProvider>
         </AuthProvider>
