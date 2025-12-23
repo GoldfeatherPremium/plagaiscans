@@ -1,48 +1,90 @@
-// Service Worker for Push Notifications and Offline Support
-// Version 4 - HARD FIX
-// Rules:
-// 1) Navigation requests are NETWORK ONLY and are NOT intercepted with offline UI.
-// 2) Offline page is NEVER used for HTML/page loads.
-// 3) Static assets are cache-first.
+// Service Worker for Push Notifications ONLY
+// Version 5 - HARD FIX: Navigation requests are NEVER intercepted
+// Offline page is NEVER served for HTML/page loads
 
-const STATIC_CACHE_NAME = 'plagaiscans-static-v4';
+const SW_VERSION = 'v5';
+const STATIC_CACHE_NAME = `plagaiscans-static-${SW_VERSION}`;
 
+// Only cache static assets (not HTML)
 const STATIC_ASSETS = [
   '/pwa-icon-192.png',
   '/pwa-icon-512.png',
   '/favicon.png',
-  '/offline.html',
 ];
 
+// Install - cache only static assets
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker v4...');
+  console.log(`[SW ${SW_VERSION}] Installing...`);
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   );
   self.skipWaiting();
 });
 
+// Activate - remove ALL old caches and take control immediately
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker v4...');
+  console.log(`[SW ${SW_VERSION}] Activating...`);
   event.waitUntil(
     caches.keys().then((names) =>
       Promise.all(
-        names
-          .filter((n) => n !== STATIC_CACHE_NAME)
-          .map((n) => caches.delete(n))
+        names.map((name) => {
+          // Delete ALL caches except current static cache
+          if (name !== STATIC_CACHE_NAME) {
+            console.log(`[SW ${SW_VERSION}] Deleting old cache:`, name);
+            return caches.delete(name);
+          }
+        })
       )
-    ).then(() => self.clients.claim())
+    ).then(() => {
+      console.log(`[SW ${SW_VERSION}] Now controlling all clients`);
+      return self.clients.claim();
+    })
   );
 });
 
-function isStaticAssetRequest(request) {
-  const url = new URL(request.url);
-  const pathname = url.pathname;
+// Fetch handler
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
 
-  // Cache-first only for true static assets
+  // 1️⃣ NAVIGATION REQUESTS: NEVER INTERCEPT
+  // Let browser handle directly - no cache, no offline page
+  if (request.mode === 'navigate') {
+    // Do NOT call event.respondWith() - browser handles natively
+    return;
+  }
+
+  // Skip non-GET
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+
+  // Skip cross-origin requests
+  if (url.origin !== self.location.origin) return;
+
+  // Skip API/backend requests
+  if (url.pathname.startsWith('/api/') ||
+      url.pathname.startsWith('/rest/') ||
+      url.pathname.startsWith('/functions/') ||
+      url.pathname.startsWith('/@vite') ||
+      url.pathname.startsWith('/src/') ||
+      url.pathname.startsWith('/node_modules/')) {
+    return;
+  }
+
+  // Skip HTML files entirely
+  if (url.pathname.endsWith('.html') || url.pathname === '/' || !url.pathname.includes('.')) {
+    return;
+  }
+
+  // Only cache-first for static assets (images, fonts)
+  if (isStaticAsset(url.pathname)) {
+    event.respondWith(cacheFirstStatic(request));
+  }
+  // Everything else: network only (no interception)
+});
+
+function isStaticAsset(pathname) {
   return (
-    pathname.endsWith('.css') ||
-    pathname.endsWith('.js') ||
     pathname.endsWith('.png') ||
     pathname.endsWith('.jpg') ||
     pathname.endsWith('.jpeg') ||
@@ -55,84 +97,26 @@ function isStaticAssetRequest(request) {
   );
 }
 
-function shouldBypassServiceWorker(request) {
-  const url = new URL(request.url);
-
-  // Never touch non-GET
-  if (request.method !== 'GET') return true;
-
-  // Never touch navigation in bypass function (handled separately)
-
-  // Never intercept dev server / HMR requests
-  if (url.pathname.startsWith('/@vite') || url.pathname.startsWith('/src/')) return true;
-
-  // Never intercept backend/API requests
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/rest/') || url.pathname.startsWith('/functions/')) return true;
-
-  // Never intercept external requests
-  if (url.origin !== self.location.origin) return true;
-
-  return false;
-}
-
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-
-  // 1️⃣ COMPLETELY BYPASS SERVICE WORKER FOR NAVIGATION
-  // Network only, no cache, no offline UI, no try/catch fallback.
-  if (request.mode === 'navigate') {
-    event.respondWith(fetch(request));
-    return;
-  }
-
-  // Bypass everything else we shouldn't handle
-  if (shouldBypassServiceWorker(request)) return;
-
-  // 5️⃣ Static assets: cache-first (offline allowed via cache only)
-  if (isStaticAssetRequest(request)) {
-    event.respondWith(cacheFirstStatic(request));
-    return;
-  }
-
-  // For any other same-origin GETs (rare): network-only (no offline UI)
-  event.respondWith(fetch(request));
-});
-
 async function cacheFirstStatic(request) {
   const cached = await caches.match(request);
-  if (cached) {
-    // Update in background
-    eventWait(fetchAndCacheStatic(request));
-    return cached;
-  }
+  if (cached) return cached;
 
-  return fetchAndCacheStatic(request);
-}
-
-async function fetchAndCacheStatic(request) {
-  const response = await fetch(request);
-  if (response.ok) {
-    const cache = await caches.open(STATIC_CACHE_NAME);
-    cache.put(request, response.clone());
-  }
-  return response;
-}
-
-function eventWait(promise) {
   try {
-    // no-op helper: safely attach background work
-    // eslint-disable-next-line no-undef
-    self.__bg = self.__bg || [];
-    // eslint-disable-next-line no-undef
-    self.__bg.push(promise);
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(STATIC_CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+    return response;
   } catch {
-    // ignore
+    // Return empty response for failed static assets
+    return new Response('', { status: 404 });
   }
 }
 
-// Push event - handle incoming push notifications
+// Push notification handling
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push notification received:', event);
+  console.log(`[SW ${SW_VERSION}] Push received`);
 
   let data = {
     title: 'PlagaiScans',
@@ -145,36 +129,32 @@ self.addEventListener('push', (event) => {
   if (event.data) {
     try {
       data = { ...data, ...event.data.json() };
-    } catch (e) {
-      console.error('[SW] Error parsing push data:', e);
+    } catch {
       data.body = event.data.text();
     }
   }
 
-  const options = {
-    body: data.body,
-    icon: data.icon || '/pwa-icon-192.png',
-    badge: data.badge || '/pwa-icon-192.png',
-    vibrate: [100, 50, 100],
-    data: data.data || {},
-    actions: [
-      { action: 'open', title: 'Open App' },
-      { action: 'close', title: 'Dismiss' },
-    ],
-    requireInteraction: true,
-    tag: data.tag || 'default',
-    renotify: true,
-  };
-
-  event.waitUntil(self.registration.showNotification(data.title, options));
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: data.icon || '/pwa-icon-192.png',
+      badge: data.badge || '/pwa-icon-192.png',
+      vibrate: [100, 50, 100],
+      data: data.data || {},
+      actions: [
+        { action: 'open', title: 'Open App' },
+        { action: 'close', title: 'Dismiss' },
+      ],
+      requireInteraction: true,
+      tag: data.tag || 'default',
+      renotify: true,
+    })
+  );
 });
 
-// Notification click event - handle user interaction
+// Notification click
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked:', event);
-
   event.notification.close();
-
   if (event.action === 'close') return;
 
   event.waitUntil(
@@ -186,10 +166,9 @@ self.addEventListener('notificationclick', (event) => {
           return;
         }
       }
-      const url = event.notification.data?.url || '/dashboard';
-      return clients.openWindow(url);
+      return clients.openWindow(event.notification.data?.url || '/dashboard');
     })
   );
 });
 
-console.log('[SW] Service worker v4 loaded');
+console.log(`[SW ${SW_VERSION}] Loaded`);

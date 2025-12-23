@@ -2,31 +2,51 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-async function hardResetServiceWorkers() {
+/**
+ * HARD RESET: Unregister ALL service workers and re-register fresh.
+ * This ensures old buggy SWs are completely removed.
+ */
+async function initServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
   try {
-    // Unregister ALL existing service workers (required to purge buggy cached logic)
-    const regs = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(regs.map((r) => r.unregister()));
+    // Step 1: Unregister ALL existing service workers
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    
+    for (const reg of registrations) {
+      console.log('[PWA] Unregistering old SW:', reg.scope);
+      await reg.unregister();
+    }
 
-    // Register the new one fresh
-    await navigator.serviceWorker.register('/sw.js', {
+    // Step 2: Clear ALL caches to remove stale offline pages
+    if ('caches' in window) {
+      const cacheNames = await caches.keys();
+      for (const name of cacheNames) {
+        console.log('[PWA] Deleting cache:', name);
+        await caches.delete(name);
+      }
+    }
+
+    // Step 3: Register our clean service worker
+    const newReg = await navigator.serviceWorker.register('/sw.js', {
       scope: '/',
-      updateViaCache: 'none',
+      updateViaCache: 'none', // Never use cached SW script
     });
 
-    // Ensure it takes control immediately
-    await navigator.serviceWorker.ready;
+    console.log('[PWA] New SW registered:', newReg.scope);
+
+    // Force update check
+    await newReg.update();
+
   } catch (e) {
-    console.log('[PWA] Service worker hard reset failed (non-fatal):', e);
+    console.log('[PWA] Service worker init failed (non-fatal):', e);
   }
 }
 
-// Run after load so it doesn't interfere with first paint
+// Initialize SW after page load (non-blocking)
 if (typeof window !== 'undefined') {
   window.addEventListener('load', () => {
-    void hardResetServiceWorkers();
+    void initServiceWorker();
   });
 }
 
