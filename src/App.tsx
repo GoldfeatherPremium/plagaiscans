@@ -6,14 +6,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
-import { InstallPromptBanner } from "@/components/InstallPromptBanner";
-import { DocumentCompletionNotifier } from "@/components/DocumentCompletionNotifier";
 import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 
-// Eagerly loaded pages (critical path)
-import Landing from "./pages/Landing";
-import Auth from "./pages/Auth";
-import Maintenance from "./pages/Maintenance";
+// Lazy load non-critical components
+const InstallPromptBanner = lazy(() => import("@/components/InstallPromptBanner").then(m => ({ default: m.InstallPromptBanner })));
+const DocumentCompletionNotifier = lazy(() => import("@/components/DocumentCompletionNotifier").then(m => ({ default: m.DocumentCompletionNotifier })));
+
+// Lazy load all pages for better code splitting and LCP
+const Landing = lazy(() => import("./pages/Landing"));
+const Auth = lazy(() => import("./pages/Auth"));
+const Maintenance = lazy(() => import("./pages/Maintenance"));
 
 // Lazy loaded pages (split into separate chunks)
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -193,9 +195,13 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <CartProvider>
-            <DocumentCompletionNotifier />
+            <Suspense fallback={null}>
+              <DocumentCompletionNotifier />
+            </Suspense>
             <AppRoutes />
-            <InstallPromptBanner />
+            <Suspense fallback={null}>
+              <InstallPromptBanner />
+            </Suspense>
           </CartProvider>
         </AuthProvider>
       </BrowserRouter>
