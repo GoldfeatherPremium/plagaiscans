@@ -7,19 +7,24 @@ export const useWhatsApp = () => {
   const [whatsappNumber, setWhatsappNumber] = useState<string>('+447360536649');
 
   useEffect(() => {
-    const fetchWhatsAppNumber = async () => {
-      const { data } = await supabase
-        .from('settings')
-        .select('value')
-        .eq('key', 'whatsapp_number')
-        .maybeSingle();
-      
-      if (data?.value) {
-        setWhatsappNumber(data.value.trim());
-      }
-    };
+    // Defer API call to not block initial render
+    const timeoutId = setTimeout(() => {
+      const fetchWhatsAppNumber = async () => {
+        const { data } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'whatsapp_number')
+          .maybeSingle();
+        
+        if (data?.value) {
+          setWhatsappNumber(data.value.trim());
+        }
+      };
 
-    fetchWhatsAppNumber();
+      fetchWhatsAppNumber();
+    }, 150);
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const openWhatsApp = (credits?: number) => {

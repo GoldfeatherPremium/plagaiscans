@@ -6,7 +6,12 @@ export const useMaintenanceMode = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkMaintenanceMode();
+    // Defer API call to not block initial render
+    const timeoutId = setTimeout(() => {
+      checkMaintenanceMode();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const checkMaintenanceMode = async () => {
