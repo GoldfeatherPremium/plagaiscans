@@ -49,6 +49,7 @@ import StaffPerformance from "./pages/StaffPerformance";
 import CustomerDocumentAnalytics from "./pages/CustomerDocumentAnalytics";
 import Maintenance from "./pages/Maintenance";
 import AdminAIHelper from "./pages/AdminAIHelper";
+import AdminBulkReportUpload from "./pages/AdminBulkReportUpload";
 
 const queryClient = new QueryClient();
 
@@ -166,6 +167,7 @@ const AppRoutes = () => (
     <Route path="/dashboard/overview" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboardOverview /></ProtectedRoute>} />
     <Route path="/dashboard/staff-performance" element={<ProtectedRoute allowedRoles={['admin']}><StaffPerformance /></ProtectedRoute>} />
     <Route path="/dashboard/ai-helper" element={<ProtectedRoute allowedRoles={['admin']}><AdminAIHelper /></ProtectedRoute>} />
+    <Route path="/dashboard/bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminBulkReportUpload /></ProtectedRoute>} />
     <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
     
     <Route path="*" element={<NotFound />} />

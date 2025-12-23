@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.ai-admin-helper]
 verify_jwt = false
+
+[functions.bulk-report-upload]
+verify_jwt = false

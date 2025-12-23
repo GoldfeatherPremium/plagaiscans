@@ -37,6 +37,7 @@ import {
   Search,
   ExternalLink,
   Bot,
+  FileStack,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -305,6 +306,7 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/queue', icon: FileCheck, label: 'Queue', badgeKey: 'pendingDocuments' },
         { to: '/dashboard/documents', icon: FileText, label: 'All Documents' },
         { to: '/dashboard/magic-links', icon: Upload, label: 'Magic Links' },
+        { to: '/dashboard/bulk-upload', icon: FileStack, label: 'Bulk Upload' },
       ],
     },
     {
