@@ -1,9 +1,9 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
@@ -95,10 +95,14 @@ const ProtectedRoute = ({ children, allowedRoles, bypassMaintenance = false }: {
 
 const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  const { isMaintenanceMode, loading: maintenanceLoading } = useMaintenanceMode();
+  const { loading: maintenanceLoading } = useMaintenanceMode();
   const location = useLocation();
 
-  const isResetFlow = new URLSearchParams(location.search).get("reset") === "true";
+  const searchReset = new URLSearchParams(location.search).get("reset") === "true";
+  const hashParams = new URLSearchParams(location.hash?.startsWith("#") ? location.hash.slice(1) : "");
+  const hashRecovery = hashParams.get("type") === "recovery";
+
+  const isResetFlow = searchReset || hashRecovery;
 
   if (loading || maintenanceLoading) {
     return <PageLoader />;
@@ -119,21 +123,39 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
 // Wrapper for public routes that should show maintenance page
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isMaintenanceMode, loading } = useMaintenanceMode();
-  
+
   if (loading) {
     return <PageLoader />;
   }
-  
+
   // Show maintenance page for public routes during maintenance
   if (isMaintenanceMode) {
     return <Maintenance />;
   }
-  
+
   return <>{children}</>;
+};
+
+// If a recovery link lands on the wrong route, force it to the dedicated reset page.
+const RecoveryLinkRedirect = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const hashParams = new URLSearchParams(location.hash?.startsWith("#") ? location.hash.slice(1) : "");
+    const isRecovery = hashParams.get("type") === "recovery";
+
+    if (isRecovery && location.pathname !== "/reset-password") {
+      navigate(`/reset-password${location.hash}`, { replace: true });
+    }
+  }, [location.hash, location.pathname, navigate]);
+
+  return null;
 };
 
 const AppRoutes = () => (
   <Suspense fallback={<PageLoader />}>
+    <RecoveryLinkRedirect />
     <Routes>
       <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
       <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
