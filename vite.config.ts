@@ -16,17 +16,19 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: "script-defer",
-      includeAssets: ["favicon.png", "robots.txt", "pwa-icon-192.png", "pwa-icon-512.png"],
+      includeAssets: ["favicon.png", "robots.txt", "pwa-icon-192.png", "pwa-icon-512.png", "offline.html"],
       manifest: {
-        name: "PlagaiScans - Plagiarism & AI Detection",
-        short_name: "PlagaiScans",
+        name: "Plagaiscans",
+        short_name: "Plagaiscans",
         description: "Professional Turnitin plagiarism checker and AI content detection service",
         theme_color: "#0f172a",
-        background_color: "#0f172a",
+        background_color: "#ffffff",
         display: "standalone",
         orientation: "portrait",
         scope: "/",
         start_url: "/",
+        id: "/",
+        categories: ["education", "productivity"],
         icons: [
           {
             src: "/pwa-icon-192.png",
@@ -52,10 +54,26 @@ export default defineConfig(({ mode }) => ({
             type: "image/png",
             purpose: "maskable"
           }
+        ],
+        screenshots: [
+          {
+            src: "/pwa-icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            form_factor: "wide"
+          },
+          {
+            src: "/pwa-icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            form_factor: "narrow"
+          }
         ]
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        navigateFallback: "/offline.html",
+        navigateFallbackDenylist: [/^\/api/, /^\/supabase/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -64,6 +82,20 @@ export default defineConfig(({ mode }) => ({
               cacheName: "google-fonts-cache",
               expiration: {
                 maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "google-fonts-webfonts",
+              expiration: {
+                maxEntries: 30,
                 maxAgeSeconds: 60 * 60 * 24 * 365
               },
               cacheableResponse: {
