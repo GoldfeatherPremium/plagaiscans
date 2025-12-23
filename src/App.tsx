@@ -16,6 +16,7 @@ const DocumentCompletionNotifier = lazy(() => import("@/components/DocumentCompl
 // Lazy load all pages for better code splitting and LCP
 const Landing = lazy(() => import("./pages/Landing"));
 const Auth = lazy(() => import("./pages/Auth"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Maintenance = lazy(() => import("./pages/Maintenance"));
 
 // Lazy loaded pages (split into separate chunks)
@@ -132,6 +133,8 @@ const AppRoutes = () => (
     <Routes>
       <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
       <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
+      {/* Password reset page - bypasses auth checks to allow password change */}
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/install" element={<Install />} />
       <Route path="/guest-upload" element={<PublicRoute><GuestUpload /></PublicRoute>} />
       
