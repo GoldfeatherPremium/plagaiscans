@@ -60,7 +60,7 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-blue-700 rounded-lg flex items-center justify-center">
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-semibold text-gray-900">PlagaiScans</span>
@@ -68,7 +68,7 @@ const Landing = () => {
             <div className="flex items-center gap-4">
               {user ? (
                 <Link to="/dashboard">
-                  <Button className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-6">
+                  <Button className="bg-blue-700 hover:bg-blue-800 text-white rounded-full px-6">
                     Dashboard
                   </Button>
                 </Link>
@@ -78,7 +78,7 @@ const Landing = () => {
                     Login
                   </Link>
                   <Link to="/auth">
-                    <Button className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-6">
+                    <Button className="bg-blue-700 hover:bg-blue-800 text-white rounded-full px-6">
                       Get Started
                     </Button>
                   </Link>
@@ -94,7 +94,7 @@ const Landing = () => {
         <div className="max-w-4xl mx-auto text-center">
           {/* Trust Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-full border border-gray-200 mb-8">
-            <Sparkles className="w-4 h-4 text-blue-500" />
+            <Sparkles className="w-4 h-4 text-blue-700" />
             <span className="text-sm text-gray-600">Trusted by 10,000+ academics & researchers</span>
           </div>
 
@@ -123,7 +123,7 @@ const Landing = () => {
           {/* CTA Button */}
           <div>
             <Link to="/auth">
-              <Button className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-8 py-6 text-lg font-medium">
+              <Button className="bg-blue-700 hover:bg-blue-800 text-white rounded-full px-8 py-6 text-lg font-medium">
                 Start Checking
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
@@ -151,7 +151,7 @@ const Landing = () => {
                 className="bg-white rounded-xl p-6 border border-gray-100 hover:shadow-lg transition-shadow"
               >
                 <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-4">
-                  <feature.icon className="w-6 h-6 text-blue-500" />
+                  <feature.icon className="w-6 h-6 text-blue-700" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   {feature.title}
@@ -180,7 +180,7 @@ const Landing = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {steps.map((step, index) => (
               <div key={index} className="text-center">
-                <div className="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">
+                <div className="w-12 h-12 bg-blue-700 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">
                   {step.number}
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -205,7 +205,7 @@ const Landing = () => {
             Join thousands of users who trust PlagaiScans for accurate plagiarism and AI detection.
           </p>
           <Link to="/auth">
-            <Button className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-8 py-6 text-lg font-medium">
+            <Button className="bg-blue-700 hover:bg-blue-800 text-white rounded-full px-8 py-6 text-lg font-medium">
               Get Started Free
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
@@ -216,7 +216,7 @@ const Landing = () => {
       {/* Footer */}
       <footer className="py-8 px-4 border-t border-gray-100 bg-white">
         <div className="max-w-6xl mx-auto text-center">
-          <p className="text-gray-400 text-sm">
+          <p className="text-gray-600 text-sm">
             © {new Date().getFullYear()} PlagaiScans. All rights reserved.
           </p>
         </div>
