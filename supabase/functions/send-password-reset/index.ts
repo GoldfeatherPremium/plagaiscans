@@ -163,20 +163,9 @@ const handler = async (req: Request): Promise<Response> => {
     // Generate password reset link using Supabase Auth
     // IMPORTANT: Redirect to /reset-password page, NOT /auth
     // This ensures the user sees the password reset form and cannot bypass it
-    const headerOrigin = req.headers.get("origin");
-    const headerReferer = req.headers.get("referer");
-
-    let siteUrl = headerOrigin;
-    if (!siteUrl && headerReferer) {
-      try {
-        siteUrl = new URL(headerReferer).origin;
-      } catch {
-        // ignore
-      }
-    }
-
-    // Final fallback (should be set in the backend environment)
-    siteUrl = siteUrl || Deno.env.get("SITE_URL") || "https://plagaiscans.lovable.app";
+    // IMPORTANT: always use the canonical public site URL for the redirect.
+    // Using request Origin/Referer can point to the preview domain, which breaks production flows.
+    const siteUrl = Deno.env.get("SITE_URL") || "https://plagaiscans.com";
 
     const { data: resetData, error: resetError } = await supabase.auth.admin.generateLink({
       type: "recovery",
