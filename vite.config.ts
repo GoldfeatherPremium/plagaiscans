@@ -14,13 +14,17 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      // IMPORTANT: use our custom service worker (public/sw.js) so there is only ONE SW.
-      // This prevents Workbox navigateFallback from showing offline.html while online.
-      strategies: 'injectManifest',
-      injectRegister: 'script-defer',
+      // DISABLE auto service worker generation - we use our own public/sw.js
+      // This ensures only ONE service worker exists and no Workbox navigateFallback
+      selfDestroying: false,
       registerType: 'autoUpdate',
+      injectRegister: false, // We register manually in main.tsx
+      strategies: 'injectManifest',
+      srcDir: 'public',
+      filename: 'sw.js',
       injectManifest: {
-        swSrc: 'public/sw.js',
+        // Don't inject anything - we handle everything ourselves
+        injectionPoint: undefined,
       },
       includeAssets: [
         'favicon.png',
@@ -83,7 +87,7 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       devOptions: {
-        enabled: true,
+        enabled: false, // Disable SW in dev to avoid caching issues
       },
     }),
   ].filter(Boolean),
