@@ -52,11 +52,28 @@ interface ProcessingResult {
   };
 }
 
-function normalizeFilename(filename: string): string {
+/**
+ * Normalize REPORT filename (removes extension + ONLY the LAST trailing " (number)").
+ * This matches reports to customer documents that may have earlier brackets.
+ * 
+ * Examples:
+ *   fileA1 (1).pdf → fileA1 (matches customer's "fileA1.pdf")
+ *   fileA1 (1) (1).pdf → fileA1 (1) (matches customer's "fileA1 (1).pdf")
+ *   fileA1 (1) (2).pdf → fileA1 (1) (matches customer's "fileA1 (1).pdf")
+ *   fileA1.pdf → fileA1 (exact match for customer's "fileA1.pdf")
+ */
+function normalizeReportFilename(filename: string): string {
   let result = filename.toLowerCase();
+  // Remove file extension
   result = result.replace(/\.[^.]+$/, '');
-  result = result.replace(/\s*\(\d+\)\s*$/, '');
+  // Remove ONLY the last trailing " (number)" suffix - single pass
+  result = result.replace(/\s*\(\d+\)$/, '');
   return result.trim();
+}
+
+// Alias for display purposes
+function normalizeFilename(filename: string): string {
+  return normalizeReportFilename(filename);
 }
 
 export default function AdminBulkReportUpload() {
