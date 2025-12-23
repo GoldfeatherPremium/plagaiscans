@@ -110,38 +110,53 @@ self.addEventListener('fetch', (event) => {
 
 // Network-first strategy for navigation (critical for pull-to-refresh)
 async function handleNavigationRequest(request) {
+  // Force a real network revalidation on refresh/navigation
+  const networkRequest = new Request(request.url, {
+    method: request.method,
+    headers: request.headers,
+    mode: request.mode,
+    credentials: request.credentials,
+    redirect: request.redirect,
+    // Chrome respects this for navigation-style fetches
+    cache: 'reload',
+  });
+
   try {
     // Always try network first for navigation
-    const networkResponse = await fetch(request);
-    
+    const networkResponse = await fetch(networkRequest);
+
     // Cache successful responses for offline fallback
     if (networkResponse.ok) {
       const cache = await caches.open(CACHE_NAME);
       cache.put(request, networkResponse.clone());
     }
-    
+
     return networkResponse;
   } catch (error) {
-    console.log('[SW] Navigation fetch failed, trying cache:', error.message);
-    
+    const message = error instanceof Error ? error.message : String(error);
+    console.log('[SW] Navigation fetch failed, trying cache:', message);
+
     // Network failed - try cache
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
       console.log('[SW] Returning cached navigation response');
       return cachedResponse;
     }
-    
-    // No cache - return offline page as last resort
-    console.log('[SW] No cache available, returning offline page');
-    const offlineResponse = await caches.match('/offline.html');
-    if (offlineResponse) {
-      return offlineResponse;
+
+    // IMPORTANT: only show offline page when the device is actually offline.
+    // This prevents false offline screens during flaky pull-to-refresh.
+    const isOffline = self.navigator && self.navigator.onLine === false;
+    if (isOffline) {
+      console.log('[SW] Device offline, returning offline page');
+      const offlineResponse = await caches.match('/offline.html');
+      if (offlineResponse) return offlineResponse;
     }
-    
-    // If offline page is also not cached, return a basic error response
-    return new Response('You are offline and no cached content is available.', {
-      status: 503,
-      statusText: 'Service Unavailable',
+
+    // If we're "online" but the fetch failed, return a proper error response (not offline page)
+    // so the browser can retry normally.
+    return new Response('Network error. Please try again.', {
+      status: 504,
+      statusText: 'Gateway Timeout',
       headers: { 'Content-Type': 'text/plain' },
     });
   }
