@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,64 +8,71 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { InstallPromptBanner } from "@/components/InstallPromptBanner";
 import { DocumentCompletionNotifier } from "@/components/DocumentCompletionNotifier";
-import { MaintenanceBanner } from "@/components/MaintenanceBanner";
 import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
+
+// Eagerly loaded pages (critical path)
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
-import UploadDocument from "./pages/UploadDocument";
-import MyDocuments from "./pages/MyDocuments";
-import BuyCredits from "./pages/BuyCredits";
-import PaymentHistory from "./pages/PaymentHistory";
-import DocumentQueue from "./pages/DocumentQueue";
-import AdminUsers from "./pages/AdminUsers";
-import AdminAnalytics from "./pages/AdminAnalytics";
-import AdminSettings from "./pages/AdminSettings";
-import AdminPricing from "./pages/AdminPricing";
-import AdminMagicLinks from "./pages/AdminMagicLinks";
-import AdminActivityLogs from "./pages/AdminActivityLogs";
-import AdminSystemHealth from "./pages/AdminSystemHealth";
-import AdminRevenue from "./pages/AdminRevenue";
-import AdminReports from "./pages/AdminReports";
-import AdminPromoCodes from "./pages/AdminPromoCodes";
-import AdminAnnouncements from "./pages/AdminAnnouncements";
-import AdminNotifications from "./pages/AdminNotifications";
-import AdminSupportTickets from "./pages/AdminSupportTickets";
-import AdminBlockedUsers from "./pages/AdminBlockedUsers";
-import AdminCryptoPayments from "./pages/AdminCryptoPayments";
-import AdminManualPayments from "./pages/AdminManualPayments";
-import AdminVivaPayments from "./pages/AdminVivaPayments";
-import AdminStaffPermissions from "./pages/AdminStaffPermissions";
-import AdminEmails from "./pages/AdminEmails";
-import StaffStats from "./pages/StaffStats";
-import StaffProcessed from "./pages/StaffProcessed";
-import Profile from "./pages/Profile";
-import AdminStaffWork from "./pages/AdminStaffWork";
-import GuestUpload from "./pages/GuestUpload";
-import Install from "./pages/Install";
-import NotFound from "./pages/NotFound";
-import Checkout from "./pages/Checkout";
-import AdminDashboardOverview from "./pages/AdminDashboardOverview";
-import StaffPerformance from "./pages/StaffPerformance";
-import CustomerDocumentAnalytics from "./pages/CustomerDocumentAnalytics";
 import Maintenance from "./pages/Maintenance";
-import AdminAIHelper from "./pages/AdminAIHelper";
-import AdminBulkReportUpload from "./pages/AdminBulkReportUpload";
-import AdminUnmatchedReports from "./pages/AdminUnmatchedReports";
-import AdminNeedsReview from "./pages/AdminNeedsReview";
+
+// Lazy loaded pages (split into separate chunks)
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const UploadDocument = lazy(() => import("./pages/UploadDocument"));
+const MyDocuments = lazy(() => import("./pages/MyDocuments"));
+const BuyCredits = lazy(() => import("./pages/BuyCredits"));
+const PaymentHistory = lazy(() => import("./pages/PaymentHistory"));
+const DocumentQueue = lazy(() => import("./pages/DocumentQueue"));
+const AdminUsers = lazy(() => import("./pages/AdminUsers"));
+const AdminAnalytics = lazy(() => import("./pages/AdminAnalytics"));
+const AdminSettings = lazy(() => import("./pages/AdminSettings"));
+const AdminPricing = lazy(() => import("./pages/AdminPricing"));
+const AdminMagicLinks = lazy(() => import("./pages/AdminMagicLinks"));
+const AdminActivityLogs = lazy(() => import("./pages/AdminActivityLogs"));
+const AdminSystemHealth = lazy(() => import("./pages/AdminSystemHealth"));
+const AdminRevenue = lazy(() => import("./pages/AdminRevenue"));
+const AdminReports = lazy(() => import("./pages/AdminReports"));
+const AdminPromoCodes = lazy(() => import("./pages/AdminPromoCodes"));
+const AdminAnnouncements = lazy(() => import("./pages/AdminAnnouncements"));
+const AdminNotifications = lazy(() => import("./pages/AdminNotifications"));
+const AdminSupportTickets = lazy(() => import("./pages/AdminSupportTickets"));
+const AdminBlockedUsers = lazy(() => import("./pages/AdminBlockedUsers"));
+const AdminCryptoPayments = lazy(() => import("./pages/AdminCryptoPayments"));
+const AdminManualPayments = lazy(() => import("./pages/AdminManualPayments"));
+const AdminVivaPayments = lazy(() => import("./pages/AdminVivaPayments"));
+const AdminStaffPermissions = lazy(() => import("./pages/AdminStaffPermissions"));
+const AdminEmails = lazy(() => import("./pages/AdminEmails"));
+const StaffStats = lazy(() => import("./pages/StaffStats"));
+const StaffProcessed = lazy(() => import("./pages/StaffProcessed"));
+const Profile = lazy(() => import("./pages/Profile"));
+const AdminStaffWork = lazy(() => import("./pages/AdminStaffWork"));
+const GuestUpload = lazy(() => import("./pages/GuestUpload"));
+const Install = lazy(() => import("./pages/Install"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+const AdminDashboardOverview = lazy(() => import("./pages/AdminDashboardOverview"));
+const StaffPerformance = lazy(() => import("./pages/StaffPerformance"));
+const CustomerDocumentAnalytics = lazy(() => import("./pages/CustomerDocumentAnalytics"));
+const AdminAIHelper = lazy(() => import("./pages/AdminAIHelper"));
+const AdminBulkReportUpload = lazy(() => import("./pages/AdminBulkReportUpload"));
+const AdminUnmatchedReports = lazy(() => import("./pages/AdminUnmatchedReports"));
+const AdminNeedsReview = lazy(() => import("./pages/AdminNeedsReview"));
+const ReferralProgram = lazy(() => import("./pages/ReferralProgram"));
 
 const queryClient = new QueryClient();
+
+// Loading spinner component for Suspense fallback
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+  </div>
+);
 
 const ProtectedRoute = ({ children, allowedRoles, bypassMaintenance = false }: { children: React.ReactNode; allowedRoles?: string[]; bypassMaintenance?: boolean }) => {
   const { user, role, loading } = useAuth();
   const { isMaintenanceMode, loading: maintenanceLoading } = useMaintenanceMode();
   
   if (loading || maintenanceLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
+    return <PageLoader />;
   }
   
   if (!user) return <Navigate to="/auth" replace />;
@@ -86,11 +94,7 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { isMaintenanceMode, loading: maintenanceLoading } = useMaintenanceMode();
   
   if (loading || maintenanceLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
+    return <PageLoader />;
   }
   
   // If user is logged in, check their role before redirecting
@@ -109,11 +113,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isMaintenanceMode, loading } = useMaintenanceMode();
   
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
+    return <PageLoader />;
   }
   
   // Show maintenance page for public routes during maintenance
@@ -125,58 +125,65 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const AppRoutes = () => (
-  <Routes>
-    <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
-    <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
-    <Route path="/install" element={<Install />} />
-    <Route path="/guest-upload" element={<PublicRoute><GuestUpload /></PublicRoute>} />
-    
-    {/* Customer Routes */}
-    <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-    <Route path="/dashboard/upload" element={<ProtectedRoute allowedRoles={['customer']}><UploadDocument /></ProtectedRoute>} />
-    <Route path="/dashboard/documents" element={<ProtectedRoute><MyDocuments /></ProtectedRoute>} />
-    <Route path="/dashboard/credits" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><BuyCredits /></ProtectedRoute>} />
-    <Route path="/dashboard/payments" element={<ProtectedRoute allowedRoles={['customer']}><PaymentHistory /></ProtectedRoute>} />
-    <Route path="/dashboard/checkout" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><Checkout /></ProtectedRoute>} />
-    <Route path="/dashboard/analytics" element={<ProtectedRoute allowedRoles={['customer']}><CustomerDocumentAnalytics /></ProtectedRoute>} />
-    
-    {/* Staff Routes */}
-    <Route path="/dashboard/queue" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><DocumentQueue /></ProtectedRoute>} />
-    <Route path="/dashboard/my-work" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><StaffProcessed /></ProtectedRoute>} />
-    <Route path="/dashboard/stats" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><StaffStats /></ProtectedRoute>} />
-    
-    {/* Admin Routes */}
-    <Route path="/dashboard/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsers /></ProtectedRoute>} />
-    <Route path="/dashboard/analytics" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnalytics /></ProtectedRoute>} />
-    <Route path="/dashboard/pricing" element={<ProtectedRoute allowedRoles={['admin']}><AdminPricing /></ProtectedRoute>} />
-    <Route path="/dashboard/magic-links" element={<ProtectedRoute allowedRoles={['admin']}><AdminMagicLinks /></ProtectedRoute>} />
-    <Route path="/dashboard/settings" element={<ProtectedRoute allowedRoles={['admin']}><AdminSettings /></ProtectedRoute>} />
-    <Route path="/dashboard/staff-work" element={<ProtectedRoute allowedRoles={['admin']}><AdminStaffWork /></ProtectedRoute>} />
-    <Route path="/dashboard/activity-logs" element={<ProtectedRoute allowedRoles={['admin']}><AdminActivityLogs /></ProtectedRoute>} />
-    <Route path="/dashboard/system-health" element={<ProtectedRoute allowedRoles={['admin']}><AdminSystemHealth /></ProtectedRoute>} />
-    <Route path="/dashboard/revenue" element={<ProtectedRoute allowedRoles={['admin']}><AdminRevenue /></ProtectedRoute>} />
-    <Route path="/dashboard/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminReports /></ProtectedRoute>} />
-    <Route path="/dashboard/promo-codes" element={<ProtectedRoute allowedRoles={['admin']}><AdminPromoCodes /></ProtectedRoute>} />
-    <Route path="/dashboard/announcements" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnnouncements /></ProtectedRoute>} />
-    <Route path="/dashboard/notifications" element={<ProtectedRoute allowedRoles={['admin']}><AdminNotifications /></ProtectedRoute>} />
-    <Route path="/dashboard/support-tickets" element={<ProtectedRoute allowedRoles={['admin']}><AdminSupportTickets /></ProtectedRoute>} />
-    <Route path="/dashboard/blocked-users" element={<ProtectedRoute allowedRoles={['admin']}><AdminBlockedUsers /></ProtectedRoute>} />
-    <Route path="/dashboard/crypto-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminCryptoPayments /></ProtectedRoute>} />
-    <Route path="/dashboard/manual-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminManualPayments /></ProtectedRoute>} />
-    <Route path="/dashboard/viva-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminVivaPayments /></ProtectedRoute>} />
-    <Route path="/dashboard/staff-permissions" element={<ProtectedRoute allowedRoles={['admin']}><AdminStaffPermissions /></ProtectedRoute>} />
-    <Route path="/dashboard/emails" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmails /></ProtectedRoute>} />
-    <Route path="/dashboard/overview" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboardOverview /></ProtectedRoute>} />
-    <Route path="/dashboard/staff-performance" element={<ProtectedRoute allowedRoles={['admin']}><StaffPerformance /></ProtectedRoute>} />
-    <Route path="/dashboard/ai-helper" element={<ProtectedRoute allowedRoles={['admin']}><AdminAIHelper /></ProtectedRoute>} />
-    <Route path="/dashboard/bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminBulkReportUpload /></ProtectedRoute>} />
-    <Route path="/dashboard/unmatched-reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminUnmatchedReports /></ProtectedRoute>} />
-    <Route path="/dashboard/needs-review" element={<ProtectedRoute allowedRoles={['admin']}><AdminNeedsReview /></ProtectedRoute>} />
-    <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-    
-    <Route path="*" element={<NotFound />} />
-  </Routes>
+  <Suspense fallback={<PageLoader />}>
+    <Routes>
+      <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
+      <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
+      <Route path="/install" element={<Install />} />
+      <Route path="/guest-upload" element={<PublicRoute><GuestUpload /></PublicRoute>} />
+      
+      {/* Customer Routes */}
+      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/dashboard/upload" element={<ProtectedRoute allowedRoles={['customer']}><UploadDocument /></ProtectedRoute>} />
+      <Route path="/dashboard/documents" element={<ProtectedRoute><MyDocuments /></ProtectedRoute>} />
+      <Route path="/dashboard/credits" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><BuyCredits /></ProtectedRoute>} />
+      <Route path="/dashboard/payments" element={<ProtectedRoute allowedRoles={['customer']}><PaymentHistory /></ProtectedRoute>} />
+      <Route path="/dashboard/checkout" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><Checkout /></ProtectedRoute>} />
+      <Route path="/dashboard/analytics" element={<ProtectedRoute allowedRoles={['customer']}><CustomerDocumentAnalytics /></ProtectedRoute>} />
+      <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['customer']}><ReferralProgram /></ProtectedRoute>} />
+      
+      {/* Staff Routes */}
+      <Route path="/dashboard/queue" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><DocumentQueue /></ProtectedRoute>} />
+      <Route path="/dashboard/my-work" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><StaffProcessed /></ProtectedRoute>} />
+      <Route path="/dashboard/stats" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><StaffStats /></ProtectedRoute>} />
+      
+      {/* Admin Routes */}
+      <Route path="/dashboard/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsers /></ProtectedRoute>} />
+      <Route path="/dashboard/admin-analytics" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnalytics /></ProtectedRoute>} />
+      <Route path="/dashboard/pricing" element={<ProtectedRoute allowedRoles={['admin']}><AdminPricing /></ProtectedRoute>} />
+      <Route path="/dashboard/magic-links" element={<ProtectedRoute allowedRoles={['admin']}><AdminMagicLinks /></ProtectedRoute>} />
+      <Route path="/dashboard/settings" element={<ProtectedRoute allowedRoles={['admin']}><AdminSettings /></ProtectedRoute>} />
+      <Route path="/dashboard/staff-work" element={<ProtectedRoute allowedRoles={['admin']}><AdminStaffWork /></ProtectedRoute>} />
+      <Route path="/dashboard/activity-logs" element={<ProtectedRoute allowedRoles={['admin']}><AdminActivityLogs /></ProtectedRoute>} />
+      <Route path="/dashboard/system-health" element={<ProtectedRoute allowedRoles={['admin']}><AdminSystemHealth /></ProtectedRoute>} />
+      <Route path="/dashboard/revenue" element={<ProtectedRoute allowedRoles={['admin']}><AdminRevenue /></ProtectedRoute>} />
+      <Route path="/dashboard/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminReports /></ProtectedRoute>} />
+      <Route path="/dashboard/promo-codes" element={<ProtectedRoute allowedRoles={['admin']}><AdminPromoCodes /></ProtectedRoute>} />
+      <Route path="/dashboard/announcements" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnnouncements /></ProtectedRoute>} />
+      <Route path="/dashboard/notifications" element={<ProtectedRoute allowedRoles={['admin']}><AdminNotifications /></ProtectedRoute>} />
+      <Route path="/dashboard/support-tickets" element={<ProtectedRoute allowedRoles={['admin']}><AdminSupportTickets /></ProtectedRoute>} />
+      <Route path="/dashboard/blocked-users" element={<ProtectedRoute allowedRoles={['admin']}><AdminBlockedUsers /></ProtectedRoute>} />
+      <Route path="/dashboard/crypto-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminCryptoPayments /></ProtectedRoute>} />
+      <Route path="/dashboard/manual-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminManualPayments /></ProtectedRoute>} />
+      <Route path="/dashboard/viva-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminVivaPayments /></ProtectedRoute>} />
+      <Route path="/dashboard/staff-permissions" element={<ProtectedRoute allowedRoles={['admin']}><AdminStaffPermissions /></ProtectedRoute>} />
+      <Route path="/dashboard/emails" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmails /></ProtectedRoute>} />
+      <Route path="/dashboard/overview" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboardOverview /></ProtectedRoute>} />
+      <Route path="/dashboard/staff-performance" element={<ProtectedRoute allowedRoles={['admin']}><StaffPerformance /></ProtectedRoute>} />
+      <Route path="/dashboard/ai-helper" element={<ProtectedRoute allowedRoles={['admin']}><AdminAIHelper /></ProtectedRoute>} />
+      <Route path="/dashboard/bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminBulkReportUpload /></ProtectedRoute>} />
+      <Route path="/dashboard/unmatched-reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminUnmatchedReports /></ProtectedRoute>} />
+      <Route path="/dashboard/needs-review" element={<ProtectedRoute allowedRoles={['admin']}><AdminNeedsReview /></ProtectedRoute>} />
+      <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['admin']}><AdminReferrals /></ProtectedRoute>} />
+      <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  </Suspense>
 );
+
+// Lazy load AdminReferrals
+const AdminReferrals = lazy(() => import("./pages/AdminReferrals"));
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
