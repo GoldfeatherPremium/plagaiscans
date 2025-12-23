@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,7 +28,6 @@ const resetPasswordSchema = z.object({
 
 export default function ResetPassword() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   
   const [loading, setLoading] = useState(false);
@@ -46,13 +45,32 @@ export default function ResetPassword() {
   useEffect(() => {
     const validateRecoverySession = async () => {
       setValidatingToken(true);
-      
+
       try {
-        // Check if we have a valid session from the recovery link
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
+
+        // If this is a recovery link and we have tokens, establish a session from the URL.
+        // This prevents route-guards (and other pages) from hijacking the flow.
+        if (type === 'recovery' && accessToken && refreshToken) {
+          const { error: setSessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (setSessionError) {
+            setTokenError('Invalid or expired reset link. Please request a new one.');
+            setTokenValid(false);
+            return;
+          }
+        }
+
+        // Check if we now have a valid session from the recovery link
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
+
         if (sessionError) {
-          console.error('Session error:', sessionError);
           setTokenError('Invalid or expired reset link. Please request a new one.');
           setTokenValid(false);
           return;
@@ -65,16 +83,10 @@ export default function ResetPassword() {
           return;
         }
 
-        // Check if this is a recovery session by looking at the URL hash or session type
-        // Supabase recovery links contain tokens in the URL fragment
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const type = hashParams.get('type');
-        
         // If we have a recovery type or a valid session, allow password reset
         if (type === 'recovery' || session) {
           setTokenValid(true);
-          
+
           // Clear the hash from URL for security
           if (window.location.hash) {
             window.history.replaceState(null, '', window.location.pathname);
@@ -83,8 +95,7 @@ export default function ResetPassword() {
           setTokenError('Invalid reset link. Please request a new password reset.');
           setTokenValid(false);
         }
-      } catch (error) {
-        console.error('Error validating recovery session:', error);
+      } catch {
         setTokenError('An error occurred. Please request a new reset link.');
         setTokenValid(false);
       } finally {
