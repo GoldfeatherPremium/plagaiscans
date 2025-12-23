@@ -397,7 +397,10 @@ export type Database = {
           id: string
           is_favorite: boolean | null
           magic_link_id: string | null
+          needs_review: boolean | null
+          normalized_filename: string | null
           remarks: string | null
+          review_reason: string | null
           similarity_percentage: number | null
           similarity_report_path: string | null
           status: Database["public"]["Enums"]["document_status"]
@@ -417,7 +420,10 @@ export type Database = {
           id?: string
           is_favorite?: boolean | null
           magic_link_id?: string | null
+          needs_review?: boolean | null
+          normalized_filename?: string | null
           remarks?: string | null
+          review_reason?: string | null
           similarity_percentage?: number | null
           similarity_report_path?: string | null
           status?: Database["public"]["Enums"]["document_status"]
@@ -437,7 +443,10 @@ export type Database = {
           id?: string
           is_favorite?: boolean | null
           magic_link_id?: string | null
+          needs_review?: boolean | null
+          normalized_filename?: string | null
           remarks?: string | null
+          review_reason?: string | null
           similarity_percentage?: number | null
           similarity_report_path?: string | null
           status?: Database["public"]["Enums"]["document_status"]
@@ -1043,6 +1052,56 @@ export type Database = {
         }
         Relationships: []
       }
+      unmatched_reports: {
+        Row: {
+          file_name: string
+          file_path: string
+          id: string
+          matched_document_id: string | null
+          normalized_filename: string
+          report_type: string | null
+          resolved: boolean | null
+          resolved_at: string | null
+          resolved_by: string | null
+          uploaded_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          file_name: string
+          file_path: string
+          id?: string
+          matched_document_id?: string | null
+          normalized_filename: string
+          report_type?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          file_name?: string
+          file_path?: string
+          id?: string
+          matched_document_id?: string | null
+          normalized_filename?: string
+          report_type?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unmatched_reports_matched_document_id_fkey"
+            columns: ["matched_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usdt_audit_log: {
         Row: {
           action: string
@@ -1369,6 +1428,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      normalize_filename: { Args: { filename: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "staff" | "customer"
