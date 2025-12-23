@@ -143,86 +143,83 @@ export const useDocuments = () => {
   };
 
   const uploadDocument = async (file: File) => {
-    if (!user || !profile) return { success: false };
+    if (!user) return { success: false };
+
+    const fail = (title: string, description: string, error?: unknown) => {
+      if (error) console.error('Upload (single) failed:', { title, description, error });
+      toast({ title, description, variant: 'destructive' });
+      return { success: false };
+    };
 
     try {
-      // Fetch fresh balance from database to prevent race conditions
+      // Always fetch fresh balance from backend (do NOT depend on client profile state)
       const { data: freshProfile, error: profileError } = await supabase
         .from('profiles')
         .select('credit_balance')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        return fail('Upload blocked', 'Could not verify your credits (profile read failed).', profileError);
+      }
+      if (!freshProfile) {
+        return fail('Upload blocked', 'Your account profile is not ready yet. Please sign out and sign in again.', null);
+      }
 
       const currentBalance = freshProfile.credit_balance;
+      const requiredCredits = 1;
 
-      if (currentBalance < 1) {
-        toast({
-          title: 'Insufficient Credits',
-          description: 'You need at least 1 credit to upload a document',
-          variant: 'destructive',
-        });
-        return { success: false };
+      if (currentBalance < requiredCredits) {
+        return fail('Insufficient Credits', `You need ${requiredCredits} credit to upload this document.`, null);
       }
 
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
+      const safeExt = fileExt ? fileExt : 'bin';
+      const fileName = `${Date.now()}.${safeExt}`;
       const filePath = `${user.id}/${fileName}`;
 
-      // Deduct credit FIRST to prevent race conditions
+      // 1) Upload file to storage
+      const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file);
+      if (uploadError) {
+        return fail('Upload failed', `Storage upload failed: ${uploadError.message}`, uploadError);
+      }
+
+      // 2) Create document record
+      const { data: docData, error: insertError } = await supabase
+        .from('documents')
+        .insert({
+          user_id: user.id,
+          file_name: file.name,
+          file_path: filePath,
+          status: 'pending',
+        })
+        .select()
+        .single();
+
+      if (insertError || !docData) {
+        // Cleanup storage if DB insert fails
+        await supabase.storage.from('documents').remove([filePath]);
+        return fail('Upload failed', `Could not create document record: ${insertError?.message ?? 'Unknown error'}`, insertError);
+      }
+
+      // 3) Deduct credit AFTER successful upload + insert
       const newBalance = currentBalance - 1;
-      const { error: updateError, data: updateData } = await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from('profiles')
         .update({ credit_balance: newBalance })
         .eq('id', user.id)
-        .eq('credit_balance', currentBalance) // Optimistic lock - only update if balance hasn't changed
+        .eq('credit_balance', currentBalance) // optimistic lock
         .select('credit_balance')
-        .single();
+        .maybeSingle();
 
       if (updateError || !updateData) {
-        // Balance changed between check and update (race condition), retry
-        toast({
-          title: 'Upload Failed',
-          description: 'Credit balance changed. Please try again.',
-          variant: 'destructive',
-        });
-        return { success: false };
+        // Roll back the document + storage if we couldn't deduct credits safely
+        await supabase.from('documents').delete().eq('id', docData.id);
+        await supabase.storage.from('documents').remove([filePath]);
+        return fail('Upload failed', 'Could not deduct credits (balance changed). Please try again.', updateError);
       }
 
-      // Upload file to storage
-      const { error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        // Refund credit if upload fails
-        await supabase
-          .from('profiles')
-          .update({ credit_balance: currentBalance })
-          .eq('id', user.id);
-        throw uploadError;
-      }
-
-      // Create document record
-      const { data: docData, error: insertError } = await supabase.from('documents').insert({
-        user_id: user.id,
-        file_name: file.name,
-        file_path: filePath,
-        status: 'pending',
-      }).select().single();
-
-      if (insertError) {
-        // Refund credit if insert fails
-        await supabase
-          .from('profiles')
-          .update({ credit_balance: currentBalance })
-          .eq('id', user.id);
-        throw insertError;
-      }
-
-      // Log credit transaction
-      await supabase.from('credit_transactions').insert({
+      const { error: txError } = await supabase.from('credit_transactions').insert({
         user_id: user.id,
         amount: -1,
         balance_before: currentBalance,
@@ -232,62 +229,70 @@ export const useDocuments = () => {
         performed_by: user.id,
       });
 
+      if (txError) {
+        // Non-silent: we already deducted credits; surface clearly.
+        console.error('Credit transaction logging failed:', txError);
+        toast({
+          title: 'Uploaded (with warning)',
+          description: 'Document uploaded, but we could not log the credit transaction. Please contact support.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Success', description: 'Document uploaded successfully' });
+      }
+
       await refreshProfile();
       await fetchDocuments();
 
-      // Trigger push notifications to staff/admin
+      // Trigger push notifications to staff/admin (non-critical)
       try {
         await supabase.functions.invoke('notify-document-upload');
       } catch (err) {
         console.log('Push notification trigger failed (non-critical):', err);
       }
 
-      toast({
-        title: 'Success',
-        description: 'Document uploaded successfully',
-      });
-
       return { success: true };
     } catch (error) {
-      console.error('Error uploading document:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to upload document',
-        variant: 'destructive',
-      });
-      return { success: false };
+      return fail('Upload failed', 'Unexpected error while uploading. Please try again.', error);
     }
   };
 
   const uploadDocuments = async (
     files: File[],
-    onProgress?: (current: number, total: number) => void
+    onProgress?: (current: number, total: number) => void,
+    options?: { uploadType?: 'single' | 'bulk' }
   ): Promise<{ success: number; failed: number }> => {
-    if (!user || !profile) return { success: 0, failed: files.length };
+    if (!user) return { success: 0, failed: files.length };
 
-    // Fetch fresh balance from database to prevent race conditions
+    const uploadType = options?.uploadType ?? 'single';
+
+    const failToast = (title: string, description: string, error?: unknown) => {
+      if (error) console.error(`Upload (${uploadType}) failed:`, { title, description, error });
+      toast({ title, description, variant: 'destructive' });
+    };
+
+    // Validate credits up-front: requiredCredits = number of files
     const { data: freshProfile, error: profileError } = await supabase
       .from('profiles')
       .select('credit_balance')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError) {
-      toast({
-        title: 'Error',
-        description: 'Failed to verify credit balance',
-        variant: 'destructive',
-      });
+      failToast('Upload blocked', 'Could not verify your credits (profile read failed).', profileError);
+      return { success: 0, failed: files.length };
+    }
+
+    if (!freshProfile) {
+      failToast('Upload blocked', 'Your account profile is not ready yet. Please sign out and sign in again.');
       return { success: 0, failed: files.length };
     }
 
     const availableCredits = freshProfile.credit_balance;
-    if (availableCredits < files.length) {
-      toast({
-        title: 'Insufficient Credits',
-        description: `You need ${files.length} credits but only have ${availableCredits}`,
-        variant: 'destructive',
-      });
+    const requiredCredits = files.length;
+
+    if (availableCredits < requiredCredits) {
+      failToast('Insufficient Credits', `You need ${requiredCredits} credits but only have ${availableCredits}.`);
       return { success: 0, failed: files.length };
     }
 
@@ -299,80 +304,67 @@ export const useDocuments = () => {
       onProgress?.(i + 1, files.length);
 
       try {
-        // Fetch current balance fresh for each file to prevent race conditions
+        // Fetch current balance fresh per-file (race-safe)
         const { data: currentProfile, error: balanceError } = await supabase
           .from('profiles')
           .select('credit_balance')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (balanceError) throw balanceError;
+        if (!currentProfile) throw new Error('Profile missing');
 
         const currentBalance = currentProfile.credit_balance;
-
         if (currentBalance < 1) {
-          toast({
-            title: 'Insufficient Credits',
-            description: `Stopped at file ${i + 1}. No more credits available.`,
-            variant: 'destructive',
-          });
-          failedCount += (files.length - i);
+          failToast('Insufficient Credits', `Stopped at file ${i + 1}. No more credits available.`);
+          failedCount += files.length - i;
           break;
         }
 
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}_${i}.${fileExt}`;
+        const safeExt = fileExt ? fileExt : 'bin';
+        const fileName = `${Date.now()}_${i}.${safeExt}`;
         const filePath = `${user.id}/${fileName}`;
 
-        // Deduct credit FIRST with optimistic locking
+        // 1) Upload to storage
+        const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file);
+        if (uploadError) throw uploadError;
+
+        // 2) Create document record
+        const { data: docData, error: insertError } = await supabase
+          .from('documents')
+          .insert({
+            user_id: user.id,
+            file_name: file.name,
+            file_path: filePath,
+            status: 'pending',
+          })
+          .select()
+          .single();
+
+        if (insertError || !docData) {
+          await supabase.storage.from('documents').remove([filePath]);
+          throw insertError ?? new Error('Failed to create document record');
+        }
+
+        // 3) Deduct credit AFTER successful upload + insert
         const newBalance = currentBalance - 1;
-        const { error: updateError, data: updateData } = await supabase
+        const { data: updateData, error: updateError } = await supabase
           .from('profiles')
           .update({ credit_balance: newBalance })
           .eq('id', user.id)
-          .eq('credit_balance', currentBalance) // Optimistic lock
+          .eq('credit_balance', currentBalance)
           .select('credit_balance')
-          .single();
+          .maybeSingle();
 
         if (updateError || !updateData) {
-          // Balance changed, retry this file on next iteration
-          i--; // Retry this file
-          continue;
+          // Roll back this file if we couldn't deduct credits safely
+          await supabase.from('documents').delete().eq('id', docData.id);
+          await supabase.storage.from('documents').remove([filePath]);
+          throw updateError ?? new Error('Credit deduction failed');
         }
 
-        // Upload file to storage
-        const { error: uploadError } = await supabase.storage
-          .from('documents')
-          .upload(filePath, file);
-
-        if (uploadError) {
-          // Refund credit if upload fails
-          await supabase
-            .from('profiles')
-            .update({ credit_balance: currentBalance })
-            .eq('id', user.id);
-          throw uploadError;
-        }
-
-        // Create document record
-        const { error: insertError } = await supabase.from('documents').insert({
-          user_id: user.id,
-          file_name: file.name,
-          file_path: filePath,
-          status: 'pending',
-        });
-
-        if (insertError) {
-          // Refund credit if insert fails
-          await supabase
-            .from('profiles')
-            .update({ credit_balance: currentBalance })
-            .eq('id', user.id);
-          throw insertError;
-        }
-
-        // Log credit transaction
-        await supabase.from('credit_transactions').insert({
+        const { error: txError } = await supabase.from('credit_transactions').insert({
           user_id: user.id,
           amount: -1,
           balance_before: currentBalance,
@@ -382,9 +374,25 @@ export const useDocuments = () => {
           performed_by: user.id,
         });
 
+        if (txError) {
+          // Visible warning; do not silently swallow
+          console.error('Credit transaction logging failed:', txError);
+          toast({
+            title: 'Uploaded (with warning)',
+            description: `Uploaded "${file.name}", but could not log the credit transaction.`,
+            variant: 'destructive',
+          });
+        }
+
         successCount++;
-      } catch (error) {
+      } catch (error: any) {
+        const message = error?.message ?? 'Unknown error';
         console.error(`Error uploading file ${file.name}:`, error);
+        toast({
+          title: 'Upload failed',
+          description: `"${file.name}": ${message}`,
+          variant: 'destructive',
+        });
         failedCount++;
       }
     }
@@ -392,26 +400,19 @@ export const useDocuments = () => {
     await refreshProfile();
     await fetchDocuments();
 
-    // Trigger push notifications to staff/admin for new uploads
     if (successCount > 0) {
       try {
         await supabase.functions.invoke('notify-document-upload');
       } catch (err) {
         console.log('Push notification trigger failed (non-critical):', err);
       }
-    }
 
-    if (successCount > 0) {
       toast({
         title: 'Upload Complete',
-        description: `${successCount} document${successCount !== 1 ? 's' : ''} uploaded successfully${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
+        description: `${successCount} uploaded${failedCount > 0 ? `, ${failedCount} failed` : ''}.`,
       });
     } else {
-      toast({
-        title: 'Upload Failed',
-        description: 'Failed to upload documents',
-        variant: 'destructive',
-      });
+      failToast('Upload Failed', 'No documents were uploaded. Please review the error details above.');
     }
 
     return { success: successCount, failed: failedCount };
