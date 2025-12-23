@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
@@ -96,18 +96,22 @@ const ProtectedRoute = ({ children, allowedRoles, bypassMaintenance = false }: {
 const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   const { isMaintenanceMode, loading: maintenanceLoading } = useMaintenanceMode();
-  
+  const location = useLocation();
+
+  const isResetFlow = new URLSearchParams(location.search).get("reset") === "true";
+
   if (loading || maintenanceLoading) {
     return <PageLoader />;
   }
-  
-  // If user is logged in, check their role before redirecting
-  if (user) {
+
+  // CRITICAL: do not override the password reset flow.
+  // Recovery links may create a temporary session; we must still show the reset UI.
+  if (user && !isResetFlow) {
     // During maintenance, only redirect admins to dashboard
     // Others will be handled by ProtectedRoute's maintenance check
     return <Navigate to="/dashboard" replace />;
   }
-  
+
   // Allow access to auth page even during maintenance (so users can login)
   return <>{children}</>;
 };
