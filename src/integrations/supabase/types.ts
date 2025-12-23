@@ -869,6 +869,57 @@ export type Database = {
         }
         Relationships: []
       }
+      push_notification_logs: {
+        Row: {
+          body: string
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          event_type: string
+          failed_count: number
+          id: string
+          recipient_count: number
+          sent_by: string | null
+          status: string
+          success_count: number
+          target_audience: string
+          target_user_id: string | null
+          title: string
+        }
+        Insert: {
+          body: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          event_type: string
+          failed_count?: number
+          id?: string
+          recipient_count?: number
+          sent_by?: string | null
+          status?: string
+          success_count?: number
+          target_audience?: string
+          target_user_id?: string | null
+          title: string
+        }
+        Update: {
+          body?: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          event_type?: string
+          failed_count?: number
+          id?: string
+          recipient_count?: number
+          sent_by?: string | null
+          status?: string
+          success_count?: number
+          target_audience?: string
+          target_user_id?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
