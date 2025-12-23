@@ -230,16 +230,11 @@ export const useDocuments = () => {
       });
 
       if (txError) {
-        // Non-silent: we already deducted credits; surface clearly.
-        console.error('Credit transaction logging failed:', txError);
-        toast({
-          title: 'Uploaded (with warning)',
-          description: 'Document uploaded, but we could not log the credit transaction. Please contact support.',
-          variant: 'destructive',
-        });
-      } else {
-        toast({ title: 'Success', description: 'Document uploaded successfully' });
+        // Log internally but don't alarm user - upload was successful
+        console.error('Credit transaction logging failed (non-critical):', txError);
       }
+
+      toast({ title: 'Success', description: 'Document uploaded successfully' });
 
       await refreshProfile();
       await fetchDocuments();
@@ -375,13 +370,8 @@ export const useDocuments = () => {
         });
 
         if (txError) {
-          // Visible warning; do not silently swallow
-          console.error('Credit transaction logging failed:', txError);
-          toast({
-            title: 'Uploaded (with warning)',
-            description: `Uploaded "${file.name}", but could not log the credit transaction.`,
-            variant: 'destructive',
-          });
+          // Log internally but don't alarm user - upload was successful
+          console.error('Credit transaction logging failed (non-critical):', txError);
         }
 
         successCount++;
