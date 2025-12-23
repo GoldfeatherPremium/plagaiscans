@@ -14,8 +14,17 @@
     <link rel="canonical" href="https://plagaiscans.com" />
     
     <!-- Preconnect to external origins for faster loading -->
-    <link rel="preconnect" href="https://fyssbzgmhnolazjfwafm.supabase.co" />
+    <link rel="preconnect" href="https://fyssbzgmhnolazjfwafm.supabase.co" crossorigin />
     <link rel="dns-prefetch" href="https://fyssbzgmhnolazjfwafm.supabase.co" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Critical inline CSS for faster FCP -->
+    <style>
+      body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;-webkit-font-smoothing:antialiased}
+      #root{min-height:100vh}
+      .loading-spinner{display:flex;justify-content:center;align-items:center;min-height:100vh}
+    </style>
     
     <!-- PWA Meta Tags -->
     <meta name="mobile-web-app-capable" content="yes" />
