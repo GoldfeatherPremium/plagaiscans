@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -38,44 +38,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRole] = useState<AppRole | null>(null);
   const [profile, setProfile] = useState<AuthContextType['profile']>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Refs to prevent race conditions and duplicate fetches
+  const fetchingRef = useRef(false);
+  const lastFetchedUserIdRef = useRef<string | null>(null);
+  const initializingRef = useRef(true);
 
-  const fetchUserData = async (userId: string) => {
+  const fetchUserData = useCallback(async (userId: string) => {
+    // Prevent duplicate concurrent fetches for the same user
+    if (fetchingRef.current && lastFetchedUserIdRef.current === userId) {
+      return;
+    }
+    
+    fetchingRef.current = true;
+    lastFetchedUserIdRef.current = userId;
+    
     try {
-      // Fetch profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+      // Fetch profile and role in parallel to reduce requests
+      const [profileResult, roleResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle(),
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .maybeSingle()
+      ]);
 
-      if (profileError) throw profileError;
+      if (profileResult.error) throw profileResult.error;
       
-      if (profileData) {
+      if (profileResult.data) {
         setProfile({
-          id: profileData.id,
-          email: profileData.email,
-          full_name: profileData.full_name,
-          phone: profileData.phone,
-          credit_balance: profileData.credit_balance,
+          id: profileResult.data.id,
+          email: profileResult.data.email,
+          full_name: profileResult.data.full_name,
+          phone: profileResult.data.phone,
+          credit_balance: profileResult.data.credit_balance,
         });
       }
 
-      // Fetch role
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (roleError) throw roleError;
+      if (roleResult.error) throw roleResult.error;
       
-      if (roleData) {
-        setRole(roleData.role as AppRole);
+      if (roleResult.data) {
+        setRole(roleResult.data.role as AppRole);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
+    } finally {
+      fetchingRef.current = false;
     }
-  };
+  }, []);
 
   const refreshProfile = async () => {
     if (user) {
@@ -106,35 +121,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [session]);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    // Prevent duplicate initialization
+    if (!initializingRef.current) return;
+    
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      console.log('Auth state change:', event);
       
-      if (session?.user) {
+      // Only update state if there's an actual change
+      setSession(prev => {
+        if (prev?.access_token === currentSession?.access_token) {
+          return prev; // No change, don't trigger re-render
+        }
+        return currentSession;
+      });
+      
+      setUser(currentSession?.user ?? null);
+      
+      if (currentSession?.user) {
+        // Use setTimeout to defer Supabase calls and prevent deadlock
         setTimeout(() => {
-          fetchUserData(session.user.id);
+          fetchUserData(currentSession.user.id);
         }, 0);
       } else {
         setProfile(null);
         setRole(null);
+        lastFetchedUserIdRef.current = null;
       }
       
       setLoading(false);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserData(session.user.id);
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      if (existingSession) {
+        setSession(existingSession);
+        setUser(existingSession.user);
+        fetchUserData(existingSession.user.id);
       }
-      
       setLoading(false);
+      initializingRef.current = false;
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [fetchUserData]);
 
   const signUp = async (email: string, password: string, fullName: string, phone: string) => {
     const redirectUrl = `${window.location.origin}/`;
