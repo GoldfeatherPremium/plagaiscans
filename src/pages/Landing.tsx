@@ -21,7 +21,7 @@ const Landing = () => {
     {
       icon: Clock,
       title: "Fast Processing",
-      description: "Get your detailed reports back within hours, not days",
+      description: "Get your detailed reports back within minutes, not hours",
     },
     {
       icon: Shield,
@@ -112,7 +112,7 @@ const Landing = () => {
           {/* Subtitle */}
           <p className="text-lg text-gray-500 mb-8 max-w-2xl mx-auto">
             Professional document checking service for students, educators, and businesses. 
-            Get detailed similarity and AI detection reports in hours.
+            Get detailed similarity and AI detection reports in minutes.
           </p>
 
           {/* Turnitin Badge */}
