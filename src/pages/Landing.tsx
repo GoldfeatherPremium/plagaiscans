@@ -245,6 +245,10 @@ const Landing = () => {
                   </li>
                   <li className="flex items-center justify-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span>Non-Repository check</span>
+                  </li>
+                  <li className="flex items-center justify-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
                     <span>Similarity report</span>
                   </li>
                   <li className="flex items-center justify-center gap-2">
@@ -288,6 +292,10 @@ const Landing = () => {
                   <li className="flex items-center justify-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
                     <span>10 document checks</span>
+                  </li>
+                  <li className="flex items-center justify-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span>Non-Repository check</span>
                   </li>
                   <li className="flex items-center justify-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
