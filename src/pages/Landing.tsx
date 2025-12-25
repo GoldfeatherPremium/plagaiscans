@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { FileText, Bot, Clock, Shield, ArrowRight, Sparkles } from "lucide-react";
+import { FileText, Bot, Clock, Shield, ArrowRight, Sparkles, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
+import Footer from "@/components/Footer";
 
 const Landing = () => {
   const { user } = useAuth();
@@ -11,7 +12,7 @@ const Landing = () => {
     {
       icon: FileText,
       title: "Similarity Detection",
-      description: "Documents checked against Turnitin's database of billions of academic papers, websites, and publications",
+      description: "Documents checked against billions of academic papers, websites, and publications worldwide",
     },
     {
       icon: Bot,
@@ -111,15 +112,24 @@ const Landing = () => {
 
           {/* Subtitle */}
           <p className="text-lg text-gray-500 mb-8 max-w-2xl mx-auto">
-            Professional document checking service for students, educators, and businesses. 
+            Professional document analysis service for students, educators, and businesses. 
             Get detailed similarity and AI detection reports in minutes.
           </p>
 
-          {/* Turnitin Badge */}
-          <div className="inline-flex items-center gap-2 px-6 py-3 bg-white rounded-lg border border-gray-200 shadow-sm mb-8">
-            <span className="text-red-600 font-bold text-lg">turnitin</span>
-            <span className="text-red-600">®</span>
-            <span className="text-gray-500 ml-2">Powered Database</span>
+          {/* Features List */}
+          <div className="inline-flex flex-wrap justify-center gap-4 mb-8">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              <span>Advanced Similarity Detection</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              <span>AI Content Analysis</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              <span>Detailed PDF Reports</span>
+            </div>
           </div>
 
           {/* CTA Button */}
@@ -216,14 +226,7 @@ const Landing = () => {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="py-8 px-4 border-t border-gray-100 bg-white">
-        <div className="max-w-6xl mx-auto text-center">
-          <p className="text-gray-600 text-sm">
-            © {new Date().getFullYear()} PlagaiScans. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <Footer />
 
       <WhatsAppSupportButton />
     </div>
