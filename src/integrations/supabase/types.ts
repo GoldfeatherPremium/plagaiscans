@@ -1143,7 +1143,6 @@ export type Database = {
       }
       unmatched_reports: {
         Row: {
-          ai_percentage: number | null
           file_name: string
           file_path: string
           id: string
@@ -1153,12 +1152,10 @@ export type Database = {
           resolved: boolean | null
           resolved_at: string | null
           resolved_by: string | null
-          similarity_percentage: number | null
           uploaded_at: string | null
           uploaded_by: string | null
         }
         Insert: {
-          ai_percentage?: number | null
           file_name: string
           file_path: string
           id?: string
@@ -1168,12 +1165,10 @@ export type Database = {
           resolved?: boolean | null
           resolved_at?: string | null
           resolved_by?: string | null
-          similarity_percentage?: number | null
           uploaded_at?: string | null
           uploaded_by?: string | null
         }
         Update: {
-          ai_percentage?: number | null
           file_name?: string
           file_path?: string
           id?: string
@@ -1183,7 +1178,6 @@ export type Database = {
           resolved?: boolean | null
           resolved_at?: string | null
           resolved_by?: string | null
-          similarity_percentage?: number | null
           uploaded_at?: string | null
           uploaded_by?: string | null
         }
