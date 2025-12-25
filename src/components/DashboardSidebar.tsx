@@ -618,9 +618,6 @@ export const DashboardSidebar: React.FC = () => {
             <span className="font-display font-bold text-lg">PlagaiScans</span>
           </Link>
         </div>
-            <span className="font-display font-bold text-lg">PlagaiScans</span>
-          </Link>
-        </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {role === 'admin' ? (
