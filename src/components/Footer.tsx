@@ -9,6 +9,7 @@ const Footer = () => {
       title: "Company",
       links: [
         { label: "About Us", to: "/about-us" },
+        { label: "Pricing", to: "/pricing" },
         { label: "Contact", to: "/contact" },
       ],
     },
@@ -16,7 +17,7 @@ const Footer = () => {
       title: "Legal",
       links: [
         { label: "Privacy Policy", to: "/privacy-policy" },
-        { label: "Terms & Conditions", to: "/terms-and-conditions" },
+        { label: "Terms of Service", to: "/terms-and-conditions" },
         { label: "Refund Policy", to: "/refund-policy" },
       ],
     },
@@ -33,6 +34,9 @@ const Footer = () => {
             </Link>
             <p className="text-muted-foreground max-w-sm mb-4">
               Professional document similarity and AI content detection services for academic integrity.
+            </p>
+            <p className="text-xs text-muted-foreground mb-4">
+              This service is provided for informational and research purposes only.
             </p>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Mail className="h-4 w-4" />
@@ -69,12 +73,18 @@ const Footer = () => {
               © {currentYear} PlagaiScans. All rights reserved.
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              PlagaiScans is operated by Goldfeather Prem Ltd (United Kingdom)
+              Trading Name: PlagaiScans | Legal Entity: Goldfeather Prem Ltd (United Kingdom)
             </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Professional Document Analysis Services
-          </p>
+          <div className="flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
+            <Link to="/pricing" className="hover:text-primary transition-colors">Pricing</Link>
+            <span>•</span>
+            <Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy</Link>
+            <span>•</span>
+            <Link to="/terms-and-conditions" className="hover:text-primary transition-colors">Terms</Link>
+            <span>•</span>
+            <Link to="/refund-policy" className="hover:text-primary transition-colors">Refunds</Link>
+          </div>
         </div>
       </div>
     </footer>

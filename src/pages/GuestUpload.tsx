@@ -719,10 +719,12 @@ export default function GuestUpload() {
       {/* Footer */}
       <footer className="border-t border-border bg-card mt-12">
         <div className="max-w-6xl mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
-          <p>© 2024 PlagaiScans. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} PlagaiScans. All rights reserved.</p>
           <p className="mt-1">
-            Powered by <span className="font-bold text-[#1f4e79]">turnitin</span>
-            <span className="text-[#d9534f]">®</span>
+            Trading Name: PlagaiScans | Legal Entity: Goldfeather Prem Ltd (United Kingdom)
+          </p>
+          <p className="mt-2 text-xs">
+            This service is provided for informational and research purposes only.
           </p>
         </div>
       </footer>
