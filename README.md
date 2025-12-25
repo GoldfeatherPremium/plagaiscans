@@ -1,6 +1,6 @@
 # PlagaiScans
 
-A comprehensive document plagiarism and AI detection platform powered by Turnitin®.
+A comprehensive document similarity and AI content detection platform.
 
 ## 📚 Documentation
 
@@ -16,7 +16,7 @@ For complete platform documentation, see **[DOCUMENTATION.md](./DOCUMENTATION.md
 | [Database Schema](./DOCUMENTATION.md#database-schema) | Tables, columns, and relationships |
 | [Edge Functions](./DOCUMENTATION.md#edge-functions) | Serverless functions documentation |
 | [Security & RLS Policies](./DOCUMENTATION.md#security--rls-policies) | Authentication and row-level security |
-| [Integrations](./DOCUMENTATION.md#integrations) | WhatsApp, Turnitin, Email setup |
+| [Integrations](./DOCUMENTATION.md#integrations) | WhatsApp, Email setup |
 | [UI Components](./DOCUMENTATION.md#ui-components) | Component library overview |
 | [Routes Summary](./DOCUMENTATION.md#routes-summary) | All application routes |
 
@@ -75,4 +75,13 @@ Navigate to **Project > Settings > Domains** and click **Connect Domain**.
 
 ---
 
-**Powered by Turnitin® | Built with Lovable**
+## Legal Information
+
+**Trading Name**: PlagaiScans  
+**Legal Entity**: Goldfeather Prem Ltd (United Kingdom)
+
+**Disclaimer**: This service is provided for informational and research purposes only.
+
+---
+
+**Built with Lovable**
