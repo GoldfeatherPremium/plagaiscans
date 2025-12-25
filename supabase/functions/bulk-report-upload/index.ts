@@ -94,13 +94,30 @@ function extractDocumentKey(filename: string): string {
  * Returns OCR text from page 2 of the PDF
  * OCR.space API is used as it supports direct PDF input
  */
+/**
+ * Convert ArrayBuffer to base64 string without stack overflow
+ * Uses chunked approach to avoid call stack size exceeded error
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 8192; // Process 8KB at a time
+  let binary = '';
+  
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    binary += String.fromCharCode.apply(null, [...chunk]);
+  }
+  
+  return btoa(binary);
+}
+
 async function performOCROnPDF(
   pdfBuffer: ArrayBuffer,
   ocrApiKey: string
 ): Promise<{ success: boolean; text: string; error?: string }> {
   try {
-    // Convert to base64
-    const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
+    // Convert to base64 using chunked approach to avoid stack overflow
+    const base64Pdf = arrayBufferToBase64(pdfBuffer);
     
     // OCR.space API call with PDF file
     // Using filetype=PDF and specifying page 2
