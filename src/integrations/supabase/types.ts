@@ -521,6 +521,41 @@ export type Database = {
         }
         Relationships: []
       }
+      email_send_logs: {
+        Row: {
+          email_log_id: string | null
+          error_message: string | null
+          id: string
+          recipient_id: string
+          sent_at: string | null
+          status: string | null
+        }
+        Insert: {
+          email_log_id?: string | null
+          error_message?: string | null
+          id?: string
+          recipient_id: string
+          sent_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          email_log_id?: string | null
+          error_message?: string | null
+          id?: string
+          recipient_id?: string
+          sent_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_send_logs_email_log_id_fkey"
+            columns: ["email_log_id"]
+            isOneToOne: false
+            referencedRelation: "email_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_settings: {
         Row: {
           category: string
@@ -761,6 +796,7 @@ export type Database = {
           created_at: string
           credit_balance: number
           email: string
+          email_unsubscribed: boolean | null
           full_name: string | null
           id: string
           phone: string | null
@@ -772,6 +808,7 @@ export type Database = {
           created_at?: string
           credit_balance?: number
           email: string
+          email_unsubscribed?: boolean | null
           full_name?: string | null
           id: string
           phone?: string | null
@@ -783,6 +820,7 @@ export type Database = {
           created_at?: string
           credit_balance?: number
           email?: string
+          email_unsubscribed?: boolean | null
           full_name?: string | null
           id?: string
           phone?: string | null

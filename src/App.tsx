@@ -67,6 +67,7 @@ const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const RefundPolicy = lazy(() => import("./pages/RefundPolicy"));
 const ContactPage = lazy(() => import("./pages/Contact"));
 const Pricing = lazy(() => import("./pages/Pricing"));
+const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const queryClient = new QueryClient();
 
 // Loading spinner component for Suspense fallback
@@ -169,6 +170,7 @@ const AppRoutes = () => (
       <Route path="/refund-policy" element={<RefundPolicy />} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/contact" element={<ContactPage />} />
+      <Route path="/unsubscribe" element={<Unsubscribe />} />
       <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
       {/* Password reset page - bypasses auth checks to allow password change */}
       <Route path="/reset-password" element={<ResetPassword />} />
