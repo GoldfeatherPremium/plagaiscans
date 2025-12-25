@@ -348,12 +348,14 @@ serve(async (req: Request) => {
           else if (classification.reportType === 'ai') result.stats.classifiedAsAI++;
           else result.stats.classifiedAsUnknown++;
           
-          // Store in unmatched_reports table
+          // Store in unmatched_reports table with extracted percentages
           await supabase.from('unmatched_reports').insert({
             file_name: report.fileName,
             normalized_filename: docKey,
             file_path: report.filePath,
             report_type: classification.reportType,
+            similarity_percentage: classification.reportType === 'similarity' ? classification.percentage : null,
+            ai_percentage: classification.reportType === 'ai' ? classification.percentage : null,
             uploaded_by: user.id,
           });
         }
@@ -454,6 +456,8 @@ serve(async (req: Request) => {
             normalized_filename: docKey,
             file_path: report.filePath,
             report_type: report.reportType,
+            similarity_percentage: report.reportType === 'similarity' ? report.percentage : null,
+            ai_percentage: report.reportType === 'ai' ? report.percentage : null,
             uploaded_by: user.id,
           });
         }
@@ -512,6 +516,8 @@ serve(async (req: Request) => {
           normalized_filename: docKey,
           file_path: unknownReport.filePath,
           report_type: 'unknown',
+          similarity_percentage: null,
+          ai_percentage: null,
           uploaded_by: user.id,
         });
       }
