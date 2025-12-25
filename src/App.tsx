@@ -61,7 +61,11 @@ const AdminBulkReportUpload = lazy(() => import("./pages/AdminBulkReportUpload")
 const AdminUnmatchedReports = lazy(() => import("./pages/AdminUnmatchedReports"));
 const AdminNeedsReview = lazy(() => import("./pages/AdminNeedsReview"));
 const ReferralProgram = lazy(() => import("./pages/ReferralProgram"));
-
+const AboutUs = lazy(() => import("./pages/AboutUs"));
+const TermsAndConditions = lazy(() => import("./pages/TermsAndConditions"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const RefundPolicy = lazy(() => import("./pages/RefundPolicy"));
+const ContactPage = lazy(() => import("./pages/Contact"));
 const queryClient = new QueryClient();
 
 // Loading spinner component for Suspense fallback
@@ -158,6 +162,11 @@ const AppRoutes = () => (
     <RecoveryLinkRedirect />
     <Routes>
       <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
+      <Route path="/about-us" element={<AboutUs />} />
+      <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/refund-policy" element={<RefundPolicy />} />
+      <Route path="/contact" element={<ContactPage />} />
       <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
       {/* Password reset page - bypasses auth checks to allow password change */}
       <Route path="/reset-password" element={<ResetPassword />} />
