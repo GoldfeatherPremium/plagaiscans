@@ -237,9 +237,7 @@ export default function MyDocuments() {
                       <TableHead>Tags</TableHead>
                       <TableHead>Upload Time</TableHead>
                       <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-center">Similarity %</TableHead>
                       <TableHead className="text-center">Similarity Report</TableHead>
-                      <TableHead className="text-center">AI %</TableHead>
                       <TableHead className="text-center">AI Report</TableHead>
                       <TableHead>Remarks</TableHead>
                       {!isStaffOrAdmin && <TableHead className="text-center">Actions</TableHead>}
@@ -304,15 +302,6 @@ export default function MyDocuments() {
                             <StatusBadge status={doc.status} />
                           </TableCell>
                           <TableCell className="text-center">
-                            {doc.similarity_percentage !== null && doc.similarity_percentage !== undefined ? (
-                              <span className={`font-medium ${doc.similarity_percentage > 20 ? 'text-amber-600' : 'text-green-600'}`}>
-                                {doc.similarity_percentage}%
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center">
                             {doc.similarity_report_path ? (
                               <Button
                                 variant="outline"
@@ -321,15 +310,6 @@ export default function MyDocuments() {
                               >
                                 <Download className="h-4 w-4" />
                               </Button>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {doc.ai_percentage !== null && doc.ai_percentage !== undefined ? (
-                              <span className={`font-medium ${doc.ai_percentage > 20 ? 'text-red-600' : 'text-green-600'}`}>
-                                {doc.ai_percentage}%
-                              </span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}

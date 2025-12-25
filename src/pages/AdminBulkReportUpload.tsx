@@ -54,7 +54,6 @@ interface ProcessingResult {
     classifiedAsSimilarity: number;
     classifiedAsAI: number;
     classifiedAsUnknown: number;
-    classifiedAsUnreadable: number;
   };
 }
 
@@ -256,8 +255,8 @@ export default function AdminBulkReportUpload() {
         f.status === 'uploaded' ? { ...f, status: 'classifying' } : f
       ));
 
-      toast.info('Running OCR on PDF page 2 for classification...', {
-        duration: 10000,
+      toast.info('Analyzing PDF content for classification...', {
+        duration: 5000,
       });
 
       const { data, error } = await supabase.functions.invoke('bulk-report-upload', {
@@ -290,9 +289,6 @@ export default function AdminBulkReportUpload() {
       if (stats.classifiedAsUnknown > 0) {
         toast.warning(`${stats.classifiedAsUnknown} reports could not be classified`);
       }
-      if (stats.classifiedAsUnreadable > 0) {
-        toast.error(`${stats.classifiedAsUnreadable} reports were unreadable (OCR failed)`);
-      }
       if (stats.unmatchedCount > 0) {
         toast.warning(`${stats.unmatchedCount} reports could not be matched`);
       }
@@ -318,8 +314,6 @@ export default function AdminBulkReportUpload() {
         return <FileSearch className="h-3 w-3" />;
       case 'ai':
         return <Brain className="h-3 w-3" />;
-      case 'unreadable':
-        return <AlertCircle className="h-3 w-3" />;
       default:
         return <HelpCircle className="h-3 w-3" />;
     }
@@ -341,13 +335,6 @@ export default function AdminBulkReportUpload() {
           <Badge variant="default" className="bg-purple-600">
             <Brain className="h-3 w-3 mr-1" />
             AI{percentText}
-          </Badge>
-        );
-      case 'unreadable':
-        return (
-          <Badge variant="destructive">
-            <AlertCircle className="h-3 w-3 mr-1" />
-            Unreadable
           </Badge>
         );
       default:
@@ -374,15 +361,13 @@ export default function AdminBulkReportUpload() {
         <Card className="bg-blue-500/10 border-blue-500/20">
           <CardContent className="pt-4">
             <div className="flex gap-3">
-              <FileSearch className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+              <Brain className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-blue-700 dark:text-blue-300 mb-1">OCR-Based Processing</p>
+                <p className="font-medium text-blue-700 dark:text-blue-300 mb-1">Two-Stage Processing</p>
                 <p className="text-muted-foreground">
                   <strong>Stage 1:</strong> Reports are grouped with documents using filename matching (removes extensions and trailing numbers like "(1)").
                   <br />
-                  <strong>Stage 2:</strong> OCR is performed on page 2 of each PDF to extract text.
-                  <br />
-                  <strong>Stage 3:</strong> Text is analyzed to classify as Similarity or AI report and extract percentages.
+                  <strong>Stage 2:</strong> Each PDF is analyzed using AI to classify it as Similarity or AI report and extract percentages.
                 </p>
               </div>
             </div>

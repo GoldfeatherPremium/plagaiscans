@@ -20,8 +20,6 @@ interface UnmatchedReport {
   file_path: string;
   normalized_filename: string;
   report_type: string | null;
-  similarity_percentage: number | null;
-  ai_percentage: number | null;
   uploaded_at: string | null;
   uploaded_by: string | null;
   resolved: boolean | null;
@@ -88,23 +86,11 @@ const AdminUnmatchedReports: React.FC = () => {
       const report = reports?.find(r => r.id === reportId);
       if (!report) throw new Error('Report not found');
 
-      // Update the document with the report and the percentage
-      const updateData: Record<string, unknown> = {};
-      if (reportType === 'similarity') {
-        updateData.similarity_report_path = report.file_path;
-        if (report.similarity_percentage !== null) {
-          updateData.similarity_percentage = report.similarity_percentage;
-        }
-      } else {
-        updateData.ai_report_path = report.file_path;
-        if (report.ai_percentage !== null) {
-          updateData.ai_percentage = report.ai_percentage;
-        }
-      }
-      
+      // Update the document with the report
+      const updateField = reportType === 'similarity' ? 'similarity_report_path' : 'ai_report_path';
       const { error: docError } = await supabase
         .from('documents')
-        .update(updateData)
+        .update({ [updateField]: report.file_path })
         .eq('id', documentId);
       
       if (docError) throw docError;
@@ -265,9 +251,6 @@ const AdminUnmatchedReports: React.FC = () => {
                     <TableRow>
                       <TableHead>File Name</TableHead>
                       <TableHead>Normalized</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="text-center">Similarity %</TableHead>
-                      <TableHead className="text-center">AI %</TableHead>
                       <TableHead>Uploaded</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -281,33 +264,6 @@ const AdminUnmatchedReports: React.FC = () => {
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {report.normalized_filename}
-                        </TableCell>
-                        <TableCell>
-                          {report.report_type ? (
-                            <Badge variant={report.report_type === 'similarity' ? 'default' : report.report_type === 'ai' ? 'secondary' : 'outline'}>
-                              {report.report_type}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {report.similarity_percentage !== null && report.similarity_percentage !== undefined ? (
-                            <span className={`font-medium ${report.similarity_percentage > 20 ? 'text-amber-600' : 'text-green-600'}`}>
-                              {report.similarity_percentage}%
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {report.ai_percentage !== null && report.ai_percentage !== undefined ? (
-                            <span className={`font-medium ${report.ai_percentage > 20 ? 'text-red-600' : 'text-green-600'}`}>
-                              {report.ai_percentage}%
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
                         </TableCell>
                         <TableCell className="text-sm">
                           {report.uploaded_at

@@ -15,15 +15,15 @@ interface ClassifiedReport {
   fileName: string;
   filePath: string;
   documentKey: string;
-  reportType: 'similarity' | 'ai' | 'unknown' | 'unreadable';
+  reportType: 'similarity' | 'ai' | 'unknown';
   percentage: number | null;
-  ocrStatus: 'success' | 'failed' | 'no_text';
+  classificationSource: 'text' | 'ocr' | 'failed';
 }
 
 interface MappingResult {
   documentId: string;
   fileName: string;
-  reportType: 'similarity' | 'ai' | 'unknown' | 'unreadable';
+  reportType: 'similarity' | 'ai' | 'unknown';
   percentage: number | null;
   success: boolean;
   message?: string;
@@ -44,7 +44,6 @@ interface ProcessingResult {
     classifiedAsSimilarity: number;
     classifiedAsAI: number;
     classifiedAsUnknown: number;
-    classifiedAsUnreadable: number;
   };
 }
 
@@ -70,6 +69,7 @@ function extractDocumentKey(filename: string): string {
   result = result.replace(/\.[^.]+$/, '');
   
   // Step 2: Remove ALL trailing "(number)" patterns - keep removing until none left
+  // This handles cases like "file (1) (2)" → "file"
   while (/\s*\(\d+\)\s*$/.test(result)) {
     result = result.replace(/\s*\(\d+\)\s*$/, '');
   }
@@ -78,7 +78,7 @@ function extractDocumentKey(filename: string): string {
   result = result.replace(/^\[([^\]]*)\]$/, '$1');
   result = result.replace(/^\(([^)]*)\)$/, '$1');
   
-  // Also handle [Guest] prefix
+  // Also handle mixed bracket patterns at start
   result = result.replace(/^\[Guest\]\s*/i, '');
   
   // Step 4: Normalize - lowercase and collapse multiple spaces
@@ -89,176 +89,14 @@ function extractDocumentKey(filename: string): string {
 }
 
 /**
- * STAGE 2: Perform OCR on PDF page 2 using OCR.space API
- * 
- * Returns OCR text from page 2 of the PDF
- * OCR.space API is used as it supports direct PDF input
+ * STAGE 2: Classify report type by analyzing PDF content
+ * Uses Gemini Vision API to analyze page 2 of the PDF
  */
-/**
- * Convert ArrayBuffer to base64 string without stack overflow
- * Uses chunked approach to avoid call stack size exceeded error
- */
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 8192; // Process 8KB at a time
-  let binary = '';
-  
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-    binary += String.fromCharCode.apply(null, [...chunk]);
-  }
-  
-  return btoa(binary);
-}
-
-async function performOCROnPDF(
-  pdfBuffer: ArrayBuffer,
-  ocrApiKey: string
-): Promise<{ success: boolean; text: string; error?: string }> {
-  try {
-    // Convert to base64 using chunked approach to avoid stack overflow
-    const base64Pdf = arrayBufferToBase64(pdfBuffer);
-    
-    // OCR.space API call with PDF file
-    // Using filetype=PDF and specifying page 2
-    const formData = new FormData();
-    formData.append('base64Image', `data:application/pdf;base64,${base64Pdf}`);
-    formData.append('apikey', ocrApiKey);
-    formData.append('language', 'eng');
-    formData.append('isOverlayRequired', 'false');
-    formData.append('filetype', 'PDF');
-    formData.append('scale', 'true');
-    formData.append('OCREngine', '2'); // Engine 2 is better for text-heavy documents
-    
-    const response = await fetch('https://api.ocr.space/parse/image', {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      console.error('OCR.space API error:', response.status, await response.text());
-      return { success: false, text: '', error: 'OCR API request failed' };
-    }
-
-    const result = await response.json();
-    console.log('OCR.space response:', JSON.stringify(result).slice(0, 500));
-
-    if (result.IsErroredOnProcessing) {
-      console.error('OCR.space processing error:', result.ErrorMessage);
-      return { success: false, text: '', error: result.ErrorMessage?.[0] || 'OCR processing failed' };
-    }
-
-    // OCR.space returns parsed text for each page
-    // We need page 2 (index 1)
-    const parsedResults = result.ParsedResults || [];
-    
-    if (parsedResults.length === 0) {
-      return { success: false, text: '', error: 'No pages parsed' };
-    }
-
-    // Get page 2 if available, otherwise use page 1
-    const pageIndex = parsedResults.length > 1 ? 1 : 0;
-    const pageText = parsedResults[pageIndex]?.ParsedText || '';
-    
-    if (!pageText || pageText.trim().length < 10) {
-      return { success: true, text: '', error: 'No usable text found' };
-    }
-
-    // Normalize: lowercase and collapse spaces
-    const normalizedText = pageText.toLowerCase().replace(/\s+/g, ' ').trim();
-    
-    return { success: true, text: normalizedText };
-
-  } catch (error) {
-    console.error('OCR error:', error);
-    return { success: false, text: '', error: String(error) };
-  }
-}
-
-/**
- * STAGE 3: Classify report type based on OCR text
- * 
- * STRICT RULES:
- * - Similarity Report: "overall similarity", "match groups", "integrity overview"
- * - AI Report: "detected as ai", "ai writing overview", "detection groups"
- */
-function classifyReportFromText(text: string): 'similarity' | 'ai' | 'unknown' {
-  const normalizedText = text.toLowerCase();
-  
-  // Check for Similarity Report indicators
-  const similarityIndicators = [
-    'overall similarity',
-    'match groups',
-    'integrity overview'
-  ];
-  
-  for (const indicator of similarityIndicators) {
-    if (normalizedText.includes(indicator)) {
-      console.log(`Found similarity indicator: "${indicator}"`);
-      return 'similarity';
-    }
-  }
-  
-  // Check for AI Report indicators
-  const aiIndicators = [
-    'detected as ai',
-    'ai writing overview',
-    'detection groups'
-  ];
-  
-  for (const indicator of aiIndicators) {
-    if (normalizedText.includes(indicator)) {
-      console.log(`Found AI indicator: "${indicator}"`);
-      return 'ai';
-    }
-  }
-  
-  return 'unknown';
-}
-
-/**
- * STAGE 4: Extract percentage from OCR text
- * 
- * Similarity: (\d{1,3})\s*%\s*overall similarity
- * AI: (\d{1,3})\s*%\s*detected as ai
- * Special case: *% detected as AI → null
- */
-function extractPercentage(text: string, reportType: 'similarity' | 'ai'): number | null {
-  const normalizedText = text.toLowerCase();
-  
-  if (reportType === 'similarity') {
-    // Match: X% overall similarity (with flexible spacing)
-    const match = normalizedText.match(/(\d{1,3})\s*%\s*overall\s*similarity/);
-    if (match) {
-      return parseInt(match[1], 10);
-    }
-  } else if (reportType === 'ai') {
-    // Check for asterisk case first
-    if (normalizedText.includes('*%') && normalizedText.includes('detected as ai')) {
-      return null;
-    }
-    // Match: X% detected as ai (with flexible spacing)
-    const match = normalizedText.match(/(\d{1,3})\s*%\s*detected\s*as\s*ai/);
-    if (match) {
-      return parseInt(match[1], 10);
-    }
-  }
-  
-  return null;
-}
-
-/**
- * Full classification pipeline using OCR only
- */
-async function classifyReportWithOCR(
+async function classifyReportWithAI(
   supabase: any,
   filePath: string,
-  ocrApiKey: string
-): Promise<{ 
-  reportType: 'similarity' | 'ai' | 'unknown' | 'unreadable'; 
-  percentage: number | null;
-  ocrStatus: 'success' | 'failed' | 'no_text';
-}> {
+  lovableApiKey: string
+): Promise<{ reportType: 'similarity' | 'ai' | 'unknown'; percentage: number | null; source: 'text' | 'ocr' | 'failed' }> {
   try {
     // Download the PDF from storage
     const { data: fileData, error: downloadError } = await supabase.storage
@@ -267,44 +105,103 @@ async function classifyReportWithOCR(
 
     if (downloadError || !fileData) {
       console.error('Failed to download PDF:', downloadError);
-      return { reportType: 'unreadable', percentage: null, ocrStatus: 'failed' };
+      return { reportType: 'unknown', percentage: null, source: 'failed' };
     }
 
-    // Get PDF as ArrayBuffer
-    const pdfBuffer = await fileData.arrayBuffer();
-    
-    // Perform OCR
-    console.log(`Performing OCR on: ${filePath}`);
-    const ocrResult = await performOCROnPDF(pdfBuffer, ocrApiKey);
-    
-    if (!ocrResult.success) {
-      console.error('OCR failed:', ocrResult.error);
-      return { reportType: 'unreadable', percentage: null, ocrStatus: 'failed' };
+    // Convert PDF to base64
+    const arrayBuffer = await fileData.arrayBuffer();
+    const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+    // Use Gemini Vision API to analyze the PDF
+    const response = await fetch('https://api.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${lovableApiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Analyze page 2 of this PDF report and determine if it's a Similarity Report or an AI Detection Report.
+
+CLASSIFICATION RULES:
+
+SIMILARITY REPORT - If page 2 contains ANY of these phrases:
+- "overall similarity"
+- "match groups"  
+- "integrity overview"
+
+AI REPORT - If page 2 contains ANY of these phrases:
+- "detected as ai"
+- "ai writing overview"
+- "detection groups"
+
+PERCENTAGE EXTRACTION:
+- For Similarity Reports: Find the pattern "X% overall similarity" and extract X
+- For AI Reports: Find the pattern "X% detected as ai" and extract X
+- If AI report shows "*% detected as AI" (asterisk), return null for percentage
+
+Respond with ONLY a JSON object in this exact format:
+{
+  "reportType": "similarity" | "ai" | "unknown",
+  "percentage": number | null,
+  "confidence": "high" | "medium" | "low",
+  "matchedPhrase": "the phrase that matched"
+}
+
+Do not include any other text, just the JSON.`
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:application/pdf;base64,${base64Pdf}`
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 500,
+        temperature: 0.1
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API error:', errorText);
+      return { reportType: 'unknown', percentage: null, source: 'failed' };
     }
-    
-    if (!ocrResult.text || ocrResult.text.length < 10) {
-      console.log('No usable OCR text extracted');
-      return { reportType: 'unreadable', percentage: null, ocrStatus: 'no_text' };
+
+    const result = await response.json();
+    const content = result.choices?.[0]?.message?.content || '';
+
+    console.log('Gemini classification response:', content);
+
+    // Parse the JSON response
+    try {
+      // Extract JSON from response (handle potential markdown code blocks)
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        const reportType = parsed.reportType === 'similarity' ? 'similarity' : 
+                          parsed.reportType === 'ai' ? 'ai' : 'unknown';
+        const percentage = typeof parsed.percentage === 'number' ? parsed.percentage : null;
+        
+        return { reportType, percentage, source: 'ocr' };
+      }
+    } catch (parseError) {
+      console.error('Failed to parse Gemini response:', parseError);
     }
-    
-    console.log(`OCR text (first 500 chars): ${ocrResult.text.slice(0, 500)}`);
-    
-    // Classify based on OCR text
-    const reportType = classifyReportFromText(ocrResult.text);
-    
-    // Extract percentage if classified
-    let percentage: number | null = null;
-    if (reportType === 'similarity' || reportType === 'ai') {
-      percentage = extractPercentage(ocrResult.text, reportType);
-    }
-    
-    console.log(`Classification result: ${reportType}, percentage: ${percentage}`);
-    
-    return { reportType, percentage, ocrStatus: 'success' };
+
+    return { reportType: 'unknown', percentage: null, source: 'failed' };
 
   } catch (error) {
-    console.error('Error in OCR classification:', error);
-    return { reportType: 'unreadable', percentage: null, ocrStatus: 'failed' };
+    console.error('Error in AI classification:', error);
+    return { reportType: 'unknown', percentage: null, source: 'failed' };
   }
 }
 
@@ -317,17 +214,8 @@ serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const ocrApiKey = Deno.env.get('OCR_SPACE_API_KEY');
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Check OCR API key
-    if (!ocrApiKey) {
-      console.error('OCR_SPACE_API_KEY not configured');
-      return new Response(JSON.stringify({ error: 'OCR API key not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
 
     // Get auth header to verify staff/admin
     const authHeader = req.headers.get('Authorization');
@@ -372,7 +260,7 @@ serve(async (req: Request) => {
       });
     }
 
-    console.log(`Processing ${reports.length} reports with OCR-based classification`);
+    console.log(`Processing ${reports.length} reports with new two-stage algorithm`);
 
     // Fetch all pending and in_progress documents
     const { data: documents, error: docError } = await supabase
@@ -432,11 +320,10 @@ serve(async (req: Request) => {
         classifiedAsSimilarity: 0,
         classifiedAsAI: 0,
         classifiedAsUnknown: 0,
-        classifiedAsUnreadable: 0,
       },
     };
 
-    // ============= STAGE 2 & 3: OCR + CLASSIFICATION =============
+    // ============= STAGE 2: REPORT CLASSIFICATION =============
     // Process each group of reports
     for (const [docKey, matchingReports] of reportsByKey) {
       const matchingDocs = docsByKey.get(docKey) || [];
@@ -447,7 +334,7 @@ serve(async (req: Request) => {
       if (matchingDocs.length === 0) {
         for (const report of matchingReports) {
           // Still classify the report for logging
-          const classification = await classifyReportWithOCR(supabase, report.filePath, ocrApiKey);
+          const classification = await classifyReportWithAI(supabase, report.filePath, lovableApiKey);
           
           result.unmatched.push({
             fileName: report.fileName,
@@ -459,21 +346,17 @@ serve(async (req: Request) => {
           // Update stats
           if (classification.reportType === 'similarity') result.stats.classifiedAsSimilarity++;
           else if (classification.reportType === 'ai') result.stats.classifiedAsAI++;
-          else if (classification.reportType === 'unreadable') result.stats.classifiedAsUnreadable++;
           else result.stats.classifiedAsUnknown++;
           
-          // Store in unmatched_reports table with extracted percentages
+          // Store in unmatched_reports table
           await supabase.from('unmatched_reports').insert({
             file_name: report.fileName,
             normalized_filename: docKey,
             file_path: report.filePath,
             report_type: classification.reportType,
-            similarity_percentage: classification.reportType === 'similarity' ? classification.percentage : null,
-            ai_percentage: classification.reportType === 'ai' ? classification.percentage : null,
             uploaded_by: user.id,
           });
         }
-        result.stats.unmatchedCount += matchingReports.length;
         continue;
       }
 
@@ -492,7 +375,6 @@ serve(async (req: Request) => {
             documentId: doc.id,
             reason: 'Multiple documents with same document_key',
           });
-          result.stats.needsReviewCount++;
         }
         
         // Add reports to unmatched
@@ -507,30 +389,28 @@ serve(async (req: Request) => {
             file_name: report.fileName,
             normalized_filename: docKey,
             file_path: report.filePath,
-            report_type: 'unknown',
             uploaded_by: user.id,
           });
         }
-        result.stats.unmatchedCount += matchingReports.length;
         continue;
       }
 
       // Case 3: Exactly one matching document - classify and attach reports
       const doc = matchingDocs[0];
       
-      // Classify each report using OCR
+      // Classify each report using AI/OCR
       const classifiedReports: ClassifiedReport[] = [];
       
       for (const report of matchingReports) {
         console.log(`Classifying report: ${report.fileName}`);
-        const classification = await classifyReportWithOCR(supabase, report.filePath, ocrApiKey);
+        const classification = await classifyReportWithAI(supabase, report.filePath, lovableApiKey);
         
         classifiedReports.push({
           ...report,
           documentKey: docKey,
           reportType: classification.reportType,
           percentage: classification.percentage,
-          ocrStatus: classification.ocrStatus,
+          classificationSource: classification.source,
         });
 
         console.log(`Report "${report.fileName}" classified as: ${classification.reportType} (${classification.percentage}%)`);
@@ -538,14 +418,13 @@ serve(async (req: Request) => {
         // Update stats
         if (classification.reportType === 'similarity') result.stats.classifiedAsSimilarity++;
         else if (classification.reportType === 'ai') result.stats.classifiedAsAI++;
-        else if (classification.reportType === 'unreadable') result.stats.classifiedAsUnreadable++;
         else result.stats.classifiedAsUnknown++;
       }
 
       // Separate reports by type
       const similarityReports = classifiedReports.filter(r => r.reportType === 'similarity');
       const aiReports = classifiedReports.filter(r => r.reportType === 'ai');
-      const unknownReports = classifiedReports.filter(r => r.reportType === 'unknown' || r.reportType === 'unreadable');
+      const unknownReports = classifiedReports.filter(r => r.reportType === 'unknown');
 
       // Check for conflicts (more than one of each type)
       if (similarityReports.length > 1 || aiReports.length > 1) {
@@ -561,7 +440,6 @@ serve(async (req: Request) => {
           documentId: doc.id,
           reason: `Multiple reports of same type detected`,
         });
-        result.stats.needsReviewCount++;
 
         // Store as unmatched
         for (const report of classifiedReports) {
@@ -576,12 +454,9 @@ serve(async (req: Request) => {
             normalized_filename: docKey,
             file_path: report.filePath,
             report_type: report.reportType,
-            similarity_percentage: report.reportType === 'similarity' ? report.percentage : null,
-            ai_percentage: report.reportType === 'ai' ? report.percentage : null,
             uploaded_by: user.id,
           });
         }
-        result.stats.unmatchedCount += classifiedReports.length;
         continue;
       }
 
@@ -624,47 +499,104 @@ serve(async (req: Request) => {
         result.stats.mappedCount++;
       }
 
-      // Handle unknown/unreadable reports - add to unmatched for manual review
+      // Handle unknown reports
       for (const unknownReport of unknownReports) {
         result.unmatched.push({
           fileName: unknownReport.fileName,
           documentKey: docKey,
           filePath: unknownReport.filePath,
-          reportType: unknownReport.reportType,
+          reportType: 'unknown',
         });
         await supabase.from('unmatched_reports').insert({
           file_name: unknownReport.fileName,
           normalized_filename: docKey,
           file_path: unknownReport.filePath,
-          report_type: unknownReport.reportType,
+          report_type: 'unknown',
           uploaded_by: user.id,
         });
-        result.stats.unmatchedCount++;
       }
 
-      // Update document if we have changes
+      // Check if both reports are now attached - mark as completed
+      const willHaveSimilarity = updateData.similarity_report_path || doc.similarity_report_path;
+      const willHaveAI = updateData.ai_report_path || doc.ai_report_path;
+      
+      if (willHaveSimilarity && willHaveAI) {
+        updateData.status = 'completed';
+        updateData.completed_at = new Date().toISOString();
+        result.completedDocuments.push(doc.id);
+        result.stats.completedCount++;
+        console.log(`Document ${doc.id} completed with both reports`);
+      }
+
+      // Apply updates
       if (Object.keys(updateData).length > 0) {
-        // Check if document is now complete (has both reports)
-        const willHaveBothReports = 
-          (updateData.similarity_report_path || doc.similarity_report_path) &&
-          (updateData.ai_report_path || doc.ai_report_path);
-
-        if (willHaveBothReports) {
-          updateData.status = 'completed';
-          updateData.completed_at = new Date().toISOString();
-          result.completedDocuments.push(doc.id);
-          result.stats.completedCount++;
-        }
-
         const { error: updateError } = await supabase
           .from('documents')
           .update(updateData)
           .eq('id', doc.id);
 
         if (updateError) {
-          console.error(`Failed to update document ${doc.id}:`, updateError);
-        } else {
-          console.log(`Updated document ${doc.id} with:`, updateData);
+          console.error(`Error updating document ${doc.id}:`, updateError);
+        }
+      }
+    }
+
+    // Calculate final stats
+    result.stats.unmatchedCount = result.unmatched.length;
+    result.stats.needsReviewCount = result.needsReview.length;
+
+    // Send notifications for completed documents
+    for (const docId of result.completedDocuments) {
+      const { data: completedDoc } = await supabase
+        .from('documents')
+        .select('id, file_name, user_id')
+        .eq('id', docId)
+        .single();
+
+      if (completedDoc?.user_id) {
+        // Create user notification
+        await supabase.from('user_notifications').insert({
+          user_id: completedDoc.user_id,
+          title: 'Document Completed',
+          message: `Your document "${completedDoc.file_name}" has been processed and is ready for download.`,
+          created_by: user.id,
+        });
+
+        // Trigger push notification
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              userId: completedDoc.user_id,
+              title: 'Document Completed',
+              body: `Your document "${completedDoc.file_name}" is ready!`,
+              url: '/my-documents',
+            }),
+          });
+        } catch (pushError) {
+          console.error('Failed to send push notification:', pushError);
+        }
+
+        // Trigger completion email
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/send-completion-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              documentId: docId,
+              userId: completedDoc.user_id,
+              fileName: completedDoc.file_name,
+            }),
+          });
+        } catch (emailError) {
+          console.error('Failed to send completion email:', emailError);
         }
       }
     }
@@ -677,11 +609,9 @@ serve(async (req: Request) => {
     });
 
   } catch (error) {
-    console.error('Error in bulk report upload:', error);
-    return new Response(JSON.stringify({ 
-      error: 'An error occurred during processing',
-      details: String(error)
-    }), {
+    console.error('Error in bulk-report-upload:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
