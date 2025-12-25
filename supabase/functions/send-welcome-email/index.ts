@@ -170,7 +170,7 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             
             <div style="background-color: #f0fdf4; border-radius: 8px; padding: 20px; margin-bottom: 20px; text-align: center;">
-              <p style="margin: 0; color: #166534; font-weight: 600;">We ensure all files are processed in Non-Repository Turnitin Instructor Accounts. Your data will not be saved.</p>
+              <p style="margin: 0; color: #166534; font-weight: 600;">We ensure all files are processed securely in non-repository instructor accounts. Your data will not be saved.</p>
             </div>
             
             <div style="text-align: center;">

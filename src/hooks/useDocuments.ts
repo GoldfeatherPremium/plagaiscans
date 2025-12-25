@@ -683,6 +683,77 @@ export const useDocuments = () => {
     };
   }, [user]);
 
+  const deleteDocument = async (documentId: string, filePath: string, similarityReportPath?: string | null, aiReportPath?: string | null) => {
+    try {
+      // 1. Delete tag assignments first (foreign key constraint)
+      const { error: tagError } = await supabase
+        .from('document_tag_assignments')
+        .delete()
+        .eq('document_id', documentId);
+      
+      if (tagError) {
+        console.error('Error deleting tag assignments:', tagError);
+      }
+
+      // 2. Delete the original uploaded file from storage
+      const { error: fileDeleteError } = await supabase.storage
+        .from('documents')
+        .remove([filePath]);
+      
+      if (fileDeleteError) {
+        console.error('Error deleting original file:', fileDeleteError);
+      }
+
+      // 3. Delete similarity report if exists
+      if (similarityReportPath) {
+        const { error: simReportError } = await supabase.storage
+          .from('reports')
+          .remove([similarityReportPath]);
+        
+        if (simReportError) {
+          console.error('Error deleting similarity report:', simReportError);
+        }
+      }
+
+      // 4. Delete AI report if exists
+      if (aiReportPath) {
+        const { error: aiReportError } = await supabase.storage
+          .from('reports')
+          .remove([aiReportPath]);
+        
+        if (aiReportError) {
+          console.error('Error deleting AI report:', aiReportError);
+        }
+      }
+
+      // 5. Delete the document record from database
+      const { error: docDeleteError } = await supabase
+        .from('documents')
+        .delete()
+        .eq('id', documentId);
+
+      if (docDeleteError) throw docDeleteError;
+
+      // 6. Refresh documents list
+      await fetchDocuments();
+
+      toast({
+        title: 'File deleted successfully',
+        description: 'The document and all associated reports have been permanently removed.',
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete document. Please try again.',
+        variant: 'destructive',
+      });
+      return { success: false };
+    }
+  };
+
   return {
     documents,
     loading,
@@ -693,5 +764,6 @@ export const useDocuments = () => {
     uploadReport,
     fetchDocuments,
     releaseDocument,
+    deleteDocument,
   };
 };

@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => ({
       manifest: {
         name: "Plagaiscans",
         short_name: "Plagaiscans",
-        description: "Professional Turnitin plagiarism checker and AI content detection service",
+        description: "Professional plagiarism checker and AI content detection service",
         theme_color: "#0f172a",
         background_color: "#ffffff",
         display: "standalone",
