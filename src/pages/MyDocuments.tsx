@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
 import { DocumentTagManager } from '@/components/DocumentTagManager';
-import { FileText, Download, Loader2, Star, StarOff, DownloadCloud, Package } from 'lucide-react';
+import { FileText, Download, Loader2, Star, StarOff, DownloadCloud, Package, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -19,14 +19,27 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function MyDocuments() {
-  const { documents, loading, downloadFile } = useDocuments();
+  const { documents, loading, downloadFile, deleteDocument } = useDocuments();
   const { role } = useAuth();
   const { toast } = useToast();
   const isStaffOrAdmin = role === 'staff' || role === 'admin';
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDownloading, setBulkDownloading] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [filters, setFilters] = useState<DocumentFilters>({
     search: '',
     status: 'all',
@@ -108,6 +121,26 @@ export default function MyDocuments() {
     setBulkDownloading(false);
     setSelectedIds(new Set());
     toast({ title: 'Downloads complete!' });
+  };
+
+  const handleDeleteClick = (doc: Document) => {
+    setDocumentToDelete(doc);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!documentToDelete) return;
+    
+    setIsDeleting(true);
+    await deleteDocument(
+      documentToDelete.id,
+      documentToDelete.file_path,
+      documentToDelete.similarity_report_path,
+      documentToDelete.ai_report_path
+    );
+    setIsDeleting(false);
+    setDeleteDialogOpen(false);
+    setDocumentToDelete(null);
   };
 
   const completedCount = filteredDocuments.filter(d => d.status === 'completed').length;
@@ -207,6 +240,7 @@ export default function MyDocuments() {
                       <TableHead className="text-center">Similarity Report</TableHead>
                       <TableHead className="text-center">AI Report</TableHead>
                       <TableHead>Remarks</TableHead>
+                      {!isStaffOrAdmin && <TableHead className="text-center">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -306,6 +340,21 @@ export default function MyDocuments() {
                               <span className="text-sm text-muted-foreground">-</span>
                             )}
                           </TableCell>
+                          {!isStaffOrAdmin && (
+                            <TableCell className="text-center">
+                              {doc.status === 'completed' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() => handleDeleteClick(doc)}
+                                  title="Delete file permanently"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}
@@ -315,6 +364,49 @@ export default function MyDocuments() {
             </CardContent>
           </Card>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete File Permanently?</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2">
+                <p>Are you sure you want to permanently delete this file?</p>
+                {documentToDelete && (
+                  <p className="font-medium text-foreground">"{documentToDelete.file_name}"</p>
+                )}
+                <p className="text-destructive font-medium">This action cannot be undone.</p>
+                <p className="text-sm">This will permanently remove:</p>
+                <ul className="text-sm list-disc list-inside">
+                  <li>The original uploaded file</li>
+                  <li>The similarity report</li>
+                  <li>The AI detection report</li>
+                  <li>All associated data and tags</li>
+                </ul>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Permanently
+                  </>
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
