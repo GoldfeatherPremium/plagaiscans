@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -17,7 +18,12 @@ import {
   Clock, 
   FileWarning,
   Archive,
-  Loader2
+  Loader2,
+  FileCheck,
+  Scan,
+  AlertTriangle,
+  Eye,
+  Percent
 } from 'lucide-react';
 import JSZip from 'jszip';
 
@@ -29,22 +35,49 @@ interface ReportFile {
   error?: string;
 }
 
-interface MappingResult {
-  documentId: string;
+interface ReportClassification {
+  reportType: 'similarity' | 'ai' | 'unknown';
+  percentage: number | null;
+  ocrText: string;
+  isUnreadable: boolean;
+}
+
+interface DryRunReport {
   fileName: string;
-  reportType: 'similarity' | 'ai';
-  success: boolean;
-  message?: string;
+  filePath: string;
+  classification: ReportClassification;
+  action: 'assign_similarity' | 'assign_ai' | 'skip_duplicate' | 'unmatched' | 'needs_review';
+  reason?: string;
+}
+
+interface DryRunResult {
+  documentId: string;
+  documentFileName: string;
+  reports: DryRunReport[];
+  willComplete: boolean;
+  hasConflict: boolean;
+  conflictReason?: string;
+}
+
+interface CommittedResult {
+  documentId: string;
+  similarityAssigned: boolean;
+  aiAssigned: boolean;
+  newStatus: string;
 }
 
 interface ProcessingResult {
   success: boolean;
-  mapped: MappingResult[];
-  unmatched: { fileName: string; normalizedFilename: string; filePath: string }[];
+  dryRun: DryRunResult[];
+  committed: CommittedResult[];
+  unmatched: { fileName: string; normalizedFilename: string; filePath: string; reason: string }[];
   needsReview: { documentId: string; reason: string }[];
-  completedDocuments: string[];
   stats: {
     totalReports: number;
+    similarityDetected: number;
+    aiDetected: number;
+    unknownType: number;
+    unreadable: number;
     mappedCount: number;
     unmatchedCount: number;
     completedCount: number;
@@ -53,27 +86,25 @@ interface ProcessingResult {
 }
 
 /**
- * Normalize REPORT filename (removes extension + ONLY the LAST trailing " (number)").
- * This matches reports to customer documents that may have earlier brackets.
- * 
- * Examples:
- *   fileA1 (1).pdf → fileA1 (matches customer's "fileA1.pdf")
- *   fileA1 (1) (1).pdf → fileA1 (1) (matches customer's "fileA1 (1).pdf")
- *   fileA1 (1) (2).pdf → fileA1 (1) (matches customer's "fileA1 (1).pdf")
- *   fileA1.pdf → fileA1 (exact match for customer's "fileA1.pdf")
+ * Normalize filename:
+ * - Remove file extension
+ * - Remove trailing (number) patterns
+ * - Remove leading brackets
+ * - Normalize spaces and casing
  */
-function normalizeReportFilename(filename: string): string {
-  let result = filename.toLowerCase();
-  // Remove file extension
-  result = result.replace(/\.[^.]+$/, '');
-  // Remove ONLY the last trailing " (number)" suffix - single pass
-  result = result.replace(/\s*\(\d+\)$/, '');
-  return result.trim();
-}
-
-// Alias for display purposes
 function normalizeFilename(filename: string): string {
-  return normalizeReportFilename(filename);
+  let result = filename.toLowerCase();
+  result = result.replace(/\.[^.]+$/, '');
+  result = result.replace(/\s*\(\d+\)\s*$/g, '');
+  if (result.startsWith('(') && result.includes(')')) {
+    result = result.replace(/^\(([^)]+)\)/, '$1');
+  }
+  if (result.startsWith('[') && result.includes(']')) {
+    result = result.replace(/^\[([^\]]+)\]/, '$1');
+  }
+  result = result.replace(/\s+/g, ' ');
+  result = result.trim();
+  return result;
 }
 
 export default function AdminBulkReportUpload() {
@@ -81,6 +112,7 @@ export default function AdminBulkReportUpload() {
   const [dragActive, setDragActive] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [processingStage, setProcessingStage] = useState<string>('');
   const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -167,6 +199,7 @@ export default function AdminBulkReportUpload() {
     setFiles([]);
     setProcessingResult(null);
     setUploadProgress(0);
+    setProcessingStage('');
   };
 
   const uploadAndProcess = async () => {
@@ -178,6 +211,7 @@ export default function AdminBulkReportUpload() {
     setProcessing(true);
     setUploadProgress(0);
     setProcessingResult(null);
+    setProcessingStage('Uploading files...');
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -193,6 +227,7 @@ export default function AdminBulkReportUpload() {
       // Upload each file to storage
       for (let i = 0; i < files.length; i++) {
         const reportFile = files[i];
+        setProcessingStage(`Uploading ${i + 1}/${totalFiles}: ${reportFile.fileName}`);
         setFiles(prev => prev.map((f, idx) => 
           idx === i ? { ...f, status: 'uploading' } : f
         ));
@@ -223,7 +258,7 @@ export default function AdminBulkReportUpload() {
           normalizedFilename: normalizeFilename(reportFile.fileName),
         });
 
-        setUploadProgress(Math.round(((i + 1) / totalFiles) * 50));
+        setUploadProgress(Math.round(((i + 1) / totalFiles) * 30));
       }
 
       if (uploadedReports.length === 0) {
@@ -232,8 +267,9 @@ export default function AdminBulkReportUpload() {
         return;
       }
 
-      // Call edge function for auto-mapping
-      setUploadProgress(60);
+      // Call edge function for OCR-based processing
+      setProcessingStage('Running OCR on page 2 of each report...');
+      setUploadProgress(35);
       
       const { data, error } = await supabase.functions.invoke('bulk-report-upload', {
         body: { reports: uploadedReports },
@@ -246,6 +282,7 @@ export default function AdminBulkReportUpload() {
         return;
       }
 
+      setProcessingStage('Processing complete!');
       setUploadProgress(100);
       setProcessingResult(data as ProcessingResult);
 
@@ -259,12 +296,45 @@ export default function AdminBulkReportUpload() {
       if (stats.needsReviewCount > 0) {
         toast.warning(`${stats.needsReviewCount} documents need manual review`);
       }
+      if (stats.unknownType > 0) {
+        toast.warning(`${stats.unknownType} reports could not be classified`);
+      }
+      if (stats.unreadable > 0) {
+        toast.error(`${stats.unreadable} reports were unreadable (OCR failed)`);
+      }
 
     } catch (error) {
       console.error('Error:', error);
       toast.error('An error occurred during processing');
     } finally {
       setProcessing(false);
+      setProcessingStage('');
+    }
+  };
+
+  const getReportTypeBadge = (reportType: string) => {
+    switch (reportType) {
+      case 'similarity':
+        return <Badge className="bg-blue-600">Similarity</Badge>;
+      case 'ai':
+        return <Badge className="bg-purple-600">AI</Badge>;
+      default:
+        return <Badge variant="secondary">Unknown</Badge>;
+    }
+  };
+
+  const getActionBadge = (action: string) => {
+    switch (action) {
+      case 'assign_similarity':
+        return <Badge className="bg-green-600">→ Similarity</Badge>;
+      case 'assign_ai':
+        return <Badge className="bg-green-600">→ AI</Badge>;
+      case 'skip_duplicate':
+        return <Badge variant="destructive">Duplicate</Badge>;
+      case 'needs_review':
+        return <Badge variant="outline" className="border-amber-500 text-amber-600">Needs Review</Badge>;
+      default:
+        return <Badge variant="secondary">Unknown</Badge>;
     }
   };
 
@@ -277,7 +347,7 @@ export default function AdminBulkReportUpload() {
       <div className="space-y-6">
         <div className="mb-6">
           <h1 className="text-3xl font-bold">Bulk Report Upload</h1>
-          <p className="text-muted-foreground">Upload multiple PDF reports at once for automatic document matching</p>
+          <p className="text-muted-foreground">Upload PDF reports with OCR-based automatic classification and matching</p>
         </div>
 
         {/* Upload Area */}
@@ -288,7 +358,7 @@ export default function AdminBulkReportUpload() {
               Upload Reports
             </CardTitle>
             <CardDescription>
-              Drag and drop PDF files or ZIP archives. Reports will be automatically matched to documents based on filename.
+              Drag and drop PDF files or ZIP archives. Page 2 of each PDF will be OCR-scanned to detect report type (Similarity/AI) and extract percentages.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -415,7 +485,10 @@ export default function AdminBulkReportUpload() {
                 {processing && (
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">Processing...</span>
+                      <span className="text-sm font-medium flex items-center gap-2">
+                        <Scan className="h-4 w-4 animate-pulse" />
+                        {processingStage}
+                      </span>
                       <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
                     </div>
                     <Progress value={uploadProgress} />
@@ -436,8 +509,8 @@ export default function AdminBulkReportUpload() {
                       </>
                     ) : (
                       <>
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload & Auto-Map ({pendingCount} files)
+                        <Scan className="h-4 w-4 mr-2" />
+                        Upload & OCR Process ({pendingCount} files)
                       </>
                     )}
                   </Button>
@@ -451,9 +524,12 @@ export default function AdminBulkReportUpload() {
         {processingResult && (
           <Card>
             <CardHeader>
-              <CardTitle>Processing Results</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <FileCheck className="h-5 w-5" />
+                Processing Results
+              </CardTitle>
               <CardDescription>
-                Summary of the auto-mapping process
+                OCR-based classification and dry-run validation results
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -463,96 +539,265 @@ export default function AdminBulkReportUpload() {
                   <p className="text-2xl font-bold">{processingResult.stats.totalReports}</p>
                   <p className="text-sm text-muted-foreground">Total Reports</p>
                 </div>
-                <div className="text-center p-4 bg-green-500/10 rounded-lg">
-                  <p className="text-2xl font-bold text-green-600">{processingResult.stats.mappedCount}</p>
-                  <p className="text-sm text-muted-foreground">Mapped</p>
-                </div>
                 <div className="text-center p-4 bg-blue-500/10 rounded-lg">
-                  <p className="text-2xl font-bold text-blue-600">{processingResult.stats.completedCount}</p>
+                  <p className="text-2xl font-bold text-blue-600">{processingResult.stats.similarityDetected}</p>
+                  <p className="text-sm text-muted-foreground">Similarity</p>
+                </div>
+                <div className="text-center p-4 bg-purple-500/10 rounded-lg">
+                  <p className="text-2xl font-bold text-purple-600">{processingResult.stats.aiDetected}</p>
+                  <p className="text-sm text-muted-foreground">AI Reports</p>
+                </div>
+                <div className="text-center p-4 bg-green-500/10 rounded-lg">
+                  <p className="text-2xl font-bold text-green-600">{processingResult.stats.completedCount}</p>
                   <p className="text-sm text-muted-foreground">Completed</p>
                 </div>
-                <div className="text-center p-4 bg-yellow-500/10 rounded-lg">
-                  <p className="text-2xl font-bold text-yellow-600">{processingResult.stats.unmatchedCount}</p>
-                  <p className="text-sm text-muted-foreground">Unmatched</p>
-                </div>
-                <div className="text-center p-4 bg-red-500/10 rounded-lg">
-                  <p className="text-2xl font-bold text-red-600">{processingResult.stats.needsReviewCount}</p>
+                <div className="text-center p-4 bg-amber-500/10 rounded-lg">
+                  <p className="text-2xl font-bold text-amber-600">{processingResult.stats.needsReviewCount}</p>
                   <p className="text-sm text-muted-foreground">Needs Review</p>
                 </div>
               </div>
 
-              <Separator className="my-4" />
-
-              {/* Mapped Reports */}
-              {processingResult.mapped.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    Successfully Mapped ({processingResult.mapped.length})
-                  </h4>
-                  <ScrollArea className="h-[150px] border rounded-lg">
-                    <div className="p-3 space-y-2">
-                      {processingResult.mapped.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-green-500/5 rounded">
-                          <span className="text-sm truncate flex-1">{item.fileName}</span>
-                          <Badge variant="outline" className="ml-2">
-                            {item.reportType === 'similarity' ? 'Similarity' : 'AI'} Report
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
+              {/* Additional Stats Row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="text-center p-3 bg-muted/50 rounded-lg">
+                  <p className="text-lg font-bold">{processingResult.stats.mappedCount}</p>
+                  <p className="text-xs text-muted-foreground">Reports Mapped</p>
                 </div>
-              )}
+                <div className="text-center p-3 bg-yellow-500/10 rounded-lg">
+                  <p className="text-lg font-bold text-yellow-600">{processingResult.stats.unmatchedCount}</p>
+                  <p className="text-xs text-muted-foreground">Unmatched</p>
+                </div>
+                <div className="text-center p-3 bg-orange-500/10 rounded-lg">
+                  <p className="text-lg font-bold text-orange-600">{processingResult.stats.unknownType}</p>
+                  <p className="text-xs text-muted-foreground">Unknown Type</p>
+                </div>
+                <div className="text-center p-3 bg-red-500/10 rounded-lg">
+                  <p className="text-lg font-bold text-red-600">{processingResult.stats.unreadable}</p>
+                  <p className="text-xs text-muted-foreground">OCR Failed</p>
+                </div>
+              </div>
 
-              {/* Unmatched Reports */}
-              {processingResult.unmatched.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <FileWarning className="h-4 w-4 text-yellow-600" />
-                    Unmatched Reports ({processingResult.unmatched.length})
-                  </h4>
-                  <ScrollArea className="h-[150px] border rounded-lg">
-                    <div className="p-3 space-y-2">
-                      {processingResult.unmatched.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-yellow-500/5 rounded">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm truncate">{item.fileName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Normalized: {item.normalizedFilename}
-                            </p>
+              <Separator className="my-6" />
+
+              {/* Detailed Results Tabs */}
+              <Tabs defaultValue="dryrun" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="dryrun" className="flex items-center gap-1">
+                    <Eye className="h-4 w-4" />
+                    Dry Run ({processingResult.dryRun.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="committed" className="flex items-center gap-1">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Committed ({processingResult.committed.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="unmatched" className="flex items-center gap-1">
+                    <FileWarning className="h-4 w-4" />
+                    Unmatched ({processingResult.unmatched.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="review" className="flex items-center gap-1">
+                    <AlertTriangle className="h-4 w-4" />
+                    Review ({processingResult.needsReview.length})
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Dry Run Results */}
+                <TabsContent value="dryrun">
+                  <ScrollArea className="h-[400px]">
+                    {processingResult.dryRun.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">No dry run results</p>
+                    ) : (
+                      <div className="space-y-4 p-2">
+                        {processingResult.dryRun.map((item, index) => (
+                          <div key={index} className={`border rounded-lg p-4 ${item.hasConflict ? 'border-amber-500 bg-amber-50/50 dark:bg-amber-950/20' : 'border-border'}`}>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-primary" />
+                                <span className="font-medium">{item.documentFileName}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {item.willComplete ? (
+                                  <Badge className="bg-green-600">Will Complete</Badge>
+                                ) : item.hasConflict ? (
+                                  <Badge variant="outline" className="border-amber-500 text-amber-600">Has Conflict</Badge>
+                                ) : (
+                                  <Badge variant="secondary">Partial</Badge>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {item.conflictReason && (
+                              <div className="mb-3 p-2 bg-amber-100 dark:bg-amber-900/30 rounded text-sm text-amber-800 dark:text-amber-200 flex items-center gap-2">
+                                <AlertTriangle className="h-4 w-4" />
+                                {item.conflictReason}
+                              </div>
+                            )}
+                            
+                            <div className="space-y-2">
+                              {item.reports.map((report, rIndex) => (
+                                <div key={rIndex} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <span className="truncate">{report.fileName}</span>
+                                    {getReportTypeBadge(report.classification.reportType)}
+                                    {report.classification.percentage !== null && (
+                                      <Badge variant="outline" className="flex items-center gap-1">
+                                        <Percent className="h-3 w-3" />
+                                        {report.classification.percentage}%
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {getActionBadge(report.action)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </ScrollArea>
-                </div>
-              )}
+                </TabsContent>
 
-              {/* Needs Review */}
-              {processingResult.needsReview.length > 0 && (
-                <div>
-                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-red-600" />
-                    Needs Manual Review ({processingResult.needsReview.length})
-                  </h4>
-                  <ScrollArea className="h-[150px] border rounded-lg">
-                    <div className="p-3 space-y-2">
-                      {processingResult.needsReview.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-red-500/5 rounded">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-mono">{item.documentId.slice(0, 8)}...</p>
-                            <p className="text-xs text-muted-foreground">{item.reason}</p>
+                {/* Committed Results */}
+                <TabsContent value="committed">
+                  <ScrollArea className="h-[400px]">
+                    {processingResult.committed.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">No documents were updated</p>
+                    ) : (
+                      <div className="space-y-2 p-2">
+                        {processingResult.committed.map((item, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              <span className="text-sm font-mono">{item.documentId.substring(0, 8)}...</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {item.similarityAssigned && <Badge className="bg-blue-600">+Similarity</Badge>}
+                              {item.aiAssigned && <Badge className="bg-purple-600">+AI</Badge>}
+                              <Badge variant={item.newStatus === 'completed' ? 'default' : 'secondary'}>
+                                {item.newStatus}
+                              </Badge>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </ScrollArea>
-                </div>
-              )}
+                </TabsContent>
+
+                {/* Unmatched Reports */}
+                <TabsContent value="unmatched">
+                  <ScrollArea className="h-[400px]">
+                    {processingResult.unmatched.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">All reports were matched!</p>
+                    ) : (
+                      <div className="space-y-2 p-2">
+                        {processingResult.unmatched.map((item, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 border rounded-lg border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/20">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <FileWarning className="h-4 w-4 text-yellow-600 shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium truncate">{item.fileName}</p>
+                                <p className="text-xs text-muted-foreground">Normalized: {item.normalizedFilename}</p>
+                              </div>
+                            </div>
+                            <div className="text-sm text-yellow-600">{item.reason}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </TabsContent>
+
+                {/* Needs Review */}
+                <TabsContent value="review">
+                  <ScrollArea className="h-[400px]">
+                    {processingResult.needsReview.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">No documents need review</p>
+                    ) : (
+                      <div className="space-y-2 p-2">
+                        {processingResult.needsReview.map((item, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 border rounded-lg border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20">
+                            <div className="flex items-center gap-3">
+                              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                              <span className="text-sm font-mono">{item.documentId.substring(0, 8)}...</span>
+                            </div>
+                            <div className="text-sm text-amber-600">{item.reason}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         )}
+
+        {/* How It Works */}
+        <Card>
+          <CardHeader>
+            <CardTitle>How It Works</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Processing Stages</h4>
+                <ol className="space-y-3 text-sm">
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</span>
+                    <div>
+                      <p className="font-medium">Document Grouping</p>
+                      <p className="text-muted-foreground">Filenames are normalized (remove extensions, trailing numbers, brackets)</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">2</span>
+                    <div>
+                      <p className="font-medium">OCR Extraction</p>
+                      <p className="text-muted-foreground">Page 2 of each PDF is converted to image and OCR-scanned</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">3</span>
+                    <div>
+                      <p className="font-medium">Report Type Detection</p>
+                      <p className="text-muted-foreground">OCR text is analyzed for keywords (similarity vs AI report)</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">4</span>
+                    <div>
+                      <p className="font-medium">Percentage Extraction</p>
+                      <p className="text-muted-foreground">Percentages are extracted from OCR text using patterns</p>
+                    </div>
+                  </li>
+                </ol>
+              </div>
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Detection Keywords</h4>
+                <div className="space-y-3 text-sm">
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+                    <p className="font-medium text-blue-700 dark:text-blue-300 mb-1">Similarity Report</p>
+                    <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                      <li>"overall similarity"</li>
+                      <li>"match groups"</li>
+                      <li>"integrity overview"</li>
+                    </ul>
+                  </div>
+                  <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
+                    <p className="font-medium text-purple-700 dark:text-purple-300 mb-1">AI Report</p>
+                    <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                      <li>"detected as ai"</li>
+                      <li>"ai writing overview"</li>
+                      <li>"detection groups"</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );
