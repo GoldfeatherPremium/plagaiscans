@@ -43,6 +43,8 @@ interface BatchReportData {
   fileName: string;
   similarityFile: File | null;
   aiFile: File | null;
+  similarityPercentage: string;
+  aiPercentage: string;
   remarks: string;
 }
 
@@ -56,6 +58,8 @@ export default function DocumentQueue() {
   const [dialogMode] = useState<'report'>('report');
   const [similarityFile, setSimilarityFile] = useState<File | null>(null);
   const [aiFile, setAiFile] = useState<File | null>(null);
+  const [similarityPercentage, setSimilarityPercentage] = useState('');
+  const [aiPercentage, setAiPercentage] = useState('');
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [globalTimeout, setGlobalTimeout] = useState(30);
@@ -289,6 +293,8 @@ export default function DocumentQueue() {
       fileName: doc.file_name,
       similarityFile: null,
       aiFile: null,
+      similarityPercentage: '',
+      aiPercentage: '',
       remarks: '',
     })));
     setBatchDialogOpen(true);
@@ -327,8 +333,8 @@ export default function DocumentQueue() {
             doc,
             data.similarityFile,
             data.aiFile,
-            0,
-            0,
+            parseFloat(data.similarityPercentage) || 0,
+            parseFloat(data.aiPercentage) || 0,
             data.remarks.trim() || null
           );
         }
@@ -412,6 +418,8 @@ export default function DocumentQueue() {
     setSelectedDoc(null);
     setSimilarityFile(null);
     setAiFile(null);
+    setSimilarityPercentage('');
+    setAiPercentage('');
     setRemarks('');
   };
 
@@ -423,8 +431,8 @@ export default function DocumentQueue() {
       selectedDoc,
       similarityFile,
       aiFile,
-      0,
-      0,
+      parseFloat(similarityPercentage) || 0,
+      parseFloat(aiPercentage) || 0,
       remarks.trim() || null
     );
     setSubmitting(false);
@@ -741,6 +749,32 @@ export default function DocumentQueue() {
             </DialogHeader>
             
             <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Similarity % *</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    placeholder="e.g., 15.5"
+                    value={similarityPercentage}
+                    onChange={(e) => setSimilarityPercentage(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>AI % *</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    placeholder="e.g., 8.2"
+                    value={aiPercentage}
+                    onChange={(e) => setAiPercentage(e.target.value)}
+                  />
+                </div>
+              </div>
               <div>
                 <Label>Similarity Report (PDF)</Label>
                 <Input
@@ -808,6 +842,33 @@ export default function DocumentQueue() {
                     {data.fileName}
                   </h4>
                   
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Similarity %</Label>
+                      <Input 
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        placeholder="e.g., 15.5"
+                        value={data.similarityPercentage}
+                        onChange={(e) => updateBatchData(index, 'similarityPercentage', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">AI %</Label>
+                      <Input 
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        placeholder="e.g., 8.2"
+                        value={data.aiPercentage}
+                        onChange={(e) => updateBatchData(index, 'aiPercentage', e.target.value)}
+                      />
+                    </div>
+                  </div>
                   
                   <div className="grid grid-cols-2 gap-3">
                     <div>

@@ -31,6 +31,8 @@ export default function StaffProcessed() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [similarityFile, setSimilarityFile] = useState<File | null>(null);
   const [aiFile, setAiFile] = useState<File | null>(null);
+  const [similarityPercentage, setSimilarityPercentage] = useState('');
+  const [aiPercentage, setAiPercentage] = useState('');
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,6 +50,8 @@ export default function StaffProcessed() {
   const handleEditClick = (doc: Document) => {
     setEditingDoc(doc);
     setRemarks(doc.remarks || '');
+    setSimilarityPercentage(doc.similarity_percentage?.toString() || '');
+    setAiPercentage(doc.ai_percentage?.toString() || '');
     setSimilarityFile(null);
     setAiFile(null);
     setEditDialogOpen(true);
@@ -58,6 +62,8 @@ export default function StaffProcessed() {
     setEditingDoc(null);
     setSimilarityFile(null);
     setAiFile(null);
+    setSimilarityPercentage('');
+    setAiPercentage('');
     setRemarks('');
   };
 
@@ -66,6 +72,9 @@ export default function StaffProcessed() {
     
     setSubmitting(true);
     try {
+      const newSimilarity = parseFloat(similarityPercentage) || 0;
+      const newAi = parseFloat(aiPercentage) || 0;
+      
       // If new files are provided, upload them
       if (similarityFile || aiFile) {
         await uploadReport(
@@ -73,15 +82,19 @@ export default function StaffProcessed() {
           editingDoc,
           similarityFile,
           aiFile,
-          editingDoc.similarity_percentage || 0,
-          editingDoc.ai_percentage || 0,
+          newSimilarity,
+          newAi,
           remarks.trim() || null
         );
       } else {
-        // Just update remarks
+        // Just update remarks and percentages
         const { error } = await supabase
           .from('documents')
-          .update({ remarks: remarks.trim() || null })
+          .update({ 
+            remarks: remarks.trim() || null,
+            similarity_percentage: newSimilarity,
+            ai_percentage: newAi,
+          })
           .eq('id', editingDoc.id);
         
         if (error) throw error;
@@ -140,6 +153,8 @@ export default function StaffProcessed() {
                       <TableHead>Document</TableHead>
                       <TableHead>Completed At</TableHead>
                       <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-center">Similarity %</TableHead>
+                      <TableHead className="text-center">AI %</TableHead>
                       <TableHead className="text-center">Document</TableHead>
                       <TableHead className="text-center">Similarity Report</TableHead>
                       <TableHead className="text-center">AI Report</TableHead>
@@ -175,6 +190,20 @@ export default function StaffProcessed() {
                           </TableCell>
                           <TableCell className="text-center">
                             <StatusBadge status={doc.status} />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {doc.similarity_percentage !== null && doc.similarity_percentage !== undefined ? (
+                              <span className="font-medium">{doc.similarity_percentage}%</span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {doc.ai_percentage !== null && doc.ai_percentage !== undefined ? (
+                              <span className="font-medium">{doc.ai_percentage}%</span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             <Button variant="outline" size="sm" onClick={() => handleDownloadDocument(doc)}>
@@ -247,6 +276,33 @@ export default function StaffProcessed() {
           </DialogHeader>
           
           <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Similarity %</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  placeholder="e.g., 15.5"
+                  value={similarityPercentage}
+                  onChange={(e) => setSimilarityPercentage(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>AI %</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  placeholder="e.g., 8.2"
+                  value={aiPercentage}
+                  onChange={(e) => setAiPercentage(e.target.value)}
+                />
+              </div>
+            </div>
+            
             <div>
               <Label>Replace Similarity Report (PDF)</Label>
               <Input
