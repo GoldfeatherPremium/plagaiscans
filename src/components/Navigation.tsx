@@ -33,9 +33,10 @@ const Navigation = () => {
   const toggleTheme = () => setIsDark(!isDark);
 
   const navLinks = [
-    { href: "#about", label: "About" },
-    { href: "#services", label: "Features" },
-    { href: "#contact", label: "Contact" },
+    { href: "/how-it-works", label: "How It Works", isRoute: true },
+    { href: "/faq", label: "FAQ", isRoute: true },
+    { href: "/resources", label: "Resources", isRoute: true },
+    { href: "/pricing", label: "Pricing", isRoute: true },
   ];
 
   return (
@@ -52,16 +53,25 @@ const Navigation = () => {
             </span>
           </a>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-sm font-medium link-underline"
-              >
-                {link.label}
-              </a>
+              link.isRoute ? (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-sm font-medium link-underline"
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-sm font-medium link-underline"
+                >
+                  {link.label}
+                </a>
+              )
             ))}
             <Link to="/install">
               <Button variant="outline" size="sm" className="gap-2">
@@ -108,19 +118,29 @@ const Navigation = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
         {isOpen && (
           <div className="md:hidden pb-6 animate-fade-in">
             <div className="flex flex-col gap-4">
               {navLinks.map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-lg font-medium py-2"
-                  onClick={() => setIsOpen(false)}
-                >
-                  {link.label}
-                </a>
+                link.isRoute ? (
+                  <Link
+                    key={link.href}
+                    to={link.href}
+                    className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-lg font-medium py-2"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-lg font-medium py-2"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {link.label}
+                  </a>
+                )
               ))}
               <Link to="/install" onClick={() => setIsOpen(false)}>
                 <Button variant="outline" className="w-full gap-2 mt-2">
