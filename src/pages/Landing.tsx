@@ -165,11 +165,6 @@ const Landing = () => {
                   <ArrowRight className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:translate-x-1" />
                 </Button>
               </Link>
-              <Link to="/how-it-works">
-                <Button variant="outline" size="xl" className="rounded-full">
-                  View Sample Report
-                </Button>
-              </Link>
             </div>
           </div>
         </section>
