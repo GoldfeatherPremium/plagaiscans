@@ -444,6 +444,7 @@ export type Database = {
           magic_link_id: string | null
           needs_review: boolean | null
           normalized_filename: string | null
+          pending_reminder_sent_at: string | null
           remarks: string | null
           review_reason: string | null
           similarity_percentage: number | null
@@ -467,6 +468,7 @@ export type Database = {
           magic_link_id?: string | null
           needs_review?: boolean | null
           normalized_filename?: string | null
+          pending_reminder_sent_at?: string | null
           remarks?: string | null
           review_reason?: string | null
           similarity_percentage?: number | null
@@ -490,6 +492,7 @@ export type Database = {
           magic_link_id?: string | null
           needs_review?: boolean | null
           normalized_filename?: string | null
+          pending_reminder_sent_at?: string | null
           remarks?: string | null
           review_reason?: string | null
           similarity_percentage?: number | null
