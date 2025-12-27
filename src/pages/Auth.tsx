@@ -372,11 +372,17 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md animate-fade-in">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute top-20 left-1/4 w-72 h-72 bg-primary/5 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-secondary/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
+      </div>
+      
+      <div className="w-full max-w-md page-enter">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-4">
-            <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center">
+          <div className="inline-flex items-center gap-2 mb-4 group">
+            <div className="h-11 w-11 rounded-xl gradient-primary flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-lg shadow-primary/20">
               <FileCheck className="h-6 w-6 text-primary-foreground" />
             </div>
             <span className="font-display font-bold text-2xl">PlagaiScans</span>
@@ -384,7 +390,7 @@ export default function Auth() {
           <p className="text-muted-foreground">Document Plagiarism & AI Detection Platform</p>
         </div>
 
-        <Card>
+        <Card className="shadow-xl border-border/50">
           <Tabs defaultValue="login">
             <CardHeader>
               <TabsList className="grid w-full grid-cols-2">
