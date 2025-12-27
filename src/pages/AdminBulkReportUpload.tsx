@@ -232,10 +232,10 @@ export default function AdminBulkReportUpload() {
         return;
       }
 
-      // Call edge function for auto-mapping
+      // Call edge function for auto-mapping with PDF content analysis
       setUploadProgress(60);
       
-      const { data, error } = await supabase.functions.invoke('bulk-report-upload', {
+      const { data, error } = await supabase.functions.invoke('process-bulk-reports', {
         body: { reports: uploadedReports },
       });
 
