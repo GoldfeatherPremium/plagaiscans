@@ -207,13 +207,13 @@ const Landing = () => {
               {features.map((feature, index) => (
                 <div
                   key={index}
-                  className="feature-card animate-fade-in-up"
+                  className="feature-card group animate-fade-in-up"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  <div className={`icon-container-primary mb-6`}>
+                  <div className={`icon-container-primary mb-6 group-hover:scale-110 transition-transform duration-300`}>
                     <feature.icon className="w-6 h-6" />
                   </div>
-                  <h3 className="text-lg font-bold mb-3">{feature.title}</h3>
+                  <h3 className="text-lg font-bold mb-3 group-hover:text-primary transition-colors">{feature.title}</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">
                     {feature.description}
                   </p>

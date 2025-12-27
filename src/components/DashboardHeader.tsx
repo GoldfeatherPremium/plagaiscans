@@ -46,15 +46,16 @@ export const DashboardHeader: React.FC = () => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-card/95 backdrop-blur-sm border-b border-border">
-      <div className="flex items-center justify-between h-full px-4 md:px-6">
+    <header className="fixed top-0 left-0 right-0 z-40 h-16 glass border-b border-border/50 animate-fade-in">
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-secondary/5" />
+      <div className="relative flex items-center justify-between h-full px-4 md:px-6">
         {/* Left side - Logo */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
+        <div className="flex items-center gap-3 ml-14">
+          <div className="flex items-center gap-2 group">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-lg shadow-primary/30 group-hover:shadow-xl group-hover:shadow-primary/40 transition-all duration-300 group-hover:scale-105">
               <span className="text-primary-foreground font-bold text-sm">P</span>
             </div>
-            <span className="font-display font-semibold text-lg hidden sm:block">PlagiScans</span>
+            <span className="font-display font-bold text-lg hidden sm:block gradient-text">PlagiScans</span>
           </div>
         </div>
 
@@ -62,9 +63,9 @@ export const DashboardHeader: React.FC = () => {
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Credit Balance for customers */}
           {role === 'customer' && profile && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted rounded-full">
-              <Coins className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold text-primary">{profile.credit_balance}</span>
+            <div className="flex items-center gap-1.5 px-4 py-2 glass rounded-full border border-primary/20 hover:border-primary/40 transition-colors group">
+              <Coins className="h-4 w-4 text-primary group-hover:animate-wiggle" />
+              <span className="text-sm font-bold text-primary">{profile.credit_balance}</span>
               <span className="text-xs text-muted-foreground hidden sm:inline">credits</span>
             </div>
           )}
@@ -75,12 +76,12 @@ export const DashboardHeader: React.FC = () => {
               variant="ghost"
               size="icon"
               onClick={() => navigate('/dashboard/credits')}
-              className="rounded-full hover:bg-muted relative"
+              className="rounded-full hover:bg-primary/10 hover:text-primary relative transition-all duration-300"
               aria-label="Shopping cart"
             >
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-secondary text-secondary-foreground text-xs font-bold flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-gradient-to-r from-secondary to-secondary-glow text-secondary-foreground text-xs font-bold flex items-center justify-center animate-bounce-in shadow-lg shadow-secondary/30">
                   {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}
@@ -92,11 +93,11 @@ export const DashboardHeader: React.FC = () => {
             variant="ghost"
             size="icon"
             onClick={toggleTheme}
-            className="rounded-full hover:bg-muted"
+            className="rounded-full hover:bg-accent/10 hover:text-accent transition-all duration-300"
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {isDark ? (
-              <Sun className="h-5 w-5 text-accent" />
+              <Sun className="h-5 w-5 text-accent animate-spin-slow" />
             ) : (
               <Moon className="h-5 w-5" />
             )}
