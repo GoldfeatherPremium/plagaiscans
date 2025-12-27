@@ -80,31 +80,31 @@ function normalizeFilename(filename: string): string {
 // =====================================================
 
 /**
- * Decompress FlateDecode data.
- * Some PDFs use zlib-wrapped deflate, others raw deflate.
- * Returns null if decompression fails (never throws) to avoid crashing the function.
+ * Decompress FlateDecode (zlib) compressed data
  */
-async function inflateData(compressedData: Uint8Array): Promise<Uint8Array | null> {
-  const tryDecompress = async (format: 'deflate' | 'deflate-raw') => {
-    const ds = new DecompressionStream(format);
+async function inflateData(compressedData: Uint8Array): Promise<Uint8Array> {
+  try {
+    const ds = new DecompressionStream('deflate-raw');
     const writer = ds.writable.getWriter();
-
-    // Create a fresh ArrayBuffer to avoid SharedArrayBuffer typing/runtime issues
+    // Create a fresh ArrayBuffer to avoid SharedArrayBuffer issues
     const buffer = new ArrayBuffer(compressedData.length);
     const view = new Uint8Array(buffer);
     view.set(compressedData);
-
-    await writer.write(view);
-    await writer.close();
-
+    writer.write(view);
+    writer.close();
+    
     const reader = ds.readable.getReader();
     const chunks: Uint8Array[] = [];
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      if (value) chunks.push(value);
+    let done = false;
+    
+    while (!done) {
+      const { value, done: readerDone } = await reader.read();
+      done = readerDone;
+      if (value) {
+        chunks.push(value);
+      }
     }
-
+    
     const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
     const result = new Uint8Array(totalLength);
     let offset = 0;
@@ -112,22 +112,11 @@ async function inflateData(compressedData: Uint8Array): Promise<Uint8Array | nul
       result.set(chunk, offset);
       offset += chunk.length;
     }
-
+    
     return result;
-  };
-
-  try {
-    return await tryDecompress('deflate');
-  } catch (error1) {
-    try {
-      return await tryDecompress('deflate-raw');
-    } catch (error2) {
-      console.error('Decompression failed (deflate + deflate-raw):', {
-        error1: error1 instanceof Error ? error1.message : String(error1),
-        error2: error2 instanceof Error ? error2.message : String(error2),
-      });
-      return null;
-    }
+  } catch (error) {
+    console.error('Decompression failed:', error);
+    throw error;
   }
 }
 
@@ -157,18 +146,19 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
       let textContent = '';
       
       if (isCompressed) {
-        // Get bytes for this stream
-        const streamBytes = new Uint8Array(streamContent.length);
-        for (let i = 0; i < streamContent.length; i++) {
-          streamBytes[i] = streamContent.charCodeAt(i);
-        }
-
-        const decompressed = await inflateData(streamBytes);
-        if (!decompressed) {
+        try {
+          // Get bytes for this stream
+          const streamBytes = new Uint8Array(streamContent.length);
+          for (let i = 0; i < streamContent.length; i++) {
+            streamBytes[i] = streamContent.charCodeAt(i);
+          }
+          
+          const decompressed = await inflateData(streamBytes);
+          textContent = new TextDecoder('latin1').decode(decompressed);
+        } catch {
           // Skip if decompression fails
           continue;
         }
-        textContent = new TextDecoder('latin1').decode(decompressed);
       } else {
         textContent = streamContent;
       }
@@ -620,45 +610,24 @@ serve(async (req: Request) => {
     }
 
     // Process each report: normalize filename, extract text, classify
-    // Run in parallel with a small concurrency limit to avoid timeouts.
     const processedReports = new Map<string, (ReportFile & ClassificationResult)[]>();
-
-    const CONCURRENCY = 3;
-    const running: Promise<void>[] = [];
-
-    const enqueue = (task: () => Promise<void>) => {
-      const p = task().finally(() => {
-        const idx = running.indexOf(p);
-        if (idx >= 0) running.splice(idx, 1);
-      });
-      running.push(p);
-      return p;
-    };
-
+    
     for (const report of reports) {
-      if (running.length >= CONCURRENCY) {
-        await Promise.race(running);
+      // STAGE 1: Normalize filename for grouping
+      const normalized = normalizeFilename(report.fileName);
+      report.normalizedFilename = normalized;
+      
+      console.log(`Processing report: ${report.fileName} -> normalized: "${normalized}"`);
+      
+      // STAGES 2-4: Extract text, classify, extract percentage
+      const classification = await processReport(supabase, report);
+      const processedReport = { ...report, ...classification };
+      
+      if (!processedReports.has(normalized)) {
+        processedReports.set(normalized, []);
       }
-
-      enqueue(async () => {
-        // STAGE 1: Normalize filename for grouping
-        const normalized = normalizeFilename(report.fileName);
-        report.normalizedFilename = normalized;
-
-        console.log(`Processing report: ${report.fileName} -> normalized: "${normalized}"`);
-
-        // STAGES 2-4: Extract text, classify, extract percentage
-        const classification = await processReport(supabase, report);
-        const processedReport = { ...report, ...classification };
-
-        if (!processedReports.has(normalized)) {
-          processedReports.set(normalized, []);
-        }
-        processedReports.get(normalized)!.push(processedReport);
-      });
+      processedReports.get(normalized)!.push(processedReport);
     }
-
-    await Promise.all(running);
 
     // STAGE 6: DRY RUN - Validate before writing
     const dryRunResult = performDryRun(docsByNormalized, processedReports);
