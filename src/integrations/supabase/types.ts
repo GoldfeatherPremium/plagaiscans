@@ -634,6 +634,45 @@ export type Database = {
         }
         Relationships: []
       }
+      email_warmup_settings: {
+        Row: {
+          created_at: string
+          current_warmup_day: number
+          daily_limit: number
+          emails_sent_today: number
+          id: string
+          is_warmup_active: boolean
+          last_reset_date: string
+          tracking_disabled: boolean
+          updated_at: string
+          warmup_start_date: string
+        }
+        Insert: {
+          created_at?: string
+          current_warmup_day?: number
+          daily_limit?: number
+          emails_sent_today?: number
+          id?: string
+          is_warmup_active?: boolean
+          last_reset_date?: string
+          tracking_disabled?: boolean
+          updated_at?: string
+          warmup_start_date?: string
+        }
+        Update: {
+          created_at?: string
+          current_warmup_day?: number
+          daily_limit?: number
+          emails_sent_today?: number
+          id?: string
+          is_warmup_active?: boolean
+          last_reset_date?: string
+          tracking_disabled?: boolean
+          updated_at?: string
+          warmup_start_date?: string
+        }
+        Relationships: []
+      }
       magic_upload_files: {
         Row: {
           file_name: string

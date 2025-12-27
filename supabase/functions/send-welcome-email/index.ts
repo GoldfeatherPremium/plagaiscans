@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SENDPULSE_API_KEY = Deno.env.get("SENDPLUS_API_KEY");
 const SENDPULSE_API_SECRET = Deno.env.get("SENDPLUS_API_SECRET");
-const SENDPULSE_FROM_EMAIL = Deno.env.get("SENDPLUS_FROM_EMAIL") || "noreply@plagaiscans.com";
+// DELIVERABILITY FIX: Use friendly sender address instead of noreply
+const SENDPULSE_FROM_EMAIL = Deno.env.get("SENDPLUS_FROM_EMAIL") || "hello@plagaiscans.com";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,6 +43,80 @@ async function getSendPulseToken(): Promise<string> {
   return data.access_token;
 }
 
+// Check warm-up limits before sending
+async function checkWarmupLimit(supabase: any): Promise<{ canSend: boolean; reason?: string }> {
+  try {
+    const { data: settings, error } = await supabase
+      .from("email_warmup_settings")
+      .select("*")
+      .single();
+    
+    if (error || !settings) {
+      console.log("No warmup settings found, allowing email");
+      return { canSend: true };
+    }
+
+    // Reset daily counter if it's a new day
+    const today = new Date().toISOString().split('T')[0];
+    if (settings.last_reset_date !== today) {
+      // Calculate new warmup day and limit
+      const daysSinceStart = Math.floor(
+        (new Date().getTime() - new Date(settings.warmup_start_date).getTime()) / (1000 * 60 * 60 * 24)
+      ) + 1;
+      
+      // Warmup limits: Day 1=5, Day 2=10, Day 3=25, Day 4=50, Day 5+=100
+      const warmupLimits = [5, 10, 25, 50, 100];
+      const newDailyLimit = daysSinceStart >= 5 ? 100 : warmupLimits[daysSinceStart - 1] || 100;
+      
+      await supabase
+        .from("email_warmup_settings")
+        .update({
+          emails_sent_today: 0,
+          last_reset_date: today,
+          current_warmup_day: daysSinceStart,
+          daily_limit: newDailyLimit,
+          is_warmup_active: daysSinceStart < 5
+        })
+        .eq("id", settings.id);
+      
+      return { canSend: true };
+    }
+
+    // Check if warmup is still active and we're at the limit
+    if (settings.is_warmup_active && settings.emails_sent_today >= settings.daily_limit) {
+      console.log(`Warmup limit reached: ${settings.emails_sent_today}/${settings.daily_limit}`);
+      return { 
+        canSend: false, 
+        reason: `Daily warmup limit reached (${settings.daily_limit} emails). Try again tomorrow.` 
+      };
+    }
+
+    return { canSend: true };
+  } catch (error) {
+    console.error("Error checking warmup limit:", error);
+    return { canSend: true }; // Allow on error
+  }
+}
+
+// Increment daily email counter
+async function incrementEmailCounter(supabase: any): Promise<void> {
+  try {
+    const { data: settings } = await supabase
+      .from("email_warmup_settings")
+      .select("id, emails_sent_today")
+      .single();
+    
+    if (settings) {
+      await supabase
+        .from("email_warmup_settings")
+        .update({ emails_sent_today: settings.emails_sent_today + 1 })
+        .eq("id", settings.id);
+    }
+  } catch (error) {
+    console.error("Error incrementing email counter:", error);
+  }
+}
+
 // Send email via SendPulse SMTP API
 async function sendEmailViaSendPulse(
   token: string,
@@ -62,7 +137,8 @@ async function sendEmailViaSendPulse(
         html: htmlBase64,
         subject: subject,
         from: {
-          name: "PlagaiScans",
+          // DELIVERABILITY FIX: Human-friendly sender name
+          name: "Plagaiscans Team",
           email: SENDPULSE_FROM_EMAIL,
         },
         to: [
@@ -195,6 +271,25 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Email service is not configured");
     }
 
+    // Check warmup limit
+    const warmupCheck = await checkWarmupLimit(supabase);
+    if (!warmupCheck.canSend) {
+      console.log("Warmup limit reached, skipping email");
+      await logEmail(supabase, {
+        emailType: "welcome",
+        recipientId: userId,
+        recipientEmail: email,
+        recipientName: fullName,
+        subject: "Welcome to Plagaiscans!",
+        status: "skipped",
+        metadata: { reason: warmupCheck.reason },
+      });
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: warmupCheck.reason }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     // Check if welcome emails are enabled
     const isEnabled = await isEmailEnabled(supabase, "welcome_email");
     if (!isEnabled) {
@@ -206,7 +301,7 @@ const handler = async (req: Request): Promise<Response> => {
           recipientId: userId,
           recipientEmail: email,
           recipientName: fullName,
-          subject: "Welcome to PlagaiScans! 🎉",
+          subject: "Welcome to Plagaiscans!",
           status: "skipped",
           metadata: { reason: "Email disabled by admin" },
         });
@@ -218,11 +313,17 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const userName = fullName || "Customer";
+    const userName = fullName || "there";
     const siteUrl = Deno.env.get("SITE_URL") || "https://plagaiscans.com";
 
     const token = await getSendPulseToken();
 
+    // DELIVERABILITY FIX: Clean, human-friendly email template
+    // - No emojis in subject line
+    // - Personal greeting
+    // - Reply-friendly footer
+    // - Plain text fallback structure
+    // - No spam trigger words
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -233,40 +334,50 @@ const handler = async (req: Request): Promise<Response> => {
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
         <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
           <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            
+            <h1 style="color: #18181b; margin: 0 0 20px 0; font-size: 24px;">Hi ${userName},</h1>
+            
+            <p style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+              Welcome to Plagaiscans! We're excited to have you on board.
+            </p>
+            
+            <p style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+              With your account, you can:
+            </p>
+            
+            <ul style="color: #3f3f46; font-size: 16px; line-height: 1.8; margin: 0 0 20px 0; padding-left: 20px;">
+              <li>Upload documents for plagiarism and AI detection</li>
+              <li>Get detailed similarity and AI reports</li>
+              <li>Download professional reports</li>
+              <li>Track all your documents in one place</li>
+            </ul>
+            
+            <p style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+              All files are processed securely in non-repository instructor accounts. Your data privacy is our priority.
+            </p>
+            
             <div style="text-align: center; margin-bottom: 30px;">
-              <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); width: 60px; height: 60px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;">
-                <span style="color: white; font-size: 28px;">🎉</span>
-              </div>
-            </div>
-            
-            <h1 style="color: #18181b; text-align: center; margin: 0 0 10px 0; font-size: 24px;">Welcome to PlagaiScans!</h1>
-            
-            <p style="color: #71717a; text-align: center; margin: 0 0 30px 0;">Hello ${userName}, thank you for joining us!</p>
-            
-            <div style="background-color: #f4f4f5; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-              <h3 style="color: #18181b; margin: 0 0 15px 0;">What you can do:</h3>
-              <ul style="color: #71717a; margin: 0; padding-left: 20px;">
-                <li style="margin-bottom: 10px;">Upload documents for plagiarism and AI detection</li>
-                <li style="margin-bottom: 10px;">Get detailed similarity and AI reports</li>
-                <li style="margin-bottom: 10px;">Download professional reports</li>
-                <li style="margin-bottom: 0;">Track all your documents in one place</li>
-              </ul>
-            </div>
-            
-            <div style="background-color: #f0fdf4; border-radius: 8px; padding: 20px; margin-bottom: 20px; text-align: center;">
-              <p style="margin: 0; color: #166534; font-weight: 600;">We ensure all files are processed securely in non-repository instructor accounts. Your data will not be saved.</p>
-            </div>
-            
-            <div style="text-align: center;">
               <a href="${siteUrl}/dashboard" 
                  style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600;">
                 Go to Dashboard
               </a>
             </div>
             
-            <p style="color: #a1a1aa; text-align: center; margin: 30px 0 0 0; font-size: 12px;">
-              If you have any questions, contact us via WhatsApp support.<br>
-              Thank you for choosing PlagaiScans! 🙏
+            <p style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin: 0 0 10px 0;">
+              If you have any questions, feel free to reply to this email. We're here to help!
+            </p>
+            
+            <p style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin: 0;">
+              Best regards,<br>
+              The Plagaiscans Team
+            </p>
+            
+            <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 30px 0;">
+            
+            <p style="color: #a1a1aa; font-size: 12px; line-height: 1.5; margin: 0; text-align: center;">
+              Plagaiscans<br>
+              <a href="${siteUrl}" style="color: #6366f1; text-decoration: none;">${siteUrl}</a><br><br>
+              You're receiving this email because you created an account with us.
             </p>
           </div>
         </div>
@@ -274,7 +385,8 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    const subject = "Welcome to PlagaiScans! 🎉";
+    // DELIVERABILITY FIX: Clean subject without emojis
+    const subject = "Welcome to Plagaiscans!";
 
     try {
       const providerResponse = await sendEmailViaSendPulse(
@@ -285,6 +397,9 @@ const handler = async (req: Request): Promise<Response> => {
       );
 
       console.log("Welcome email sent successfully to:", email);
+
+      // Increment warmup counter
+      await incrementEmailCounter(supabase);
 
       // Log success or update existing log
       if (retryLogId) {
