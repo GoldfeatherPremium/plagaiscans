@@ -1,11 +1,70 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileCheck, ArrowLeft, Mail, Shield } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { FileCheck, ArrowLeft, Mail, Shield, Loader2 } from 'lucide-react';
 import Footer from '@/components/Footer';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export default function RefundPolicy() {
+  const { toast } = useToast();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    transactionId: '',
+    reason: ''
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.name.trim() || !formData.email.trim() || !formData.reason.trim()) {
+      toast({
+        title: "Please fill required fields",
+        description: "Name, email, and reason are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const { error } = await supabase
+        .from('support_tickets')
+        .insert({
+          user_id: '00000000-0000-0000-0000-000000000000',
+          subject: `Refund Request: ${formData.name}`,
+          message: `Name: ${formData.name}\nEmail: ${formData.email}\nTransaction ID: ${formData.transactionId || 'Not provided'}\n\nReason:\n${formData.reason}`,
+          priority: 'high',
+          status: 'open'
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Refund Request Submitted",
+        description: "We'll review your request and respond within 24-48 hours.",
+      });
+      setFormData({ name: '', email: '', transactionId: '', reason: '' });
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Error submitting refund request:', error);
+      toast({
+        title: "Failed to submit request",
+        description: "Please try again or email us directly.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -136,12 +195,80 @@ export default function RefundPolicy() {
                 <h3 className="font-bold text-lg">Need a Refund?</h3>
                 <p className="text-muted-foreground text-sm">Contact us within 14 days of purchase</p>
               </div>
-              <a href="mailto:support@plagaiscans.com">
-                <Button>
-                  <Mail className="h-4 w-4 mr-2" />
-                  Request Refund
-                </Button>
-              </a>
+              <Dialog open={isOpen} onOpenChange={setIsOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Request Refund
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Request a Refund</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+                    <div>
+                      <label htmlFor="refund-name" className="text-sm font-medium mb-1.5 block">
+                        Your Name *
+                      </label>
+                      <Input
+                        id="refund-name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="John Doe"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="refund-email" className="text-sm font-medium mb-1.5 block">
+                        Email Address *
+                      </label>
+                      <Input
+                        id="refund-email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        placeholder="john@example.com"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="refund-transaction" className="text-sm font-medium mb-1.5 block">
+                        Transaction/Order ID
+                      </label>
+                      <Input
+                        id="refund-transaction"
+                        value={formData.transactionId}
+                        onChange={(e) => setFormData({ ...formData, transactionId: e.target.value })}
+                        placeholder="Optional"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="refund-reason" className="text-sm font-medium mb-1.5 block">
+                        Reason for Refund *
+                      </label>
+                      <Textarea
+                        id="refund-reason"
+                        value={formData.reason}
+                        onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                        placeholder="Please explain why you're requesting a refund..."
+                        className="min-h-[100px]"
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        'Submit Refund Request'
+                      )}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </div>
