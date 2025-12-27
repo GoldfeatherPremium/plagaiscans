@@ -40,6 +40,7 @@ import {
   FileStack,
   FileQuestion,
   AlertTriangle,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -358,6 +359,7 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/emails', icon: Mail, label: 'Email Center' },
         { to: '/dashboard/email-logs', icon: Mail, label: 'Email Logs' },
         { to: '/dashboard/support-tickets', icon: MessageSquare, label: 'Support', badgeKey: 'openTickets' },
+        { to: '/dashboard/refund-requests', icon: RotateCcw, label: 'Refunds' },
       ],
     },
     {

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileText, Shield, Zap, Globe, Mail, ArrowLeft, Lock, Users, CheckCircle } from 'lucide-react';
 import Footer from '@/components/Footer';
+import { SEO, generateWebPageSchema, generateOrganizationSchema } from '@/components/SEO';
 
 export default function AboutUs() {
   const features = [
@@ -49,7 +50,21 @@ export default function AboutUs() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO
+        title="About Us"
+        description="Learn about Plagaiscans, an academic integrity platform for plagiarism detection and similarity analysis. Operated by Goldfeather Prem Ltd, United Kingdom."
+        keywords="about Plagaiscans, plagiarism detection company, academic integrity platform, Goldfeather Prem Ltd"
+        canonicalUrl="/about-us"
+        structuredData={{
+          '@context': 'https://schema.org',
+          '@graph': [
+            generateOrganizationSchema(),
+            generateWebPageSchema('About Us', 'Learn about Plagaiscans', '/about-us'),
+          ],
+        }}
+      />
+      <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container-width flex h-16 items-center justify-between px-4">
@@ -175,5 +190,6 @@ export default function AboutUs() {
 
       <Footer />
     </div>
+    </>
   );
 }

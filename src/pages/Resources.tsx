@@ -6,6 +6,7 @@ import { FileText, ArrowLeft, ArrowRight, BookOpen, Lightbulb, GraduationCap, Pe
 import Footer from '@/components/Footer';
 import { useSiteContent } from '@/hooks/useSiteContent';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SEO, generateWebPageSchema } from '@/components/SEO';
 
 const articleMeta = [
   {
@@ -75,7 +76,15 @@ export default function Resources() {
   const { get, loading } = useSiteContent();
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO
+        title="Resources & Learning Center"
+        description="Educational articles, guides, and tips to help you understand academic integrity, plagiarism detection, and improve your writing skills."
+        keywords="academic writing resources, plagiarism prevention tips, citation guides, academic integrity articles"
+        canonicalUrl="/resources"
+        structuredData={generateWebPageSchema('Resources & Learning Center', 'Educational articles and guides for academic writing', '/resources')}
+      />
+      <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container-width flex h-16 items-center justify-between px-4">
@@ -235,5 +244,6 @@ Modern similarity detection tools are designed to support the writing process, h
 
       <Footer />
     </div>
+    </>
   );
 }

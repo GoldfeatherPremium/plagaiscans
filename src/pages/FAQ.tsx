@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { FileText, ArrowLeft, HelpCircle } from 'lucide-react';
@@ -9,6 +9,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import Footer from '@/components/Footer';
+import { SEO } from '@/components/SEO';
 
 const faqData = [
   {
@@ -77,11 +78,15 @@ export default function FAQ() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* FAQ Schema */}
-      <script type="application/ld+json">
-        {JSON.stringify(faqSchema)}
-      </script>
+    <>
+      <SEO
+        title="FAQ"
+        description="Find answers to frequently asked questions about Plagaiscans plagiarism detection, AI content analysis, pricing, refunds, and document processing."
+        keywords="FAQ, frequently asked questions, plagiarism checker help, AI detection FAQ, academic integrity questions"
+        canonicalUrl="/faq"
+        structuredData={faqSchema}
+      />
+      <div className="min-h-screen bg-background">
 
       {/* Navigation */}
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
@@ -150,5 +155,6 @@ export default function FAQ() {
 
       <Footer />
     </div>
+    </>
   );
 }

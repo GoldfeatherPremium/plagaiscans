@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { FileCheck, ArrowLeft, Mail, Clock, MessageSquare, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import Footer from '@/components/Footer';
+import { SEO, generateWebPageSchema } from '@/components/SEO';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -31,7 +32,15 @@ export default function Contact() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO
+        title="Contact Support"
+        description="Get in touch with PlagaiScans support team. We're here to help with account issues, document processing, refunds, and technical support."
+        keywords="contact support, plagiarism checker help, customer service, technical support"
+        canonicalUrl="/contact"
+        structuredData={generateWebPageSchema('Contact Support', 'Get in touch with our support team', '/contact')}
+      />
+      <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container-width flex h-16 items-center justify-between px-4">
@@ -218,5 +227,6 @@ export default function Contact() {
 
       <Footer />
     </div>
+    </>
   );
 }
