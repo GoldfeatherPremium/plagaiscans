@@ -493,15 +493,15 @@ export default function AdminBulkReportUpload() {
               <Separator className="my-4" />
 
               {/* Mapped Reports */}
-              {processingResult.details.mapped.length > 0 && (
+              {(processingResult.details?.mapped?.length ?? 0) > 0 && (
                 <div className="mb-6">
                   <h4 className="font-medium mb-3 flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    Successfully Mapped ({processingResult.details.mapped.length})
+                    Successfully Mapped ({processingResult.details?.mapped?.length ?? 0})
                   </h4>
                   <ScrollArea className="h-[150px] border rounded-lg">
                     <div className="p-3 space-y-2">
-                      {processingResult.details.mapped.map((item, index) => (
+                      {processingResult.details?.mapped?.map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-green-500/5 rounded">
                           <span className="text-sm truncate flex-1">{item.fileName}</span>
                           <div className="flex items-center gap-2 ml-2">
@@ -522,15 +522,15 @@ export default function AdminBulkReportUpload() {
               )}
 
               {/* Unmatched Reports */}
-              {processingResult.details.unmatched.length > 0 && (
+              {(processingResult.details?.unmatched?.length ?? 0) > 0 && (
                 <div className="mb-6">
                   <h4 className="font-medium mb-3 flex items-center gap-2">
                     <FileWarning className="h-4 w-4 text-yellow-600" />
-                    Unmatched Reports ({processingResult.details.unmatched.length})
+                    Unmatched Reports ({processingResult.details?.unmatched?.length ?? 0})
                   </h4>
                   <ScrollArea className="h-[150px] border rounded-lg">
                     <div className="p-3 space-y-2">
-                      {processingResult.details.unmatched.map((item, index) => (
+                      {processingResult.details?.unmatched?.map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-yellow-500/5 rounded">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm truncate">{item.fileName}</p>
@@ -546,15 +546,15 @@ export default function AdminBulkReportUpload() {
               )}
 
               {/* Needs Review */}
-              {processingResult.details.needsReview.length > 0 && (
+              {(processingResult.details?.needsReview?.length ?? 0) > 0 && (
                 <div>
                   <h4 className="font-medium mb-3 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 text-red-600" />
-                    Needs Manual Review ({processingResult.details.needsReview.length})
+                    Needs Manual Review ({processingResult.details?.needsReview?.length ?? 0})
                   </h4>
                   <ScrollArea className="h-[150px] border rounded-lg">
                     <div className="p-3 space-y-2">
-                      {processingResult.details.needsReview.map((item, index) => (
+                      {processingResult.details?.needsReview?.map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-red-500/5 rounded">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm truncate">{item.fileName}</p>
