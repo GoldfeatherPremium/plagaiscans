@@ -247,17 +247,33 @@ export default function AdminBulkReportUpload() {
       }
 
       setUploadProgress(100);
-      setProcessingResult(data as ProcessingResult);
+      
+      // Handle response with safe defaults
+      const result: ProcessingResult = {
+        success: data?.success ?? true,
+        mapped: data?.mapped ?? [],
+        unmatched: data?.unmatched ?? [],
+        needsReview: data?.needsReview ?? [],
+        completedDocuments: data?.completedDocuments ?? [],
+        stats: {
+          totalReports: data?.stats?.totalReports ?? uploadedReports.length,
+          mappedCount: data?.stats?.mappedCount ?? 0,
+          unmatchedCount: data?.stats?.unmatchedCount ?? 0,
+          completedCount: data?.stats?.completedCount ?? 0,
+          needsReviewCount: data?.stats?.needsReviewCount ?? 0,
+        },
+      };
+      
+      setProcessingResult(result);
 
-      const stats = data.stats;
-      if (stats.completedCount > 0) {
-        toast.success(`Successfully completed ${stats.completedCount} documents!`);
+      if (result.stats.completedCount > 0) {
+        toast.success(`Successfully completed ${result.stats.completedCount} documents!`);
       }
-      if (stats.unmatchedCount > 0) {
-        toast.warning(`${stats.unmatchedCount} reports could not be matched`);
+      if (result.stats.unmatchedCount > 0) {
+        toast.warning(`${result.stats.unmatchedCount} reports could not be matched`);
       }
-      if (stats.needsReviewCount > 0) {
-        toast.warning(`${stats.needsReviewCount} documents need manual review`);
+      if (result.stats.needsReviewCount > 0) {
+        toast.warning(`${result.stats.needsReviewCount} documents need manual review`);
       }
 
     } catch (error) {
