@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { getDocument, GlobalWorkerOptions } from "https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs";
+
+// Set the worker source to false to disable workers in Deno
+GlobalWorkerOptions.workerSrc = "";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,17 +32,28 @@ interface ProcessingResult {
 }
 
 // =====================================================
-// STAGE 1: FILENAME NORMALIZATION (must match DB function)
-// This mirrors the SQL normalize_filename() function exactly
+// STAGE 1: FILENAME NORMALIZATION (for grouping only)
 // =====================================================
 function normalizeFilename(filename: string): string {
   let result = filename;
   
-  // Remove file extension only - keep all brackets as part of the base name
+  // Remove file extension
   result = result.replace(/\.[^.]+$/, "");
   
-  // Trim whitespace
-  result = result.trim();
+  // Remove trailing numbers in parentheses like (1), (2), (45)
+  result = result.replace(/\s*\(\d+\)\s*$/, "");
+  
+  // Remove trailing numbers in brackets like [1], [2]
+  result = result.replace(/\s*\[\d+\]\s*$/, "");
+  
+  // Remove trailing dash numbers like -1, -2
+  result = result.replace(/\s*-\d+\s*$/, "");
+  
+  // Remove leading [Guest] or (Guest) tags
+  result = result.replace(/^\s*[\[\(]?Guest[\]\)]?\s*/i, "");
+  
+  // Normalize whitespace
+  result = result.replace(/\s+/g, " ").trim();
   
   // Lowercase for comparison
   result = result.toLowerCase();
@@ -47,25 +62,102 @@ function normalizeFilename(filename: string): string {
 }
 
 // =====================================================
-// STAGE 2: DETECT REPORT TYPE FROM FILENAME
-// Since PDF parsing doesn't work in Deno, detect from filename
+// STAGE 2: PDF TEXT EXTRACTION FROM PAGE 2
 // =====================================================
-function detectReportTypeFromFilename(filename: string): "similarity" | "ai" | "unknown" {
-  const lowerName = filename.toLowerCase();
+async function extractTextFromPage2(pdfBytes: Uint8Array): Promise<string> {
+  try {
+    const loadingTask = getDocument({ data: pdfBytes });
+    const pdfDoc = await loadingTask.promise;
+    
+    // Get page 2 (or page 1 if only 1 page exists)
+    const pageNum = Math.min(2, pdfDoc.numPages);
+    const page = await pdfDoc.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    
+    // Extract text items and join them
+    const text = textContent.items
+      .map((item: any) => item.str || "")
+      .join(" ");
+    
+    // Normalize: lowercase, collapse whitespace
+    const normalizedText = text.toLowerCase().replace(/\s+/g, " ").trim();
+    
+    console.log(`Extracted text from page ${pageNum} (${normalizedText.length} chars)`);
+    
+    return normalizedText;
+  } catch (error: unknown) {
+    console.error("PDF text extraction failed:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`PDF text extraction failed: ${errorMessage}`);
+  }
+}
+
+// =====================================================
+// STAGE 3: REPORT TYPE DETECTION (from OCR text)
+// =====================================================
+function detectReportType(text: string): "similarity" | "ai" | "unknown" {
+  const similarityKeywords = [
+    "overall similarity",
+    "match groups", 
+    "integrity overview"
+  ];
   
-  // Check for AI report indicators in filename
-  if (lowerName.includes("ai") || lowerName.includes("_ai") || lowerName.includes("-ai") || lowerName.includes(" ai")) {
-    return "ai";
+  const aiKeywords = [
+    "detected as ai",
+    "ai writing overview",
+    "detection groups"
+  ];
+  
+  // Check for similarity report
+  for (const keyword of similarityKeywords) {
+    if (text.includes(keyword)) {
+      console.log(`Detected SIMILARITY report (keyword: "${keyword}")`);
+      return "similarity";
+    }
   }
   
-  // Check for similarity report indicators
-  if (lowerName.includes("similarity") || lowerName.includes("sim") || lowerName.includes("turnitin") || lowerName.includes("plag")) {
-    return "similarity";
+  // Check for AI report
+  for (const keyword of aiKeywords) {
+    if (text.includes(keyword)) {
+      console.log(`Detected AI report (keyword: "${keyword}")`);
+      return "ai";
+    }
   }
   
-  // Default to similarity for reports without clear indicators
-  // Most bulk uploads are similarity reports
-  return "similarity";
+  console.log("Could not determine report type");
+  return "unknown";
+}
+
+// =====================================================
+// STAGE 4: PERCENTAGE EXTRACTION
+// =====================================================
+function extractPercentage(text: string, reportType: "similarity" | "ai"): number | null {
+  let match: RegExpMatchArray | null = null;
+  
+  if (reportType === "similarity") {
+    // Pattern: "X% overall similarity"
+    match = text.match(/(\d{1,3})\s*%\s*overall\s+similarity/i);
+  } else if (reportType === "ai") {
+    // Pattern: "X% detected as ai"
+    match = text.match(/(\d{1,3})\s*%\s*detected\s+as\s+ai/i);
+    
+    // Check for "*% detected as AI" which means null
+    if (text.includes("*%") || text.includes("* %")) {
+      console.log("AI percentage shows asterisk, setting to null");
+      return null;
+    }
+  }
+  
+  if (match && match[1]) {
+    const percentage = parseInt(match[1], 10);
+    if (percentage >= 0 && percentage <= 100) {
+      console.log(`Extracted ${reportType} percentage: ${percentage}%`);
+      return percentage;
+    }
+  }
+  
+  console.log(`Could not extract ${reportType} percentage`);
+  return null;
 }
 
 // =====================================================
@@ -80,35 +172,24 @@ serve(async (req: Request): Promise<Response> => {
   try {
     console.log("=== STARTING BULK REPORT PROCESSING ===");
     
-    // Initialize Supabase client with service role for admin operations
+    // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Authenticate user using the anon key client
-    const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization");
+    // Authenticate user
+    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("No authorization header");
     }
 
-    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    if (!token) {
-      throw new Error("No bearer token");
-    }
-
-    // Create client with anon key and validate the passed JWT explicitly
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
-
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace("Bearer ", "")
+    );
+    
     if (authError || !user) {
-      console.error("Auth error:", authError);
       throw new Error("Authentication failed");
     }
-
-    console.log(`User authenticated: ${user.id}`);
-
-    // Create service role client for database operations
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Check user role
     const { data: roleData } = await supabase
@@ -234,16 +315,68 @@ serve(async (req: Request): Promise<Response> => {
         const matchedDoc = matchingDocs[0];
         console.log(`Matched to document: ${matchedDoc.id}`);
 
-        // STAGE 2: Detect report type from filename (PDF parsing not available in Deno)
-        const reportType = detectReportTypeFromFilename(report.fileName);
-        console.log(`Report type detected from filename: ${reportType}`);
+        // STAGE 2: Download PDF and extract text from page 2
+        const { data: pdfData, error: downloadError } = await supabase.storage
+          .from("reports")
+          .download(report.storagePath);
+
+        if (downloadError || !pdfData) {
+          throw new Error(`Failed to download PDF: ${downloadError?.message}`);
+        }
+
+        const pdfBytes = new Uint8Array(await pdfData.arrayBuffer());
+        const extractedText = await extractTextFromPage2(pdfBytes);
+
+        if (!extractedText || extractedText.length < 50) {
+          console.log("PDF text extraction failed or insufficient text");
+          
+          await supabase.from("unmatched_reports").insert({
+            file_name: report.fileName,
+            normalized_filename: normalizedName,
+            file_path: report.storagePath,
+            report_type: "unreadable",
+            uploaded_by: user.id,
+            resolved: false
+          });
+          
+          result.unmatchedCount++;
+          result.details.unmatched.push({
+            fileName: report.fileName,
+            reason: "PDF text extraction failed"
+          });
+          continue;
+        }
+
+        // STAGE 3: Detect report type from extracted text
+        const reportType = detectReportType(extractedText);
         
-        // Note: percentage extraction requires PDF parsing which isn't available
-        // Percentages will need to be entered manually or via a different mechanism
-        const percentage: number | null = null;
+        if (reportType === "unknown") {
+          console.log("Could not determine report type");
+          
+          await supabase.from("unmatched_reports").insert({
+            file_name: report.fileName,
+            normalized_filename: normalizedName,
+            file_path: report.storagePath,
+            report_type: "unknown",
+            matched_document_id: matchedDoc.id,
+            uploaded_by: user.id,
+            resolved: false
+          });
+          
+          result.unmatchedCount++;
+          result.details.unmatched.push({
+            fileName: report.fileName,
+            reason: "Could not determine report type (Similarity or AI)"
+          });
+          continue;
+        }
+
+        // STAGE 4: Extract percentage
+        const percentage = extractPercentage(extractedText, reportType);
+        console.log(`Report type: ${reportType}, Percentage: ${percentage}`);
 
         // =====================================================
-        // STAGE 3: DRY RUN VALIDATION
+        // STAGE 5: DRY RUN VALIDATION
         // =====================================================
         const updateData: Record<string, any> = {};
         let canUpdate = true;
@@ -257,9 +390,7 @@ serve(async (req: Request): Promise<Response> => {
             reviewReason = "Document already has a similarity report attached";
           } else {
             updateData.similarity_report_path = report.storagePath;
-            if (percentage !== null) {
-              updateData.similarity_percentage = percentage;
-            }
+            updateData.similarity_percentage = percentage;
           }
         } else if (reportType === "ai") {
           // Check if AI report already exists
@@ -269,9 +400,7 @@ serve(async (req: Request): Promise<Response> => {
             reviewReason = "Document already has an AI report attached";
           } else {
             updateData.ai_report_path = report.storagePath;
-            if (percentage !== null) {
-              updateData.ai_percentage = percentage;
-            }
+            updateData.ai_percentage = percentage;
           }
         }
 
@@ -294,7 +423,7 @@ serve(async (req: Request): Promise<Response> => {
         }
 
         // =====================================================
-        // STAGE 4: COMMIT - Update document
+        // STAGE 6: COMMIT - Update document
         // =====================================================
         const { error: updateError } = await supabase
           .from("documents")
@@ -318,14 +447,10 @@ serve(async (req: Request): Promise<Response> => {
         // Update local cache for subsequent reports
         if (reportType === "similarity") {
           matchedDoc.similarity_report_path = report.storagePath;
-          if (percentage !== null) {
-            matchedDoc.similarity_percentage = percentage;
-          }
+          matchedDoc.similarity_percentage = percentage;
         } else {
           matchedDoc.ai_report_path = report.storagePath;
-          if (percentage !== null) {
-            matchedDoc.ai_percentage = percentage;
-          }
+          matchedDoc.ai_percentage = percentage;
         }
 
         // =====================================================

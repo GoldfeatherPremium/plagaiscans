@@ -29,37 +29,26 @@ interface ReportFile {
   error?: string;
 }
 
-interface MappedReport {
-  fileName: string;
+interface MappingResult {
   documentId: string;
-  reportType: string;
-  percentage: number | null;
-}
-
-interface UnmatchedReport {
   fileName: string;
-  reason: string;
-}
-
-interface NeedsReviewItem {
-  fileName: string;
-  documentId: string;
-  reason: string;
+  reportType: 'similarity' | 'ai';
+  success: boolean;
+  message?: string;
 }
 
 interface ProcessingResult {
   success: boolean;
-  totalReports: number;
-  mappedCount: number;
-  unmatchedCount: number;
-  completedDocuments: number;
-  needsReviewCount: number;
-  errors: string[];
-  details: {
-    mapped: MappedReport[];
-    unmatched: UnmatchedReport[];
-    needsReview: NeedsReviewItem[];
-    completed: Array<{ documentId: string; fileName: string }>;
+  mapped: MappingResult[];
+  unmatched: { fileName: string; normalizedFilename: string; filePath: string }[];
+  needsReview: { documentId: string; reason: string }[];
+  completedDocuments: string[];
+  stats: {
+    totalReports: number;
+    mappedCount: number;
+    unmatchedCount: number;
+    completedCount: number;
+    needsReviewCount: number;
   };
 }
 
@@ -198,7 +187,7 @@ export default function AdminBulkReportUpload() {
         return;
       }
 
-      const uploadedReports: { fileName: string; storagePath: string }[] = [];
+      const uploadedReports: { fileName: string; filePath: string; normalizedFilename: string }[] = [];
       const totalFiles = files.length;
 
       // Upload each file to storage
@@ -230,7 +219,8 @@ export default function AdminBulkReportUpload() {
 
         uploadedReports.push({
           fileName: reportFile.fileName,
-          storagePath: filePath,
+          filePath,
+          normalizedFilename: normalizeFilename(reportFile.fileName),
         });
 
         setUploadProgress(Math.round(((i + 1) / totalFiles) * 50));
@@ -242,10 +232,10 @@ export default function AdminBulkReportUpload() {
         return;
       }
 
-      // Call edge function for auto-mapping with PDF content analysis
+      // Call edge function for auto-mapping
       setUploadProgress(60);
       
-      const { data, error } = await supabase.functions.invoke('process-bulk-reports', {
+      const { data, error } = await supabase.functions.invoke('bulk-report-upload', {
         body: { reports: uploadedReports },
       });
 
@@ -259,14 +249,15 @@ export default function AdminBulkReportUpload() {
       setUploadProgress(100);
       setProcessingResult(data as ProcessingResult);
 
-      if (data.completedDocuments > 0) {
-        toast.success(`Successfully completed ${data.completedDocuments} documents!`);
+      const stats = data.stats;
+      if (stats.completedCount > 0) {
+        toast.success(`Successfully completed ${stats.completedCount} documents!`);
       }
-      if (data.unmatchedCount > 0) {
-        toast.warning(`${data.unmatchedCount} reports could not be matched`);
+      if (stats.unmatchedCount > 0) {
+        toast.warning(`${stats.unmatchedCount} reports could not be matched`);
       }
-      if (data.needsReviewCount > 0) {
-        toast.warning(`${data.needsReviewCount} documents need manual review`);
+      if (stats.needsReviewCount > 0) {
+        toast.warning(`${stats.needsReviewCount} documents need manual review`);
       }
 
     } catch (error) {
@@ -469,23 +460,23 @@ export default function AdminBulkReportUpload() {
               {/* Stats Grid */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                 <div className="text-center p-4 bg-muted rounded-lg">
-                  <p className="text-2xl font-bold">{processingResult.totalReports}</p>
+                  <p className="text-2xl font-bold">{processingResult.stats.totalReports}</p>
                   <p className="text-sm text-muted-foreground">Total Reports</p>
                 </div>
                 <div className="text-center p-4 bg-green-500/10 rounded-lg">
-                  <p className="text-2xl font-bold text-green-600">{processingResult.mappedCount}</p>
+                  <p className="text-2xl font-bold text-green-600">{processingResult.stats.mappedCount}</p>
                   <p className="text-sm text-muted-foreground">Mapped</p>
                 </div>
                 <div className="text-center p-4 bg-blue-500/10 rounded-lg">
-                  <p className="text-2xl font-bold text-blue-600">{processingResult.completedDocuments}</p>
+                  <p className="text-2xl font-bold text-blue-600">{processingResult.stats.completedCount}</p>
                   <p className="text-sm text-muted-foreground">Completed</p>
                 </div>
                 <div className="text-center p-4 bg-yellow-500/10 rounded-lg">
-                  <p className="text-2xl font-bold text-yellow-600">{processingResult.unmatchedCount}</p>
+                  <p className="text-2xl font-bold text-yellow-600">{processingResult.stats.unmatchedCount}</p>
                   <p className="text-sm text-muted-foreground">Unmatched</p>
                 </div>
                 <div className="text-center p-4 bg-red-500/10 rounded-lg">
-                  <p className="text-2xl font-bold text-red-600">{processingResult.needsReviewCount}</p>
+                  <p className="text-2xl font-bold text-red-600">{processingResult.stats.needsReviewCount}</p>
                   <p className="text-sm text-muted-foreground">Needs Review</p>
                 </div>
               </div>
@@ -493,27 +484,20 @@ export default function AdminBulkReportUpload() {
               <Separator className="my-4" />
 
               {/* Mapped Reports */}
-              {(processingResult.details?.mapped?.length ?? 0) > 0 && (
+              {processingResult.mapped.length > 0 && (
                 <div className="mb-6">
                   <h4 className="font-medium mb-3 flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    Successfully Mapped ({processingResult.details?.mapped?.length ?? 0})
+                    Successfully Mapped ({processingResult.mapped.length})
                   </h4>
                   <ScrollArea className="h-[150px] border rounded-lg">
                     <div className="p-3 space-y-2">
-                      {processingResult.details?.mapped?.map((item, index) => (
+                      {processingResult.mapped.map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-green-500/5 rounded">
                           <span className="text-sm truncate flex-1">{item.fileName}</span>
-                          <div className="flex items-center gap-2 ml-2">
-                            {item.percentage !== null && (
-                              <Badge variant="secondary">
-                                {item.percentage}%
-                              </Badge>
-                            )}
-                            <Badge variant="outline">
-                              {item.reportType === 'similarity' ? 'Similarity' : 'AI'} Report
-                            </Badge>
-                          </div>
+                          <Badge variant="outline" className="ml-2">
+                            {item.reportType === 'similarity' ? 'Similarity' : 'AI'} Report
+                          </Badge>
                         </div>
                       ))}
                     </div>
@@ -522,20 +506,20 @@ export default function AdminBulkReportUpload() {
               )}
 
               {/* Unmatched Reports */}
-              {(processingResult.details?.unmatched?.length ?? 0) > 0 && (
+              {processingResult.unmatched.length > 0 && (
                 <div className="mb-6">
                   <h4 className="font-medium mb-3 flex items-center gap-2">
                     <FileWarning className="h-4 w-4 text-yellow-600" />
-                    Unmatched Reports ({processingResult.details?.unmatched?.length ?? 0})
+                    Unmatched Reports ({processingResult.unmatched.length})
                   </h4>
                   <ScrollArea className="h-[150px] border rounded-lg">
                     <div className="p-3 space-y-2">
-                      {processingResult.details?.unmatched?.map((item, index) => (
+                      {processingResult.unmatched.map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-yellow-500/5 rounded">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm truncate">{item.fileName}</p>
                             <p className="text-xs text-muted-foreground">
-                              {item.reason}
+                              Normalized: {item.normalizedFilename}
                             </p>
                           </div>
                         </div>
@@ -546,18 +530,18 @@ export default function AdminBulkReportUpload() {
               )}
 
               {/* Needs Review */}
-              {(processingResult.details?.needsReview?.length ?? 0) > 0 && (
+              {processingResult.needsReview.length > 0 && (
                 <div>
                   <h4 className="font-medium mb-3 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 text-red-600" />
-                    Needs Manual Review ({processingResult.details?.needsReview?.length ?? 0})
+                    Needs Manual Review ({processingResult.needsReview.length})
                   </h4>
                   <ScrollArea className="h-[150px] border rounded-lg">
                     <div className="p-3 space-y-2">
-                      {processingResult.details?.needsReview?.map((item, index) => (
+                      {processingResult.needsReview.map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-red-500/5 rounded">
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm truncate">{item.fileName}</p>
+                            <p className="text-sm font-mono">{item.documentId.slice(0, 8)}...</p>
                             <p className="text-xs text-muted-foreground">{item.reason}</p>
                           </div>
                         </div>
