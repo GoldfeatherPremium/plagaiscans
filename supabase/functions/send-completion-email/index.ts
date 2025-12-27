@@ -1,9 +1,16 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Email configuration constants
+const EMAIL_CONFIG = {
+  FROM_NAME: "Plagaiscans Support",
+  FROM_EMAIL: "support@plagaiscans.com",
+  REPLY_TO: "support@plagaiscans.com",
+  SITE_URL: "https://plagaiscans.com",
+};
+
 const SENDPULSE_API_KEY = Deno.env.get("SENDPLUS_API_KEY");
 const SENDPULSE_API_SECRET = Deno.env.get("SENDPLUS_API_SECRET");
-const SENDPULSE_FROM_EMAIL = Deno.env.get("SENDPLUS_FROM_EMAIL") || "noreply@plagaiscans.com";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +24,7 @@ interface EmailRequest {
   fileName: string;
   similarityPercentage?: number;
   aiPercentage?: number;
+  retryLogId?: string;
 }
 
 // Get SendPulse access token
@@ -43,7 +51,7 @@ async function getSendPulseToken(): Promise<string> {
   return data.access_token;
 }
 
-// Send email via SendPulse SMTP API
+// Send email via SendPulse SMTP API with improved deliverability
 async function sendEmailViaSendPulse(
   token: string,
   to: { email: string; name?: string },
@@ -53,6 +61,13 @@ async function sendEmailViaSendPulse(
   try {
     // Encode HTML content to Base64
     const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
+    
+    // Create plain text version for better deliverability
+    const textContent = htmlContent
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
     const response = await fetch("https://api.sendpulse.com/smtp/emails", {
       method: "POST",
@@ -63,17 +78,19 @@ async function sendEmailViaSendPulse(
       body: JSON.stringify({
         email: {
           html: htmlBase64,
+          text: textContent,
           subject: subject,
           from: {
-            name: "PlagaiScans",
-            email: SENDPULSE_FROM_EMAIL,
+            name: EMAIL_CONFIG.FROM_NAME,
+            email: EMAIL_CONFIG.FROM_EMAIL,
           },
           to: [
             {
               email: to.email,
-              name: to.name || to.email,
+              name: to.name || to.email.split('@')[0],
             },
           ],
+          reply_to: EMAIL_CONFIG.REPLY_TO,
         },
       }),
     });
@@ -128,9 +145,9 @@ async function logEmail(
     error_message?: string;
     metadata?: any;
   }
-): Promise<void> {
+): Promise<string | null> {
   try {
-    await supabase.from("transactional_email_logs").insert({
+    const { data: result, error } = await supabase.from("transactional_email_logs").insert({
       email_type: data.email_type,
       recipient_id: data.recipient_id,
       recipient_email: data.recipient_email,
@@ -142,10 +159,64 @@ async function logEmail(
       error_message: data.error_message,
       sent_at: data.status === 'sent' ? new Date().toISOString() : null,
       metadata: data.metadata,
-    });
+    }).select('id').single();
+    
+    if (error) {
+      console.error("Failed to log email:", error);
+      return null;
+    }
     console.log("Email logged to database:", data.status);
+    return result?.id || null;
   } catch (error) {
     console.error("Failed to log email:", error);
+    return null;
+  }
+}
+
+// Update existing email log
+async function updateEmailLog(
+  supabase: any,
+  logId: string,
+  params: {
+    status: string;
+    providerResponse?: any;
+    errorMessage?: string;
+  }
+): Promise<void> {
+  try {
+    await supabase
+      .from("transactional_email_logs")
+      .update({
+        status: params.status,
+        provider_response: params.providerResponse || null,
+        error_message: params.errorMessage || null,
+        sent_at: params.status === 'sent' ? new Date().toISOString() : null,
+      })
+      .eq('id', logId);
+  } catch (error) {
+    console.error("Error updating email log:", error);
+  }
+}
+
+// Increment warmup counter
+async function incrementWarmupCounter(supabase: any): Promise<void> {
+  try {
+    const { data: warmupSettings } = await supabase
+      .from("email_warmup_settings")
+      .select("id, emails_sent_today")
+      .single();
+
+    if (warmupSettings) {
+      await supabase
+        .from("email_warmup_settings")
+        .update({
+          emails_sent_today: warmupSettings.emails_sent_today + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", warmupSettings.id);
+    }
+  } catch (error) {
+    console.error("Error incrementing warmup counter:", error);
   }
 }
 
@@ -156,9 +227,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { documentId, userId, fileName, similarityPercentage = 0, aiPercentage = 0 }: EmailRequest = await req.json();
+    const { documentId, userId, fileName, similarityPercentage = 0, aiPercentage = 0, retryLogId }: EmailRequest = await req.json();
 
-    console.log("Sending completion email for document:", documentId, "userId:", userId, "fileName:", fileName);
+    console.log("Sending completion email for document:", documentId, "userId:", userId, "fileName:", fileName, "retryLogId:", retryLogId);
 
     // Check if SendPulse credentials are configured
     if (!SENDPULSE_API_KEY || !SENDPULSE_API_SECRET) {
@@ -183,13 +254,13 @@ const handler = async (req: Request): Promise<Response> => {
         .eq("id", userId)
         .single();
       
-      if (profile) {
+      if (profile && !retryLogId) {
         await logEmail(supabase, {
           email_type: 'document_completion',
           recipient_id: userId,
           recipient_email: profile.email,
           recipient_name: profile.full_name,
-          subject: 'Your Document Has Been Processed! - PlagaiScans',
+          subject: 'Your Document Has Been Processed - Plagaiscans',
           document_id: documentId,
           status: 'skipped',
           metadata: { fileName, reason: 'Email disabled by admin' },
@@ -217,16 +288,18 @@ const handler = async (req: Request): Promise<Response> => {
     // Check if user has unsubscribed from emails
     if (profile.email_unsubscribed) {
       console.log("User has unsubscribed from emails, skipping");
-      await logEmail(supabase, {
-        email_type: 'document_completion',
-        recipient_id: userId,
-        recipient_email: profile.email,
-        recipient_name: profile.full_name,
-        subject: 'Your Document Has Been Processed! - PlagaiScans',
-        document_id: documentId,
-        status: 'skipped',
-        metadata: { fileName, reason: 'User unsubscribed' },
-      });
+      if (!retryLogId) {
+        await logEmail(supabase, {
+          email_type: 'document_completion',
+          recipient_id: userId,
+          recipient_email: profile.email,
+          recipient_name: profile.full_name,
+          subject: 'Your Document Has Been Processed - Plagaiscans',
+          document_id: documentId,
+          status: 'skipped',
+          metadata: { fileName, reason: 'User unsubscribed' },
+        });
+      }
       
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: "User unsubscribed" }),
@@ -235,8 +308,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const userName = profile.full_name || "Customer";
-    const siteUrl = Deno.env.get("SITE_URL") || "https://plagaiscans.com";
-    const subject = "Your Document Has Been Processed! - PlagaiScans";
+    const subject = "Your Document Has Been Processed - Plagaiscans";
 
     // Get SendPulse token
     const token = await getSendPulseToken();
@@ -247,51 +319,66 @@ const handler = async (req: Request): Promise<Response> => {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document Processed</title>
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
-        <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-          <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); width: 60px; height: 60px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;">
-                <span style="color: white; font-size: 28px;">✓</span>
-              </div>
-            </div>
-            
-            <h1 style="color: #18181b; text-align: center; margin: 0 0 10px 0; font-size: 24px;">Document Processing Complete!</h1>
-            
-            <p style="color: #71717a; text-align: center; margin: 0 0 30px 0;">Hello ${userName}, your document has been analyzed.</p>
-            
-            <div style="background-color: #f4f4f5; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-              <p style="margin: 0 0 10px 0; color: #71717a; font-size: 14px;">Document</p>
-              <p style="margin: 0; color: #18181b; font-weight: 600;">${fileName}</p>
-            </div>
-            
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;">
-              <tr>
-                <td style="width: 48%; background-color: #fef3c7; border-radius: 8px; padding: 20px; text-align: center;">
-                  <p style="margin: 0 0 5px 0; color: #92400e; font-size: 14px;">Similarity</p>
-                  <p style="margin: 0; color: #92400e; font-size: 28px; font-weight: bold;">${similarityPercentage}%</p>
-                </td>
-                <td style="width: 4%;"></td>
-                <td style="width: 48%; background-color: #dbeafe; border-radius: 8px; padding: 20px; text-align: center;">
-                  <p style="margin: 0 0 5px 0; color: #1e40af; font-size: 14px;">AI Detection</p>
-                  <p style="margin: 0; color: #1e40af; font-size: 28px; font-weight: bold;">${aiPercentage}%</p>
-                </td>
-              </tr>
-            </table>
-            
-            <div style="text-align: center;">
-              <a href="${siteUrl}/dashboard/documents" 
-                 style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600;">
-                View Full Report
-              </a>
-            </div>
-            
-            <p style="color: #a1a1aa; text-align: center; margin: 30px 0 0 0; font-size: 12px;">
-              This is an automated email from PlagaiScans. Please do not reply.
-            </p>
-          </div>
-        </div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5;">
+          <tr>
+            <td align="center" style="padding: 40px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                <tr>
+                  <td style="padding: 40px;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                      <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); width: 60px; height: 60px; border-radius: 12px; display: inline-block; line-height: 60px;">
+                        <span style="color: white; font-size: 28px;">✓</span>
+                      </div>
+                    </div>
+                    
+                    <h1 style="color: #18181b; text-align: center; margin: 0 0 10px 0; font-size: 24px;">Document Processing Complete</h1>
+                    
+                    <p style="color: #71717a; text-align: center; margin: 0 0 30px 0;">Hello ${userName}, your document has been analyzed and is ready for review.</p>
+                    
+                    <div style="background-color: #f4f4f5; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                      <p style="margin: 0 0 10px 0; color: #71717a; font-size: 14px;">Document</p>
+                      <p style="margin: 0; color: #18181b; font-weight: 600;">${fileName}</p>
+                    </div>
+                    
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;">
+                      <tr>
+                        <td style="width: 48%; background-color: #fef3c7; border-radius: 8px; padding: 20px; text-align: center;">
+                          <p style="margin: 0 0 5px 0; color: #92400e; font-size: 14px;">Similarity</p>
+                          <p style="margin: 0; color: #92400e; font-size: 28px; font-weight: bold;">${similarityPercentage}%</p>
+                        </td>
+                        <td style="width: 4%;"></td>
+                        <td style="width: 48%; background-color: #dbeafe; border-radius: 8px; padding: 20px; text-align: center;">
+                          <p style="margin: 0 0 5px 0; color: #1e40af; font-size: 14px;">AI Detection</p>
+                          <p style="margin: 0; color: #1e40af; font-size: 28px; font-weight: bold;">${aiPercentage}%</p>
+                        </td>
+                      </tr>
+                    </table>
+                    
+                    <div style="text-align: center;">
+                      <a href="${EMAIL_CONFIG.SITE_URL}/dashboard/documents" 
+                         style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600;">
+                        View Full Report
+                      </a>
+                    </div>
+                    
+                    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                      <p style="color: #6b7280; text-align: center; margin: 0 0 10px 0; font-size: 13px;">
+                        Regards,<br>
+                        <strong>Plagaiscans Support Team</strong>
+                      </p>
+                      <p style="color: #9ca3af; text-align: center; margin: 0; font-size: 12px;">
+                        <a href="${EMAIL_CONFIG.SITE_URL}" style="color: #6366f1; text-decoration: none;">plagaiscans.com</a>
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
       </body>
       </html>
     `;
@@ -303,19 +390,32 @@ const handler = async (req: Request): Promise<Response> => {
       htmlContent
     );
 
-    // Log email result
-    await logEmail(supabase, {
-      email_type: 'document_completion',
-      recipient_id: userId,
-      recipient_email: profile.email,
-      recipient_name: userName,
-      subject: subject,
-      document_id: documentId,
-      status: result.success ? 'sent' : 'failed',
-      provider_response: result.response,
-      error_message: result.error,
-      metadata: { fileName, similarityPercentage, aiPercentage },
-    });
+    // Log or update email result
+    if (retryLogId) {
+      await updateEmailLog(supabase, retryLogId, {
+        status: result.success ? 'sent' : 'failed',
+        providerResponse: result.response,
+        errorMessage: result.error,
+      });
+    } else {
+      await logEmail(supabase, {
+        email_type: 'document_completion',
+        recipient_id: userId,
+        recipient_email: profile.email,
+        recipient_name: userName,
+        subject: subject,
+        document_id: documentId,
+        status: result.success ? 'sent' : 'failed',
+        provider_response: result.response,
+        error_message: result.error,
+        metadata: { fileName, similarityPercentage, aiPercentage },
+      });
+    }
+
+    // Increment warmup counter on success
+    if (result.success) {
+      await incrementWarmupCounter(supabase);
+    }
 
     if (!result.success) {
       throw new Error(result.error || "Failed to send email");
