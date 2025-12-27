@@ -213,6 +213,51 @@ export type Database = {
         }
         Relationships: []
       }
+      bulk_report_runs: {
+        Row: {
+          created_at: string
+          created_by: string
+          error_message: string | null
+          id: string
+          last_event: string | null
+          mapped_count: number
+          needs_review_count: number
+          processed_reports: number
+          status: string
+          total_reports: number
+          unmatched_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          error_message?: string | null
+          id?: string
+          last_event?: string | null
+          mapped_count?: number
+          needs_review_count?: number
+          processed_reports?: number
+          status?: string
+          total_reports?: number
+          unmatched_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          error_message?: string | null
+          id?: string
+          last_event?: string | null
+          mapped_count?: number
+          needs_review_count?: number
+          processed_reports?: number
+          status?: string
+          total_reports?: number
+          unmatched_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       credit_transactions: {
         Row: {
           amount: number
