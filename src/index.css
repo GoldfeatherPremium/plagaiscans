@@ -297,7 +297,7 @@
 
   /* Feature cards */
   .feature-card {
-    @apply relative bg-card rounded-2xl border border-border p-8 transition-all duration-500 overflow-hidden;
+    @apply relative bg-card rounded-2xl border border-border p-8 transition-all duration-500 overflow-hidden group;
   }
 
   .feature-card::before {
