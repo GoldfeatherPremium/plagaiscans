@@ -49,6 +49,7 @@ export default function AdminEmailDeliveryLogs() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
+  const [bulkRetrying, setBulkRetrying] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     sent: 0,
@@ -164,6 +165,65 @@ export default function AdminEmailDeliveryLogs() {
     }
   };
 
+  const getFailedRetryableEmails = () => {
+    return logs.filter(log => 
+      log.status === 'failed' && 
+      ['document_completion', 'welcome', 'password_reset'].includes(log.email_type)
+    );
+  };
+
+  const retryAllFailed = async () => {
+    const failedEmails = getFailedRetryableEmails();
+    
+    if (failedEmails.length === 0) {
+      toast.info('No failed emails to retry');
+      return;
+    }
+
+    setBulkRetrying(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const log of failedEmails) {
+      try {
+        let functionName = '';
+        let payload: any = {};
+
+        switch (log.email_type) {
+          case 'document_completion':
+            functionName = 'send-completion-email';
+            payload = { documentId: log.document_id, retryLogId: log.id };
+            break;
+          case 'welcome':
+            functionName = 'send-welcome-email';
+            payload = { userId: log.recipient_id, email: log.recipient_email, fullName: log.recipient_name, retryLogId: log.id };
+            break;
+          case 'password_reset':
+            functionName = 'send-password-reset';
+            payload = { email: log.recipient_email, retryLogId: log.id };
+            break;
+        }
+
+        const { error } = await supabase.functions.invoke(functionName, { body: payload });
+        
+        if (error) {
+          failCount++;
+        } else {
+          successCount++;
+        }
+        
+        // Small delay to avoid overwhelming the server
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch {
+        failCount++;
+      }
+    }
+
+    setBulkRetrying(false);
+    toast.success(`Bulk retry complete: ${successCount} succeeded, ${failCount} failed`);
+    fetchLogs();
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'sent':
@@ -233,10 +293,31 @@ export default function AdminEmailDeliveryLogs() {
             <h1 className="text-3xl font-bold">Email Delivery Logs</h1>
             <p className="text-muted-foreground">Track all transactional email deliveries</p>
           </div>
-          <Button onClick={fetchLogs} variant="outline" disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex gap-2">
+            {getFailedRetryableEmails().length > 0 && (
+              <Button 
+                onClick={retryAllFailed} 
+                variant="default" 
+                disabled={bulkRetrying}
+              >
+                {bulkRetrying ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Retrying...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Retry All Failed ({getFailedRetryableEmails().length})
+                  </>
+                )}
+              </Button>
+            )}
+            <Button onClick={fetchLogs} variant="outline" disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
