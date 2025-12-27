@@ -1,6 +1,14 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Email configuration constants
+const EMAIL_CONFIG = {
+  FROM_NAME: "Plagaiscans Support",
+  FROM_EMAIL: "support@plagaiscans.com",
+  REPLY_TO: "support@plagaiscans.com",
+  SITE_URL: "https://plagaiscans.com",
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -26,8 +34,7 @@ interface Recipient {
 }
 
 // Rate limiting: max emails per minute
-const RATE_LIMIT_PER_MINUTE = 60;
-const DELAY_BETWEEN_EMAILS_MS = 100; // 100ms between emails
+const DELAY_BETWEEN_EMAILS_MS = 1000; // 1 second between emails for better deliverability
 
 // Get SendPulse API access token
 async function getSendPulseToken(): Promise<string> {
@@ -68,6 +75,13 @@ async function sendSingleEmail(
   try {
     // Encode HTML content to base64 for SendPulse API
     const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
+    
+    // Create plain text version
+    const textContent = htmlContent
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
     const response = await fetch("https://api.sendpulse.com/smtp/emails", {
       method: "POST",
@@ -78,11 +92,11 @@ async function sendSingleEmail(
       body: JSON.stringify({
         email: {
           html: htmlBase64,
-          text: htmlContent.replace(/<[^>]*>/g, ''),
+          text: textContent,
           subject: subject,
           from: {
-            name: "Plagaiscans",
-            email: "no-reply@plagaiscans.com"
+            name: EMAIL_CONFIG.FROM_NAME,
+            email: EMAIL_CONFIG.FROM_EMAIL
           },
           // CRITICAL: Only ONE recipient per email for privacy
           to: [{ 
@@ -90,7 +104,7 @@ async function sendSingleEmail(
             name: recipient.email.split('@')[0]
           }],
           // Reply-to for support inquiries
-          reply_to: "support@plagaiscans.com"
+          reply_to: EMAIL_CONFIG.REPLY_TO
         }
       })
     });
@@ -238,8 +252,6 @@ const handler = async (req: Request): Promise<Response> => {
     // Log recipient count only (never log actual emails)
     console.log(`Sending individual emails to ${recipients.length} recipients`);
 
-    const siteUrl = "https://plagaiscans.com";
-
     // Get icon based on email type
     const typeIcons: Record<string, string> = {
       announcement: '📢',
@@ -260,7 +272,7 @@ const handler = async (req: Request): Promise<Response> => {
     for (const recipient of recipients) {
       // Generate unique unsubscribe token for this recipient
       const unsubscribeToken = btoa(`${recipient.id}:${Date.now()}`);
-      const unsubscribeUrl = `${siteUrl}/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}&uid=${recipient.id}`;
+      const unsubscribeUrl = `${EMAIL_CONFIG.SITE_URL}/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}&uid=${recipient.id}`;
       
       // Build HTML content with unsubscribe link for promotional emails
       const htmlContent = `
@@ -269,44 +281,56 @@ const handler = async (req: Request): Promise<Response> => {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${title}</title>
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
-          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-            <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-              <div style="text-align: center; margin-bottom: 30px;">
-                <div style="background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); width: 60px; height: 60px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;">
-                  <span style="color: white; font-size: 28px;">${typeIcons[type] || '📧'}</span>
-                </div>
-              </div>
-              
-              <h1 style="color: #18181b; text-align: center; margin: 0 0 20px 0; font-size: 24px;">${title}</h1>
-              
-              <div style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
-                ${message.replace(/\n/g, '<br>')}
-              </div>
-              
-              ${ctaText && ctaUrl ? `
-              <div style="text-align: center; margin-bottom: 30px;">
-                <a href="${ctaUrl}" 
-                   style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600;">
-                  ${ctaText}
-                </a>
-              </div>
-              ` : ''}
-              
-              <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 30px 0;">
-              
-              <p style="color: #a1a1aa; text-align: center; margin: 0; font-size: 12px;">
-                This email was sent by Plagaiscans<br>
-                <a href="${siteUrl}" style="color: #3b82f6; text-decoration: none;">Visit our website</a>
-                ${isPromotional ? `
-                <br><br>
-                <span style="color: #71717a;">Don't want to receive promotional emails?</span><br>
-                <a href="${unsubscribeUrl}" style="color: #71717a; text-decoration: underline;">Unsubscribe</a>
-                ` : ''}
-              </p>
-            </div>
-          </div>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5;">
+            <tr>
+              <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                  <tr>
+                    <td style="padding: 40px;">
+                      <div style="text-align: center; margin-bottom: 30px;">
+                        <div style="background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); width: 60px; height: 60px; border-radius: 12px; display: inline-block; line-height: 60px;">
+                          <span style="color: white; font-size: 28px;">${typeIcons[type] || '📧'}</span>
+                        </div>
+                      </div>
+                      
+                      <h1 style="color: #18181b; text-align: center; margin: 0 0 20px 0; font-size: 24px;">${title}</h1>
+                      
+                      <div style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+                        ${message.replace(/\n/g, '<br>')}
+                      </div>
+                      
+                      ${ctaText && ctaUrl ? `
+                      <div style="text-align: center; margin-bottom: 30px;">
+                        <a href="${ctaUrl}" 
+                           style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600;">
+                          ${ctaText}
+                        </a>
+                      </div>
+                      ` : ''}
+                      
+                      <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                        <p style="color: #6b7280; text-align: center; margin: 0 0 10px 0; font-size: 13px;">
+                          Regards,<br>
+                          <strong>Plagaiscans Support Team</strong>
+                        </p>
+                        <p style="color: #9ca3af; text-align: center; margin: 0; font-size: 12px;">
+                          <a href="${EMAIL_CONFIG.SITE_URL}" style="color: #3b82f6; text-decoration: none;">plagaiscans.com</a>
+                          ${isPromotional ? `
+                          <br><br>
+                          <span style="color: #71717a;">Don't want to receive promotional emails?</span><br>
+                          <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline; font-size: 11px;">Unsubscribe</a>
+                          ` : ''}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
         </body>
         </html>
       `;
@@ -331,7 +355,7 @@ const handler = async (req: Request): Promise<Response> => {
         failedCount++;
       }
 
-      // Rate limiting: delay between emails
+      // Rate limiting: delay between emails for better deliverability
       await sleep(DELAY_BETWEEN_EMAILS_MS);
     }
 
