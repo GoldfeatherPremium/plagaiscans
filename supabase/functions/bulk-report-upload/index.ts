@@ -620,24 +620,45 @@ serve(async (req: Request) => {
     }
 
     // Process each report: normalize filename, extract text, classify
+    // Run in parallel with a small concurrency limit to avoid timeouts.
     const processedReports = new Map<string, (ReportFile & ClassificationResult)[]>();
-    
+
+    const CONCURRENCY = 3;
+    const running: Promise<void>[] = [];
+
+    const enqueue = (task: () => Promise<void>) => {
+      const p = task().finally(() => {
+        const idx = running.indexOf(p);
+        if (idx >= 0) running.splice(idx, 1);
+      });
+      running.push(p);
+      return p;
+    };
+
     for (const report of reports) {
-      // STAGE 1: Normalize filename for grouping
-      const normalized = normalizeFilename(report.fileName);
-      report.normalizedFilename = normalized;
-      
-      console.log(`Processing report: ${report.fileName} -> normalized: "${normalized}"`);
-      
-      // STAGES 2-4: Extract text, classify, extract percentage
-      const classification = await processReport(supabase, report);
-      const processedReport = { ...report, ...classification };
-      
-      if (!processedReports.has(normalized)) {
-        processedReports.set(normalized, []);
+      if (running.length >= CONCURRENCY) {
+        await Promise.race(running);
       }
-      processedReports.get(normalized)!.push(processedReport);
+
+      enqueue(async () => {
+        // STAGE 1: Normalize filename for grouping
+        const normalized = normalizeFilename(report.fileName);
+        report.normalizedFilename = normalized;
+
+        console.log(`Processing report: ${report.fileName} -> normalized: "${normalized}"`);
+
+        // STAGES 2-4: Extract text, classify, extract percentage
+        const classification = await processReport(supabase, report);
+        const processedReport = { ...report, ...classification };
+
+        if (!processedReports.has(normalized)) {
+          processedReports.set(normalized, []);
+        }
+        processedReports.get(normalized)!.push(processedReport);
+      });
     }
+
+    await Promise.all(running);
 
     // STAGE 6: DRY RUN - Validate before writing
     const dryRunResult = performDryRun(docsByNormalized, processedReports);
