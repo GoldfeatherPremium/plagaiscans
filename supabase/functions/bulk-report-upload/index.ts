@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,10 +12,20 @@ interface ReportFile {
   normalizedFilename: string;
 }
 
+interface ClassificationResult {
+  reportType: 'similarity' | 'ai' | 'unknown';
+  similarityPercentage: number | null;
+  aiPercentage: number | null;
+  ocrText: string;
+  error?: string;
+}
+
 interface MappingResult {
   documentId: string;
   fileName: string;
-  reportType: 'similarity' | 'ai';
+  reportType: 'similarity' | 'ai' | 'unknown';
+  similarityPercentage: number | null;
+  aiPercentage: number | null;
   success: boolean;
   message?: string;
 }
@@ -35,48 +45,343 @@ interface ProcessingResult {
   };
 }
 
+// =====================================================
+// STAGE 1 — FILENAME NORMALIZATION
+// =====================================================
+
 /**
  * Normalize filename for CUSTOMER documents (base name).
- * Just removes the file extension, keeps everything else including brackets.
- * Examples:
- *   fileA1.pdf → fileA1
- *   fileA1 (1).pdf → fileA1 (1)
+ * Removes file extension only, keeps everything else including brackets.
  */
 function getDocumentBaseName(filename: string): string {
   let result = filename.toLowerCase();
-  // Remove file extension only
   result = result.replace(/\.[^.]+$/, '');
   return result.trim();
 }
 
 /**
- * Normalize filename for REPORT files (admin-uploaded).
- * Removes extension AND only the LAST trailing " (number)" suffix.
- * This allows matching to customer documents that may have earlier brackets.
- * 
- * Examples:
- *   fileA1 (1).pdf → fileA1 (report for "fileA1.pdf")
- *   fileA1 (2).pdf → fileA1 (report for "fileA1.pdf")
- *   fileA1 (1) (1).pdf → fileA1 (1) (report for "fileA1 (1).pdf")
- *   fileA1 (1) (2).pdf → fileA1 (1) (report for "fileA1 (1).pdf")
- *   fileA1.pdf → fileA1 (exact match for "fileA1.pdf")
+ * Normalize filename for REPORT files.
+ * Removes extension AND trailing numbers like (1), (2), (45).
+ * Also removes surrounding brackets [] or ().
  */
 function normalizeReportFilename(filename: string): string {
   let result = filename.toLowerCase();
   // Remove file extension
   result = result.replace(/\.[^.]+$/, '');
-  // Remove ONLY the last trailing " (number)" suffix - single pass, no global flag
-  result = result.replace(/\s*\(\d+\)$/, '');
+  // Remove trailing " (number)" patterns
+  result = result.replace(/\s*\(\d+\)\s*$/g, '');
+  // Remove surrounding brackets if present
+  result = result.replace(/^\[|\]$/g, '').replace(/^\(|\)$/g, '');
+  // Normalize spacing
+  result = result.replace(/\s+/g, ' ');
   return result.trim();
 }
 
-// Keep for backwards compatibility - used for customer documents
-function normalizeFilename(filename: string): string {
-  return getDocumentBaseName(filename);
+// =====================================================
+// STAGE 2 — LOCAL PDF TEXT EXTRACTION
+// =====================================================
+
+/**
+ * Extract text from PDF by parsing the raw bytes.
+ * This works for text-based PDFs (like Turnitin reports).
+ * For scanned PDFs, it will return empty or minimal text.
+ */
+async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
+  try {
+    const uint8Array = new Uint8Array(pdfBuffer);
+    const decoder = new TextDecoder('latin1');
+    const rawText = decoder.decode(uint8Array);
+    
+    const textMatches: string[] = [];
+    
+    // Method 1: Extract text from PDF text objects (Tj, TJ operators)
+    const tjPattern = /\(([^)]*)\)\s*(?:Tj|TJ|\'|\")/g;
+    let match;
+    while ((match = tjPattern.exec(rawText)) !== null) {
+      if (match[1]) {
+        let text = match[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '\r')
+          .replace(/\\t/g, '\t')
+          .replace(/\\\\/g, '\\')
+          .replace(/\\([()])/g, '$1');
+        textMatches.push(text);
+      }
+    }
+    
+    // Method 2: Extract hex-encoded text <XXXX>
+    const hexPattern = /<([0-9A-Fa-f]+)>\s*(?:Tj|TJ)/g;
+    while ((match = hexPattern.exec(rawText)) !== null) {
+      if (match[1] && match[1].length % 2 === 0) {
+        let text = '';
+        for (let i = 0; i < match[1].length; i += 2) {
+          const charCode = parseInt(match[1].substr(i, 2), 16);
+          if (charCode >= 32 && charCode <= 126) {
+            text += String.fromCharCode(charCode);
+          }
+        }
+        if (text) textMatches.push(text);
+      }
+    }
+    
+    // Method 3: Look for readable text patterns in raw content
+    const readablePattern = /[A-Za-z]{3,}[A-Za-z\s]{2,}/g;
+    while ((match = readablePattern.exec(rawText)) !== null) {
+      if (match[0].length > 5) {
+        textMatches.push(match[0]);
+      }
+    }
+    
+    const extractedText = textMatches.join(' ');
+    console.log(`Extracted ${extractedText.length} characters from PDF`);
+    
+    return extractedText;
+  } catch (error) {
+    console.error('PDF text extraction failed:', error);
+    throw new Error('Failed to extract text from PDF');
+  }
 }
 
+/**
+ * Normalize text for classification.
+ */
+function normalizeText(text: string): string {
+  return text.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+// =====================================================
+// STAGE 3 — REPORT TYPE DETECTION
+// =====================================================
+
+/**
+ * Classify report type based on extracted text content.
+ */
+function classifyReport(text: string): 'similarity' | 'ai' | 'unknown' {
+  const normalized = normalizeText(text);
+  
+  const similarityIndicators = [
+    'overall similarity',
+    'match groups',
+    'integrity overview',
+    'similarity index',
+    'internet sources',
+    'publications',
+    'student papers',
+  ];
+  
+  const aiIndicators = [
+    'detected as ai',
+    'ai writing overview',
+    'detection groups',
+    'ai writing detection',
+    'human written',
+    'ai generated',
+  ];
+  
+  const hasSimilarityIndicator = similarityIndicators.some(i => normalized.includes(i));
+  const hasAiIndicator = aiIndicators.some(i => normalized.includes(i));
+  
+  if (hasSimilarityIndicator && hasAiIndicator) {
+    const similarityCount = similarityIndicators.filter(i => normalized.includes(i)).length;
+    const aiCount = aiIndicators.filter(i => normalized.includes(i)).length;
+    return aiCount > similarityCount ? 'ai' : 'similarity';
+  }
+  
+  if (hasAiIndicator) return 'ai';
+  if (hasSimilarityIndicator) return 'similarity';
+  
+  return 'unknown';
+}
+
+// =====================================================
+// STAGE 4 — PERCENTAGE EXTRACTION
+// =====================================================
+
+/**
+ * Extract similarity percentage from text.
+ */
+function extractSimilarityPercentage(text: string): number | null {
+  const normalized = normalizeText(text);
+  
+  const patterns = [
+    /(\d{1,3})\s*%\s*overall\s*similarity/i,
+    /overall\s*similarity[:\s]*(\d{1,3})\s*%/i,
+    /similarity\s*index[:\s]*(\d{1,3})\s*%/i,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match && match[1]) {
+      const value = parseInt(match[1], 10);
+      if (value >= 0 && value <= 100) return value;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Extract AI percentage from text.
+ * Returns null if "*%" is found (asterisk indicates unavailable)
+ */
+function extractAiPercentage(text: string): number | null {
+  const normalized = normalizeText(text);
+  
+  if (normalized.includes('*%') || normalized.includes('* %')) {
+    return null;
+  }
+  
+  const patterns = [
+    /(\d{1,3})\s*%\s*detected\s*as\s*ai/i,
+    /ai[:\s]*(\d{1,3})\s*%/i,
+    /(\d{1,3})\s*%\s*ai\s*generated/i,
+    /ai\s*writing[:\s]*(\d{1,3})\s*%/i,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match && match[1]) {
+      const value = parseInt(match[1], 10);
+      if (value >= 0 && value <= 100) return value;
+    }
+  }
+  
+  return null;
+}
+
+// =====================================================
+// REPORT PROCESSING
+// =====================================================
+
+/**
+ * Process a single report file: download, extract text, classify, extract percentages.
+ */
+async function processReport(
+  supabase: SupabaseClient,
+  report: ReportFile
+): Promise<ClassificationResult> {
+  try {
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('reports')
+      .download(report.filePath);
+    
+    if (downloadError || !fileData) {
+      console.error(`Failed to download report ${report.fileName}:`, downloadError);
+      return {
+        reportType: 'unknown',
+        similarityPercentage: null,
+        aiPercentage: null,
+        ocrText: '',
+        error: 'Failed to download PDF',
+      };
+    }
+    
+    const pdfBuffer = await fileData.arrayBuffer();
+    let extractedText: string;
+    
+    try {
+      extractedText = await extractTextFromPDF(pdfBuffer);
+    } catch (error) {
+      console.error(`Text extraction failed for ${report.fileName}:`, error);
+      return {
+        reportType: 'unknown',
+        similarityPercentage: null,
+        aiPercentage: null,
+        ocrText: '',
+        error: 'Text extraction failed - may be scanned PDF',
+      };
+    }
+    
+    if (!extractedText || extractedText.trim().length < 50) {
+      console.warn(`Insufficient text extracted from ${report.fileName}`);
+      return {
+        reportType: 'unknown',
+        similarityPercentage: null,
+        aiPercentage: null,
+        ocrText: extractedText || '',
+        error: 'Insufficient text extracted - may be scanned PDF',
+      };
+    }
+    
+    const reportType = classifyReport(extractedText);
+    
+    let similarityPercentage: number | null = null;
+    let aiPercentage: number | null = null;
+    
+    if (reportType === 'similarity') {
+      similarityPercentage = extractSimilarityPercentage(extractedText);
+    } else if (reportType === 'ai') {
+      aiPercentage = extractAiPercentage(extractedText);
+    }
+    
+    console.log(`Classified ${report.fileName}: type=${reportType}, similarity=${similarityPercentage}, ai=${aiPercentage}`);
+    
+    return {
+      reportType,
+      similarityPercentage,
+      aiPercentage,
+      ocrText: extractedText.substring(0, 500),
+    };
+  } catch (error) {
+    console.error(`Error processing report ${report.fileName}:`, error);
+    return {
+      reportType: 'unknown',
+      similarityPercentage: null,
+      aiPercentage: null,
+      ocrText: '',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+// =====================================================
+// STAGE 6 — DRY RUN VALIDATION
+// =====================================================
+
+interface DryRunResult {
+  valid: boolean;
+  errors: string[];
+}
+
+function performDryRun(
+  docsByBaseName: Map<string, any[]>,
+  processedReports: Map<string, (ReportFile & ClassificationResult)[]>
+): DryRunResult {
+  const errors: string[] = [];
+  
+  for (const [normalized, reports] of processedReports) {
+    const matchingDocs = docsByBaseName.get(normalized) || [];
+    
+    if (matchingDocs.length === 0) continue;
+    if (matchingDocs.length > 1) {
+      errors.push(`Multiple documents match normalized filename "${normalized}"`);
+      continue;
+    }
+    
+    const docId = matchingDocs[0].id;
+    const similarityReports = reports.filter(r => r.reportType === 'similarity');
+    const aiReports = reports.filter(r => r.reportType === 'ai');
+    const unknownReports = reports.filter(r => r.reportType === 'unknown');
+    
+    if (similarityReports.length > 1) {
+      errors.push(`Document ${docId}: Multiple similarity reports`);
+    }
+    if (aiReports.length > 1) {
+      errors.push(`Document ${docId}: Multiple AI reports`);
+    }
+    if (unknownReports.length > 0) {
+      errors.push(`Document ${docId}: ${unknownReports.length} unclassified report(s)`);
+    }
+  }
+  
+  return { valid: errors.length === 0, errors };
+}
+
+// =====================================================
+// MAIN HANDLER
+// =====================================================
+
 serve(async (req: Request) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -86,7 +391,7 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get auth header to verify staff/admin
+    // Auth verification
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -95,7 +400,6 @@ serve(async (req: Request) => {
       });
     }
 
-    // Verify user role
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
@@ -106,7 +410,6 @@ serve(async (req: Request) => {
       });
     }
 
-    // Check if user is staff or admin
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
@@ -129,12 +432,12 @@ serve(async (req: Request) => {
       });
     }
 
-    console.log(`Processing ${reports.length} reports for auto-mapping`);
+    console.log(`Processing ${reports.length} reports with local text extraction`);
 
-    // Fetch all pending and in_progress documents
+    // Fetch all pending/in_progress documents
     const { data: documents, error: docError } = await supabase
       .from('documents')
-      .select('id, file_name, normalized_filename, user_id, similarity_report_path, ai_report_path, status, needs_review')
+      .select('id, file_name, normalized_filename, user_id, similarity_report_path, ai_report_path, similarity_percentage, ai_percentage, status, needs_review')
       .in('status', ['pending', 'in_progress'])
       .eq('needs_review', false);
 
@@ -145,36 +448,40 @@ serve(async (req: Request) => {
 
     console.log(`Found ${documents?.length || 0} pending/in_progress documents`);
 
-    // Group documents by their BASE NAME (just extension removed, keeps brackets)
-    // This is the "identity" of the customer document
+    // Group documents by normalized filename
     const docsByBaseName = new Map<string, typeof documents>();
     for (const doc of documents || []) {
-      // Use the stored normalized_filename or compute base name
       const baseName = doc.normalized_filename || getDocumentBaseName(doc.file_name);
-      
       if (!docsByBaseName.has(baseName)) {
         docsByBaseName.set(baseName, []);
       }
       docsByBaseName.get(baseName)!.push(doc);
     }
 
-    console.log(`Document base names:`, Array.from(docsByBaseName.keys()));
-
-    // Group reports by their NORMALIZED filename (last trailing suffix removed)
-    // This determines which customer document base name they match
-    const reportsByNormalized = new Map<string, ReportFile[]>();
+    // Process each report - extract text and classify
+    const processedReports = new Map<string, (ReportFile & ClassificationResult)[]>();
+    
     for (const report of reports) {
-      // Use the advanced normalization that removes only the LAST trailing (number)
       const normalized = normalizeReportFilename(report.fileName);
       report.normalizedFilename = normalized;
       
-      if (!reportsByNormalized.has(normalized)) {
-        reportsByNormalized.set(normalized, []);
+      console.log(`Processing report: ${report.fileName} -> normalized: ${normalized}`);
+      
+      const classification = await processReport(supabase, report);
+      const processedReport = { ...report, ...classification };
+      
+      if (!processedReports.has(normalized)) {
+        processedReports.set(normalized, []);
       }
-      reportsByNormalized.get(normalized)!.push(report);
+      processedReports.get(normalized)!.push(processedReport);
     }
 
-    console.log(`Report normalized names:`, Array.from(reportsByNormalized.keys()));
+    // DRY RUN - Validate before writing
+    const dryRunResult = performDryRun(docsByBaseName, processedReports);
+    console.log(`Dry run: valid=${dryRunResult.valid}, errors=${dryRunResult.errors.length}`);
+    if (dryRunResult.errors.length > 0) {
+      console.log('Dry run errors:', dryRunResult.errors);
+    }
 
     const result: ProcessingResult = {
       success: true,
@@ -191,37 +498,36 @@ serve(async (req: Request) => {
       },
     };
 
-    // Process each group of reports
-    for (const [normalized, matchingReports] of reportsByNormalized) {
-      // Look up documents by the normalized report name (which should match document base name)
+    // COMMIT PHASE - Write to database
+    for (const [normalized, matchingReports] of processedReports) {
       const matchingDocs = docsByBaseName.get(normalized) || [];
 
-      console.log(`Processing normalized filename "${normalized}": ${matchingReports.length} reports, ${matchingDocs.length} matching documents`);
-
-      // Case 1: No matching documents - unmatched reports
+      // Case 1: No matching documents
       if (matchingDocs.length === 0) {
         for (const report of matchingReports) {
           result.unmatched.push(report);
           
-          // Store in unmatched_reports table
           await supabase.from('unmatched_reports').insert({
             file_name: report.fileName,
             normalized_filename: normalized,
             file_path: report.filePath,
+            report_type: report.reportType,
+            similarity_percentage: report.similarityPercentage,
+            ai_percentage: report.aiPercentage,
             uploaded_by: user.id,
           });
         }
         continue;
       }
 
-      // Case 2: Multiple documents with same normalized filename - ambiguous, mark for review
+      // Case 2: Multiple documents - mark for review
       if (matchingDocs.length > 1) {
         for (const doc of matchingDocs) {
           await supabase
             .from('documents')
             .update({
               needs_review: true,
-              review_reason: `Multiple documents share the same normalized filename: ${normalized}`,
+              review_reason: `Multiple documents share normalized filename: ${normalized}`,
             })
             .eq('id', doc.id);
 
@@ -231,103 +537,131 @@ serve(async (req: Request) => {
           });
         }
         
-        // Add reports to unmatched since we can't determine which document they belong to
         for (const report of matchingReports) {
           result.unmatched.push(report);
           await supabase.from('unmatched_reports').insert({
             file_name: report.fileName,
             normalized_filename: normalized,
             file_path: report.filePath,
+            report_type: report.reportType,
+            similarity_percentage: report.similarityPercentage,
+            ai_percentage: report.aiPercentage,
             uploaded_by: user.id,
           });
         }
         continue;
       }
 
-      // Case 3: Exactly one matching document - proceed with mapping
+      // Case 3: Single matching document
       const doc = matchingDocs[0];
-      
-      // Case 3a: More than 2 reports for one document - needs review
-      if (matchingReports.length > 2) {
+      const updateData: Record<string, unknown> = {};
+      let hasIssues = false;
+      const issues: string[] = [];
+
+      const similarityReports = matchingReports.filter(r => r.reportType === 'similarity');
+      const aiReports = matchingReports.filter(r => r.reportType === 'ai');
+      const unknownReports = matchingReports.filter(r => r.reportType === 'unknown');
+
+      if (similarityReports.length > 1) {
+        issues.push(`Multiple similarity reports (${similarityReports.length})`);
+        hasIssues = true;
+      }
+      if (aiReports.length > 1) {
+        issues.push(`Multiple AI reports (${aiReports.length})`);
+        hasIssues = true;
+      }
+      if (unknownReports.length > 0) {
+        issues.push(`${unknownReports.length} unclassified report(s)`);
+        hasIssues = true;
+      }
+
+      if (hasIssues) {
         await supabase
           .from('documents')
           .update({
             needs_review: true,
-            review_reason: `More than 2 reports matched (${matchingReports.length} found)`,
+            review_reason: issues.join('; '),
           })
           .eq('id', doc.id);
 
         result.needsReview.push({
           documentId: doc.id,
-          reason: `More than 2 reports found (${matchingReports.length})`,
+          reason: issues.join('; '),
         });
         
-        // Store excess reports as unmatched
         for (const report of matchingReports) {
           result.unmatched.push(report);
           await supabase.from('unmatched_reports').insert({
             file_name: report.fileName,
             normalized_filename: normalized,
             file_path: report.filePath,
+            report_type: report.reportType,
+            similarity_percentage: report.similarityPercentage,
+            ai_percentage: report.aiPercentage,
             uploaded_by: user.id,
+            matched_document_id: doc.id,
           });
         }
         continue;
       }
 
-      // Assign reports: first as similarity, second as AI
-      let updatedDoc = { ...doc };
-      
-      for (let i = 0; i < matchingReports.length; i++) {
-        const report = matchingReports[i];
-        let reportType: 'similarity' | 'ai';
-        
-        // Determine which slot to fill
-        if (!updatedDoc.similarity_report_path) {
-          reportType = 'similarity';
-          updatedDoc.similarity_report_path = report.filePath;
-        } else if (!updatedDoc.ai_report_path) {
-          reportType = 'ai';
-          updatedDoc.ai_report_path = report.filePath;
-        } else {
-          // Both slots filled - this shouldn't happen but handle it
+      // Assign valid reports - NEVER overwrite existing values
+      for (const report of matchingReports) {
+        if (report.reportType === 'similarity' && !doc.similarity_report_path) {
+          updateData.similarity_report_path = report.filePath;
+          if (report.similarityPercentage !== null && doc.similarity_percentage === null) {
+            updateData.similarity_percentage = report.similarityPercentage;
+          }
+          result.mapped.push({
+            documentId: doc.id,
+            fileName: report.fileName,
+            reportType: 'similarity',
+            similarityPercentage: report.similarityPercentage,
+            aiPercentage: null,
+            success: true,
+          });
+          result.stats.mappedCount++;
+        } else if (report.reportType === 'ai' && !doc.ai_report_path) {
+          updateData.ai_report_path = report.filePath;
+          if (report.aiPercentage !== null && doc.ai_percentage === null) {
+            updateData.ai_percentage = report.aiPercentage;
+          }
+          result.mapped.push({
+            documentId: doc.id,
+            fileName: report.fileName,
+            reportType: 'ai',
+            similarityPercentage: null,
+            aiPercentage: report.aiPercentage,
+            success: true,
+          });
+          result.stats.mappedCount++;
+        } else if (report.reportType !== 'unknown') {
           result.unmatched.push(report);
           await supabase.from('unmatched_reports').insert({
             file_name: report.fileName,
             normalized_filename: normalized,
             file_path: report.filePath,
+            report_type: report.reportType,
+            similarity_percentage: report.similarityPercentage,
+            ai_percentage: report.aiPercentage,
             uploaded_by: user.id,
+            matched_document_id: doc.id,
           });
-          continue;
         }
-
-        result.mapped.push({
-          documentId: doc.id,
-          fileName: report.fileName,
-          reportType,
-          success: true,
-        });
-        result.stats.mappedCount++;
       }
 
-      // Update the document with new report paths
-      const updateData: Record<string, unknown> = {};
-      
-      if (updatedDoc.similarity_report_path !== doc.similarity_report_path) {
-        updateData.similarity_report_path = updatedDoc.similarity_report_path;
-      }
-      if (updatedDoc.ai_report_path !== doc.ai_report_path) {
-        updateData.ai_report_path = updatedDoc.ai_report_path;
-      }
+      // Auto-complete if both reports exist
+      const hasSimilarity = updateData.similarity_report_path || doc.similarity_report_path;
+      const hasAi = updateData.ai_report_path || doc.ai_report_path;
 
-      // Check if both reports are now attached - mark as completed
-      if (updatedDoc.similarity_report_path && updatedDoc.ai_report_path) {
+      if (hasSimilarity && hasAi) {
         updateData.status = 'completed';
         updateData.completed_at = new Date().toISOString();
         result.completedDocuments.push(doc.id);
         result.stats.completedCount++;
-
         console.log(`Document ${doc.id} completed with both reports`);
+      } else if (Object.keys(updateData).length > 0 && doc.status === 'pending') {
+        updateData.status = 'in_progress';
       }
 
       if (Object.keys(updateData).length > 0) {
@@ -348,7 +682,6 @@ serve(async (req: Request) => {
 
     // Send notifications for completed documents
     for (const docId of result.completedDocuments) {
-      // Get document details for notification
       const { data: completedDoc } = await supabase
         .from('documents')
         .select('id, file_name, user_id')
@@ -356,7 +689,6 @@ serve(async (req: Request) => {
         .single();
 
       if (completedDoc?.user_id) {
-        // Create user notification
         await supabase.from('user_notifications').insert({
           user_id: completedDoc.user_id,
           title: 'Document Completed',
@@ -364,7 +696,6 @@ serve(async (req: Request) => {
           created_by: user.id,
         });
 
-        // Trigger push notification
         try {
           await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
             method: 'POST',
@@ -383,7 +714,6 @@ serve(async (req: Request) => {
           console.error('Failed to send push notification:', pushError);
         }
 
-        // Trigger completion email
         try {
           await fetch(`${supabaseUrl}/functions/v1/send-completion-email`, {
             method: 'POST',
