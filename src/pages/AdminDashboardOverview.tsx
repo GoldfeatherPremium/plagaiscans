@@ -1,6 +1,7 @@
 import React from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -147,8 +148,21 @@ export default function AdminDashboardOverview() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="space-y-6">
+          <div>
+            <Skeleton className="h-9 w-64 mb-2" />
+            <Skeleton className="h-5 w-48" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {[...Array(3)].map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -170,11 +184,13 @@ export default function AdminDashboardOverview() {
         </div>
 
         {/* Key Metrics Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 stagger-children">
+          <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-amber-500/30 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Pending Documents</CardTitle>
-              <AlertCircle className="h-4 w-4 text-amber-500" />
+              <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{metrics?.pendingCount}</div>
@@ -182,10 +198,12 @@ export default function AdminDashboardOverview() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-              <Clock className="h-4 w-4 text-blue-500" />
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                <Clock className="h-4 w-4 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{metrics?.inProgressCount}</div>
@@ -193,10 +211,12 @@ export default function AdminDashboardOverview() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-secondary/30 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-500" />
+              <div className="h-8 w-8 rounded-lg bg-secondary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                <CheckCircle className="h-4 w-4 text-secondary" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{metrics?.completedToday}</div>
@@ -204,10 +224,12 @@ export default function AdminDashboardOverview() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Today's Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-primary" />
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                <DollarSign className="h-4 w-4 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{metrics?.todayRevenue} Credits</div>
@@ -218,10 +240,12 @@ export default function AdminDashboardOverview() {
 
         {/* Secondary Metrics */}
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
+          <Card className="group hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/10">
+                <Users className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{metrics?.totalUsers}</div>
@@ -229,10 +253,12 @@ export default function AdminDashboardOverview() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="group hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Active Staff</CardTitle>
-              <UserCheck className="h-4 w-4 text-muted-foreground" />
+              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-secondary/10">
+                <UserCheck className="h-4 w-4 text-muted-foreground group-hover:text-secondary transition-colors duration-300" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{metrics?.activeStaff}</div>
@@ -240,10 +266,12 @@ export default function AdminDashboardOverview() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="group hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Avg Processing Time</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-accent/10">
+                <TrendingUp className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-colors duration-300" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{formatTime(metrics?.avgProcessingTime || 0)}</div>

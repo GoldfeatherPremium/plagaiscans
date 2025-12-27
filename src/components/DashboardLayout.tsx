@@ -12,8 +12,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     <div className="min-h-screen bg-background">
       <DashboardHeader />
       <DashboardSidebar />
-      <main className="p-8 pt-24">
-        {children}
+      <main className="p-8 pt-24 page-enter">
+        <div className="stagger-children">
+          {children}
+        </div>
       </main>
       <WhatsAppSupportButton />
     </div>
