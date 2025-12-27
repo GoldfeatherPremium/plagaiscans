@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Mail, FileText, ArrowUpRight } from "lucide-react";
+import { Mail } from "lucide-react";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -24,34 +24,23 @@ const Footer = () => {
   ];
 
   return (
-    <footer className="relative border-t border-border bg-card/50 backdrop-blur-xl overflow-hidden">
-      {/* Background gradient */}
-      <div className="absolute inset-0 gradient-mesh opacity-50 pointer-events-none" />
-      
-      <div className="relative container-width section-padding pb-8">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+    <footer className="border-t border-border bg-card">
+      <div className="container-width section-padding pb-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <Link to="/" className="inline-flex items-center gap-3 group mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center shadow-lg shadow-primary/30 group-hover:shadow-xl group-hover:shadow-primary/40 transition-all duration-300 group-hover:scale-105">
-                <FileText className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-2xl font-bold gradient-text">PlagaiScans</span>
+            <Link to="/" className="text-2xl font-display font-bold gradient-text inline-block mb-4">
+              PlagaiScans
             </Link>
-            <p className="text-muted-foreground max-w-sm mb-4 leading-relaxed">
+            <p className="text-muted-foreground max-w-sm mb-4">
               Professional document similarity and AI content detection services for academic integrity.
             </p>
-            <p className="text-xs text-muted-foreground mb-6">
+            <p className="text-xs text-muted-foreground mb-4">
               This service is provided for informational and research purposes only.
             </p>
-            <div className="flex items-center gap-3 group">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                <Mail className="h-4 w-4 text-primary" />
-              </div>
-              <a 
-                href="mailto:support@plagaiscans.com" 
-                className="text-muted-foreground hover:text-primary transition-colors font-medium"
-              >
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Mail className="h-4 w-4" />
+              <a href="mailto:support@plagaiscans.com" className="hover:text-primary transition-colors">
                 support@plagaiscans.com
               </a>
             </div>
@@ -60,16 +49,15 @@ const Footer = () => {
           {/* Links */}
           {footerLinks.map((column, index) => (
             <div key={index}>
-              <h4 className="font-bold mb-6 text-lg">{column.title}</h4>
-              <ul className="space-y-4">
+              <h4 className="font-display font-semibold mb-4">{column.title}</h4>
+              <ul className="space-y-3">
                 {column.links.map((link, linkIndex) => (
                   <li key={linkIndex}>
                     <Link
                       to={link.to}
-                      className="group inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-muted-foreground hover:text-primary transition-colors text-sm"
                     >
                       {link.label}
-                      <ArrowUpRight className="w-3 h-3 opacity-0 -translate-x-1 translate-y-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:translate-y-0 transition-all" />
                     </Link>
                   </li>
                 ))}
@@ -79,7 +67,7 @@ const Footer = () => {
         </div>
 
         {/* Bottom */}
-        <div className="pt-8 border-t border-border/50 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="text-center md:text-left">
             <p className="text-sm text-muted-foreground">
               © {currentYear} PlagaiScans. All rights reserved.
@@ -88,19 +76,14 @@ const Footer = () => {
               Trading Name: PlagaiScans | Legal Entity: Goldfeather Prem Ltd (United Kingdom)
             </p>
           </div>
-          <div className="flex flex-wrap justify-center gap-6 text-sm">
-            <Link to="/pricing" className="text-muted-foreground hover:text-primary transition-colors">
-              Pricing
-            </Link>
-            <Link to="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
-              Privacy
-            </Link>
-            <Link to="/terms-and-conditions" className="text-muted-foreground hover:text-primary transition-colors">
-              Terms
-            </Link>
-            <Link to="/refund-policy" className="text-muted-foreground hover:text-primary transition-colors">
-              Refunds
-            </Link>
+          <div className="flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
+            <Link to="/pricing" className="hover:text-primary transition-colors">Pricing</Link>
+            <span>•</span>
+            <Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy</Link>
+            <span>•</span>
+            <Link to="/terms-and-conditions" className="hover:text-primary transition-colors">Terms</Link>
+            <span>•</span>
+            <Link to="/refund-policy" className="hover:text-primary transition-colors">Refunds</Link>
           </div>
         </div>
       </div>
