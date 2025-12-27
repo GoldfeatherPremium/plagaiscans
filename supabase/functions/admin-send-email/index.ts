@@ -151,7 +151,7 @@ async function sendSingleEmail(
   try {
     const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
     // DELIVERABILITY FIX: Use friendly sender address
-    const fromEmail = Deno.env.get("SENDPLUS_FROM_EMAIL") || "hello@plagaiscans.com";
+    const fromEmail = Deno.env.get("SENDPLUS_FROM_EMAIL") || "support@plagaiscans.com";
 
     const response = await fetch("https://api.sendpulse.com/smtp/emails", {
       method: "POST",
