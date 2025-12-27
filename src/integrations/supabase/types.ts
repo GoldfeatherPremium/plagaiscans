@@ -1141,6 +1141,54 @@ export type Database = {
         }
         Relationships: []
       }
+      transactional_email_logs: {
+        Row: {
+          created_at: string
+          document_id: string | null
+          email_type: string
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          provider_response: Json | null
+          recipient_email: string
+          recipient_id: string | null
+          recipient_name: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          created_at?: string
+          document_id?: string | null
+          email_type: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          provider_response?: Json | null
+          recipient_email: string
+          recipient_id?: string | null
+          recipient_name?: string | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string | null
+          email_type?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          provider_response?: Json | null
+          recipient_email?: string
+          recipient_id?: string | null
+          recipient_name?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: []
+      }
       unmatched_reports: {
         Row: {
           ai_percentage: number | null
