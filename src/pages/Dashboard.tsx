@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { SEO } from '@/components/SEO';
 
 interface ManualPayment {
   id: string;
@@ -114,7 +115,13 @@ export default function Dashboard() {
   };
 
   return (
-    <DashboardLayout>
+    <>
+      <SEO
+        title="Dashboard"
+        description="Manage your documents, track their status, and download reports from your PlagaiScans dashboard."
+        noIndex={true}
+      />
+      <DashboardLayout>
       <div className="space-y-8">
         {/* Announcements */}
         <AnnouncementBanner />
@@ -380,5 +387,6 @@ export default function Dashboard() {
         </Card>
       </div>
     </DashboardLayout>
+    </>
   );
 }

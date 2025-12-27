@@ -9,6 +9,7 @@ import { FileCheck, ArrowLeft, Mail, Shield, Loader2 } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { SEO, generateWebPageSchema } from '@/components/SEO';
 
 export default function RefundPolicy() {
   const { toast } = useToast();
@@ -66,7 +67,15 @@ export default function RefundPolicy() {
     }
   };
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO
+        title="Refund Policy"
+        description="14-day money back guarantee on all purchases. Learn about our refund process and how to request a refund for your PlagaiScans credits."
+        keywords="refund policy, money back guarantee, plagiarism checker refund"
+        canonicalUrl="/refund-policy"
+        structuredData={generateWebPageSchema('Refund Policy', '14-day money back guarantee on all purchases', '/refund-policy')}
+      />
+      <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container-width flex h-16 items-center justify-between px-4">
@@ -276,5 +285,6 @@ export default function RefundPolicy() {
 
       <Footer />
     </div>
+    </>
   );
 }

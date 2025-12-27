@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { WhatsAppSupportButton } from '@/components/WhatsAppSupportButton';
 import { PhoneInput } from '@/components/PhoneInput';
 import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
+import { SEO } from '@/components/SEO';
 
 // Strong password validation: 8+ chars, uppercase, lowercase, number, special char
 const strongPasswordSchema = z.string()
@@ -239,7 +240,13 @@ export default function Auth() {
   // Reset password mode (after clicking email link)
   if (isResetMode) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <>
+        <SEO
+          title="Reset Password"
+          description="Set a new password for your PlagaiScans account."
+          noIndex={true}
+        />
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-md animate-fade-in">
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 mb-4">
@@ -313,14 +320,21 @@ export default function Auth() {
             </CardContent>
           </Card>
         </div>
-      </div>
+        </div>
+      </>
     );
   }
 
   // Forgot password view
   if (showForgotPassword) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <>
+        <SEO
+          title="Forgot Password"
+          description="Reset your PlagaiScans password."
+          noIndex={true}
+        />
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-md animate-fade-in">
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 mb-4">
@@ -367,12 +381,20 @@ export default function Auth() {
             </CardContent>
           </Card>
         </div>
-      </div>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+    <>
+      <SEO
+        title="Login"
+        description="Sign in or create an account to check your documents for plagiarism and AI content. Fast, secure, and reliable document analysis."
+        keywords="login, sign up, create account, plagiarism checker account"
+        canonicalUrl="/auth"
+      />
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute top-20 left-1/4 w-72 h-72 bg-primary/5 rounded-full blur-3xl animate-float" />
@@ -564,5 +586,6 @@ export default function Auth() {
       
       <WhatsAppSupportButton />
     </div>
+    </>
   );
 }
