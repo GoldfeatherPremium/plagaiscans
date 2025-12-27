@@ -27,7 +27,7 @@ interface Recipient {
 
 // Rate limiting: max emails per minute
 const RATE_LIMIT_PER_MINUTE = 60;
-const DELAY_BETWEEN_EMAILS_MS = 100;
+const DELAY_BETWEEN_EMAILS_MS = 100; // 100ms between emails
 
 // Get SendPulse API access token
 async function getSendPulseToken(): Promise<string> {
@@ -58,89 +58,6 @@ async function getSendPulseToken(): Promise<string> {
   return data.access_token;
 }
 
-// Check warm-up limits before sending
-async function checkWarmupLimit(supabase: any, emailCount: number): Promise<{ canSend: boolean; allowedCount: number; reason?: string }> {
-  try {
-    const { data: settings, error } = await supabase
-      .from("email_warmup_settings")
-      .select("*")
-      .single();
-    
-    if (error || !settings) {
-      return { canSend: true, allowedCount: emailCount };
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    if (settings.last_reset_date !== today) {
-      const daysSinceStart = Math.floor(
-        (new Date().getTime() - new Date(settings.warmup_start_date).getTime()) / (1000 * 60 * 60 * 24)
-      ) + 1;
-      
-      const warmupLimits = [5, 10, 25, 50, 100];
-      const newDailyLimit = daysSinceStart >= 5 ? 100 : warmupLimits[daysSinceStart - 1] || 100;
-      
-      await supabase
-        .from("email_warmup_settings")
-        .update({
-          emails_sent_today: 0,
-          last_reset_date: today,
-          current_warmup_day: daysSinceStart,
-          daily_limit: newDailyLimit,
-          is_warmup_active: daysSinceStart < 5
-        })
-        .eq("id", settings.id);
-      
-      const remaining = newDailyLimit;
-      return { 
-        canSend: remaining > 0, 
-        allowedCount: Math.min(emailCount, remaining),
-        reason: remaining < emailCount ? `Warmup limit: only ${remaining} emails allowed today` : undefined
-      };
-    }
-
-    if (!settings.is_warmup_active) {
-      return { canSend: true, allowedCount: emailCount };
-    }
-
-    const remaining = settings.daily_limit - settings.emails_sent_today;
-    if (remaining <= 0) {
-      return { 
-        canSend: false, 
-        allowedCount: 0,
-        reason: `Daily warmup limit reached (${settings.daily_limit} emails)` 
-      };
-    }
-
-    return { 
-      canSend: true, 
-      allowedCount: Math.min(emailCount, remaining),
-      reason: remaining < emailCount ? `Warmup limit: only ${remaining} emails allowed today` : undefined
-    };
-  } catch (error) {
-    console.error("Error checking warmup limit:", error);
-    return { canSend: true, allowedCount: emailCount };
-  }
-}
-
-// Increment daily email counter
-async function incrementEmailCounter(supabase: any, count: number): Promise<void> {
-  try {
-    const { data: settings } = await supabase
-      .from("email_warmup_settings")
-      .select("id, emails_sent_today")
-      .single();
-    
-    if (settings) {
-      await supabase
-        .from("email_warmup_settings")
-        .update({ emails_sent_today: settings.emails_sent_today + count })
-        .eq("id", settings.id);
-    }
-  } catch (error) {
-    console.error("Error incrementing email counter:", error);
-  }
-}
-
 // Send a SINGLE email to ONE recipient (privacy-safe)
 async function sendSingleEmail(
   token: string,
@@ -149,9 +66,8 @@ async function sendSingleEmail(
   htmlContent: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Encode HTML content to base64 for SendPulse API
     const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
-    // DELIVERABILITY FIX: Use friendly sender address
-    const fromEmail = Deno.env.get("SENDPLUS_FROM_EMAIL") || "support@plagaiscans.com";
 
     const response = await fetch("https://api.sendpulse.com/smtp/emails", {
       method: "POST",
@@ -165,14 +81,15 @@ async function sendSingleEmail(
           text: htmlContent.replace(/<[^>]*>/g, ''),
           subject: subject,
           from: {
-            // DELIVERABILITY FIX: Human-friendly sender name
-            name: "Plagaiscans Team",
-            email: fromEmail
+            name: "Plagaiscans",
+            email: "no-reply@plagaiscans.com"
           },
+          // CRITICAL: Only ONE recipient per email for privacy
           to: [{ 
             email: recipient.email,
             name: recipient.email.split('@')[0]
           }],
+          // Reply-to for support inquiries
           reply_to: "support@plagaiscans.com"
         }
       })
@@ -227,6 +144,7 @@ const handler = async (req: Request): Promise<Response> => {
     let recipients: Recipient[] = [];
 
     // Get recipient emails based on target audience
+    // CRITICAL: Exclude unsubscribed users for promotional emails
     if (targetAudience === 'specific' && specificUserIds?.length) {
       let query = supabase
         .from("profiles")
@@ -297,6 +215,7 @@ const handler = async (req: Request): Promise<Response> => {
         recipients = profiles?.map(p => ({ id: p.id, email: p.email })) || [];
       }
     } else {
+      // All users
       let query = supabase
         .from("profiles")
         .select("id, email");
@@ -316,22 +235,12 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check warmup limit
-    const warmupCheck = await checkWarmupLimit(supabase, recipients.length);
-    if (!warmupCheck.canSend) {
-      return new Response(
-        JSON.stringify({ success: false, error: warmupCheck.reason }),
-        { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    // Limit recipients if warmup is active
-    const recipientsToSend = recipients.slice(0, warmupCheck.allowedCount);
-    console.log(`Sending individual emails to ${recipientsToSend.length} recipients (warmup limit: ${warmupCheck.allowedCount})`);
+    // Log recipient count only (never log actual emails)
+    console.log(`Sending individual emails to ${recipients.length} recipients`);
 
     const siteUrl = "https://plagaiscans.com";
 
-    // Get icon based on email type (removed from email for deliverability)
+    // Get icon based on email type
     const typeIcons: Record<string, string> = {
       announcement: '📢',
       payment_reminder: '💳',
@@ -341,17 +250,19 @@ const handler = async (req: Request): Promise<Response> => {
       custom: '📧'
     };
 
+    // Get SendPulse token once
     const token = await getSendPulseToken();
     
     let successCount = 0;
     let failedCount = 0;
 
     // Send emails INDIVIDUALLY for privacy
-    for (const recipient of recipientsToSend) {
+    for (const recipient of recipients) {
+      // Generate unique unsubscribe token for this recipient
       const unsubscribeToken = btoa(`${recipient.id}:${Date.now()}`);
       const unsubscribeUrl = `${siteUrl}/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}&uid=${recipient.id}`;
       
-      // DELIVERABILITY FIX: Clean, human-friendly email template
+      // Build HTML content with unsubscribe link for promotional emails
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -362,8 +273,13 @@ const handler = async (req: Request): Promise<Response> => {
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
           <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
             <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <div style="background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); width: 60px; height: 60px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;">
+                  <span style="color: white; font-size: 28px;">${typeIcons[type] || '📧'}</span>
+                </div>
+              </div>
               
-              <h1 style="color: #18181b; margin: 0 0 20px 0; font-size: 24px;">${title}</h1>
+              <h1 style="color: #18181b; text-align: center; margin: 0 0 20px 0; font-size: 24px;">${title}</h1>
               
               <div style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
                 ${message.replace(/\n/g, '<br>')}
@@ -372,21 +288,17 @@ const handler = async (req: Request): Promise<Response> => {
               ${ctaText && ctaUrl ? `
               <div style="text-align: center; margin-bottom: 30px;">
                 <a href="${ctaUrl}" 
-                   style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600;">
+                   style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600;">
                   ${ctaText}
                 </a>
               </div>
               ` : ''}
               
-              <p style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin: 0;">
-                If you have any questions, feel free to reply to this email.
-              </p>
-              
               <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 30px 0;">
               
-              <p style="color: #a1a1aa; font-size: 12px; line-height: 1.5; margin: 0; text-align: center;">
-                Plagaiscans<br>
-                <a href="${siteUrl}" style="color: #6366f1; text-decoration: none;">${siteUrl}</a>
+              <p style="color: #a1a1aa; text-align: center; margin: 0; font-size: 12px;">
+                This email was sent by Plagaiscans<br>
+                <a href="${siteUrl}" style="color: #3b82f6; text-decoration: none;">Visit our website</a>
                 ${isPromotional ? `
                 <br><br>
                 <span style="color: #71717a;">Don't want to receive promotional emails?</span><br>
@@ -401,6 +313,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       const result = await sendSingleEmail(token, recipient, subject, htmlContent);
       
+      // Log individual send result (privacy-safe - no email addresses)
       if (logId) {
         await supabase
           .from("email_send_logs")
@@ -418,14 +331,13 @@ const handler = async (req: Request): Promise<Response> => {
         failedCount++;
       }
 
+      // Rate limiting: delay between emails
       await sleep(DELAY_BETWEEN_EMAILS_MS);
     }
 
-    // Increment warmup counter
-    await incrementEmailCounter(supabase, successCount);
-
     console.log(`Email sending complete: ${successCount} success, ${failedCount} failed`);
 
+    // Update email log if logId provided
     if (logId) {
       await supabase
         .from("email_logs")
@@ -443,9 +355,7 @@ const handler = async (req: Request): Promise<Response> => {
         success: true, 
         sent: successCount,
         failed: failedCount,
-        total: recipients.length,
-        warmupLimited: warmupCheck.allowedCount < recipients.length,
-        warmupMessage: warmupCheck.reason
+        total: recipients.length 
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );

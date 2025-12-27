@@ -3,8 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SENDPULSE_API_KEY = Deno.env.get("SENDPLUS_API_KEY");
 const SENDPULSE_API_SECRET = Deno.env.get("SENDPLUS_API_SECRET");
-// DELIVERABILITY FIX: Use friendly sender address instead of noreply
-const SENDPULSE_FROM_EMAIL = Deno.env.get("SENDPLUS_FROM_EMAIL") || "support@plagaiscans.com";
+const SENDPULSE_FROM_EMAIL = Deno.env.get("SENDPLUS_FROM_EMAIL") || "noreply@plagaiscans.com";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,74 +42,6 @@ async function getSendPulseToken(): Promise<string> {
   return data.access_token;
 }
 
-// Check warm-up limits before sending
-async function checkWarmupLimit(supabase: any): Promise<{ canSend: boolean; reason?: string }> {
-  try {
-    const { data: settings, error } = await supabase
-      .from("email_warmup_settings")
-      .select("*")
-      .single();
-    
-    if (error || !settings) {
-      return { canSend: true };
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    if (settings.last_reset_date !== today) {
-      const daysSinceStart = Math.floor(
-        (new Date().getTime() - new Date(settings.warmup_start_date).getTime()) / (1000 * 60 * 60 * 24)
-      ) + 1;
-      
-      const warmupLimits = [5, 10, 25, 50, 100];
-      const newDailyLimit = daysSinceStart >= 5 ? 100 : warmupLimits[daysSinceStart - 1] || 100;
-      
-      await supabase
-        .from("email_warmup_settings")
-        .update({
-          emails_sent_today: 0,
-          last_reset_date: today,
-          current_warmup_day: daysSinceStart,
-          daily_limit: newDailyLimit,
-          is_warmup_active: daysSinceStart < 5
-        })
-        .eq("id", settings.id);
-      
-      return { canSend: true };
-    }
-
-    if (settings.is_warmup_active && settings.emails_sent_today >= settings.daily_limit) {
-      return { 
-        canSend: false, 
-        reason: `Daily warmup limit reached (${settings.daily_limit} emails)` 
-      };
-    }
-
-    return { canSend: true };
-  } catch (error) {
-    console.error("Error checking warmup limit:", error);
-    return { canSend: true };
-  }
-}
-
-// Increment daily email counter
-async function incrementEmailCounter(supabase: any): Promise<void> {
-  try {
-    const { data: settings } = await supabase
-      .from("email_warmup_settings")
-      .select("id, emails_sent_today")
-      .single();
-    
-    if (settings) {
-      await supabase
-        .from("email_warmup_settings")
-        .update({ emails_sent_today: settings.emails_sent_today + 1 })
-        .eq("id", settings.id);
-    }
-  } catch (error) {
-    console.error("Error incrementing email counter:", error);
-  }
-}
-
 // Send email via SendPulse SMTP API
 async function sendEmailViaSendPulse(
   token: string,
@@ -118,6 +49,7 @@ async function sendEmailViaSendPulse(
   subject: string,
   htmlContent: string
 ): Promise<void> {
+  // Encode HTML content to Base64
   const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
 
   const response = await fetch("https://api.sendpulse.com/smtp/emails", {
@@ -131,8 +63,7 @@ async function sendEmailViaSendPulse(
         html: htmlBase64,
         subject: subject,
         from: {
-          // DELIVERABILITY FIX: Human-friendly sender name
-          name: "Plagaiscans Team",
+          name: "PlagaiScans",
           email: SENDPULSE_FROM_EMAIL,
         },
         to: [
@@ -177,6 +108,7 @@ async function isEmailEnabled(supabase: any, settingKey: string): Promise<boolea
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -186,24 +118,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending payment verified email for user:", userId);
 
+    // Check if SendPulse credentials are configured
     if (!SENDPULSE_API_KEY || !SENDPULSE_API_SECRET) {
       console.error("SendPulse credentials not configured");
       throw new Error("Email service is not configured");
     }
 
+    // Create Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Check warmup limit
-    const warmupCheck = await checkWarmupLimit(supabase);
-    if (!warmupCheck.canSend) {
-      console.log("Warmup limit reached, skipping email");
-      return new Response(
-        JSON.stringify({ success: true, skipped: true, reason: warmupCheck.reason }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
 
     // Check if payment verified emails are enabled
     const isEnabled = await isEmailEnabled(supabase, "payment_verified");
@@ -215,6 +139,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Get user email from profiles
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("email, full_name, credit_balance")
@@ -226,13 +151,13 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("User profile not found");
     }
 
-    const userName = profile.full_name || "there";
+    const userName = profile.full_name || "Customer";
     const siteUrl = Deno.env.get("SITE_URL") || "https://plagaiscans.com";
     const methodDisplay = paymentMethod === 'binance_pay' ? 'Binance Pay' : paymentMethod;
 
+    // Get SendPulse token
     const token = await getSendPulseToken();
 
-    // DELIVERABILITY FIX: Clean, human-friendly email template
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -243,12 +168,15 @@ const handler = async (req: Request): Promise<Response> => {
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
         <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
           <div style="background-color: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); width: 60px; height: 60px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;">
+                <span style="color: white; font-size: 28px;">✓</span>
+              </div>
+            </div>
             
-            <h1 style="color: #18181b; margin: 0 0 20px 0; font-size: 24px;">Hi ${userName},</h1>
+            <h1 style="color: #18181b; text-align: center; margin: 0 0 10px 0; font-size: 24px;">Payment Verified!</h1>
             
-            <p style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-              Great news! Your payment has been verified and credits have been added to your account.
-            </p>
+            <p style="color: #71717a; text-align: center; margin: 0 0 30px 0;">Hello ${userName}, your payment has been verified and credits have been added to your account.</p>
             
             <div style="background-color: #f0fdf4; border-radius: 8px; padding: 20px; margin-bottom: 20px; text-align: center;">
               <p style="margin: 0 0 5px 0; color: #166534; font-size: 14px;">Credits Added</p>
@@ -274,32 +202,15 @@ const handler = async (req: Request): Promise<Response> => {
               <p style="margin: 0; color: #92400e; font-size: 24px; font-weight: bold;">${profile.credit_balance} Credits</p>
             </div>
             
-            <p style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-              You can now upload documents for analysis using your credits.
-            </p>
-            
-            <div style="text-align: center; margin-bottom: 30px;">
+            <div style="text-align: center;">
               <a href="${siteUrl}/dashboard/upload" 
                  style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600;">
                 Upload Document Now
               </a>
             </div>
             
-            <p style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin: 0 0 10px 0;">
-              If you have any questions about your purchase, feel free to reply to this email.
-            </p>
-            
-            <p style="color: #3f3f46; font-size: 16px; line-height: 1.6; margin: 0;">
-              Thank you for your business!<br>
-              The Plagaiscans Team
-            </p>
-            
-            <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 30px 0;">
-            
-            <p style="color: #a1a1aa; font-size: 12px; line-height: 1.5; margin: 0; text-align: center;">
-              Plagaiscans<br>
-              <a href="${siteUrl}" style="color: #6366f1; text-decoration: none;">${siteUrl}</a><br><br>
-              You're receiving this email because you made a purchase on our platform.
+            <p style="color: #a1a1aa; text-align: center; margin: 30px 0 0 0; font-size: 12px;">
+              Thank you for using PlagaiScans. If you have any questions, please contact support.
             </p>
           </div>
         </div>
@@ -307,16 +218,12 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    // DELIVERABILITY FIX: Clean subject without emojis
     await sendEmailViaSendPulse(
       token,
       { email: profile.email, name: userName },
-      "Payment Verified - Credits Added - Plagaiscans",
+      "Payment Verified - Credits Added! - PlagaiScans",
       htmlContent
     );
-
-    // Increment warmup counter
-    await incrementEmailCounter(supabase);
 
     console.log("Payment verified email sent successfully");
 

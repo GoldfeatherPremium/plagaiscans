@@ -444,7 +444,6 @@ export type Database = {
           magic_link_id: string | null
           needs_review: boolean | null
           normalized_filename: string | null
-          pending_reminder_sent_at: string | null
           remarks: string | null
           review_reason: string | null
           similarity_percentage: number | null
@@ -468,7 +467,6 @@ export type Database = {
           magic_link_id?: string | null
           needs_review?: boolean | null
           normalized_filename?: string | null
-          pending_reminder_sent_at?: string | null
           remarks?: string | null
           review_reason?: string | null
           similarity_percentage?: number | null
@@ -492,7 +490,6 @@ export type Database = {
           magic_link_id?: string | null
           needs_review?: boolean | null
           normalized_filename?: string | null
-          pending_reminder_sent_at?: string | null
           remarks?: string | null
           review_reason?: string | null
           similarity_percentage?: number | null
@@ -634,45 +631,6 @@ export type Database = {
           setting_name?: string
           updated_at?: string
           updated_by?: string | null
-        }
-        Relationships: []
-      }
-      email_warmup_settings: {
-        Row: {
-          created_at: string
-          current_warmup_day: number
-          daily_limit: number
-          emails_sent_today: number
-          id: string
-          is_warmup_active: boolean
-          last_reset_date: string
-          tracking_disabled: boolean
-          updated_at: string
-          warmup_start_date: string
-        }
-        Insert: {
-          created_at?: string
-          current_warmup_day?: number
-          daily_limit?: number
-          emails_sent_today?: number
-          id?: string
-          is_warmup_active?: boolean
-          last_reset_date?: string
-          tracking_disabled?: boolean
-          updated_at?: string
-          warmup_start_date?: string
-        }
-        Update: {
-          created_at?: string
-          current_warmup_day?: number
-          daily_limit?: number
-          emails_sent_today?: number
-          id?: string
-          is_warmup_active?: boolean
-          last_reset_date?: string
-          tracking_disabled?: boolean
-          updated_at?: string
-          warmup_start_date?: string
         }
         Relationships: []
       }
