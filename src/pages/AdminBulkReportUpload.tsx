@@ -32,15 +32,28 @@ interface ReportFile {
 interface MappingResult {
   documentId: string;
   fileName: string;
-  reportType: 'similarity' | 'ai';
+  reportType: 'similarity' | 'ai' | 'unknown';
+  similarityPercentage: number | null;
+  aiPercentage: number | null;
   success: boolean;
   message?: string;
+}
+
+interface UnmatchedReport {
+  fileName: string;
+  normalizedFilename: string;
+  filePath: string;
+  reportType?: 'similarity' | 'ai' | 'unknown';
+  similarityPercentage?: number | null;
+  aiPercentage?: number | null;
+  extractedText?: string;
+  error?: string;
 }
 
 interface ProcessingResult {
   success: boolean;
   mapped: MappingResult[];
-  unmatched: { fileName: string; normalizedFilename: string; filePath: string }[];
+  unmatched: UnmatchedReport[];
   needsReview: { documentId: string; reason: string }[];
   completedDocuments: string[];
   stats: {
@@ -483,21 +496,49 @@ export default function AdminBulkReportUpload() {
 
               <Separator className="my-4" />
 
-              {/* Mapped Reports */}
+              {/* Mapped Reports - Detailed View */}
               {processingResult.mapped.length > 0 && (
                 <div className="mb-6">
                   <h4 className="font-medium mb-3 flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                     Successfully Mapped ({processingResult.mapped.length})
                   </h4>
-                  <ScrollArea className="h-[150px] border rounded-lg">
-                    <div className="p-3 space-y-2">
+                  <ScrollArea className="h-[250px] border rounded-lg">
+                    <div className="p-3 space-y-3">
                       {processingResult.mapped.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-green-500/5 rounded">
-                          <span className="text-sm truncate flex-1">{item.fileName}</span>
-                          <Badge variant="outline" className="ml-2">
-                            {item.reportType === 'similarity' ? 'Similarity' : 'AI'} Report
-                          </Badge>
+                        <div key={index} className="p-3 bg-green-500/5 rounded-lg border border-green-500/20">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium truncate flex-1">{item.fileName}</span>
+                            <Badge variant="outline" className={
+                              item.reportType === 'similarity' 
+                                ? 'bg-blue-500/10 text-blue-600 border-blue-500/30' 
+                                : item.reportType === 'ai'
+                                ? 'bg-purple-500/10 text-purple-600 border-purple-500/30'
+                                : 'bg-gray-500/10 text-gray-600 border-gray-500/30'
+                            }>
+                              {item.reportType === 'similarity' ? 'Similarity' : item.reportType === 'ai' ? 'AI' : 'Unknown'} Report
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="flex items-center gap-1">
+                              <span className="text-muted-foreground">Doc ID:</span>
+                              <span className="font-mono">{item.documentId.slice(0, 8)}...</span>
+                            </div>
+                            {item.reportType === 'similarity' && item.similarityPercentage !== null && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-muted-foreground">Similarity:</span>
+                                <span className="font-bold text-blue-600">{item.similarityPercentage}%</span>
+                              </div>
+                            )}
+                            {item.reportType === 'ai' && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-muted-foreground">AI Detected:</span>
+                                <span className="font-bold text-purple-600">
+                                  {item.aiPercentage !== null ? `${item.aiPercentage}%` : 'N/A'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -505,22 +546,64 @@ export default function AdminBulkReportUpload() {
                 </div>
               )}
 
-              {/* Unmatched Reports */}
+              {/* Unmatched Reports - Detailed View */}
               {processingResult.unmatched.length > 0 && (
                 <div className="mb-6">
                   <h4 className="font-medium mb-3 flex items-center gap-2">
                     <FileWarning className="h-4 w-4 text-yellow-600" />
                     Unmatched Reports ({processingResult.unmatched.length})
                   </h4>
-                  <ScrollArea className="h-[150px] border rounded-lg">
-                    <div className="p-3 space-y-2">
+                  <ScrollArea className="h-[250px] border rounded-lg">
+                    <div className="p-3 space-y-3">
                       {processingResult.unmatched.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-yellow-500/5 rounded">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm truncate">{item.fileName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Normalized: {item.normalizedFilename}
-                            </p>
+                        <div key={index} className="p-3 bg-yellow-500/5 rounded-lg border border-yellow-500/20">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium truncate flex-1">{item.fileName}</span>
+                            {item.reportType && (
+                              <Badge variant="outline" className={
+                                item.reportType === 'similarity' 
+                                  ? 'bg-blue-500/10 text-blue-600 border-blue-500/30' 
+                                  : item.reportType === 'ai'
+                                  ? 'bg-purple-500/10 text-purple-600 border-purple-500/30'
+                                  : 'bg-gray-500/10 text-gray-600 border-gray-500/30'
+                              }>
+                                {item.reportType === 'similarity' ? 'Similarity' : item.reportType === 'ai' ? 'AI' : 'Unknown'}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="space-y-1 text-xs">
+                            <div className="flex items-center gap-1">
+                              <span className="text-muted-foreground">Normalized:</span>
+                              <span className="font-mono">{item.normalizedFilename}</span>
+                            </div>
+                            {item.reportType === 'similarity' && item.similarityPercentage !== null && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-muted-foreground">Similarity:</span>
+                                <span className="font-bold text-blue-600">{item.similarityPercentage}%</span>
+                              </div>
+                            )}
+                            {item.reportType === 'ai' && item.aiPercentage !== null && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-muted-foreground">AI Detected:</span>
+                                <span className="font-bold text-purple-600">{item.aiPercentage}%</span>
+                              </div>
+                            )}
+                            {item.error && (
+                              <div className="flex items-start gap-1 text-red-600">
+                                <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                                <span>{item.error}</span>
+                              </div>
+                            )}
+                            {item.extractedText && (
+                              <details className="mt-2">
+                                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                                  View extracted text ({item.extractedText.length} chars)
+                                </summary>
+                                <pre className="mt-1 p-2 bg-muted rounded text-xs overflow-x-auto max-h-[100px] overflow-y-auto whitespace-pre-wrap break-words">
+                                  {item.extractedText}
+                                </pre>
+                              </details>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -536,14 +619,14 @@ export default function AdminBulkReportUpload() {
                     <AlertCircle className="h-4 w-4 text-red-600" />
                     Needs Manual Review ({processingResult.needsReview.length})
                   </h4>
-                  <ScrollArea className="h-[150px] border rounded-lg">
-                    <div className="p-3 space-y-2">
+                  <ScrollArea className="h-[200px] border rounded-lg">
+                    <div className="p-3 space-y-3">
                       {processingResult.needsReview.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-red-500/5 rounded">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-mono">{item.documentId.slice(0, 8)}...</p>
-                            <p className="text-xs text-muted-foreground">{item.reason}</p>
+                        <div key={index} className="p-3 bg-red-500/5 rounded-lg border border-red-500/20">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-mono font-medium">{item.documentId.slice(0, 8)}...</span>
                           </div>
+                          <p className="text-xs text-red-600">{item.reason}</p>
                         </div>
                       ))}
                     </div>
