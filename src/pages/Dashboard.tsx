@@ -136,10 +136,10 @@ export default function Dashboard() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {role === 'customer' && (
-            <Card>
+            <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
               <CardContent className="p-6">
                 <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/20">
                     <CreditCard className="h-6 w-6 text-primary" />
                   </div>
                   <div>
@@ -150,10 +150,10 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           )}
-          <Card>
+          <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-accent/30 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-accent/20">
                   <Clock className="h-6 w-6 text-accent" />
                 </div>
                 <div>
@@ -163,10 +163,10 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/20">
                   <FileText className="h-6 w-6 text-primary" />
                 </div>
                 <div>
@@ -177,10 +177,10 @@ export default function Dashboard() {
             </CardContent>
           </Card>
           {role !== 'staff' && (
-            <Card>
+            <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-secondary/30 transition-all duration-300">
               <CardContent className="p-6">
                 <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-secondary/10 flex items-center justify-center">
+                  <div className="h-12 w-12 rounded-lg bg-secondary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-secondary/20">
                     <CheckCircle className="h-6 w-6 text-secondary" />
                   </div>
                   <div>
@@ -205,14 +205,15 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {pendingPayments.map((payment) => (
+                {pendingPayments.map((payment, index) => (
                   <div 
                     key={payment.id}
-                    className="flex items-center justify-between p-4 border rounded-lg"
+                    className="flex items-center justify-between p-4 border rounded-lg transition-all duration-300 hover:bg-muted/50 hover:border-primary/20 hover:-translate-x-1"
+                    style={{ animationDelay: `${index * 50}ms` }}
                   >
                     <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-lg bg-[#F0B90B]/10 flex items-center justify-center">
-                        <Wallet className="h-5 w-5 text-[#F0B90B]" />
+                      <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center transition-transform duration-300 hover:scale-110">
+                        <Wallet className="h-5 w-5 text-accent" />
                       </div>
                       <div>
                         <p className="font-medium">{payment.credits} Credits</p>
@@ -232,13 +233,14 @@ export default function Dashboard() {
         {/* Quick Actions */}
         {role === 'customer' && (
           <div className="grid md:grid-cols-2 gap-4">
-            <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+            <Card className="group hover:-translate-y-2 hover:shadow-xl hover:border-primary/50 transition-all duration-300 cursor-pointer overflow-hidden">
               <Link to="/dashboard/upload">
-                <CardContent className="p-6 flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-xl gradient-primary flex items-center justify-center">
+                <CardContent className="p-6 flex items-center gap-4 relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="h-14 w-14 rounded-xl gradient-primary flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-primary/30">
                     <Upload className="h-7 w-7 text-primary-foreground" />
                   </div>
-                  <div>
+                  <div className="relative">
                     <h3 className="font-semibold text-lg">Upload Document</h3>
                     <p className="text-sm text-muted-foreground">
                       Submit a new document for checking
@@ -247,13 +249,14 @@ export default function Dashboard() {
                 </CardContent>
               </Link>
             </Card>
-            <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+            <Card className="group hover:-translate-y-2 hover:shadow-xl hover:border-secondary/50 transition-all duration-300 cursor-pointer overflow-hidden">
               <Link to="/dashboard/credits">
-                <CardContent className="p-6 flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-xl gradient-success flex items-center justify-center">
+                <CardContent className="p-6 flex items-center gap-4 relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-secondary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="h-14 w-14 rounded-xl gradient-success flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-secondary/30">
                     <CreditCard className="h-7 w-7 text-secondary-foreground" />
                   </div>
-                  <div>
+                  <div className="relative">
                     <h3 className="font-semibold text-lg">Buy Credits</h3>
                     <p className="text-sm text-muted-foreground">
                       Purchase more credits via WhatsApp

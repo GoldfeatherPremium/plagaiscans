@@ -150,17 +150,19 @@ export default function Profile() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
+        <div className="page-enter">
           <h1 className="text-3xl font-display font-bold">Profile Settings</h1>
           <p className="text-muted-foreground">Manage your account settings</p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 stagger-children">
           {/* Profile Information */}
-          <Card>
+          <Card className="hover:shadow-lg transition-all duration-300">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <User className="h-4 w-4 text-primary" />
+                </div>
                 Profile Information
               </CardTitle>
               <CardDescription>Update your personal details</CardDescription>
@@ -223,10 +225,12 @@ export default function Profile() {
           </Card>
 
           {/* Change Password */}
-          <Card>
+          <Card className="hover:shadow-lg transition-all duration-300">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Lock className="h-5 w-5" />
+                <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                  <Lock className="h-4 w-4 text-accent" />
+                </div>
                 Change Password
               </CardTitle>
               <CardDescription>Update your password</CardDescription>
