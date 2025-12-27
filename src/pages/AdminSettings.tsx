@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench } from 'lucide-react';
+import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench, Mail, FileText } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -46,6 +46,12 @@ export default function AdminSettings() {
   const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('We are currently under maintenance. Please check back later.');
   const [savingMaintenance, setSavingMaintenance] = useState(false);
+  
+  // Pending document notification settings
+  const [pendingNotificationEnabled, setPendingNotificationEnabled] = useState(true);
+  const [pendingNotificationMinutes, setPendingNotificationMinutes] = useState('15');
+  const [savingPendingNotification, setSavingPendingNotification] = useState(false);
+  const [testingPendingNotification, setTestingPendingNotification] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -67,7 +73,9 @@ export default function AdminSettings() {
       'fee_viva',
       'vapid_public_key',
       'maintenance_mode_enabled',
-      'maintenance_message'
+      'maintenance_message',
+      'pending_notification_enabled',
+      'pending_notification_minutes'
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
@@ -103,6 +111,11 @@ export default function AdminSettings() {
       const maintenanceMessageSetting = data.find(s => s.key === 'maintenance_message');
       setMaintenanceEnabled(maintenanceEnabledSetting?.value === 'true');
       if (maintenanceMessageSetting) setMaintenanceMessage(maintenanceMessageSetting.value);
+      
+      const pendingNotificationEnabledSetting = data.find(s => s.key === 'pending_notification_enabled');
+      const pendingNotificationMinutesSetting = data.find(s => s.key === 'pending_notification_minutes');
+      setPendingNotificationEnabled(pendingNotificationEnabledSetting?.value !== 'false');
+      if (pendingNotificationMinutesSetting) setPendingNotificationMinutes(pendingNotificationMinutesSetting.value);
     }
     setLoading(false);
   };
@@ -277,6 +290,49 @@ export default function AdminSettings() {
           ? 'The site is now in maintenance mode. Customers will see a maintenance page.' 
           : 'The site is now accessible to all users.'
       });
+    }
+  };
+
+  const savePendingNotificationSettings = async () => {
+    setSavingPendingNotification(true);
+    
+    const updates = [
+      supabase.from('settings').upsert({ key: 'pending_notification_enabled', value: pendingNotificationEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'pending_notification_minutes', value: pendingNotificationMinutes }, { onConflict: 'key' }),
+    ];
+    
+    const results = await Promise.all(updates);
+    const hasError = results.some(r => r.error);
+    
+    setSavingPendingNotification(false);
+    
+    if (hasError) {
+      toast({ title: 'Error', description: 'Failed to save notification settings', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: `Pending document notifications ${pendingNotificationEnabled ? 'enabled' : 'disabled'}. Threshold: ${pendingNotificationMinutes} minutes.` });
+    }
+  };
+
+  const testPendingNotification = async () => {
+    setTestingPendingNotification(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('notify-pending-documents');
+      
+      if (error) throw error;
+      
+      toast({ 
+        title: 'Test Complete', 
+        description: data?.message || 'Notification check completed' 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: 'Error', 
+        description: error.message || 'Failed to run notification check', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setTestingPendingNotification(false);
     }
   };
 
@@ -646,6 +702,71 @@ export default function AdminSettings() {
               {savingTimeout ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Default Timeout
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Pending Document Notification Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-orange-500" />
+              Pending Document Notifications
+            </CardTitle>
+            <CardDescription>Email admins when documents are pending for too long</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className={`h-10 w-10 rounded-lg ${pendingNotificationEnabled ? 'bg-orange-500/20' : 'bg-muted'} flex items-center justify-center`}>
+                  <FileText className={`h-5 w-5 ${pendingNotificationEnabled ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                </div>
+                <div>
+                  <p className="font-medium">Enable Pending Notifications</p>
+                  <p className="text-sm text-muted-foreground">
+                    {pendingNotificationEnabled ? 'Admins will be notified of stuck documents' : 'Notifications are disabled'}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={pendingNotificationEnabled}
+                onCheckedChange={setPendingNotificationEnabled}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="pendingMinutes">Notification Threshold (minutes)</Label>
+              <Input
+                id="pendingMinutes"
+                type="number"
+                min="5"
+                max="120"
+                placeholder="15"
+                value={pendingNotificationMinutes}
+                onChange={(e) => setPendingNotificationMinutes(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Send notification if a document hasn't been picked up within this time (5-120 minutes)
+              </p>
+            </div>
+            
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Each document only triggers one notification. Once sent, it won't notify again for the same document.
+                Set up a cron job to call the <code className="bg-muted px-1 rounded text-xs">notify-pending-documents</code> function periodically.
+              </AlertDescription>
+            </Alert>
+            
+            <div className="flex gap-2">
+              <Button onClick={savePendingNotificationSettings} disabled={savingPendingNotification}>
+                {savingPendingNotification ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Settings
+              </Button>
+              <Button variant="outline" onClick={testPendingNotification} disabled={testingPendingNotification}>
+                {testingPendingNotification ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                Run Check Now
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
