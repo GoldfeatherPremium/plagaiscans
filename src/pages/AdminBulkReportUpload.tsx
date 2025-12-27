@@ -17,7 +17,9 @@ import {
   Clock, 
   FileWarning,
   Archive,
-  Loader2
+  Loader2,
+  Brain,
+  FileSearch
 } from 'lucide-react';
 import JSZip from 'jszip';
 
@@ -29,10 +31,16 @@ interface ReportFile {
   error?: string;
 }
 
+interface ReportClassification {
+  type: 'ai' | 'similarity' | 'unknown';
+  percentage: number | null;
+}
+
 interface MappingResult {
   documentId: string;
   fileName: string;
   reportType: 'similarity' | 'ai';
+  percentage: number | null;
   success: boolean;
   message?: string;
 }
@@ -40,7 +48,7 @@ interface MappingResult {
 interface ProcessingResult {
   success: boolean;
   mapped: MappingResult[];
-  unmatched: { fileName: string; normalizedFilename: string; filePath: string }[];
+  unmatched: { fileName: string; normalizedFilename: string; filePath: string; classification?: ReportClassification }[];
   needsReview: { documentId: string; reason: string }[];
   completedDocuments: string[];
   stats: {
@@ -53,25 +61,18 @@ interface ProcessingResult {
 }
 
 /**
- * Normalize REPORT filename (removes extension + ONLY the LAST trailing " (number)").
- * This matches reports to customer documents that may have earlier brackets.
- * 
- * Examples:
- *   fileA1 (1).pdf → fileA1 (matches customer's "fileA1.pdf")
- *   fileA1 (1) (1).pdf → fileA1 (1) (matches customer's "fileA1 (1).pdf")
- *   fileA1 (1) (2).pdf → fileA1 (1) (matches customer's "fileA1 (1).pdf")
- *   fileA1.pdf → fileA1 (exact match for customer's "fileA1.pdf")
+ * Normalize REPORT filename (removes extension + trailing report suffixes).
  */
 function normalizeReportFilename(filename: string): string {
   let result = filename.toLowerCase();
-  // Remove file extension
   result = result.replace(/\.[^.]+$/, '');
-  // Remove ONLY the last trailing " (number)" suffix - single pass
+  result = result.replace(/\.+$/, '.');
+  result = result.replace(/_-?\d+$/, '');
   result = result.replace(/\s*\(\d+\)$/, '');
+  result = result.replace(/\.+$/, '');
   return result.trim();
 }
 
-// Alias for display purposes
 function normalizeFilename(filename: string): string {
   return normalizeReportFilename(filename);
 }
@@ -232,7 +233,7 @@ export default function AdminBulkReportUpload() {
         return;
       }
 
-      // Call edge function for auto-mapping
+      // Call edge function for auto-mapping with classification
       setUploadProgress(60);
       
       const { data, error } = await supabase.functions.invoke('bulk-report-upload', {
@@ -251,7 +252,7 @@ export default function AdminBulkReportUpload() {
 
       const stats = data.stats;
       if (stats.completedCount > 0) {
-        toast.success(`Successfully completed ${stats.completedCount} documents!`);
+        toast.success(`Successfully completed ${stats.completedCount} documents with auto-extracted percentages!`);
       }
       if (stats.unmatchedCount > 0) {
         toast.warning(`${stats.unmatchedCount} reports could not be matched`);
@@ -272,12 +273,38 @@ export default function AdminBulkReportUpload() {
   const uploadedCount = files.filter(f => f.status === 'uploaded').length;
   const errorCount = files.filter(f => f.status === 'error').length;
 
+  const getReportTypeIcon = (type: 'similarity' | 'ai') => {
+    return type === 'ai' ? (
+      <Brain className="h-3 w-3" />
+    ) : (
+      <FileSearch className="h-3 w-3" />
+    );
+  };
+
+  const getReportTypeBadge = (type: 'similarity' | 'ai', percentage: number | null) => {
+    const isAI = type === 'ai';
+    return (
+      <Badge 
+        variant="outline" 
+        className={isAI ? 'border-purple-500 text-purple-600 bg-purple-50' : 'border-blue-500 text-blue-600 bg-blue-50'}
+      >
+        {getReportTypeIcon(type)}
+        <span className="ml-1">
+          {isAI ? 'AI' : 'Similarity'}
+          {percentage !== null && `: ${percentage}%`}
+        </span>
+      </Badge>
+    );
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="mb-6">
           <h1 className="text-3xl font-bold">Bulk Report Upload</h1>
-          <p className="text-muted-foreground">Upload multiple PDF reports at once for automatic document matching</p>
+          <p className="text-muted-foreground">
+            Upload PDF reports for automatic classification, percentage extraction, and document matching
+          </p>
         </div>
 
         {/* Upload Area */}
@@ -288,7 +315,8 @@ export default function AdminBulkReportUpload() {
               Upload Reports
             </CardTitle>
             <CardDescription>
-              Drag and drop PDF files or ZIP archives. Reports will be automatically matched to documents based on filename.
+              Drag and drop PDF files or ZIP archives. Reports will be automatically classified (AI/Similarity) 
+              and percentages extracted from page 2.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -319,7 +347,7 @@ export default function AdminBulkReportUpload() {
                 <div>
                   <p className="font-medium">Drop PDF files or ZIP archives here</p>
                   <p className="text-sm text-muted-foreground">
-                    or click to browse
+                    Auto-classifies AI vs Similarity reports and extracts percentages
                   </p>
                 </div>
                 <Button 
@@ -415,7 +443,9 @@ export default function AdminBulkReportUpload() {
                 {processing && (
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">Processing...</span>
+                      <span className="text-sm font-medium">
+                        {uploadProgress < 60 ? 'Uploading files...' : 'Classifying & extracting percentages...'}
+                      </span>
                       <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
                     </div>
                     <Progress value={uploadProgress} />
@@ -437,7 +467,7 @@ export default function AdminBulkReportUpload() {
                     ) : (
                       <>
                         <Upload className="h-4 w-4 mr-2" />
-                        Upload & Auto-Map ({pendingCount} files)
+                        Upload & Auto-Classify ({pendingCount} files)
                       </>
                     )}
                   </Button>
@@ -453,7 +483,7 @@ export default function AdminBulkReportUpload() {
             <CardHeader>
               <CardTitle>Processing Results</CardTitle>
               <CardDescription>
-                Summary of the auto-mapping process
+                Reports classified, percentages extracted, and documents updated
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -481,8 +511,6 @@ export default function AdminBulkReportUpload() {
                 </div>
               </div>
 
-              <Separator className="my-4" />
-
               {/* Mapped Reports */}
               {processingResult.mapped.length > 0 && (
                 <div className="mb-6">
@@ -490,14 +518,25 @@ export default function AdminBulkReportUpload() {
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                     Successfully Mapped ({processingResult.mapped.length})
                   </h4>
-                  <ScrollArea className="h-[150px] border rounded-lg">
+                  <ScrollArea className="h-[200px] border rounded-lg">
                     <div className="p-3 space-y-2">
-                      {processingResult.mapped.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-green-500/5 rounded">
-                          <span className="text-sm truncate flex-1">{item.fileName}</span>
-                          <Badge variant="outline" className="ml-2">
-                            {item.reportType === 'similarity' ? 'Similarity' : 'AI'} Report
-                          </Badge>
+                      {processingResult.mapped.map((result, index) => (
+                        <div 
+                          key={index}
+                          className="flex items-center justify-between p-3 rounded-lg bg-green-500/5 border border-green-500/20"
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <FileText className="h-4 w-4 shrink-0 text-green-600" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium truncate">{result.fileName}</p>
+                              {result.message && (
+                                <p className="text-xs text-muted-foreground">{result.message}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {getReportTypeBadge(result.reportType, result.percentage)}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -514,18 +553,35 @@ export default function AdminBulkReportUpload() {
                   </h4>
                   <ScrollArea className="h-[150px] border rounded-lg">
                     <div className="p-3 space-y-2">
-                      {processingResult.unmatched.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-yellow-500/5 rounded">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm truncate">{item.fileName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Normalized: {item.normalizedFilename}
-                            </p>
+                      {processingResult.unmatched.map((report, index) => (
+                        <div 
+                          key={index}
+                          className="flex items-center justify-between p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/20"
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <FileText className="h-4 w-4 shrink-0 text-yellow-600" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium truncate">{report.fileName}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Normalized: {report.normalizedFilename}
+                              </p>
+                            </div>
                           </div>
+                          {report.classification && report.classification.type !== 'unknown' && (
+                            <div className="flex items-center gap-2">
+                              {getReportTypeBadge(
+                                report.classification.type as 'similarity' | 'ai', 
+                                report.classification.percentage
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   </ScrollArea>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    These reports have been saved and can be manually assigned from the Unmatched Reports page.
+                  </p>
                 </div>
               )}
 
@@ -536,12 +592,15 @@ export default function AdminBulkReportUpload() {
                     <AlertCircle className="h-4 w-4 text-red-600" />
                     Needs Manual Review ({processingResult.needsReview.length})
                   </h4>
-                  <ScrollArea className="h-[150px] border rounded-lg">
+                  <ScrollArea className="h-[100px] border rounded-lg">
                     <div className="p-3 space-y-2">
                       {processingResult.needsReview.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-red-500/5 rounded">
+                        <div 
+                          key={index}
+                          className="flex items-center justify-between p-3 rounded-lg bg-red-500/5 border border-red-500/20"
+                        >
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-mono">{item.documentId.slice(0, 8)}...</p>
+                            <p className="text-sm font-medium">Document ID: {item.documentId.slice(0, 8)}...</p>
                             <p className="text-xs text-muted-foreground">{item.reason}</p>
                           </div>
                         </div>
