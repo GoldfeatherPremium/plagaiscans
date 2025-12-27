@@ -178,20 +178,20 @@ serve(async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     // Authenticate user using the anon key client
-    const authHeader = req.headers.get("Authorization");
+    const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("No authorization header");
     }
 
-    // Create client with user's JWT to verify authentication
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: { Authorization: authHeader },
-      },
-    });
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!token) {
+      throw new Error("No bearer token");
+    }
 
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-    
+    // Create client with anon key and validate the passed JWT explicitly
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+
     if (authError || !user) {
       console.error("Auth error:", authError);
       throw new Error("Authentication failed");
