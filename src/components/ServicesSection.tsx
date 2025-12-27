@@ -1,45 +1,48 @@
 import { FileText, Search, BookCheck, Bot, Shield, Zap } from "lucide-react";
-
-const services = [
-  {
-    icon: Search,
-    title: "Detailed Similarity Reports",
-    description: "View highlighted matches, similarity percentages, and matched sources to understand how content overlaps with existing materials.",
-    highlight: "Source Insights",
-  },
-  {
-    icon: FileText,
-    title: "Identify Overlapping Text",
-    description: "Easily locate repeated or similar content and improve originality before submission.",
-    highlight: "Improve Originality",
-  },
-  {
-    icon: BookCheck,
-    title: "Citation & Reference Checks",
-    description: "Support academic compliance by reviewing citation patterns and references in your documents.",
-    highlight: "Academic Compliance",
-  },
-  {
-    icon: Bot,
-    title: "AI-Content Detection Indicators",
-    description: "Analyze text for potential AI-generated patterns to support responsible academic use. Advisory only, not guaranteed detection.",
-    highlight: "AI Detection",
-  },
-  {
-    icon: Shield,
-    title: "Privacy-First Plagiarism Scanning",
-    description: "Uploaded documents remain private and are processed securely. Your data is never shared with third parties.",
-    highlight: "Secure & Private",
-  },
-  {
-    icon: Zap,
-    title: "Fast & Reliable Processing",
-    description: "Get your detailed reports back within minutes, not hours. Quick turnaround without compromising accuracy.",
-    highlight: "Fast Results",
-  },
-];
+import { useSiteContent } from "@/hooks/useSiteContent";
 
 const ServicesSection = () => {
+  const { get } = useSiteContent();
+
+  const services = [
+    {
+      icon: Search,
+      title: "Detailed Similarity Reports",
+      description: "View highlighted matches, similarity percentages, and matched sources to understand how content overlaps with existing materials.",
+      highlight: "Source Insights",
+    },
+    {
+      icon: FileText,
+      title: "Identify Overlapping Text",
+      description: "Easily locate repeated or similar content and improve originality before submission.",
+      highlight: "Improve Originality",
+    },
+    {
+      icon: BookCheck,
+      title: "Citation & Reference Checks",
+      description: "Support academic compliance by reviewing citation patterns and references in your documents.",
+      highlight: "Academic Compliance",
+    },
+    {
+      icon: Bot,
+      title: "AI-Content Detection Indicators",
+      description: "Analyze text for potential AI-generated patterns to support responsible academic use. Advisory only, not guaranteed detection.",
+      highlight: "AI Detection",
+    },
+    {
+      icon: Shield,
+      title: "Privacy-First Plagiarism Scanning",
+      description: "Uploaded documents remain private and are processed securely. Your data is never shared with third parties.",
+      highlight: "Secure & Private",
+    },
+    {
+      icon: Zap,
+      title: "Fast & Reliable Processing",
+      description: "Get your detailed reports back within minutes, not hours. Quick turnaround without compromising accuracy.",
+      highlight: "Fast Results",
+    },
+  ];
+
   return (
     <section id="services" className="section-padding relative overflow-hidden">
       {/* Background Elements */}
@@ -50,14 +53,14 @@ const ServicesSection = () => {
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
           <span className="text-primary font-medium text-sm tracking-wider uppercase mb-4 block">
-            Features
+            {get('services_label', 'Features')}
           </span>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-6">
-            Comprehensive Document
-            <span className="gradient-text"> Analysis</span>
+            {get('services_title', 'Comprehensive Document')}
+            <span className="gradient-text"> {get('services_title_gradient', 'Analysis')}</span>
           </h2>
           <p className="text-lg text-muted-foreground">
-            Professional plagiarism detection and similarity checking tools for students, researchers, and universities.
+            {get('services_subtitle', 'Professional plagiarism detection and similarity checking tools for students, researchers, and universities.')}
           </p>
         </div>
 

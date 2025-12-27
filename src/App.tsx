@@ -69,6 +69,7 @@ const RefundPolicy = lazy(() => import("./pages/RefundPolicy"));
 const ContactPage = lazy(() => import("./pages/Contact"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
+const AdminSiteContent = lazy(() => import("./pages/AdminSiteContent"));
 const queryClient = new QueryClient();
 
 // Loading spinner component for Suspense fallback
@@ -221,6 +222,7 @@ const AppRoutes = () => (
       <Route path="/dashboard/bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminBulkReportUpload /></ProtectedRoute>} />
       <Route path="/dashboard/unmatched-reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminUnmatchedReports /></ProtectedRoute>} />
       <Route path="/dashboard/needs-review" element={<ProtectedRoute allowedRoles={['admin']}><AdminNeedsReview /></ProtectedRoute>} />
+      <Route path="/dashboard/site-content" element={<ProtectedRoute allowedRoles={['admin']}><AdminSiteContent /></ProtectedRoute>} />
       <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['admin']}><AdminReferrals /></ProtectedRoute>} />
       <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       

@@ -365,6 +365,7 @@ export const DashboardSidebar: React.FC = () => {
       icon: Wrench,
       links: [
         { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
+        { to: '/dashboard/site-content', icon: FileText, label: 'Site Content' },
         { to: '/dashboard/ai-helper', icon: Bot, label: 'AI Helper' },
         { to: '/dashboard/profile', icon: User, label: 'Profile' },
       ],

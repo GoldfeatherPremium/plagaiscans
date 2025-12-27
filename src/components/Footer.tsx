@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
-import { Mail } from "lucide-react";
+import { Mail, FileText } from "lucide-react";
+import { useSiteContent } from "@/hooks/useSiteContent";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const { get } = useSiteContent();
 
   const footerLinks = [
     {
@@ -29,19 +31,24 @@ const Footer = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <Link to="/" className="text-2xl font-display font-bold gradient-text inline-block mb-4">
-              PlagaiScans
+            <Link to="/" className="flex items-center gap-2 mb-4 group">
+              <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+                <FileText className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <span className="text-2xl font-display font-bold gradient-text">
+                {get('nav_brand', 'Plagaiscans')}
+              </span>
             </Link>
             <p className="text-muted-foreground max-w-sm mb-4">
-              Professional document similarity and AI content detection services for academic integrity.
+              {get('footer_description', 'Professional document similarity and AI content detection services for academic integrity.')}
             </p>
             <p className="text-xs text-muted-foreground mb-4">
-              This service is provided for informational and research purposes only.
+              {get('footer_disclaimer', 'This service is provided for informational and research purposes only.')}
             </p>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Mail className="h-4 w-4" />
-              <a href="mailto:support@plagaiscans.com" className="hover:text-primary transition-colors">
-                support@plagaiscans.com
+              <a href={`mailto:${get('contact_email', 'support@plagaiscans.com')}`} className="hover:text-primary transition-colors">
+                {get('contact_email', 'support@plagaiscans.com')}
               </a>
             </div>
           </div>
@@ -70,10 +77,10 @@ const Footer = () => {
         <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="text-center md:text-left">
             <p className="text-sm text-muted-foreground">
-              © {currentYear} PlagaiScans. All rights reserved.
+              © {currentYear} {get('nav_brand', 'Plagaiscans')}. All rights reserved.
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Trading Name: PlagaiScans | Legal Entity: Goldfeather Prem Ltd (United Kingdom)
+              Trading Name: {get('nav_brand', 'Plagaiscans')} | Legal Entity: {get('footer_company_name', 'Goldfeather Prem Ltd')} ({get('footer_country', 'United Kingdom')})
             </p>
           </div>
           <div className="flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
