@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -8,10 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileQuestion, Search, Link2, Trash2, ExternalLink, RefreshCw, FileText, Download } from 'lucide-react';
+import { FileQuestion, Search, Link2, Trash2, RefreshCw, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 interface UnmatchedReport {
@@ -20,6 +20,8 @@ interface UnmatchedReport {
   file_path: string;
   normalized_filename: string;
   report_type: string | null;
+  similarity_percentage: number | null;
+  ai_percentage: number | null;
   uploaded_at: string | null;
   uploaded_by: string | null;
   resolved: boolean | null;
@@ -35,6 +37,8 @@ interface PendingDocument {
   user_id: string | null;
   status: string;
   uploaded_at: string;
+  similarity_report_path: string | null;
+  ai_report_path: string | null;
 }
 
 const AdminUnmatchedReports: React.FC = () => {
@@ -44,6 +48,7 @@ const AdminUnmatchedReports: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<UnmatchedReport | null>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string>('');
+  const [selectedReportType, setSelectedReportType] = useState<'similarity' | 'ai' | ''>('');
 
   // Fetch unmatched reports
   const { data: reports, isLoading: reportsLoading } = useQuery({
@@ -72,7 +77,7 @@ const AdminUnmatchedReports: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('documents')
-        .select('id, file_name, normalized_filename, user_id, status, uploaded_at')
+        .select('id, file_name, normalized_filename, user_id, status, uploaded_at, similarity_report_path, ai_report_path')
         .in('status', ['pending', 'in_progress'])
         .order('uploaded_at', { ascending: false });
       if (error) throw error;
@@ -86,14 +91,25 @@ const AdminUnmatchedReports: React.FC = () => {
       const report = reports?.find(r => r.id === reportId);
       if (!report) throw new Error('Report not found');
 
-      // Update the document with the report
+      // Get the percentage from the report
+      const percentage = reportType === 'similarity' ? report.similarity_percentage : report.ai_percentage;
+
+      // Update the document with the report path and percentage
       const updateField = reportType === 'similarity' ? 'similarity_report_path' : 'ai_report_path';
+      const percentageField = reportType === 'similarity' ? 'similarity_percentage' : 'ai_percentage';
+      
       const { error: docError } = await supabase
         .from('documents')
-        .update({ [updateField]: report.file_path })
+        .update({ 
+          [updateField]: report.file_path,
+          [percentageField]: percentage,
+        })
         .eq('id', documentId);
       
       if (docError) throw docError;
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
 
       // Mark the unmatched report as resolved
       const { error: resolveError } = await supabase
@@ -101,6 +117,7 @@ const AdminUnmatchedReports: React.FC = () => {
         .update({
           resolved: true,
           resolved_at: new Date().toISOString(),
+          resolved_by: user?.id,
           matched_document_id: documentId,
           report_type: reportType,
         })
@@ -111,7 +128,7 @@ const AdminUnmatchedReports: React.FC = () => {
       // Check if document now has both reports
       const { data: doc } = await supabase
         .from('documents')
-        .select('similarity_report_path, ai_report_path')
+        .select('similarity_report_path, ai_report_path, user_id')
         .eq('id', documentId)
         .single();
 
@@ -120,18 +137,28 @@ const AdminUnmatchedReports: React.FC = () => {
           .from('documents')
           .update({ status: 'completed', completed_at: new Date().toISOString() })
           .eq('id', documentId);
+
+        // Send notifications if document is now complete
+        if (doc.user_id) {
+          await supabase.from('user_notifications').insert({
+            user_id: doc.user_id,
+            title: 'Document Ready',
+            message: 'Your document has been processed and reports are now available.',
+          });
+        }
       }
     },
     onSuccess: () => {
-      toast({ title: 'Report assigned successfully' });
+      toast.success('Report assigned successfully');
       queryClient.invalidateQueries({ queryKey: ['unmatched-reports'] });
       queryClient.invalidateQueries({ queryKey: ['pending-documents-for-assignment'] });
       setIsAssignDialogOpen(false);
       setSelectedReport(null);
       setSelectedDocumentId('');
+      setSelectedReportType('');
     },
     onError: (error) => {
-      toast({ title: 'Failed to assign report', description: error.message, variant: 'destructive' });
+      toast.error('Failed to assign report: ' + error.message);
     },
   });
 
@@ -157,11 +184,11 @@ const AdminUnmatchedReports: React.FC = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: 'Report deleted' });
+      toast.success('Report deleted');
       queryClient.invalidateQueries({ queryKey: ['unmatched-reports'] });
     },
     onError: (error) => {
-      toast({ title: 'Failed to delete report', description: error.message, variant: 'destructive' });
+      toast.error('Failed to delete report: ' + error.message);
     },
   });
 
@@ -176,7 +203,7 @@ const AdminUnmatchedReports: React.FC = () => {
       .createSignedUrl(report.file_path, 60);
     
     if (error) {
-      toast({ title: 'Failed to generate download link', variant: 'destructive' });
+      toast.error('Failed to generate download link');
       return;
     }
     
@@ -185,7 +212,18 @@ const AdminUnmatchedReports: React.FC = () => {
 
   const openAssignDialog = (report: UnmatchedReport) => {
     setSelectedReport(report);
+    setSelectedReportType(report.report_type as 'similarity' | 'ai' || '');
     setIsAssignDialogOpen(true);
+  };
+
+  const getDisplayPercentage = (report: UnmatchedReport) => {
+    if (report.report_type === 'similarity' && report.similarity_percentage !== null) {
+      return `${report.similarity_percentage}%`;
+    }
+    if (report.report_type === 'ai' && report.ai_percentage !== null) {
+      return `${report.ai_percentage}%`;
+    }
+    return null;
   };
 
   return (
@@ -250,7 +288,9 @@ const AdminUnmatchedReports: React.FC = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>File Name</TableHead>
-                      <TableHead>Normalized</TableHead>
+                      <TableHead>Document Key</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Percentage</TableHead>
                       <TableHead>Uploaded</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -264,6 +304,18 @@ const AdminUnmatchedReports: React.FC = () => {
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {report.normalized_filename}
+                        </TableCell>
+                        <TableCell>
+                          {report.report_type ? (
+                            <Badge variant={report.report_type === 'similarity' ? 'default' : 'secondary'}>
+                              {report.report_type === 'similarity' ? 'Similarity' : 'AI'}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">Unknown</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {getDisplayPercentage(report) || '-'}
                         </TableCell>
                         <TableCell className="text-sm">
                           {report.uploaded_at
@@ -322,7 +374,15 @@ const AdminUnmatchedReports: React.FC = () => {
             <DialogHeader>
               <DialogTitle>Assign Report to Document</DialogTitle>
               <DialogDescription>
-                Select a document and report type to assign "{selectedReport?.file_name}"
+                Assign "{selectedReport?.file_name}" to a document
+                {selectedReport?.report_type && (
+                  <span className="block mt-1">
+                    Detected type: <Badge variant="outline">{selectedReport.report_type}</Badge>
+                    {getDisplayPercentage(selectedReport) && (
+                      <span className="ml-2">Percentage: {getDisplayPercentage(selectedReport)}</span>
+                    )}
+                  </span>
+                )}
               </DialogDescription>
             </DialogHeader>
 
@@ -339,7 +399,9 @@ const AdminUnmatchedReports: React.FC = () => {
                         <div className="flex flex-col">
                           <span>{doc.file_name}</span>
                           <span className="text-xs text-muted-foreground">
-                            {doc.normalized_filename}
+                            {doc.normalized_filename} 
+                            {!doc.similarity_report_path && ' • needs similarity'}
+                            {!doc.ai_report_path && ' • needs AI'}
                           </span>
                         </div>
                       </SelectItem>
@@ -348,32 +410,31 @@ const AdminUnmatchedReports: React.FC = () => {
                 </Select>
               </div>
 
-              {selectedDocumentId && (
-                <div className="flex gap-2">
-                  <Button
-                    className="flex-1"
-                    onClick={() => selectedReport && assignMutation.mutate({
-                      reportId: selectedReport.id,
-                      documentId: selectedDocumentId,
-                      reportType: 'similarity',
-                    })}
-                    disabled={assignMutation.isPending}
-                  >
-                    Assign as Similarity Report
-                  </Button>
-                  <Button
-                    className="flex-1"
-                    variant="secondary"
-                    onClick={() => selectedReport && assignMutation.mutate({
-                      reportId: selectedReport.id,
-                      documentId: selectedDocumentId,
-                      reportType: 'ai',
-                    })}
-                    disabled={assignMutation.isPending}
-                  >
-                    Assign as AI Report
-                  </Button>
-                </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Report Type</label>
+                <Select value={selectedReportType} onValueChange={(v) => setSelectedReportType(v as 'similarity' | 'ai')}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select report type..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="similarity">Similarity Report</SelectItem>
+                    <SelectItem value="ai">AI Report</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedDocumentId && selectedReportType && (
+                <Button
+                  className="w-full"
+                  onClick={() => selectedReport && assignMutation.mutate({
+                    reportId: selectedReport.id,
+                    documentId: selectedDocumentId,
+                    reportType: selectedReportType,
+                  })}
+                  disabled={assignMutation.isPending}
+                >
+                  Assign Report
+                </Button>
               )}
             </div>
 
