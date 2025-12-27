@@ -8,10 +8,19 @@ const Footer = () => {
 
   const footerLinks = [
     {
-      title: "Company",
+      title: "Platform",
       links: [
-        { label: "About Us", to: "/about-us" },
+        { label: "How It Works", to: "/how-it-works" },
         { label: "Pricing", to: "/pricing" },
+        { label: "FAQ", to: "/faq" },
+      ],
+    },
+    {
+      title: "Resources",
+      links: [
+        { label: "Academic Integrity", to: "/academic-integrity" },
+        { label: "Learning Center", to: "/resources" },
+        { label: "About Us", to: "/about-us" },
         { label: "Contact", to: "/contact" },
       ],
     },

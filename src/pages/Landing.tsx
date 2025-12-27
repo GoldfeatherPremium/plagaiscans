@@ -12,23 +12,23 @@ const Landing = () => {
   const features = [
     {
       icon: FileText,
-      title: "Similarity Detection",
-      description: "Documents checked against billions of academic papers, websites, and publications worldwide",
+      title: "Detailed Similarity Reports",
+      description: "View highlighted matches, similarity percentages, and matched sources to understand content overlap with existing materials",
     },
     {
       icon: Bot,
-      title: "AI Content Detection",
-      description: "Identify AI-generated text from ChatGPT, Claude, and other AI tools",
+      title: "AI Content Indicators",
+      description: "Analyze text for potential AI-generated patterns to support responsible academic use",
     },
     {
       icon: Clock,
       title: "Fast Processing",
-      description: "Get your detailed reports back within minutes, not hours",
+      description: "Get your detailed analysis reports back within minutes, not hours",
     },
     {
       icon: Shield,
-      title: "Secure & Private",
-      description: "Your documents are encrypted and never shared with third parties",
+      title: "Privacy-First Architecture",
+      description: "Your documents are processed securely and never stored, reused, or shared",
     },
   ];
 
@@ -36,12 +36,12 @@ const Landing = () => {
     {
       number: "1",
       title: "Create Account",
-      description: "Sign up with your email, phone, and password",
+      description: "Sign up with your email and password",
     },
     {
       number: "2",
       title: "Purchase Credits",
-      description: "Contact us on WhatsApp to buy credits",
+      description: "Buy credits to check your documents",
     },
     {
       number: "3",
@@ -51,7 +51,7 @@ const Landing = () => {
     {
       number: "4",
       title: "Get Reports",
-      description: "Download similarity and AI detection reports",
+      description: "Download similarity and AI indicator reports",
     },
   ];
 
@@ -65,9 +65,15 @@ const Landing = () => {
               <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
                 <FileText className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-display font-bold text-foreground">PlagaiScans</span>
+              <span className="text-xl font-display font-bold text-foreground">Plagaiscans</span>
             </div>
             <div className="flex items-center gap-6">
+              <Link to="/how-it-works" className="text-muted-foreground hover:text-foreground font-medium hidden md:block transition-colors duration-200 link-underline">
+                How It Works
+              </Link>
+              <Link to="/faq" className="text-muted-foreground hover:text-foreground font-medium hidden md:block transition-colors duration-200 link-underline">
+                FAQ
+              </Link>
               <a href="#pricing" className="text-muted-foreground hover:text-foreground font-medium hidden sm:block transition-colors duration-200 link-underline">
                 Pricing
               </a>
@@ -113,41 +119,46 @@ const Landing = () => {
 
             {/* Main Heading */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold text-foreground mb-4">
-              Detect Plagiarism & AI Content
+              Plagiarism & Similarity Check
               <br />
               <span className="gradient-text">
-                With Confidence
+                for Academic Integrity
               </span>
             </h1>
 
             {/* Subtitle */}
             <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Professional document analysis service for students, educators, and businesses. 
-              Get detailed similarity and AI detection reports in minutes.
+              Plagaiscans helps students, researchers, and educators verify originality, 
+              identify overlapping content, and understand similarity results through clear reports.
             </p>
 
             {/* Features List */}
             <div className="inline-flex flex-wrap justify-center gap-4 mb-8 stagger-children">
               <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
                 <CheckCircle className="w-4 h-4 text-secondary" />
-                <span>Advanced Similarity Detection</span>
+                <span>Detailed Similarity Reports</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
                 <CheckCircle className="w-4 h-4 text-secondary" />
-                <span>AI Content Analysis</span>
+                <span>AI Content Indicators</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
                 <CheckCircle className="w-4 h-4 text-secondary" />
-                <span>Detailed PDF Reports</span>
+                <span>Privacy-First Scanning</span>
               </div>
             </div>
 
             {/* CTA Button */}
-            <div>
+            <div className="flex flex-wrap justify-center gap-4">
               <Link to="/auth">
                 <Button variant="hero" size="xl" className="rounded-full group">
-                  Start Checking
+                  Check Document
                   <ArrowRight className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:translate-x-1" />
+                </Button>
+              </Link>
+              <Link to="/how-it-works">
+                <Button variant="outline" size="xl" className="rounded-full">
+                  View Sample Report
                 </Button>
               </Link>
             </div>
@@ -162,7 +173,7 @@ const Landing = () => {
                 Comprehensive Document Analysis
               </h2>
               <p className="text-muted-foreground text-lg">
-                Our platform provides thorough checking to ensure document authenticity
+                Professional similarity checking tools for students, researchers, and universities
               </p>
             </div>
 
@@ -344,7 +355,7 @@ const Landing = () => {
               Ready to Check Your Documents?
             </h2>
             <p className="text-muted-foreground text-lg mb-8">
-              Join thousands of users who trust PlagaiScans for accurate plagiarism and AI detection.
+              Join thousands of users who trust Plagaiscans for accurate originality verification.
             </p>
             <Link to="/auth">
               <Button variant="hero" size="xl" className="rounded-full group">
