@@ -38,14 +38,30 @@ interface ProcessingResult {
  */
 function normalizeFilename(filename: string): string {
   let result = filename.toLowerCase();
+
   // Remove file extension
-  result = result.replace(/\.[^.]+$/, '');
+  result = result.replace(/\.[^.]+$/, "");
+
+  // Convert common separators to spaces
+  result = result.replace(/[\/_]+/g, " ");
+
+  // Remove surrounding/leading brackets if present
+  result = result.replace(/^\[.*?\]\s*/, "");
+  result = result.replace(/^\(.*?\)\s*/, "");
+
   // Remove ONLY the last trailing " (number)" suffix
-  result = result.replace(/\s*\(\d+\)$/, '');
-  // Remove surrounding brackets if present
-  result = result.replace(/^\[.*?\]\s*/, '');
-  result = result.replace(/^\(.*?\)\s*/, '');
-  return result.trim();
+  result = result.replace(/\s*\(\d+\)\s*$/, "");
+
+  // Handle cases like "(1)-1" at the end
+  result = result.replace(/\s*\(\d+\)\s*[-_]?\d+\s*$/, "");
+
+  // Remove trailing punctuation (e.g. extra dots)
+  result = result.replace(/[\s._-]+$/g, "");
+
+  // Normalize whitespace
+  result = result.replace(/\s+/g, " ").trim();
+
+  return result;
 }
 
 /**
