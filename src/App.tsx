@@ -70,6 +70,10 @@ const ContactPage = lazy(() => import("./pages/Contact"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const AdminSiteContent = lazy(() => import("./pages/AdminSiteContent"));
+const HowItWorks = lazy(() => import("./pages/HowItWorks"));
+const FAQ = lazy(() => import("./pages/FAQ"));
+const AcademicIntegrity = lazy(() => import("./pages/AcademicIntegrity"));
+const Resources = lazy(() => import("./pages/Resources"));
 const queryClient = new QueryClient();
 
 // Loading spinner component for Suspense fallback
@@ -173,6 +177,10 @@ const AppRoutes = () => (
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/unsubscribe" element={<Unsubscribe />} />
+      <Route path="/how-it-works" element={<HowItWorks />} />
+      <Route path="/faq" element={<FAQ />} />
+      <Route path="/academic-integrity" element={<AcademicIntegrity />} />
+      <Route path="/resources" element={<Resources />} />
       <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
       {/* Password reset page - bypasses auth checks to allow password change */}
       <Route path="/reset-password" element={<ResetPassword />} />
