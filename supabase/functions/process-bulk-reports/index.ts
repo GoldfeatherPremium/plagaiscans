@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-// @ts-ignore - pdfjs-serverless types
-import getDocument from "https://cdn.jsdelivr.net/npm/pdfjs-serverless@0.5.0/+esm";
+// @ts-ignore - pdf-parse types
+import pdf from "https://esm.sh/pdf-parse@1.1.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,24 +51,12 @@ function normalizeFilename(filename: string): string {
 }
 
 /**
- * Extract text from PDF page 2 using pdfjs-serverless
+ * Extract text from PDF using pdf-parse
  */
-async function extractTextFromPage2(pdfBuffer: ArrayBuffer): Promise<string> {
+async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    // @ts-ignore - pdfjs-serverless ESM import typing
-    const loadingTask = getDocument!(pdfBuffer);
-    const doc = await loadingTask.promise;
-    
-    // Get page 2 (or page 1 if only 1 page)
-    const pageNum = Math.min(2, doc.numPages);
-    const page = await doc.getPage(pageNum);
-    const textContent = await page.getTextContent();
-    
-    const text = textContent.items
-      .map((item: any) => item.str)
-      .join(' ');
-    
-    return text;
+    const data = await pdf(pdfBuffer);
+    return data.text || '';
   } catch (err) {
     console.error('PDF extraction error:', err);
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -242,7 +230,7 @@ serve(async (req) => {
       let classification: ClassificationResult;
       try {
         const pdfBuffer = await pdfData.arrayBuffer();
-        const text = await extractTextFromPage2(pdfBuffer);
+        const text = await extractTextFromPDF(pdfBuffer);
         classification = classifyReport(text);
         console.log(`Classified ${report.fileName} as ${classification.reportType} with ${classification.percentage}%`);
       } catch (error) {
