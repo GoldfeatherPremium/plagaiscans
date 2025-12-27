@@ -232,11 +232,16 @@ export default function AdminBulkReportUpload() {
         return;
       }
 
-      // Call edge function for auto-mapping
+      // Call edge function for auto-mapping with PDF text extraction
       setUploadProgress(60);
       
-      const { data, error } = await supabase.functions.invoke('bulk-report-upload', {
-        body: { reports: uploadedReports },
+      const { data, error } = await supabase.functions.invoke('process-bulk-reports', {
+        body: { 
+          reports: uploadedReports.map(r => ({
+            fileName: r.fileName,
+            storagePath: r.filePath,
+          }))
+        },
       });
 
       if (error) {
@@ -248,19 +253,31 @@ export default function AdminBulkReportUpload() {
 
       setUploadProgress(100);
       
-      // Handle response with safe defaults
+      // Handle response from process-bulk-reports edge function
       const result: ProcessingResult = {
         success: data?.success ?? true,
-        mapped: data?.mapped ?? [],
-        unmatched: data?.unmatched ?? [],
-        needsReview: data?.needsReview ?? [],
-        completedDocuments: data?.completedDocuments ?? [],
+        mapped: data?.details?.mapped?.map((m: any) => ({
+          documentId: m.documentId,
+          fileName: m.fileName,
+          reportType: m.reportType,
+          success: true,
+        })) ?? [],
+        unmatched: data?.details?.unmatched?.map((u: any) => ({
+          fileName: u.fileName,
+          normalizedFilename: u.reason || '',
+          filePath: '',
+        })) ?? [],
+        needsReview: data?.details?.needsReview?.map((r: any) => ({
+          documentId: r.documentId,
+          reason: r.reason,
+        })) ?? [],
+        completedDocuments: data?.details?.completed?.map((c: any) => c.documentId) ?? [],
         stats: {
-          totalReports: data?.stats?.totalReports ?? uploadedReports.length,
-          mappedCount: data?.stats?.mappedCount ?? 0,
-          unmatchedCount: data?.stats?.unmatchedCount ?? 0,
-          completedCount: data?.stats?.completedCount ?? 0,
-          needsReviewCount: data?.stats?.needsReviewCount ?? 0,
+          totalReports: data?.totalReports ?? uploadedReports.length,
+          mappedCount: data?.mappedCount ?? 0,
+          unmatchedCount: data?.unmatchedCount ?? 0,
+          completedCount: data?.completedDocuments ?? 0,
+          needsReviewCount: data?.needsReviewCount ?? 0,
         },
       };
       
