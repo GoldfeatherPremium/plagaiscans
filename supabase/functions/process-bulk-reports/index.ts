@@ -32,28 +32,17 @@ interface ProcessingResult {
 }
 
 // =====================================================
-// STAGE 1: FILENAME NORMALIZATION (for grouping only)
+// STAGE 1: FILENAME NORMALIZATION (must match DB function)
+// This mirrors the SQL normalize_filename() function exactly
 // =====================================================
 function normalizeFilename(filename: string): string {
   let result = filename;
   
-  // Remove file extension
+  // Remove file extension only - keep all brackets as part of the base name
   result = result.replace(/\.[^.]+$/, "");
   
-  // Remove trailing numbers in parentheses like (1), (2), (45)
-  result = result.replace(/\s*\(\d+\)\s*$/, "");
-  
-  // Remove trailing numbers in brackets like [1], [2]
-  result = result.replace(/\s*\[\d+\]\s*$/, "");
-  
-  // Remove trailing dash numbers like -1, -2
-  result = result.replace(/\s*-\d+\s*$/, "");
-  
-  // Remove leading [Guest] or (Guest) tags
-  result = result.replace(/^\s*[\[\(]?Guest[\]\)]?\s*/i, "");
-  
-  // Normalize whitespace
-  result = result.replace(/\s+/g, " ").trim();
+  // Trim whitespace
+  result = result.trim();
   
   // Lowercase for comparison
   result = result.toLowerCase();
