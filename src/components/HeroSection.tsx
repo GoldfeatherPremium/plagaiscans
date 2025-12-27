@@ -1,5 +1,6 @@
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, FileSearch, Shield, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 const HeroSection = () => {
   return (
@@ -26,45 +27,61 @@ const HeroSection = () => {
 
       <div className="relative z-10 container-width section-padding text-center">
         {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-8 animate-fade-in">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-sm text-muted-foreground">Crafting Digital Experiences</span>
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-8 animate-fade-in hover:border-primary/30 transition-colors duration-300">
+          <Sparkles className="w-4 h-4 text-primary animate-pulse-soft" />
+          <span className="text-sm text-muted-foreground">Trusted by 10,000+ academics & researchers</span>
         </div>
 
-        {/* Main Heading */}
+        {/* Main Heading - H1 with primary keyword */}
         <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-display font-bold leading-[1.1] mb-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-          We Build
+          Plagiarism & Similarity Check
           <br />
-          <span className="gradient-text">Exceptional</span>
-          <br />
-          Websites
+          <span className="gradient-text">for Academic Integrity</span>
         </h1>
 
-        {/* Subtitle */}
-        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: "0.2s" }}>
-          Transform your vision into stunning digital reality. We create immersive web experiences that captivate, engage, and convert.
+        {/* Subtitle with SEO keywords */}
+        <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+          Plagaiscans helps students, researchers, and educators verify originality, identify overlapping content, and understand similarity results through clear and easy-to-read reports.
         </p>
+
+        {/* Feature Pills */}
+        <div className="flex flex-wrap justify-center gap-3 mb-10 animate-fade-in" style={{ animationDelay: "0.25s" }}>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
+            <CheckCircle className="w-4 h-4 text-secondary" />
+            <span>Detailed Similarity Reports</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
+            <CheckCircle className="w-4 h-4 text-secondary" />
+            <span>AI Content Detection</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
+            <CheckCircle className="w-4 h-4 text-secondary" />
+            <span>Privacy-First Scanning</span>
+          </div>
+        </div>
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{ animationDelay: "0.3s" }}>
-          <Button variant="hero" size="xl" className="group">
-            Start Your Project
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </Button>
+          <Link to="/auth">
+            <Button variant="hero" size="xl" className="group">
+              Check Document
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </Link>
           <Button variant="glass" size="xl">
-            View Our Work
+            View Sample Report
           </Button>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-8 max-w-xl mx-auto mt-20 animate-fade-in" style={{ animationDelay: "0.4s" }}>
           {[
-            { value: "150+", label: "Projects" },
-            { value: "98%", label: "Satisfaction" },
-            { value: "5+", label: "Years" },
+            { value: "1B+", label: "Sources Checked" },
+            { value: "99%", label: "Accuracy Rate" },
+            { value: "10K+", label: "Happy Users" },
           ].map((stat, index) => (
-            <div key={index} className="text-center">
-              <div className="text-2xl md:text-3xl font-display font-bold gradient-text">
+            <div key={index} className="text-center group">
+              <div className="text-2xl md:text-3xl font-display font-bold gradient-text transition-transform duration-300 group-hover:scale-110">
                 {stat.value}
               </div>
               <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>

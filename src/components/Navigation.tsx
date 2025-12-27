@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Menu, X, Download, Sun, Moon } from "lucide-react";
+import { Menu, X, Download, Sun, Moon, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
@@ -34,8 +34,7 @@ const Navigation = () => {
 
   const navLinks = [
     { href: "#about", label: "About" },
-    { href: "#work", label: "Work" },
-    { href: "#services", label: "Services" },
+    { href: "#services", label: "Features" },
     { href: "#contact", label: "Contact" },
   ];
 
@@ -44,8 +43,13 @@ const Navigation = () => {
       <div className="container-width px-6 md:px-12">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <a href="#" className="text-xl md:text-2xl font-display font-bold gradient-text">
-            STUDIO
+          <a href="#" className="flex items-center gap-2 group">
+            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+              <FileText className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <span className="text-xl md:text-2xl font-display font-bold gradient-text">
+              Plagaiscans
+            </span>
           </a>
 
           {/* Desktop Navigation */}
@@ -54,7 +58,7 @@ const Navigation = () => {
               <a
                 key={link.href}
                 href={link.href}
-                className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-sm font-medium"
+                className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-sm font-medium link-underline"
               >
                 {link.label}
               </a>
@@ -75,9 +79,11 @@ const Navigation = () => {
               <Moon className={`h-4 w-4 absolute transition-all duration-500 ${isDark ? 'rotate-0 scale-100 opacity-100' : '-rotate-90 scale-0 opacity-0'}`} />
               <span className="sr-only">Toggle theme</span>
             </Button>
-            <Button variant="hero" size="sm">
-              Get in Touch
-            </Button>
+            <Link to="/auth">
+              <Button variant="hero" size="sm">
+                Get Started
+              </Button>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -122,9 +128,11 @@ const Navigation = () => {
                   Install App
                 </Button>
               </Link>
-              <Button variant="hero" className="mt-2">
-                Get in Touch
-              </Button>
+              <Link to="/auth" onClick={() => setIsOpen(false)}>
+                <Button variant="hero" className="w-full mt-2">
+                  Get Started
+                </Button>
+              </Link>
             </div>
           </div>
         )}

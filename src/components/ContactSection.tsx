@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Send, Mail, MapPin, Phone } from "lucide-react";
+import { Send, Mail, MessageCircle, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "react-router-dom";
 
 const ContactSection = () => {
   const { toast } = useToast();
@@ -26,17 +27,17 @@ const ContactSection = () => {
     {
       icon: Mail,
       label: "Email",
-      value: "hello@studio.com",
+      value: "support@plagaiscans.com",
     },
     {
-      icon: Phone,
-      label: "Phone",
-      value: "+1 (555) 123-4567",
+      icon: MessageCircle,
+      label: "WhatsApp",
+      value: "Contact us for support",
     },
     {
-      icon: MapPin,
-      label: "Location",
-      value: "New York, NY",
+      icon: Shield,
+      label: "Privacy",
+      value: "Your documents are secure",
     },
   ];
 
@@ -53,18 +54,23 @@ const ContactSection = () => {
               Get in Touch
             </span>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-6">
-              Let's Create
-              <span className="gradient-text"> Something Amazing</span>
+              Ready to Check Your
+              <span className="gradient-text"> Documents?</span>
             </h2>
-            <p className="text-lg text-muted-foreground mb-10">
-              Ready to start your next project? Drop us a message and let's discuss how we can bring your vision to life.
+            <p className="text-lg text-muted-foreground mb-6">
+              Join thousands of students, researchers, and educators who trust Plagaiscans for accurate plagiarism detection and AI content analysis. Check originality and protect academic integrity.
             </p>
+            
+            {/* Tagline */}
+            <div className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-10">
+              Clear similarity reports you can trust.
+            </div>
 
             {/* Contact Info */}
             <div className="space-y-6">
               {contactInfo.map((item, index) => (
-                <div key={index} className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl glass flex items-center justify-center">
+                <div key={index} className="flex items-center gap-4 group">
+                  <div className="w-12 h-12 rounded-xl glass flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                     <item.icon className="w-5 h-5 text-primary" />
                   </div>
                   <div>
@@ -74,10 +80,21 @@ const ContactSection = () => {
                 </div>
               ))}
             </div>
+
+            {/* CTA Button */}
+            <div className="mt-10">
+              <Link to="/auth">
+                <Button variant="hero" size="lg" className="group">
+                  Start Checking Now
+                  <Send className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Right Column - Form */}
           <div className="glass p-8 md:p-10 rounded-2xl">
+            <h3 className="text-xl font-display font-semibold mb-6">Send us a message</h3>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label htmlFor="name" className="text-sm font-medium mb-2 block">
@@ -115,7 +132,7 @@ const ContactSection = () => {
                 </label>
                 <Textarea
                   id="message"
-                  placeholder="Tell us about your project..."
+                  placeholder="How can we help you with plagiarism checking?"
                   value={formData.message}
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   className="bg-muted/50 border-border/50 focus:border-primary min-h-[150px] resize-none"

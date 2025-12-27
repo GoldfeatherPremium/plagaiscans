@@ -1,41 +1,41 @@
-import { Globe, Smartphone, Paintbrush, TrendingUp, Database, Shield } from "lucide-react";
+import { FileText, Search, BookCheck, Bot, Shield, Zap } from "lucide-react";
 
 const services = [
   {
-    icon: Globe,
-    title: "Web Development",
-    description: "Custom websites and web applications built with cutting-edge technologies for optimal performance.",
-    price: "From $5,000",
+    icon: Search,
+    title: "Detailed Similarity Reports",
+    description: "View highlighted matches, similarity percentages, and matched sources to understand how content overlaps with existing materials.",
+    highlight: "Source Insights",
   },
   {
-    icon: Smartphone,
-    title: "Mobile Apps",
-    description: "Native and cross-platform mobile applications that deliver seamless user experiences.",
-    price: "From $8,000",
+    icon: FileText,
+    title: "Identify Overlapping Text",
+    description: "Easily locate repeated or similar content and improve originality before submission.",
+    highlight: "Improve Originality",
   },
   {
-    icon: Paintbrush,
-    title: "UI/UX Design",
-    description: "User-centered design that balances aesthetics with functionality and accessibility.",
-    price: "From $3,000",
+    icon: BookCheck,
+    title: "Citation & Reference Checks",
+    description: "Support academic compliance by reviewing citation patterns and references in your documents.",
+    highlight: "Academic Compliance",
   },
   {
-    icon: TrendingUp,
-    title: "Digital Marketing",
-    description: "Data-driven strategies to grow your online presence and reach your target audience.",
-    price: "From $2,000/mo",
-  },
-  {
-    icon: Database,
-    title: "Backend Solutions",
-    description: "Scalable server infrastructure and API development for complex applications.",
-    price: "From $6,000",
+    icon: Bot,
+    title: "AI-Content Detection Indicators",
+    description: "Analyze text for potential AI-generated patterns to support responsible academic use. Advisory only, not guaranteed detection.",
+    highlight: "AI Detection",
   },
   {
     icon: Shield,
-    title: "Security Audits",
-    description: "Comprehensive security assessments to protect your digital assets and user data.",
-    price: "From $2,500",
+    title: "Privacy-First Plagiarism Scanning",
+    description: "Uploaded documents remain private and are processed securely. Your data is never shared with third parties.",
+    highlight: "Secure & Private",
+  },
+  {
+    icon: Zap,
+    title: "Fast & Reliable Processing",
+    description: "Get your detailed reports back within minutes, not hours. Quick turnaround without compromising accuracy.",
+    highlight: "Fast Results",
   },
 ];
 
@@ -50,42 +50,37 @@ const ServicesSection = () => {
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
           <span className="text-primary font-medium text-sm tracking-wider uppercase mb-4 block">
-            Services
+            Features
           </span>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-6">
-            What We
-            <span className="gradient-text"> Offer</span>
+            Comprehensive Document
+            <span className="gradient-text"> Analysis</span>
           </h2>
           <p className="text-lg text-muted-foreground">
-            Comprehensive digital solutions tailored to your business needs and goals.
+            Professional plagiarism detection and similarity checking tools for students, researchers, and universities.
           </p>
         </div>
 
         {/* Services Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
           {services.map((service, index) => (
             <div
               key={index}
-              className="group p-8 rounded-2xl glass hover:bg-card/70 transition-all duration-500 border border-transparent hover:border-primary/20"
+              className="group p-8 rounded-2xl glass hover:bg-card/70 transition-all duration-500 border border-transparent hover:border-primary/20 hover:-translate-y-1"
             >
               {/* Icon */}
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-6 group-hover:glow-primary transition-all duration-500">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-all duration-500">
                 <service.icon className="w-7 h-7 text-primary" />
               </div>
 
               {/* Content */}
+              <div className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-3">
+                {service.highlight}
+              </div>
               <h3 className="text-xl font-display font-semibold mb-3">{service.title}</h3>
-              <p className="text-muted-foreground text-sm mb-6 leading-relaxed">
+              <p className="text-muted-foreground text-sm leading-relaxed">
                 {service.description}
               </p>
-
-              {/* Price */}
-              <div className="flex items-center justify-between pt-4 border-t border-border">
-                <span className="text-sm text-muted-foreground">{service.price}</span>
-                <span className="text-primary text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                  Learn More →
-                </span>
-              </div>
             </div>
           ))}
         </div>
