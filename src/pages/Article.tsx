@@ -6,6 +6,7 @@ import { FileText, ArrowLeft, ArrowRight, BookOpen, Lightbulb, GraduationCap, Pe
 import Footer from '@/components/Footer';
 import { useSiteContent } from '@/hooks/useSiteContent';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SEO } from '@/components/SEO';
 
 const articleMeta = [
   {
@@ -77,9 +78,31 @@ export default function Article() {
     .filter(a => a.slug !== slug)
     .slice(0, 3);
 
+  // Generate article schema
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": title,
+    "articleSection": article.category,
+    "publisher": {
+      "@type": "Organization",
+      "name": "PlagaiScans",
+      "url": "https://plagaiscans.com"
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation */}
+    <>
+      <SEO
+        title={loading ? 'Loading...' : title}
+        description={`Learn about ${title.toLowerCase()}. ${article.category} article from PlagaiScans resources.`}
+        keywords={`${article.slug.replace(/-/g, ' ')}, academic writing, plagiarism detection, ${article.category.toLowerCase()}`}
+        canonicalUrl={`/resources/${slug}`}
+        ogType="article"
+        structuredData={articleSchema}
+      />
+      <div className="min-h-screen bg-background">
+        {/* Navigation */}
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container-width flex h-16 items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-2">
@@ -199,7 +222,8 @@ export default function Article() {
         </article>
       </main>
 
-      <Footer />
-    </div>
+        <Footer />
+      </div>
+    </>
   );
 }
