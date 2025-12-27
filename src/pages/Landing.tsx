@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SEO, generateOrganizationSchema, generateServiceSchema } from "@/components/SEO";
 
 const Landing = () => {
   const { user } = useAuth();
@@ -56,7 +57,15 @@ const Landing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO
+        canonicalUrl="/"
+        structuredData={{
+          '@context': 'https://schema.org',
+          '@graph': [generateOrganizationSchema(), generateServiceSchema()],
+        }}
+      />
+      <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -371,6 +380,7 @@ const Landing = () => {
 
       <WhatsAppSupportButton />
     </div>
+    </>
   );
 };
 

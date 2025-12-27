@@ -4,10 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileCheck, ArrowLeft } from 'lucide-react';
 import Footer from '@/components/Footer';
+import { SEO, generateWebPageSchema } from '@/components/SEO';
 
 export default function TermsAndConditions() {
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO
+        title="Terms and Conditions"
+        description="Terms and conditions for using PlagaiScans plagiarism detection and AI analysis services. Read our service agreement and user responsibilities."
+        keywords="terms and conditions, service agreement, user agreement, plagiarism checker terms"
+        canonicalUrl="/terms-and-conditions"
+        structuredData={generateWebPageSchema('Terms and Conditions', 'Service agreement and user responsibilities', '/terms-and-conditions')}
+      />
+      <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container-width flex h-16 items-center justify-between px-4">
@@ -181,5 +190,6 @@ export default function TermsAndConditions() {
 
       <Footer />
     </div>
+    </>
   );
 }

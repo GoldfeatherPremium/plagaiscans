@@ -5,20 +5,30 @@ import WorkSection from "@/components/WorkSection";
 import ServicesSection from "@/components/ServicesSection";
 import ContactSection from "@/components/ContactSection";
 import Footer from "@/components/Footer";
+import { SEO, generateOrganizationSchema, generateServiceSchema } from "@/components/SEO";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
-      <main>
-        <HeroSection />
-        <AboutSection />
-        <WorkSection />
-        <ServicesSection />
-        <ContactSection />
-      </main>
-      <Footer />
-    </div>
+    <>
+      <SEO
+        canonicalUrl="/"
+        structuredData={{
+          '@context': 'https://schema.org',
+          '@graph': [generateOrganizationSchema(), generateServiceSchema()],
+        }}
+      />
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <main>
+          <HeroSection />
+          <AboutSection />
+          <WorkSection />
+          <ServicesSection />
+          <ContactSection />
+        </main>
+        <Footer />
+      </div>
+    </>
   );
 };
 

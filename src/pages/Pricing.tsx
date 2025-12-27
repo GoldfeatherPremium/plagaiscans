@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileCheck, ArrowLeft, CheckCircle, Zap, Shield, Clock, Info } from 'lucide-react';
 import Footer from '@/components/Footer';
+import { SEO, generateWebPageSchema } from '@/components/SEO';
 
 export default function Pricing() {
   const pricingPackages = [
@@ -39,7 +40,15 @@ export default function Pricing() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO
+        title="Pricing"
+        description="Simple, transparent pricing for plagiarism detection. Pay per document with no hidden fees. Credits never expire. Starting at $2 per document check."
+        keywords="plagiarism checker pricing, document check cost, academic integrity pricing, AI detection cost"
+        canonicalUrl="/pricing"
+        structuredData={generateWebPageSchema('Pricing', 'Simple, transparent pricing for plagiarism detection', '/pricing')}
+      />
+      <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container-width flex h-16 items-center justify-between px-4">
@@ -203,5 +212,6 @@ export default function Pricing() {
 
       <Footer />
     </div>
+    </>
   );
 }

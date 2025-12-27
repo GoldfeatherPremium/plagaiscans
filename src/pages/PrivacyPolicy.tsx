@@ -4,10 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileCheck, ArrowLeft } from 'lucide-react';
 import Footer from '@/components/Footer';
+import { SEO, generateWebPageSchema } from '@/components/SEO';
 
 export default function PrivacyPolicy() {
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO
+        title="Privacy Policy"
+        description="Learn how PlagaiScans collects, uses, and protects your personal data. GDPR compliant privacy policy for our plagiarism detection service."
+        keywords="privacy policy, data protection, GDPR, document privacy"
+        canonicalUrl="/privacy-policy"
+        structuredData={generateWebPageSchema('Privacy Policy', 'How we protect your data', '/privacy-policy')}
+      />
+      <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container-width flex h-16 items-center justify-between px-4">
@@ -209,5 +218,6 @@ export default function PrivacyPolicy() {
 
       <Footer />
     </div>
+    </>
   );
 }
