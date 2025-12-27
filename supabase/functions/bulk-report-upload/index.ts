@@ -103,17 +103,13 @@ function normalizeFilename(filename: string): string {
 
 /**
  * STAGE 2 — OCR (MANDATORY)
- * Uses OCR.space API to extract text from PDF
- * Note: Free tier processes all pages, we extract relevant content from combined text
+ * Uses OCR.space API to extract text from page 2 of PDF
  */
 async function performOCR(pdfUrl: string, ocrApiKey: string): Promise<OCRResult> {
   try {
     console.log(`Performing OCR on: ${pdfUrl}`);
     
-    // URL encode the PDF URL to prevent parameter parsing issues
-    const encodedUrl = encodeURIComponent(pdfUrl);
-    
-    // OCR.space API - process PDF with OCREngine=2 for better accuracy
+    // OCR.space API - use page 2 (filetype=PDF, OCREngine=2 for better accuracy)
     const formData = new FormData();
     formData.append('url', pdfUrl);
     formData.append('apikey', ocrApiKey);
@@ -121,6 +117,8 @@ async function performOCR(pdfUrl: string, ocrApiKey: string): Promise<OCRResult>
     formData.append('OCREngine', '2');
     formData.append('isTable', 'true');
     formData.append('scale', 'true');
+    // Request page 2 specifically
+    formData.append('pageNumber', '2');
     
     const response = await fetch('https://api.ocr.space/parse/image', {
       method: 'POST',
@@ -144,18 +142,12 @@ async function performOCR(pdfUrl: string, ocrApiKey: string): Promise<OCRResult>
       return { success: false, text: '', error: 'No OCR results' };
     }
     
-    // Combine text from all parsed pages (page 2 content will be included)
-    let extractedText = '';
-    for (const parsed of result.ParsedResults) {
-      if (parsed.ParsedText) {
-        extractedText += ' ' + parsed.ParsedText;
-      }
-    }
+    const extractedText = result.ParsedResults[0]?.ParsedText || '';
     
     // Normalize OCR output: lowercase, collapse whitespace
     const normalizedText = extractedText.toLowerCase().replace(/\s+/g, ' ').trim();
     
-    console.log(`OCR extracted ${normalizedText.length} characters from ${result.ParsedResults.length} page(s)`);
+    console.log(`OCR extracted ${normalizedText.length} characters`);
     
     return { success: true, text: normalizedText };
   } catch (error) {
