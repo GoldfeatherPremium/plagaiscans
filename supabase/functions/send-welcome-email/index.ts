@@ -15,6 +15,7 @@ interface EmailRequest {
   userId: string;
   email: string;
   fullName?: string;
+  retryLogId?: string;
 }
 
 // Get SendPulse access token
@@ -47,7 +48,7 @@ async function sendEmailViaSendPulse(
   to: { email: string; name?: string },
   subject: string,
   htmlContent: string
-): Promise<void> {
+): Promise<any> {
   const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
 
   const response = await fetch("https://api.sendpulse.com/smtp/emails", {
@@ -74,14 +75,15 @@ async function sendEmailViaSendPulse(
     }),
   });
 
+  const result = await response.json();
+  
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error("SendPulse send error:", errorText);
-    throw new Error(`Failed to send email: ${errorText}`);
+    console.error("SendPulse send error:", result);
+    throw new Error(`Failed to send email: ${JSON.stringify(result)}`);
   }
 
-  const result = await response.json();
   console.log("SendPulse response:", result);
+  return result;
 }
 
 // Check if email setting is enabled
@@ -105,29 +107,111 @@ async function isEmailEnabled(supabase: any, settingKey: string): Promise<boolea
   }
 }
 
+// Log email to transactional_email_logs
+async function logEmail(
+  supabase: any,
+  params: {
+    emailType: string;
+    recipientId?: string;
+    recipientEmail: string;
+    recipientName?: string;
+    subject: string;
+    status: string;
+    providerResponse?: any;
+    errorMessage?: string;
+    metadata?: any;
+  }
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from("transactional_email_logs")
+      .insert({
+        email_type: params.emailType,
+        recipient_id: params.recipientId || null,
+        recipient_email: params.recipientEmail,
+        recipient_name: params.recipientName || null,
+        subject: params.subject,
+        status: params.status,
+        provider_response: params.providerResponse || null,
+        error_message: params.errorMessage || null,
+        metadata: params.metadata || null,
+        sent_at: params.status === 'sent' ? new Date().toISOString() : null,
+      })
+      .select('id')
+      .single();
+    
+    if (error) {
+      console.error("Error logging email:", error);
+      return null;
+    }
+    return data?.id || null;
+  } catch (error) {
+    console.error("Error logging email:", error);
+    return null;
+  }
+}
+
+// Update existing email log (for retries)
+async function updateEmailLog(
+  supabase: any,
+  logId: string,
+  params: {
+    status: string;
+    providerResponse?: any;
+    errorMessage?: string;
+  }
+): Promise<void> {
+  try {
+    await supabase
+      .from("transactional_email_logs")
+      .update({
+        status: params.status,
+        provider_response: params.providerResponse || null,
+        error_message: params.errorMessage || null,
+        sent_at: params.status === 'sent' ? new Date().toISOString() : null,
+      })
+      .eq('id', logId);
+  } catch (error) {
+    console.error("Error updating email log:", error);
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const { userId, email, fullName }: EmailRequest = await req.json();
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log("Sending welcome email to:", email, "userId:", userId);
+  try {
+    const { userId, email, fullName, retryLogId }: EmailRequest = await req.json();
+
+    console.log("Sending welcome email to:", email, "userId:", userId, "retryLogId:", retryLogId);
 
     if (!SENDPULSE_API_KEY || !SENDPULSE_API_SECRET) {
       console.error("SendPulse credentials not configured");
       throw new Error("Email service is not configured");
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     // Check if welcome emails are enabled
     const isEnabled = await isEmailEnabled(supabase, "welcome_email");
     if (!isEnabled) {
       console.log("Welcome emails are disabled by admin, skipping");
+      
+      if (!retryLogId) {
+        await logEmail(supabase, {
+          emailType: "welcome",
+          recipientId: userId,
+          recipientEmail: email,
+          recipientName: fullName,
+          subject: "Welcome to PlagaiScans! 🎉",
+          status: "skipped",
+          metadata: { reason: "Email disabled by admin" },
+        });
+      }
+      
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: "Email disabled by admin" }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -190,19 +274,63 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    await sendEmailViaSendPulse(
-      token,
-      { email, name: userName },
-      "Welcome to PlagaiScans! 🎉",
-      htmlContent
-    );
+    const subject = "Welcome to PlagaiScans! 🎉";
 
-    console.log("Welcome email sent successfully to:", email);
+    try {
+      const providerResponse = await sendEmailViaSendPulse(
+        token,
+        { email, name: userName },
+        subject,
+        htmlContent
+      );
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+      console.log("Welcome email sent successfully to:", email);
+
+      // Log success or update existing log
+      if (retryLogId) {
+        await updateEmailLog(supabase, retryLogId, {
+          status: "sent",
+          providerResponse,
+        });
+      } else {
+        await logEmail(supabase, {
+          emailType: "welcome",
+          recipientId: userId,
+          recipientEmail: email,
+          recipientName: fullName,
+          subject,
+          status: "sent",
+          providerResponse,
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    } catch (sendError: any) {
+      console.error("Failed to send welcome email:", sendError);
+
+      // Log failure or update existing log
+      if (retryLogId) {
+        await updateEmailLog(supabase, retryLogId, {
+          status: "failed",
+          errorMessage: sendError.message,
+        });
+      } else {
+        await logEmail(supabase, {
+          emailType: "welcome",
+          recipientId: userId,
+          recipientEmail: email,
+          recipientName: fullName,
+          subject,
+          status: "failed",
+          errorMessage: sendError.message,
+        });
+      }
+
+      throw sendError;
+    }
   } catch (error: any) {
     console.error("Error in send-welcome-email function:", error);
     return new Response(

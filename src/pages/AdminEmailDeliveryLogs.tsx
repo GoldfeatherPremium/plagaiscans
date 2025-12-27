@@ -21,7 +21,9 @@ import {
   Search,
   Eye,
   FileText,
-  User
+  User,
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
 
 interface EmailLog {
@@ -46,6 +48,7 @@ export default function AdminEmailDeliveryLogs() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState({
     total: 0,
     sent: 0,
@@ -102,6 +105,65 @@ export default function AdminEmailDeliveryLogs() {
     fetchLogs();
   }, [statusFilter, typeFilter, searchTerm]);
 
+  const retryEmail = async (log: EmailLog) => {
+    setRetryingIds(prev => new Set(prev).add(log.id));
+    
+    try {
+      let functionName = '';
+      let payload: any = {};
+
+      switch (log.email_type) {
+        case 'document_completion':
+          functionName = 'send-completion-email';
+          payload = {
+            documentId: log.document_id,
+            retryLogId: log.id,
+          };
+          break;
+        case 'welcome':
+          functionName = 'send-welcome-email';
+          payload = {
+            userId: log.recipient_id,
+            email: log.recipient_email,
+            fullName: log.recipient_name,
+            retryLogId: log.id,
+          };
+          break;
+        case 'password_reset':
+          functionName = 'send-password-reset';
+          payload = {
+            email: log.recipient_email,
+            retryLogId: log.id,
+          };
+          break;
+        default:
+          throw new Error(`Retry not supported for email type: ${log.email_type}`);
+      }
+
+      const { error } = await supabase.functions.invoke(functionName, {
+        body: payload,
+      });
+
+      if (error) throw error;
+
+      toast.success('Email retry initiated');
+      
+      // Refresh logs after a short delay
+      setTimeout(() => {
+        fetchLogs();
+      }, 2000);
+    } catch (error: any) {
+      console.error('Error retrying email:', error);
+      toast.error(`Failed to retry email: ${error.message}`);
+    } finally {
+      setRetryingIds(prev => {
+        const next = new Set(prev);
+        next.delete(log.id);
+        return next;
+      });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'sent':
@@ -157,6 +219,10 @@ export default function AdminEmailDeliveryLogs() {
         {typeLabels[type] || type}
       </Badge>
     );
+  };
+
+  const canRetry = (log: EmailLog) => {
+    return log.status === 'failed' && ['document_completion', 'welcome', 'password_reset'].includes(log.email_type);
   };
 
   return (
@@ -337,86 +403,124 @@ export default function AdminEmailDeliveryLogs() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <Eye className="h-4 w-4" />
+                          <div className="flex items-center justify-end gap-1">
+                            {canRetry(log) && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => retryEmail(log)}
+                                disabled={retryingIds.has(log.id)}
+                                title="Retry sending email"
+                              >
+                                {retryingIds.has(log.id) ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="h-4 w-4" />
+                                )}
                               </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl">
-                              <DialogHeader>
-                                <DialogTitle>Email Details</DialogTitle>
-                              </DialogHeader>
-                              <ScrollArea className="max-h-[60vh]">
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <p className="text-sm font-medium text-muted-foreground">Type</p>
-                                      <p>{log.email_type}</p>
+                            )}
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-2xl">
+                                <DialogHeader>
+                                  <DialogTitle>Email Details</DialogTitle>
+                                </DialogHeader>
+                                <ScrollArea className="max-h-[60vh]">
+                                  <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Type</p>
+                                        <p>{log.email_type}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Status</p>
+                                        {getStatusBadge(log.status)}
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Recipient</p>
+                                        <p>{log.recipient_email}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Name</p>
+                                        <p>{log.recipient_name || 'N/A'}</p>
+                                      </div>
+                                      <div className="col-span-2">
+                                        <p className="text-sm font-medium text-muted-foreground">Subject</p>
+                                        <p>{log.subject}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Created</p>
+                                        <p>{format(new Date(log.created_at), 'PPpp')}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Sent</p>
+                                        <p>{log.sent_at ? format(new Date(log.sent_at), 'PPpp') : 'N/A'}</p>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <p className="text-sm font-medium text-muted-foreground">Status</p>
-                                      {getStatusBadge(log.status)}
-                                    </div>
-                                    <div>
-                                      <p className="text-sm font-medium text-muted-foreground">Recipient</p>
-                                      <p>{log.recipient_email}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm font-medium text-muted-foreground">Name</p>
-                                      <p>{log.recipient_name || 'N/A'}</p>
-                                    </div>
-                                    <div className="col-span-2">
-                                      <p className="text-sm font-medium text-muted-foreground">Subject</p>
-                                      <p>{log.subject}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm font-medium text-muted-foreground">Created</p>
-                                      <p>{format(new Date(log.created_at), 'PPpp')}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm font-medium text-muted-foreground">Sent</p>
-                                      <p>{log.sent_at ? format(new Date(log.sent_at), 'PPpp') : 'N/A'}</p>
-                                    </div>
+
+                                    {log.metadata && (
+                                      <div>
+                                        <p className="text-sm font-medium text-muted-foreground mb-2">Metadata</p>
+                                        <pre className="bg-muted p-3 rounded-lg text-xs overflow-x-auto">
+                                          {JSON.stringify(log.metadata, null, 2)}
+                                        </pre>
+                                      </div>
+                                    )}
+
+                                    {log.error_message && (
+                                      <div>
+                                        <p className="text-sm font-medium text-red-600 mb-2">Error Message</p>
+                                        <p className="text-red-600 bg-red-50 p-3 rounded-lg text-sm">
+                                          {log.error_message}
+                                        </p>
+                                      </div>
+                                    )}
+
+                                    {log.provider_response && (
+                                      <div>
+                                        <p className="text-sm font-medium text-muted-foreground mb-2">Provider Response</p>
+                                        <pre className="bg-muted p-3 rounded-lg text-xs overflow-x-auto">
+                                          {JSON.stringify(log.provider_response, null, 2)}
+                                        </pre>
+                                      </div>
+                                    )}
+
+                                    {log.document_id && (
+                                      <div className="flex items-center gap-2">
+                                        <FileText className="h-4 w-4 text-muted-foreground" />
+                                        <span className="text-sm">Document ID: {log.document_id}</span>
+                                      </div>
+                                    )}
+
+                                    {canRetry(log) && (
+                                      <div className="pt-4 border-t">
+                                        <Button 
+                                          onClick={() => retryEmail(log)}
+                                          disabled={retryingIds.has(log.id)}
+                                        >
+                                          {retryingIds.has(log.id) ? (
+                                            <>
+                                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                              Retrying...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <RotateCcw className="h-4 w-4 mr-2" />
+                                              Retry Email
+                                            </>
+                                          )}
+                                        </Button>
+                                      </div>
+                                    )}
                                   </div>
-
-                                  {log.metadata && (
-                                    <div>
-                                      <p className="text-sm font-medium text-muted-foreground mb-2">Metadata</p>
-                                      <pre className="bg-muted p-3 rounded-lg text-xs overflow-x-auto">
-                                        {JSON.stringify(log.metadata, null, 2)}
-                                      </pre>
-                                    </div>
-                                  )}
-
-                                  {log.error_message && (
-                                    <div>
-                                      <p className="text-sm font-medium text-red-600 mb-2">Error Message</p>
-                                      <p className="text-red-600 bg-red-50 p-3 rounded-lg text-sm">
-                                        {log.error_message}
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  {log.provider_response && (
-                                    <div>
-                                      <p className="text-sm font-medium text-muted-foreground mb-2">Provider Response</p>
-                                      <pre className="bg-muted p-3 rounded-lg text-xs overflow-x-auto">
-                                        {JSON.stringify(log.provider_response, null, 2)}
-                                      </pre>
-                                    </div>
-                                  )}
-
-                                  {log.document_id && (
-                                    <div className="flex items-center gap-2">
-                                      <FileText className="h-4 w-4 text-muted-foreground" />
-                                      <span className="text-sm">Document ID: {log.document_id}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </ScrollArea>
-                            </DialogContent>
-                          </Dialog>
+                                </ScrollArea>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

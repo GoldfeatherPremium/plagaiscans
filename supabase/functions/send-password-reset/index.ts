@@ -13,6 +13,7 @@ const corsHeaders = {
 
 interface PasswordResetRequest {
   email: string;
+  retryLogId?: string;
 }
 
 // Get SendPulse access token
@@ -45,7 +46,7 @@ async function sendEmailViaSendPulse(
   to: { email: string; name?: string },
   subject: string,
   htmlContent: string
-): Promise<void> {
+): Promise<any> {
   // Encode HTML content to Base64
   const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
 
@@ -73,14 +74,15 @@ async function sendEmailViaSendPulse(
     }),
   });
 
+  const result = await response.json();
+
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error("SendPulse send error:", errorText);
-    throw new Error(`Failed to send email: ${errorText}`);
+    console.error("SendPulse send error:", result);
+    throw new Error(`Failed to send email: ${JSON.stringify(result)}`);
   }
 
-  const result = await response.json();
   console.log("SendPulse response:", result);
+  return result;
 }
 
 // Check if email setting is enabled
@@ -104,20 +106,94 @@ async function isEmailEnabled(supabase: any, settingKey: string): Promise<boolea
   }
 }
 
+// Log email to transactional_email_logs
+async function logEmail(
+  supabase: any,
+  params: {
+    emailType: string;
+    recipientId?: string;
+    recipientEmail: string;
+    recipientName?: string;
+    subject: string;
+    status: string;
+    providerResponse?: any;
+    errorMessage?: string;
+    metadata?: any;
+  }
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from("transactional_email_logs")
+      .insert({
+        email_type: params.emailType,
+        recipient_id: params.recipientId || null,
+        recipient_email: params.recipientEmail,
+        recipient_name: params.recipientName || null,
+        subject: params.subject,
+        status: params.status,
+        provider_response: params.providerResponse || null,
+        error_message: params.errorMessage || null,
+        metadata: params.metadata || null,
+        sent_at: params.status === 'sent' ? new Date().toISOString() : null,
+      })
+      .select('id')
+      .single();
+    
+    if (error) {
+      console.error("Error logging email:", error);
+      return null;
+    }
+    return data?.id || null;
+  } catch (error) {
+    console.error("Error logging email:", error);
+    return null;
+  }
+}
+
+// Update existing email log (for retries)
+async function updateEmailLog(
+  supabase: any,
+  logId: string,
+  params: {
+    status: string;
+    providerResponse?: any;
+    errorMessage?: string;
+  }
+): Promise<void> {
+  try {
+    await supabase
+      .from("transactional_email_logs")
+      .update({
+        status: params.status,
+        provider_response: params.providerResponse || null,
+        error_message: params.errorMessage || null,
+        sent_at: params.status === 'sent' ? new Date().toISOString() : null,
+      })
+      .eq('id', logId);
+  } catch (error) {
+    console.error("Error updating email log:", error);
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Create Supabase client
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
   try {
-    const { email }: PasswordResetRequest = await req.json();
+    const { email, retryLogId }: PasswordResetRequest = await req.json();
 
     if (!email) {
       throw new Error("Email is required");
     }
 
-    console.log("Processing password reset request for:", email);
+    console.log("Processing password reset request for:", email, "retryLogId:", retryLogId);
 
     // Check if SendPulse credentials are configured
     if (!SENDPULSE_API_KEY || !SENDPULSE_API_SECRET) {
@@ -125,15 +201,21 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Email service is not configured");
     }
 
-    // Create Supabase client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     // Check if password reset emails are enabled
     const isEnabled = await isEmailEnabled(supabase, "password_reset");
     if (!isEnabled) {
       console.log("Password reset emails are disabled by admin");
+      
+      if (!retryLogId) {
+        await logEmail(supabase, {
+          emailType: "password_reset",
+          recipientEmail: email,
+          subject: "Reset Your Password - PlagaiScans",
+          status: "skipped",
+          metadata: { reason: "Email disabled by admin" },
+        });
+      }
+      
       return new Response(
         JSON.stringify({ success: false, error: "Password reset is currently disabled. Please contact support." }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -143,7 +225,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Check if user exists in profiles using maybeSingle to avoid errors
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("email, full_name")
+      .select("id, email, full_name")
       .eq("email", email)
       .maybeSingle();
 
@@ -161,10 +243,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Generate password reset link using Supabase Auth
-    // IMPORTANT: Redirect to /reset-password page, NOT /auth
-    // This ensures the user sees the password reset form and cannot bypass it
-    // IMPORTANT: always use the canonical public site URL for the redirect.
-    // Using request Origin/Referer can point to the preview domain, which breaks production flows.
     const siteUrl = Deno.env.get("SITE_URL") || "https://plagaiscans.com";
 
     const { data: resetData, error: resetError } = await supabase.auth.admin.generateLink({
@@ -182,6 +260,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const resetLink = resetData.properties.action_link;
     const userName = profile.full_name || "User";
+    const subject = "Reset Your Password - PlagaiScans";
 
     console.log("Sending password reset email to:", email);
 
@@ -234,19 +313,61 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    await sendEmailViaSendPulse(
-      token,
-      { email: email, name: userName },
-      "Reset Your Password - PlagaiScans",
-      htmlContent
-    );
+    try {
+      const providerResponse = await sendEmailViaSendPulse(
+        token,
+        { email: email, name: userName },
+        subject,
+        htmlContent
+      );
 
-    console.log("Password reset email sent successfully");
+      console.log("Password reset email sent successfully");
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+      // Log success or update existing log
+      if (retryLogId) {
+        await updateEmailLog(supabase, retryLogId, {
+          status: "sent",
+          providerResponse,
+        });
+      } else {
+        await logEmail(supabase, {
+          emailType: "password_reset",
+          recipientId: profile.id,
+          recipientEmail: email,
+          recipientName: userName,
+          subject,
+          status: "sent",
+          providerResponse,
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    } catch (sendError: any) {
+      console.error("Failed to send password reset email:", sendError);
+
+      // Log failure or update existing log
+      if (retryLogId) {
+        await updateEmailLog(supabase, retryLogId, {
+          status: "failed",
+          errorMessage: sendError.message,
+        });
+      } else {
+        await logEmail(supabase, {
+          emailType: "password_reset",
+          recipientId: profile.id,
+          recipientEmail: email,
+          recipientName: userName,
+          subject,
+          status: "failed",
+          errorMessage: sendError.message,
+        });
+      }
+
+      throw sendError;
+    }
   } catch (error: any) {
     console.error("Error in send-password-reset function:", error);
     return new Response(
