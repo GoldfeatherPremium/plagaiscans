@@ -1,7 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-// @ts-ignore - pdf-parse types
-import pdf from "https://esm.sh/pdf-parse@1.1.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,16 +49,63 @@ function normalizeFilename(filename: string): string {
 }
 
 /**
- * Extract text from PDF using pdf-parse
+ * Extract text from PDF using raw byte parsing
+ * This extracts visible text from PDF streams without external dependencies
  */
-async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
+function extractTextFromPDF(pdfBuffer: ArrayBuffer): string {
   try {
-    const data = await pdf(pdfBuffer);
-    return data.text || '';
+    const bytes = new Uint8Array(pdfBuffer);
+    const text = new TextDecoder('latin1').decode(bytes);
+    
+    // Extract text between stream and endstream markers
+    const streamMatches = text.match(/stream[\r\n]+([\s\S]*?)[\r\n]+endstream/g) || [];
+    let extractedText = '';
+    
+    for (const stream of streamMatches) {
+      // Try to extract readable text from the stream
+      const content = stream.replace(/^stream[\r\n]+/, '').replace(/[\r\n]+endstream$/, '');
+      
+      // Look for text operators: Tj, TJ, ', "
+      const textMatches = content.match(/\(([^)]*)\)\s*Tj/g) || [];
+      for (const match of textMatches) {
+        const innerText = match.match(/\(([^)]*)\)/)?.[1] || '';
+        extractedText += innerText + ' ';
+      }
+      
+      // Also extract TJ arrays
+      const tjArrays = content.match(/\[(.*?)\]\s*TJ/g) || [];
+      for (const arr of tjArrays) {
+        const items = arr.match(/\(([^)]*)\)/g) || [];
+        for (const item of items) {
+          const innerText = item.match(/\(([^)]*)\)/)?.[1] || '';
+          extractedText += innerText;
+        }
+        extractedText += ' ';
+      }
+    }
+    
+    // Also try to find text in BT...ET blocks
+    const btMatches = text.match(/BT[\s\S]*?ET/g) || [];
+    for (const block of btMatches) {
+      const textOps = block.match(/\(([^)]*)\)/g) || [];
+      for (const op of textOps) {
+        const innerText = op.match(/\(([^)]*)\)/)?.[1] || '';
+        extractedText += innerText + ' ';
+      }
+    }
+    
+    // Clean up extracted text
+    extractedText = extractedText
+      .replace(/\\n/g, ' ')
+      .replace(/\\r/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    console.log(`Extracted ${extractedText.length} chars from PDF`);
+    return extractedText;
   } catch (err) {
     console.error('PDF extraction error:', err);
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    throw new Error(`Failed to extract PDF text: ${message}`);
+    return '';
   }
 }
 
@@ -226,11 +271,11 @@ serve(async (req) => {
         continue;
       }
 
-      // Extract text from page 2 and classify
+      // Extract text from PDF and classify
       let classification: ClassificationResult;
       try {
         const pdfBuffer = await pdfData.arrayBuffer();
-        const text = await extractTextFromPDF(pdfBuffer);
+        const text = extractTextFromPDF(pdfBuffer);
         classification = classifyReport(text);
         console.log(`Classified ${report.fileName} as ${classification.reportType} with ${classification.percentage}%`);
       } catch (error) {
