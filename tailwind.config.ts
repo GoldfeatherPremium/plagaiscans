@@ -12,12 +12,12 @@ export default {
         "2xl": "1400px",
       },
     },
-    extend: {
-      fontFamily: {
-        display: ["Plus Jakarta Sans", "sans-serif"],
-        body: ["Inter", "sans-serif"],
-        mono: ["Space Grotesk", "monospace"],
-      },
+		extend: {
+			fontFamily: {
+				sans: ['DM Sans', 'system-ui', 'sans-serif'],
+				display: ['DM Serif Display', 'Georgia', 'serif'],
+				mono: ['JetBrains Mono', 'monospace'],
+			},
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
