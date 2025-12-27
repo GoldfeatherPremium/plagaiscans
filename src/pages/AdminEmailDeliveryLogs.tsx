@@ -265,6 +265,8 @@ export default function AdminEmailDeliveryLogs() {
       welcome: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
       password_reset: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
       payment_verified: 'bg-green-500/10 text-green-600 border-green-500/20',
+      pending_document_notification: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+      admin_notification: 'bg-red-500/10 text-red-600 border-red-500/20',
     };
 
     const typeLabels: Record<string, string> = {
@@ -272,6 +274,8 @@ export default function AdminEmailDeliveryLogs() {
       welcome: 'Welcome',
       password_reset: 'Password Reset',
       payment_verified: 'Payment',
+      pending_document_notification: 'Pending Alert',
+      admin_notification: 'Admin Alert',
     };
 
     return (
@@ -279,6 +283,14 @@ export default function AdminEmailDeliveryLogs() {
         {typeLabels[type] || type}
       </Badge>
     );
+  };
+
+  const getFromAddress = (log: EmailLog): string => {
+    if (log.metadata?.from_email) {
+      return log.metadata.from_email;
+    }
+    // Default from address based on type
+    return 'support@plagaiscans.com';
   };
 
   const canRetry = (log: EmailLog) => {
@@ -421,6 +433,8 @@ export default function AdminEmailDeliveryLogs() {
                   <SelectItem value="welcome">Welcome</SelectItem>
                   <SelectItem value="password_reset">Password Reset</SelectItem>
                   <SelectItem value="payment_verified">Payment</SelectItem>
+                  <SelectItem value="pending_document_notification">Pending Alert</SelectItem>
+                  <SelectItem value="admin_notification">Admin Alert</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -451,6 +465,7 @@ export default function AdminEmailDeliveryLogs() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Type</TableHead>
+                      <TableHead>From</TableHead>
                       <TableHead>Recipient</TableHead>
                       <TableHead>Subject</TableHead>
                       <TableHead>Status</TableHead>
@@ -462,6 +477,9 @@ export default function AdminEmailDeliveryLogs() {
                     {logs.map((log) => (
                       <TableRow key={log.id}>
                         <TableCell>{getEmailTypeBadge(log.email_type)}</TableCell>
+                        <TableCell>
+                          <span className="text-xs text-muted-foreground">{getFromAddress(log)}</span>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-muted-foreground" />
@@ -520,6 +538,10 @@ export default function AdminEmailDeliveryLogs() {
                                       <div>
                                         <p className="text-sm font-medium text-muted-foreground">Status</p>
                                         {getStatusBadge(log.status)}
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-medium text-muted-foreground">From Address</p>
+                                        <p>{getFromAddress(log)}</p>
                                       </div>
                                       <div>
                                         <p className="text-sm font-medium text-muted-foreground">Recipient</p>
