@@ -75,6 +75,7 @@ const FAQ = lazy(() => import("./pages/FAQ"));
 const AcademicIntegrity = lazy(() => import("./pages/AcademicIntegrity"));
 const Resources = lazy(() => import("./pages/Resources"));
 const Article = lazy(() => import("./pages/Article"));
+const AdminRefundRequests = lazy(() => import("./pages/AdminRefundRequests"));
 const queryClient = new QueryClient();
 
 // Loading spinner component for Suspense fallback
@@ -234,6 +235,7 @@ const AppRoutes = () => (
       <Route path="/dashboard/needs-review" element={<ProtectedRoute allowedRoles={['admin']}><AdminNeedsReview /></ProtectedRoute>} />
       <Route path="/dashboard/site-content" element={<ProtectedRoute allowedRoles={['admin']}><AdminSiteContent /></ProtectedRoute>} />
       <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['admin']}><AdminReferrals /></ProtectedRoute>} />
+      <Route path="/dashboard/refund-requests" element={<ProtectedRoute allowedRoles={['admin']}><AdminRefundRequests /></ProtectedRoute>} />
       <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       
       <Route path="*" element={<NotFound />} />

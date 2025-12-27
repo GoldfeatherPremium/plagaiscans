@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileText, Upload, Search, Download, ArrowLeft, ArrowRight, CheckCircle, Shield, Clock } from 'lucide-react';
 import Footer from '@/components/Footer';
+import { SEO, generateWebPageSchema } from '@/components/SEO';
 
 export default function HowItWorks() {
   const steps = [
@@ -56,7 +57,15 @@ export default function HowItWorks() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO
+        title="How It Works"
+        description="Learn how Plagaiscans works in 4 simple steps: create account, upload document, get analysis, and download reports. Fast, secure plagiarism detection."
+        keywords="how plagiarism checker works, document analysis process, similarity detection steps"
+        canonicalUrl="/how-it-works"
+        structuredData={generateWebPageSchema('How It Works', 'Simple, transparent process to verify document originality', '/how-it-works')}
+      />
+      <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container-width flex h-16 items-center justify-between px-4">
@@ -165,5 +174,6 @@ export default function HowItWorks() {
 
       <Footer />
     </div>
+    </>
   );
 }
