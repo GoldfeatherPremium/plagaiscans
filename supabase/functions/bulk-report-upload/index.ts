@@ -244,7 +244,8 @@ function classifyReport(pdfText: string): ReportClassification {
 
 /**
  * Fallback classification based on filename patterns.
- * _1 suffix typically indicates AI report, no suffix or _-1 indicates Similarity.
+ * Patterns for AI reports: _1, (1), _2, (2) etc.
+ * Patterns for Similarity reports: _-1, no suffix, or first in pair
  */
 function classifyByFilename(filename: string): ReportClassification {
   const lower = filename.toLowerCase();
@@ -252,21 +253,75 @@ function classifyByFilename(filename: string): ReportClassification {
   // Remove extension first
   const nameWithoutExt = lower.replace(/\.[^.]+$/, '');
   
-  // Check for _1 suffix (AI report pattern)
-  if (/_1$/.test(nameWithoutExt) || /_\d+$/.test(nameWithoutExt)) {
-    console.log(`Filename pattern suggests AI report: ${filename}`);
+  // Check for _1, _2 suffix (AI report pattern - underscore followed by positive number)
+  if (/_[1-9]\d*$/.test(nameWithoutExt)) {
+    console.log(`Filename pattern (_1/_2) suggests AI report: ${filename}`);
+    return { type: 'ai', percentage: null };
+  }
+  
+  // Check for (1), (2) suffix with space before - AI report pattern
+  // This matches files like "report (1).pdf" where (1) is the LAST suffix
+  if (/\s*\([1-9]\d*\)$/.test(nameWithoutExt)) {
+    console.log(`Filename pattern (1)/(2) suggests AI report: ${filename}`);
     return { type: 'ai', percentage: null };
   }
   
   // Check for _-1 suffix (Similarity report pattern)
-  if (/_-1$/.test(nameWithoutExt) || /_-\d+$/.test(nameWithoutExt)) {
-    console.log(`Filename pattern suggests Similarity report: ${filename}`);
+  if (/_-\d+$/.test(nameWithoutExt)) {
+    console.log(`Filename pattern (_-1) suggests Similarity report: ${filename}`);
     return { type: 'similarity', percentage: null };
   }
   
-  // No suffix - default to similarity (first report)
-  console.log(`No filename pattern, defaulting to Similarity: ${filename}`);
+  // No suffix - this is likely the similarity report (original/first)
+  console.log(`No filename suffix, defaulting to Similarity: ${filename}`);
   return { type: 'similarity', percentage: null };
+}
+
+/**
+ * Smart assignment: When we have multiple reports for one document,
+ * ensure we fill both slots even if classification determined same type for both.
+ */
+function smartAssignReports(
+  reports: ClassifiedReport[],
+  existingSimilarityPath: string | null,
+  existingAIPath: string | null
+): { similarity: ClassifiedReport | null; ai: ClassifiedReport | null; extras: ClassifiedReport[] } {
+  const result = {
+    similarity: null as ClassifiedReport | null,
+    ai: null as ClassifiedReport | null,
+    extras: [] as ClassifiedReport[],
+  };
+
+  // Separate by classified type
+  const aiReports = reports.filter(r => r.classification.type === 'ai');
+  const similarityReports = reports.filter(r => r.classification.type === 'similarity');
+  const unknownReports = reports.filter(r => r.classification.type === 'unknown');
+
+  // Assign AI reports
+  if (!existingAIPath && aiReports.length > 0) {
+    result.ai = aiReports.shift()!;
+  }
+  
+  // Assign Similarity reports
+  if (!existingSimilarityPath && similarityReports.length > 0) {
+    result.similarity = similarityReports.shift()!;
+  }
+
+  // If we still have empty slots and unassigned reports, fill them
+  const remaining = [...aiReports, ...similarityReports, ...unknownReports];
+  
+  if (!existingSimilarityPath && !result.similarity && remaining.length > 0) {
+    result.similarity = remaining.shift()!;
+  }
+  
+  if (!existingAIPath && !result.ai && remaining.length > 0) {
+    result.ai = remaining.shift()!;
+  }
+
+  // Any leftover reports are extras
+  result.extras = remaining;
+
+  return result;
 }
 
 serve(async (req: Request) => {
@@ -506,112 +561,67 @@ serve(async (req: Request) => {
         continue;
       }
 
-      // Build update data based on classified reports
+      // Use smart assignment to fill both slots intelligently
       const updateData: Record<string, unknown> = {};
-      
-      for (const report of matchingReports) {
-        const classification = report.classification;
-        
-        if (classification.type === 'ai') {
-          // Assign as AI report
-          if (!doc.ai_report_path) {
-            updateData.ai_report_path = report.filePath;
-            if (classification.percentage !== null) {
-              updateData.ai_percentage = classification.percentage;
-            }
-            
-            result.mapped.push({
-              documentId: doc.id,
-              fileName: report.fileName,
-              reportType: 'ai',
-              percentage: classification.percentage,
-              success: true,
-            });
-            result.stats.mappedCount++;
-          } else {
-            // AI slot already filled
-            result.unmatched.push({
-              ...report,
-              classification,
-            });
-            await supabase.from('unmatched_reports').insert({
-              file_name: report.fileName,
-              normalized_filename: normalized,
-              file_path: report.filePath,
-              report_type: 'ai',
-              ai_percentage: classification.percentage,
-              uploaded_by: user.id,
-            });
-          }
-        } else if (classification.type === 'similarity') {
-          // Assign as Similarity report
-          if (!doc.similarity_report_path) {
-            updateData.similarity_report_path = report.filePath;
-            if (classification.percentage !== null) {
-              updateData.similarity_percentage = classification.percentage;
-            }
-            
-            result.mapped.push({
-              documentId: doc.id,
-              fileName: report.fileName,
-              reportType: 'similarity',
-              percentage: classification.percentage,
-              success: true,
-            });
-            result.stats.mappedCount++;
-          } else {
-            // Similarity slot already filled
-            result.unmatched.push({
-              ...report,
-              classification,
-            });
-            await supabase.from('unmatched_reports').insert({
-              file_name: report.fileName,
-              normalized_filename: normalized,
-              file_path: report.filePath,
-              report_type: 'similarity',
-              similarity_percentage: classification.percentage,
-              uploaded_by: user.id,
-            });
-          }
-        } else {
-          // Unknown type - try to fit in available slot
-          if (!doc.similarity_report_path && !updateData.similarity_report_path) {
-            updateData.similarity_report_path = report.filePath;
-            result.mapped.push({
-              documentId: doc.id,
-              fileName: report.fileName,
-              reportType: 'similarity',
-              percentage: null,
-              success: true,
-              message: 'Auto-assigned to similarity (unknown type)',
-            });
-            result.stats.mappedCount++;
-          } else if (!doc.ai_report_path && !updateData.ai_report_path) {
-            updateData.ai_report_path = report.filePath;
-            result.mapped.push({
-              documentId: doc.id,
-              fileName: report.fileName,
-              reportType: 'ai',
-              percentage: null,
-              success: true,
-              message: 'Auto-assigned to AI (unknown type)',
-            });
-            result.stats.mappedCount++;
-          } else {
-            result.unmatched.push({
-              ...report,
-              classification,
-            });
-            await supabase.from('unmatched_reports').insert({
-              file_name: report.fileName,
-              normalized_filename: normalized,
-              file_path: report.filePath,
-              report_type: 'unknown',
-              uploaded_by: user.id,
-            });
-          }
+      const assignment = smartAssignReports(
+        matchingReports,
+        doc.similarity_report_path,
+        doc.ai_report_path
+      );
+
+      console.log(`Smart assignment for ${normalized}:`, {
+        similarity: assignment.similarity?.fileName || 'none',
+        ai: assignment.ai?.fileName || 'none',
+        extras: assignment.extras.length,
+      });
+
+      // Assign similarity report
+      if (assignment.similarity) {
+        updateData.similarity_report_path = assignment.similarity.filePath;
+        if (assignment.similarity.classification.percentage !== null) {
+          updateData.similarity_percentage = assignment.similarity.classification.percentage;
         }
+        result.mapped.push({
+          documentId: doc.id,
+          fileName: assignment.similarity.fileName,
+          reportType: 'similarity',
+          percentage: assignment.similarity.classification.percentage,
+          success: true,
+        });
+        result.stats.mappedCount++;
+      }
+
+      // Assign AI report
+      if (assignment.ai) {
+        updateData.ai_report_path = assignment.ai.filePath;
+        if (assignment.ai.classification.percentage !== null) {
+          updateData.ai_percentage = assignment.ai.classification.percentage;
+        }
+        result.mapped.push({
+          documentId: doc.id,
+          fileName: assignment.ai.fileName,
+          reportType: 'ai',
+          percentage: assignment.ai.classification.percentage,
+          success: true,
+        });
+        result.stats.mappedCount++;
+      }
+
+      // Handle extra reports that couldn't be assigned
+      for (const extra of assignment.extras) {
+        result.unmatched.push({
+          ...extra,
+          classification: extra.classification,
+        });
+        await supabase.from('unmatched_reports').insert({
+          file_name: extra.fileName,
+          normalized_filename: normalized,
+          file_path: extra.filePath,
+          report_type: extra.classification.type,
+          similarity_percentage: extra.classification.type === 'similarity' ? extra.classification.percentage : null,
+          ai_percentage: extra.classification.type === 'ai' ? extra.classification.percentage : null,
+          uploaded_by: user.id,
+        });
       }
 
       // Check if document will be completed (both reports attached)
