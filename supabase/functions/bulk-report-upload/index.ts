@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as pdfjs from "https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,7 +33,7 @@ interface MappingResult {
 interface ProcessingResult {
   success: boolean;
   mapped: MappingResult[];
-  unmatched: ReportFile[];
+  unmatched: (ReportFile & ClassificationResult)[];
   needsReview: { documentId: string; reason: string }[];
   completedDocuments: string[];
   stats: {
@@ -77,49 +76,96 @@ function normalizeFilename(filename: string): string {
 }
 
 // =====================================================
-// STAGE 2 — TEXT EXTRACTION FROM PAGE 2 (NO OCR)
+// STAGE 2 — RAW PDF TEXT EXTRACTION (NO EXTERNAL LIBS)
 // =====================================================
 
 /**
- * Extract text from PAGE 2 of a PDF using pdf.js.
- * Page 2 contains the report content in Turnitin reports.
- * NO OCR is used - this is direct text extraction.
+ * Extract text from a PDF by parsing raw bytes.
+ * Works in Deno edge functions without requiring workers.
+ * Extracts text from PDF text objects (Tj, TJ operators).
  */
-async function extractTextFromPage2(pdfBuffer: ArrayBuffer): Promise<string> {
+async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    // Load PDF document
-    const loadingTask = pdfjs.getDocument({ data: new Uint8Array(pdfBuffer) });
-    const pdf = await loadingTask.promise;
+    const uint8Array = new Uint8Array(pdfBuffer);
+    const decoder = new TextDecoder('latin1');
+    const rawText = decoder.decode(uint8Array);
     
-    console.log(`PDF loaded with ${pdf.numPages} pages`);
+    const textMatches: string[] = [];
     
-    // Check if page 2 exists
-    if (pdf.numPages < 2) {
-      console.warn('PDF has less than 2 pages, extracting from page 1');
-      const page = await pdf.getPage(1);
-      const textContent = await page.getTextContent();
-      const text = textContent.items
-        .filter((item: any) => 'str' in item)
-        .map((item: any) => item.str || '')
-        .join(' ');
-      return text;
+    // Method 1: Extract text from PDF text objects using Tj/TJ operators
+    // Pattern matches: (text) Tj or (text) TJ
+    const tjPattern = /\(([^)]*)\)\s*(?:Tj|TJ|\'|\")/g;
+    let match;
+    while ((match = tjPattern.exec(rawText)) !== null) {
+      if (match[1]) {
+        let text = match[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '\r')
+          .replace(/\\t/g, '\t')
+          .replace(/\\\\/g, '\\')
+          .replace(/\\([()])/g, '$1');
+        
+        // Filter out binary/garbage
+        if (/[a-zA-Z]{2,}/.test(text)) {
+          textMatches.push(text);
+        }
+      }
     }
     
-    // Extract text from page 2
-    const page = await pdf.getPage(2);
-    const textContent = await page.getTextContent();
+    // Method 2: Extract hex-encoded text <XXXX> Tj
+    const hexPattern = /<([0-9A-Fa-f]+)>\s*(?:Tj|TJ)/g;
+    while ((match = hexPattern.exec(rawText)) !== null) {
+      if (match[1] && match[1].length % 2 === 0) {
+        let text = '';
+        for (let i = 0; i < match[1].length; i += 2) {
+          const charCode = parseInt(match[1].substr(i, 2), 16);
+          if (charCode >= 32 && charCode <= 126) {
+            text += String.fromCharCode(charCode);
+          } else if (charCode === 0 && i + 2 < match[1].length) {
+            // Skip null bytes in UTF-16
+            continue;
+          }
+        }
+        if (text.length > 2) {
+          textMatches.push(text);
+        }
+      }
+    }
     
-    // Join all text items (filter for TextItem which has 'str' property)
-    const text = textContent.items
-      .filter((item: any) => 'str' in item)
-      .map((item: any) => item.str || '')
-      .join(' ');
+    // Method 3: Look for readable ASCII text patterns between stream markers
+    const streamPattern = /stream\s*([\s\S]*?)\s*endstream/g;
+    while ((match = streamPattern.exec(rawText)) !== null) {
+      const streamContent = match[1];
+      // Extract readable text sequences
+      const readableMatches = streamContent.match(/[A-Za-z][A-Za-z\s]{4,}/g);
+      if (readableMatches) {
+        for (const readable of readableMatches) {
+          if (readable.length > 5 && !/^[A-Z]{5,}$/.test(readable)) {
+            textMatches.push(readable);
+          }
+        }
+      }
+    }
     
-    console.log(`Extracted ${text.length} characters from page 2`);
+    // Method 4: Look for BT...ET text blocks
+    const btPattern = /BT\s*([\s\S]*?)\s*ET/g;
+    while ((match = btPattern.exec(rawText)) !== null) {
+      const blockContent = match[1];
+      const innerTj = /\(([^)]+)\)\s*(?:Tj|TJ|\'|\")/g;
+      let innerMatch;
+      while ((innerMatch = innerTj.exec(blockContent)) !== null) {
+        if (innerMatch[1] && innerMatch[1].length > 2) {
+          textMatches.push(innerMatch[1]);
+        }
+      }
+    }
     
-    return text;
+    const extractedText = textMatches.join(' ');
+    console.log(`Extracted ${extractedText.length} characters from PDF using raw parsing`);
+    
+    return extractedText;
   } catch (error) {
-    console.error('PDF.js text extraction failed:', error);
+    console.error('Raw PDF text extraction failed:', error);
     throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -149,6 +195,10 @@ function classifyReport(text: string): 'similarity' | 'ai' | 'unknown' {
     'overall similarity',
     'match groups',
     'integrity overview',
+    'similarity index',
+    'internet sources',
+    'publications',
+    'student papers',
   ];
   
   // AI report indicators
@@ -156,6 +206,9 @@ function classifyReport(text: string): 'similarity' | 'ai' | 'unknown' {
     'detected as ai',
     'ai writing overview',
     'detection groups',
+    'ai writing detection',
+    'human written',
+    'ai generated',
   ];
   
   const hasSimilarityIndicator = similarityIndicators.some(indicator => 
@@ -190,14 +243,20 @@ function classifyReport(text: string): 'similarity' | 'ai' | 'unknown' {
 function extractSimilarityPercentage(text: string): number | null {
   const normalized = normalizeText(text);
   
-  // Primary pattern: X% overall similarity
-  const pattern = /(\d{1,3})\s*%\s*overall\s*similarity/i;
-  const match = normalized.match(pattern);
+  const patterns = [
+    /(\d{1,3})\s*%\s*overall\s*similarity/i,
+    /overall\s*similarity[:\s]*(\d{1,3})\s*%/i,
+    /similarity\s*index[:\s]*(\d{1,3})\s*%/i,
+    /(\d{1,3})\s*%\s*similarity/i,
+  ];
   
-  if (match && match[1]) {
-    const value = parseInt(match[1], 10);
-    if (value >= 0 && value <= 100) {
-      return value;
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match && match[1]) {
+      const value = parseInt(match[1], 10);
+      if (value >= 0 && value <= 100) {
+        return value;
+      }
     }
   }
   
@@ -217,14 +276,20 @@ function extractAiPercentage(text: string): number | null {
     return null;
   }
   
-  // Primary pattern: X% detected as ai
-  const pattern = /(\d{1,3})\s*%\s*detected\s*as\s*ai/i;
-  const match = normalized.match(pattern);
+  const patterns = [
+    /(\d{1,3})\s*%\s*detected\s*as\s*ai/i,
+    /ai[:\s]*(\d{1,3})\s*%/i,
+    /(\d{1,3})\s*%\s*ai\s*generated/i,
+    /ai\s*writing[:\s]*(\d{1,3})\s*%/i,
+  ];
   
-  if (match && match[1]) {
-    const value = parseInt(match[1], 10);
-    if (value >= 0 && value <= 100) {
-      return value;
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match && match[1]) {
+      const value = parseInt(match[1], 10);
+      if (value >= 0 && value <= 100) {
+        return value;
+      }
     }
   }
   
@@ -238,7 +303,7 @@ function extractAiPercentage(text: string): number | null {
 /**
  * Process a single report file:
  * 1. Download PDF from storage
- * 2. Extract text from page 2
+ * 2. Extract text using raw PDF parsing
  * 3. Classify report type
  * 4. Extract percentage
  */
@@ -265,10 +330,10 @@ async function processReport(
     
     const pdfBuffer = await fileData.arrayBuffer();
     
-    // STAGE 2: Extract text from page 2
+    // STAGE 2: Extract text from PDF
     let extractedText: string;
     try {
-      extractedText = await extractTextFromPage2(pdfBuffer);
+      extractedText = await extractTextFromPDF(pdfBuffer);
     } catch (error) {
       console.error(`Text extraction failed for ${report.fileName}:`, error);
       return {
@@ -291,7 +356,7 @@ async function processReport(
         similarityPercentage: null,
         aiPercentage: null,
         extractedText: normalizedText,
-        error: 'Insufficient text extracted from page 2',
+        error: 'Insufficient text extracted from PDF',
       };
     }
     
@@ -441,7 +506,7 @@ serve(async (req: Request) => {
       });
     }
 
-    console.log(`Processing ${reports.length} reports with pdf.js text extraction`);
+    console.log(`Processing ${reports.length} reports with raw PDF text extraction`);
 
     // Fetch all pending/in_progress documents (not needing review)
     const { data: documents, error: docError } = await supabase
