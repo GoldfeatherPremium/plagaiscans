@@ -33,7 +33,7 @@ verify_jwt = false
 [functions.ai-admin-helper]
 verify_jwt = false
 
-[functions.bulk-report-upload]
+[functions.process-bulk-reports]
 verify_jwt = false
 
 [functions.send-customer-notification]
