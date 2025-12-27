@@ -73,9 +73,6 @@ const HeroSection = () => {
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
-          <Button variant="glass" size="xl">
-            {get('hero_cta_secondary', 'View Sample Report')}
-          </Button>
         </div>
 
         {/* Stats */}
