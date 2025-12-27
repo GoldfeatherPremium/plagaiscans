@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SENDPULSE_API_KEY = Deno.env.get("SENDPLUS_API_KEY");
 const SENDPULSE_API_SECRET = Deno.env.get("SENDPLUS_API_SECRET");
 // DELIVERABILITY FIX: Use friendly sender address instead of noreply
-const SENDPULSE_FROM_EMAIL = Deno.env.get("SENDPLUS_FROM_EMAIL") || "hello@plagaiscans.com";
+const SENDPULSE_FROM_EMAIL = Deno.env.get("SENDPLUS_FROM_EMAIL") || "support@plagaiscans.com";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
