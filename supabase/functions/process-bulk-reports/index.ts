@@ -243,13 +243,18 @@ serve(async (req) => {
     }
 
     // Create document lookup by normalized filename
+    // IMPORTANT: normalize BOTH file_name and any existing normalized_filename (older rows may contain punctuation).
     const documentsByNormalized: Record<string, typeof documents[0][]> = {};
     for (const doc of documents || []) {
-      const key = doc.normalized_filename || normalizeFilename(doc.file_name);
-      if (!documentsByNormalized[key]) {
-        documentsByNormalized[key] = [];
+      const primaryKey = normalizeFilename(doc.normalized_filename ?? doc.file_name);
+      const fallbackKey = normalizeFilename(doc.file_name);
+
+      for (const key of new Set([primaryKey, fallbackKey])) {
+        if (!documentsByNormalized[key]) {
+          documentsByNormalized[key] = [];
+        }
+        documentsByNormalized[key].push(doc);
       }
-      documentsByNormalized[key].push(doc);
     }
 
     const result: ProcessingResult = {
