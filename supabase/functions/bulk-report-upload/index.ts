@@ -131,12 +131,11 @@ serve(async (req: Request) => {
 
     console.log(`Processing ${reports.length} reports for auto-mapping`);
 
-    // Fetch all pending and in_progress documents
+    // Fetch all pending and in_progress documents (include needs_review docs too)
     const { data: documents, error: docError } = await supabase
       .from('documents')
       .select('id, file_name, normalized_filename, user_id, similarity_report_path, ai_report_path, status, needs_review')
-      .in('status', ['pending', 'in_progress'])
-      .eq('needs_review', false);
+      .in('status', ['pending', 'in_progress']);
 
     if (docError) {
       console.error('Error fetching documents:', docError);
