@@ -49,42 +49,47 @@ async function sendEmailViaSendPulse(
   to: { email: string; name?: string },
   subject: string,
   htmlContent: string
-): Promise<void> {
-  // Encode HTML content to Base64
-  const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
+): Promise<{ success: boolean; response?: any; error?: string }> {
+  try {
+    // Encode HTML content to Base64
+    const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
 
-  const response = await fetch("https://api.sendpulse.com/smtp/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      email: {
-        html: htmlBase64,
-        subject: subject,
-        from: {
-          name: "PlagaiScans",
-          email: SENDPULSE_FROM_EMAIL,
-        },
-        to: [
-          {
-            email: to.email,
-            name: to.name || to.email,
-          },
-        ],
+    const response = await fetch("https://api.sendpulse.com/smtp/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
-    }),
-  });
+      body: JSON.stringify({
+        email: {
+          html: htmlBase64,
+          subject: subject,
+          from: {
+            name: "PlagaiScans",
+            email: SENDPULSE_FROM_EMAIL,
+          },
+          to: [
+            {
+              email: to.email,
+              name: to.name || to.email,
+            },
+          ],
+        },
+      }),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("SendPulse send error:", errorText);
-    throw new Error(`Failed to send email: ${errorText}`);
+    const result = await response.json();
+    console.log("SendPulse response:", result);
+
+    if (!response.ok) {
+      return { success: false, response: result, error: `HTTP ${response.status}` };
+    }
+
+    return { success: true, response: result };
+  } catch (error: any) {
+    console.error("SendPulse send error:", error);
+    return { success: false, error: error?.message || 'Unknown error' };
   }
-
-  const result = await response.json();
-  console.log("SendPulse response:", result);
 }
 
 // Check if email setting is enabled
@@ -105,6 +110,42 @@ async function isEmailEnabled(supabase: any, settingKey: string): Promise<boolea
   } catch (error) {
     console.error("Error checking email setting:", error);
     return true;
+  }
+}
+
+// Log email to database
+async function logEmail(
+  supabase: any,
+  data: {
+    email_type: string;
+    recipient_id?: string;
+    recipient_email: string;
+    recipient_name?: string;
+    subject: string;
+    document_id?: string;
+    status: string;
+    provider_response?: any;
+    error_message?: string;
+    metadata?: any;
+  }
+): Promise<void> {
+  try {
+    await supabase.from("transactional_email_logs").insert({
+      email_type: data.email_type,
+      recipient_id: data.recipient_id,
+      recipient_email: data.recipient_email,
+      recipient_name: data.recipient_name,
+      subject: data.subject,
+      document_id: data.document_id,
+      status: data.status,
+      provider_response: data.provider_response,
+      error_message: data.error_message,
+      sent_at: data.status === 'sent' ? new Date().toISOString() : null,
+      metadata: data.metadata,
+    });
+    console.log("Email logged to database:", data.status);
+  } catch (error) {
+    console.error("Failed to log email:", error);
   }
 }
 
@@ -134,6 +175,27 @@ const handler = async (req: Request): Promise<Response> => {
     const isEnabled = await isEmailEnabled(supabase, "document_completion");
     if (!isEnabled) {
       console.log("Document completion emails are disabled by admin, skipping");
+      
+      // Log skipped email
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", userId)
+        .single();
+      
+      if (profile) {
+        await logEmail(supabase, {
+          email_type: 'document_completion',
+          recipient_id: userId,
+          recipient_email: profile.email,
+          recipient_name: profile.full_name,
+          subject: 'Your Document Has Been Processed! - PlagaiScans',
+          document_id: documentId,
+          status: 'skipped',
+          metadata: { fileName, reason: 'Email disabled by admin' },
+        });
+      }
+      
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: "Email disabled by admin" }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -143,7 +205,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Get user email from profiles
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("email, full_name")
+      .select("email, full_name, email_unsubscribed")
       .eq("id", userId)
       .single();
 
@@ -152,8 +214,29 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("User profile not found");
     }
 
+    // Check if user has unsubscribed from emails
+    if (profile.email_unsubscribed) {
+      console.log("User has unsubscribed from emails, skipping");
+      await logEmail(supabase, {
+        email_type: 'document_completion',
+        recipient_id: userId,
+        recipient_email: profile.email,
+        recipient_name: profile.full_name,
+        subject: 'Your Document Has Been Processed! - PlagaiScans',
+        document_id: documentId,
+        status: 'skipped',
+        metadata: { fileName, reason: 'User unsubscribed' },
+      });
+      
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: "User unsubscribed" }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const userName = profile.full_name || "Customer";
     const siteUrl = Deno.env.get("SITE_URL") || "https://plagaiscans.com";
+    const subject = "Your Document Has Been Processed! - PlagaiScans";
 
     // Get SendPulse token
     const token = await getSendPulseToken();
@@ -213,12 +296,30 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    await sendEmailViaSendPulse(
+    const result = await sendEmailViaSendPulse(
       token,
       { email: profile.email, name: userName },
-      "Your Document Has Been Processed! - PlagaiScans",
+      subject,
       htmlContent
     );
+
+    // Log email result
+    await logEmail(supabase, {
+      email_type: 'document_completion',
+      recipient_id: userId,
+      recipient_email: profile.email,
+      recipient_name: userName,
+      subject: subject,
+      document_id: documentId,
+      status: result.success ? 'sent' : 'failed',
+      provider_response: result.response,
+      error_message: result.error,
+      metadata: { fileName, similarityPercentage, aiPercentage },
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to send email");
+    }
 
     console.log("Completion email sent successfully");
 

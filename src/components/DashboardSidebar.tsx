@@ -356,6 +356,7 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/announcements', icon: Megaphone, label: 'Announcements' },
         { to: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
         { to: '/dashboard/emails', icon: Mail, label: 'Email Center' },
+        { to: '/dashboard/email-logs', icon: Mail, label: 'Email Logs' },
         { to: '/dashboard/support-tickets', icon: MessageSquare, label: 'Support', badgeKey: 'openTickets' },
       ],
     },
