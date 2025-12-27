@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// @ts-ignore - pdfjs-serverless types
 import getDocument from "https://cdn.jsdelivr.net/npm/pdfjs-serverless@0.5.0/+esm";
 
 const corsHeaders = {
@@ -54,7 +55,9 @@ function normalizeFilename(filename: string): string {
  */
 async function extractTextFromPage2(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    const doc = await getDocument(pdfBuffer).promise;
+    // @ts-ignore - pdfjs-serverless ESM import typing
+    const loadingTask = getDocument!(pdfBuffer);
+    const doc = await loadingTask.promise;
     
     // Get page 2 (or page 1 if only 1 page)
     const pageNum = Math.min(2, doc.numPages);
@@ -423,10 +426,11 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error) {
-    console.error("Error processing bulk reports:", error);
+  } catch (err) {
+    console.error("Error processing bulk reports:", err);
+    const errorMessage = err instanceof Error ? err.message : "Internal server error";
     return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
