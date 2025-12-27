@@ -40,7 +40,6 @@ import {
   FileStack,
   FileQuestion,
   AlertTriangle,
-  Coins,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -592,7 +591,7 @@ export const DashboardSidebar: React.FC = () => {
       <Button
         variant="ghost"
         size="icon"
-        className="fixed top-4 left-4 z-50 glass border border-border/50 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+        className="fixed top-4 left-4 z-50 bg-card border border-border shadow-md"
         onClick={() => setIsOpen(!isOpen)}
       >
         {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -601,30 +600,27 @@ export const DashboardSidebar: React.FC = () => {
       {/* Overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-background/60 backdrop-blur-md z-40 animate-fade-in"
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 animate-in fade-in-0 duration-200"
           onClick={() => setIsOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside 
-        className={`fixed left-0 top-0 h-screen w-72 glass border-r border-border/50 flex flex-col z-50 transition-all duration-500 ease-out ${
-          isOpen ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'
+        className={`fixed left-0 top-0 h-screen w-64 bg-card border-r border-border flex flex-col z-50 transition-transform duration-300 ease-in-out ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-secondary/5 pointer-events-none" />
-        
-        <div className="relative p-6 border-b border-border/50">
-          <Link to="/" className="flex items-center gap-3 group" onClick={() => setIsOpen(false)}>
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-lg shadow-primary/30 group-hover:shadow-xl group-hover:shadow-primary/40 transition-all duration-300 group-hover:scale-105">
+        <div className="p-6 border-b border-border">
+          <Link to="/" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
+            <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
               <FileCheck className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-display font-bold text-xl gradient-text">PlagaiScans</span>
+            <span className="font-display font-bold text-lg">PlagaiScans</span>
           </Link>
         </div>
 
-        <nav className="relative flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {role === 'admin' ? (
             renderAdminNav()
           ) : (
@@ -632,25 +628,22 @@ export const DashboardSidebar: React.FC = () => {
           )}
         </nav>
 
-        <div className="relative p-4 border-t border-border/50 space-y-4">
+        <div className="p-4 border-t border-border space-y-4">
           {role === 'customer' && profile && (
-            <div className="px-4 py-4 glass rounded-xl border border-primary/20 hover:border-primary/40 transition-colors">
-              <p className="text-xs text-muted-foreground mb-1">Credit Balance</p>
-              <div className="flex items-center gap-2">
-                <Coins className="h-5 w-5 text-primary" />
-                <p className="text-2xl font-bold gradient-text">{profile.credit_balance}</p>
-              </div>
+            <div className="px-4 py-3 bg-muted rounded-lg">
+              <p className="text-xs text-muted-foreground">Credit Balance</p>
+              <p className="text-2xl font-bold text-primary">{profile.credit_balance}</p>
             </div>
           )}
           
-          <div className="px-4 py-2">
-            <p className="text-sm font-semibold truncate">{profile?.full_name || profile?.email}</p>
+          <div className="px-4">
+            <p className="text-sm font-medium truncate">{profile?.full_name || profile?.email}</p>
             <p className="text-xs text-muted-foreground capitalize">{role}</p>
           </div>
 
           <Button
             variant="ghost"
-            className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-300"
+            className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
             onClick={signOut}
           >
             <LogOut className="h-5 w-5" />

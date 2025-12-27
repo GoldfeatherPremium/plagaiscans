@@ -120,11 +120,11 @@ export default function Dashboard() {
         <AnnouncementBanner />
 
         {/* Header */}
-        <div className="animate-fade-in">
-          <h1 className="text-3xl md:text-4xl font-display font-bold gradient-text">
+        <div>
+          <h1 className="text-3xl font-display font-bold">
             Welcome back, {profile?.full_name?.split(' ')[0] || 'User'}
           </h1>
-          <p className="text-muted-foreground mt-2 text-lg">
+          <p className="text-muted-foreground mt-1">
             {role === 'customer'
               ? 'Manage your documents and track their status'
               : role === 'staff'
@@ -136,60 +136,56 @@ export default function Dashboard() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {role === 'customer' && (
-            <Card className="group hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-500 overflow-hidden animate-fade-in stagger-1">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <CardContent className="p-6 relative">
+            <Card>
+              <CardContent className="p-6">
                 <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-lg shadow-primary/30 group-hover:scale-110 transition-transform duration-300">
-                    <CreditCard className="h-7 w-7 text-primary-foreground" />
+                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <CreditCard className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground font-medium">Credit Balance</p>
-                    <p className="text-3xl font-bold gradient-text">{profile?.credit_balance || 0}</p>
+                    <p className="text-sm text-muted-foreground">Credit Balance</p>
+                    <p className="text-2xl font-bold">{profile?.credit_balance || 0}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           )}
-          <Card className="group hover:shadow-lg hover:shadow-accent/10 hover:-translate-y-1 transition-all duration-500 overflow-hidden animate-fade-in stagger-2">
-            <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CardContent className="p-6 relative">
+          <Card>
+            <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-accent to-accent-glow flex items-center justify-center shadow-lg shadow-accent/30 group-hover:scale-110 transition-transform duration-300">
-                  <Clock className="h-7 w-7 text-white" />
+                <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center">
+                  <Clock className="h-6 w-6 text-accent" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Pending</p>
-                  <p className="text-3xl font-bold">{stats.pending}</p>
+                  <p className="text-sm text-muted-foreground">Pending</p>
+                  <p className="text-2xl font-bold">{stats.pending}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="group hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-500 overflow-hidden animate-fade-in stagger-3">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CardContent className="p-6 relative">
+          <Card>
+            <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/30 group-hover:scale-110 transition-transform duration-300">
-                  <FileText className="h-7 w-7 text-primary-foreground" />
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <FileText className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">In Progress</p>
-                  <p className="text-3xl font-bold">{stats.inProgress}</p>
+                  <p className="text-sm text-muted-foreground">In Progress</p>
+                  <p className="text-2xl font-bold">{stats.inProgress}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           {role !== 'staff' && (
-            <Card className="group hover:shadow-lg hover:shadow-secondary/10 hover:-translate-y-1 transition-all duration-500 overflow-hidden animate-fade-in stagger-4">
-              <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <CardContent className="p-6 relative">
+            <Card>
+              <CardContent className="p-6">
                 <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-secondary to-secondary-glow flex items-center justify-center shadow-lg shadow-secondary/30 group-hover:scale-110 transition-transform duration-300">
-                    <CheckCircle className="h-7 w-7 text-secondary-foreground" />
+                  <div className="h-12 w-12 rounded-lg bg-secondary/10 flex items-center justify-center">
+                    <CheckCircle className="h-6 w-6 text-secondary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground font-medium">Completed</p>
-                    <p className="text-3xl font-bold">{stats.completed}</p>
+                    <p className="text-sm text-muted-foreground">Completed</p>
+                    <p className="text-2xl font-bold">{stats.completed}</p>
                   </div>
                 </div>
               </CardContent>
@@ -235,33 +231,31 @@ export default function Dashboard() {
 
         {/* Quick Actions */}
         {role === 'customer' && (
-          <div className="grid md:grid-cols-2 gap-6 animate-fade-in stagger-5">
-            <Card className="group hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-2 transition-all duration-500 cursor-pointer overflow-hidden border-2 border-transparent hover:border-primary/30">
+          <div className="grid md:grid-cols-2 gap-4">
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer">
               <Link to="/dashboard/upload">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <CardContent className="p-6 flex items-center gap-5 relative">
-                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-lg shadow-primary/30 group-hover:scale-110 group-hover:shadow-xl group-hover:shadow-primary/40 transition-all duration-300">
-                    <Upload className="h-8 w-8 text-primary-foreground" />
+                <CardContent className="p-6 flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-xl gradient-primary flex items-center justify-center">
+                    <Upload className="h-7 w-7 text-primary-foreground" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-xl group-hover:text-primary transition-colors">Upload Document</h3>
-                    <p className="text-muted-foreground">
+                    <h3 className="font-semibold text-lg">Upload Document</h3>
+                    <p className="text-sm text-muted-foreground">
                       Submit a new document for checking
                     </p>
                   </div>
                 </CardContent>
               </Link>
             </Card>
-            <Card className="group hover:shadow-xl hover:shadow-secondary/10 hover:-translate-y-2 transition-all duration-500 cursor-pointer overflow-hidden border-2 border-transparent hover:border-secondary/30">
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer">
               <Link to="/dashboard/credits">
-                <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <CardContent className="p-6 flex items-center gap-5 relative">
-                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-secondary to-secondary-glow flex items-center justify-center shadow-lg shadow-secondary/30 group-hover:scale-110 group-hover:shadow-xl group-hover:shadow-secondary/40 transition-all duration-300">
-                    <CreditCard className="h-8 w-8 text-secondary-foreground" />
+                <CardContent className="p-6 flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-xl gradient-success flex items-center justify-center">
+                    <CreditCard className="h-7 w-7 text-secondary-foreground" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-xl group-hover:text-secondary transition-colors">Buy Credits</h3>
-                    <p className="text-muted-foreground">
+                    <h3 className="font-semibold text-lg">Buy Credits</h3>
+                    <p className="text-sm text-muted-foreground">
                       Purchase more credits via WhatsApp
                     </p>
                   </div>
@@ -272,16 +266,15 @@ export default function Dashboard() {
         )}
 
         {/* Recent Documents */}
-        <Card className="animate-fade-in stagger-6 overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-secondary to-primary" />
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-xl">Recent Documents</CardTitle>
+              <CardTitle>Recent Documents</CardTitle>
               <CardDescription>
                 {role === 'customer' ? 'Your latest uploads' : 'Latest document activity'}
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm" className="hover:bg-primary hover:text-primary-foreground transition-colors" asChild>
+            <Button variant="outline" size="sm" asChild>
               <Link to={role === 'customer' ? '/dashboard/documents' : '/dashboard/queue'}>
                 View All
               </Link>
