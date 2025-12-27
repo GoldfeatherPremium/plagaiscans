@@ -19,6 +19,8 @@ const sectionLabels: Record<string, string> = {
   navigation: "Navigation",
   seo: "SEO Settings",
   general: "General",
+  articles: "Articles",
+  resources: "Resources Page",
 };
 
 const sectionIcons: Record<string, string> = {
@@ -30,6 +32,8 @@ const sectionIcons: Record<string, string> = {
   navigation: "🧭",
   seo: "🔍",
   general: "⚙️",
+  articles: "📰",
+  resources: "📚",
 };
 
 const AdminSiteContent = () => {
