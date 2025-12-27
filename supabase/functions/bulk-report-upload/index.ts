@@ -76,96 +76,173 @@ function normalizeFilename(filename: string): string {
 }
 
 // =====================================================
-// STAGE 2 — RAW PDF TEXT EXTRACTION (NO EXTERNAL LIBS)
+// STAGE 2 — PDF TEXT EXTRACTION (USING PDF-LIB)
 // =====================================================
 
 /**
- * Extract text from a PDF by parsing raw bytes.
- * Works in Deno edge functions without requiring workers.
- * Extracts text from PDF text objects (Tj, TJ operators).
+ * Decompress FlateDecode (zlib) compressed data
+ */
+async function inflateData(compressedData: Uint8Array): Promise<Uint8Array> {
+  try {
+    const ds = new DecompressionStream('deflate-raw');
+    const writer = ds.writable.getWriter();
+    // Create a fresh ArrayBuffer to avoid SharedArrayBuffer issues
+    const buffer = new ArrayBuffer(compressedData.length);
+    const view = new Uint8Array(buffer);
+    view.set(compressedData);
+    writer.write(view);
+    writer.close();
+    
+    const reader = ds.readable.getReader();
+    const chunks: Uint8Array[] = [];
+    let done = false;
+    
+    while (!done) {
+      const { value, done: readerDone } = await reader.read();
+      done = readerDone;
+      if (value) {
+        chunks.push(value);
+      }
+    }
+    
+    const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+    const result = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      result.set(chunk, offset);
+      offset += chunk.length;
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Decompression failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Extract text from PDF by parsing the raw structure
+ * Handles both compressed and uncompressed content streams
  */
 async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
     const uint8Array = new Uint8Array(pdfBuffer);
-    const decoder = new TextDecoder('latin1');
-    const rawText = decoder.decode(uint8Array);
+    const rawText = new TextDecoder('latin1').decode(uint8Array);
     
-    const textMatches: string[] = [];
+    const allText: string[] = [];
     
-    // Method 1: Extract text from PDF text objects using Tj/TJ operators
-    // Pattern matches: (text) Tj or (text) TJ
-    const tjPattern = /\(([^)]*)\)\s*(?:Tj|TJ|\'|\")/g;
-    let match;
-    while ((match = tjPattern.exec(rawText)) !== null) {
-      if (match[1]) {
+    // Find all stream content
+    const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+    let streamMatch;
+    
+    while ((streamMatch = streamRegex.exec(rawText)) !== null) {
+      const streamContent = streamMatch[1];
+      const streamStartIndex = streamMatch.index;
+      
+      // Check if stream is FlateDecode compressed
+      const objHeader = rawText.substring(Math.max(0, streamStartIndex - 500), streamStartIndex);
+      const isCompressed = objHeader.includes('/FlateDecode');
+      
+      let textContent = '';
+      
+      if (isCompressed) {
+        try {
+          // Get bytes for this stream
+          const streamBytes = new Uint8Array(streamContent.length);
+          for (let i = 0; i < streamContent.length; i++) {
+            streamBytes[i] = streamContent.charCodeAt(i);
+          }
+          
+          const decompressed = await inflateData(streamBytes);
+          textContent = new TextDecoder('latin1').decode(decompressed);
+        } catch {
+          // Skip if decompression fails
+          continue;
+        }
+      } else {
+        textContent = streamContent;
+      }
+      
+      // Extract text from PDF text operators
+      // Method 1: Extract from (text)Tj operators
+      const tjMatches = textContent.matchAll(/\(([^)\\]*(?:\\.[^)\\]*)*)\)\s*(?:Tj|TJ|'|")/g);
+      for (const match of tjMatches) {
         let text = match[1]
           .replace(/\\n/g, '\n')
           .replace(/\\r/g, '\r')
           .replace(/\\t/g, '\t')
           .replace(/\\\\/g, '\\')
-          .replace(/\\([()])/g, '$1');
+          .replace(/\\([()])/g, '$1')
+          .replace(/\\(\d{3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)));
         
-        // Filter out binary/garbage
-        if (/[a-zA-Z]{2,}/.test(text)) {
-          textMatches.push(text);
+        // Only keep if has readable characters
+        if (/[a-zA-Z]/.test(text)) {
+          allText.push(text);
         }
       }
-    }
-    
-    // Method 2: Extract hex-encoded text <XXXX> Tj
-    const hexPattern = /<([0-9A-Fa-f]+)>\s*(?:Tj|TJ)/g;
-    while ((match = hexPattern.exec(rawText)) !== null) {
-      if (match[1] && match[1].length % 2 === 0) {
+      
+      // Method 2: Extract from TJ arrays [(...) ... (...)]TJ
+      const tjArrayMatches = textContent.matchAll(/\[((?:\([^)]*\)|[^\]])*)\]\s*TJ/gi);
+      for (const arrayMatch of tjArrayMatches) {
+        const arrayContent = arrayMatch[1];
+        const innerMatches = arrayContent.matchAll(/\(([^)\\]*(?:\\.[^)\\]*)*)\)/g);
+        for (const inner of innerMatches) {
+          let text = inner[1]
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '\r')
+            .replace(/\\t/g, '\t')
+            .replace(/\\\\/g, '\\')
+            .replace(/\\([()])/g, '$1')
+            .replace(/\\(\d{3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)));
+          
+          if (/[a-zA-Z]/.test(text)) {
+            allText.push(text);
+          }
+        }
+      }
+      
+      // Method 3: Extract hex-encoded text <hex>Tj
+      const hexMatches = textContent.matchAll(/<([0-9A-Fa-f]+)>\s*(?:Tj|TJ)/g);
+      for (const hexMatch of hexMatches) {
+        const hex = hexMatch[1];
         let text = '';
-        for (let i = 0; i < match[1].length; i += 2) {
-          const charCode = parseInt(match[1].substr(i, 2), 16);
-          if (charCode >= 32 && charCode <= 126) {
-            text += String.fromCharCode(charCode);
-          } else if (charCode === 0 && i + 2 < match[1].length) {
-            // Skip null bytes in UTF-16
-            continue;
+        // Try as UTF-16BE first (common in PDFs)
+        if (hex.length % 4 === 0) {
+          for (let i = 0; i < hex.length; i += 4) {
+            const charCode = parseInt(hex.substr(i, 4), 16);
+            if (charCode >= 32 && charCode < 65536) {
+              text += String.fromCharCode(charCode);
+            }
+          }
+        } else {
+          // Try as single-byte
+          for (let i = 0; i < hex.length; i += 2) {
+            const charCode = parseInt(hex.substr(i, 2), 16);
+            if (charCode >= 32 && charCode <= 126) {
+              text += String.fromCharCode(charCode);
+            }
           }
         }
-        if (text.length > 2) {
-          textMatches.push(text);
+        if (text.length > 0 && /[a-zA-Z]/.test(text)) {
+          allText.push(text);
         }
       }
     }
     
-    // Method 3: Look for readable ASCII text patterns between stream markers
-    const streamPattern = /stream\s*([\s\S]*?)\s*endstream/g;
-    while ((match = streamPattern.exec(rawText)) !== null) {
-      const streamContent = match[1];
-      // Extract readable text sequences
-      const readableMatches = streamContent.match(/[A-Za-z][A-Za-z\s]{4,}/g);
-      if (readableMatches) {
-        for (const readable of readableMatches) {
-          if (readable.length > 5 && !/^[A-Z]{5,}$/.test(readable)) {
-            textMatches.push(readable);
-          }
-        }
-      }
-    }
+    const extractedText = allText.join(' ');
+    console.log(`Extracted ${extractedText.length} characters from PDF`);
     
-    // Method 4: Look for BT...ET text blocks
-    const btPattern = /BT\s*([\s\S]*?)\s*ET/g;
-    while ((match = btPattern.exec(rawText)) !== null) {
-      const blockContent = match[1];
-      const innerTj = /\(([^)]+)\)\s*(?:Tj|TJ|\'|\")/g;
-      let innerMatch;
-      while ((innerMatch = innerTj.exec(blockContent)) !== null) {
-        if (innerMatch[1] && innerMatch[1].length > 2) {
-          textMatches.push(innerMatch[1]);
-        }
-      }
+    // Log a sample of extracted text for debugging
+    if (extractedText.length > 0) {
+      const sample = extractedText.substring(0, 500).replace(/\s+/g, ' ');
+      console.log(`Text sample: ${sample}...`);
+    } else {
+      console.log('No text extracted from PDF');
     }
-    
-    const extractedText = textMatches.join(' ');
-    console.log(`Extracted ${extractedText.length} characters from PDF using raw parsing`);
     
     return extractedText;
   } catch (error) {
-    console.error('Raw PDF text extraction failed:', error);
+    console.error('PDF text extraction failed:', error);
     throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
