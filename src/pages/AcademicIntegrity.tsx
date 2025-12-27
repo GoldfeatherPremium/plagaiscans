@@ -4,8 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileText, ArrowLeft, ArrowRight, BookOpen, Scale, GraduationCap, Shield, Users, Lightbulb } from 'lucide-react';
 import Footer from '@/components/Footer';
+import { SEO, generateWebPageSchema } from '@/components/SEO';
 
 export default function AcademicIntegrity() {
+  const pageSchema = generateWebPageSchema(
+    'Academic Integrity Guide',
+    'Learn about academic integrity principles, proper citation practices, and how plagiarism detection tools support ethical scholarship.',
+    '/academic-integrity'
+  );
   const principles = [
     {
       icon: BookOpen,
@@ -48,7 +54,15 @@ export default function AcademicIntegrity() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO
+        title="Academic Integrity"
+        description="Learn about academic integrity principles, proper citation practices, and how plagiarism detection tools support ethical scholarship and honest research."
+        keywords="academic integrity, plagiarism prevention, citation best practices, scholarly ethics, academic honesty, research integrity"
+        canonicalUrl="/academic-integrity"
+        structuredData={pageSchema}
+      />
+      <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container-width flex h-16 items-center justify-between px-4">
@@ -189,6 +203,7 @@ export default function AcademicIntegrity() {
       </main>
 
       <Footer />
-    </div>
+      </div>
+    </>
   );
 }
