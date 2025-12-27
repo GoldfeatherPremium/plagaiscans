@@ -1,8 +1,11 @@
-import { ArrowRight, Sparkles, FileSearch, Shield, CheckCircle } from "lucide-react";
+import { ArrowRight, Sparkles, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useSiteContent } from "@/hooks/useSiteContent";
 
 const HeroSection = () => {
+  const { get, loading } = useSiteContent();
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Effects */}
@@ -29,34 +32,36 @@ const HeroSection = () => {
         {/* Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-8 animate-fade-in hover:border-primary/30 transition-colors duration-300">
           <Sparkles className="w-4 h-4 text-primary animate-pulse-soft" />
-          <span className="text-sm text-muted-foreground">Trusted by 10,000+ academics & researchers</span>
+          <span className="text-sm text-muted-foreground">
+            {get('hero_badge', 'Trusted by 10,000+ academics & researchers')}
+          </span>
         </div>
 
         {/* Main Heading - H1 with primary keyword */}
         <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-display font-bold leading-[1.1] mb-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-          Plagiarism & Similarity Check
+          {get('hero_title_line1', 'Plagiarism & Similarity Check')}
           <br />
-          <span className="gradient-text">for Academic Integrity</span>
+          <span className="gradient-text">{get('hero_title_line2', 'for Academic Integrity')}</span>
         </h1>
 
         {/* Subtitle with SEO keywords */}
         <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: "0.2s" }}>
-          Plagaiscans helps students, researchers, and educators verify originality, identify overlapping content, and understand similarity results through clear and easy-to-read reports.
+          {get('hero_subtitle', 'Plagaiscans helps students, researchers, and educators verify originality, identify overlapping content, and understand similarity results through clear and easy-to-read reports.')}
         </p>
 
         {/* Feature Pills */}
         <div className="flex flex-wrap justify-center gap-3 mb-10 animate-fade-in" style={{ animationDelay: "0.25s" }}>
           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
             <CheckCircle className="w-4 h-4 text-secondary" />
-            <span>Detailed Similarity Reports</span>
+            <span>{get('hero_feature_1', 'Detailed Similarity Reports')}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
             <CheckCircle className="w-4 h-4 text-secondary" />
-            <span>AI Content Detection</span>
+            <span>{get('hero_feature_2', 'AI Content Detection')}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
             <CheckCircle className="w-4 h-4 text-secondary" />
-            <span>Privacy-First Scanning</span>
+            <span>{get('hero_feature_3', 'Privacy-First Scanning')}</span>
           </div>
         </div>
 
@@ -64,29 +69,35 @@ const HeroSection = () => {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{ animationDelay: "0.3s" }}>
           <Link to="/auth">
             <Button variant="hero" size="xl" className="group">
-              Check Document
+              {get('hero_cta_primary', 'Check Document')}
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
           <Button variant="glass" size="xl">
-            View Sample Report
+            {get('hero_cta_secondary', 'View Sample Report')}
           </Button>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-8 max-w-xl mx-auto mt-20 animate-fade-in" style={{ animationDelay: "0.4s" }}>
-          {[
-            { value: "1B+", label: "Sources Checked" },
-            { value: "99%", label: "Accuracy Rate" },
-            { value: "10K+", label: "Happy Users" },
-          ].map((stat, index) => (
-            <div key={index} className="text-center group">
-              <div className="text-2xl md:text-3xl font-display font-bold gradient-text transition-transform duration-300 group-hover:scale-110">
-                {stat.value}
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>
+          <div className="text-center group">
+            <div className="text-2xl md:text-3xl font-display font-bold gradient-text transition-transform duration-300 group-hover:scale-110">
+              {get('hero_stat_1_value', '1B+')}
             </div>
-          ))}
+            <div className="text-sm text-muted-foreground mt-1">{get('hero_stat_1_label', 'Sources Checked')}</div>
+          </div>
+          <div className="text-center group">
+            <div className="text-2xl md:text-3xl font-display font-bold gradient-text transition-transform duration-300 group-hover:scale-110">
+              {get('hero_stat_2_value', '99%')}
+            </div>
+            <div className="text-sm text-muted-foreground mt-1">{get('hero_stat_2_label', 'Accuracy Rate')}</div>
+          </div>
+          <div className="text-center group">
+            <div className="text-2xl md:text-3xl font-display font-bold gradient-text transition-transform duration-300 group-hover:scale-110">
+              {get('hero_stat_3_value', '10K+')}
+            </div>
+            <div className="text-sm text-muted-foreground mt-1">{get('hero_stat_3_label', 'Happy Users')}</div>
+          </div>
         </div>
       </div>
 

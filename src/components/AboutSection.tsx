@@ -1,46 +1,57 @@
 import { Shield, FileSearch, BookOpen, Lock } from "lucide-react";
-
-const features = [
-  {
-    icon: FileSearch,
-    title: "Similarity Detection",
-    description: "View highlighted matches, similarity percentages, and matched sources to understand content overlap.",
-  },
-  {
-    icon: BookOpen,
-    title: "Citation & Reference Checks",
-    description: "Support academic compliance by reviewing citation patterns and references.",
-  },
-  {
-    icon: Shield,
-    title: "AI Content Indicators",
-    description: "Analyze text for potential AI-generated patterns to support responsible academic use.",
-  },
-  {
-    icon: Lock,
-    title: "Privacy-First Scanning",
-    description: "Uploaded documents remain private and are processed securely.",
-  },
-];
+import { useSiteContent } from "@/hooks/useSiteContent";
 
 const AboutSection = () => {
+  const { get } = useSiteContent();
+
+  const features = [
+    {
+      icon: FileSearch,
+      titleKey: 'about_feature_1_title',
+      descKey: 'about_feature_1_desc',
+      titleFallback: 'Similarity Detection',
+      descFallback: 'View highlighted matches, similarity percentages, and matched sources to understand content overlap.',
+    },
+    {
+      icon: BookOpen,
+      titleKey: 'about_feature_2_title',
+      descKey: 'about_feature_2_desc',
+      titleFallback: 'Citation & Reference Checks',
+      descFallback: 'Support academic compliance by reviewing citation patterns and references.',
+    },
+    {
+      icon: Shield,
+      titleKey: 'about_feature_3_title',
+      descKey: 'about_feature_3_desc',
+      titleFallback: 'AI Content Indicators',
+      descFallback: 'Analyze text for potential AI-generated patterns to support responsible academic use.',
+    },
+    {
+      icon: Lock,
+      titleKey: 'about_feature_4_title',
+      descKey: 'about_feature_4_desc',
+      titleFallback: 'Privacy-First Scanning',
+      descFallback: 'Uploaded documents remain private and are processed securely.',
+    },
+  ];
+
   return (
     <section id="about" className="section-padding relative">
       <div className="container-width">
         {/* Section Header */}
         <div className="max-w-3xl mb-16">
           <span className="text-primary font-medium text-sm tracking-wider uppercase mb-4 block">
-            About Plagaiscans
+            {get('about_label', 'About Plagaiscans')}
           </span>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-6">
-            Academic Integrity Platform for
-            <span className="gradient-text"> Originality Verification</span>
+            {get('about_title', 'Academic Integrity Platform for')}
+            <span className="gradient-text"> {get('about_title_gradient', 'Originality Verification')}</span>
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Plagaiscans is an academic integrity platform designed to support plagiarism detection and similarity analysis for educational and research use. Our system helps users understand content originality by highlighting overlapping text, source references, and similarity percentages in a clear and structured format.
+            {get('about_paragraph_1', 'Plagaiscans is an academic integrity platform designed to support plagiarism detection and similarity analysis for educational and research use. Our system helps users understand content originality by highlighting overlapping text, source references, and similarity percentages in a clear and structured format.')}
           </p>
           <p className="text-lg text-muted-foreground leading-relaxed mt-4">
-            We also provide optional AI-content indicators to help users assess whether parts of a document may include AI-generated text. These indicators are designed to support academic review, not replace human judgment. Plagaiscans prioritizes privacy, transparency, and usability—ensuring users can verify originality with confidence.
+            {get('about_paragraph_2', 'We also provide optional AI-content indicators to help users assess whether parts of a document may include AI-generated text. These indicators are designed to support academic review, not replace human judgment. Plagaiscans prioritizes privacy, transparency, and usability—ensuring users can verify originality with confidence.')}
           </p>
         </div>
 
@@ -55,8 +66,12 @@ const AboutSection = () => {
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
                 <feature.icon className="w-6 h-6 text-primary" />
               </div>
-              <h3 className="text-lg font-display font-semibold mb-2">{feature.title}</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">{feature.description}</p>
+              <h3 className="text-lg font-display font-semibold mb-2">
+                {get(feature.titleKey, feature.titleFallback)}
+              </h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {get(feature.descKey, feature.descFallback)}
+              </p>
             </div>
           ))}
         </div>

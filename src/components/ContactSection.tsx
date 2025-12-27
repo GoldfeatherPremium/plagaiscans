@@ -5,9 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { useSiteContent } from "@/hooks/useSiteContent";
 
 const ContactSection = () => {
   const { toast } = useToast();
+  const { get } = useSiteContent();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -27,7 +29,7 @@ const ContactSection = () => {
     {
       icon: Mail,
       label: "Email",
-      value: "support@plagaiscans.com",
+      value: get('contact_email', 'support@plagaiscans.com'),
     },
     {
       icon: MessageCircle,
@@ -51,19 +53,19 @@ const ContactSection = () => {
           {/* Left Column */}
           <div>
             <span className="text-primary font-medium text-sm tracking-wider uppercase mb-4 block">
-              Get in Touch
+              {get('contact_label', 'Get in Touch')}
             </span>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-6">
-              Ready to Check Your
-              <span className="gradient-text"> Documents?</span>
+              {get('contact_title', 'Ready to Check Your')}
+              <span className="gradient-text"> {get('contact_title_gradient', 'Documents?')}</span>
             </h2>
             <p className="text-lg text-muted-foreground mb-6">
-              Join thousands of students, researchers, and educators who trust Plagaiscans for accurate plagiarism detection and AI content analysis. Check originality and protect academic integrity.
+              {get('contact_subtitle', 'Join thousands of students, researchers, and educators who trust Plagaiscans for accurate plagiarism detection and AI content analysis. Check originality and protect academic integrity.')}
             </p>
             
             {/* Tagline */}
             <div className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-10">
-              Clear similarity reports you can trust.
+              {get('contact_tagline', 'Clear similarity reports you can trust.')}
             </div>
 
             {/* Contact Info */}
