@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import getDocument from "https://cdn.jsdelivr.net/npm/pdfjs-serverless@0.5.0/+esm";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,90 +39,37 @@ interface ProcessingResult {
  */
 function normalizeFilename(filename: string): string {
   let result = filename.toLowerCase();
-
   // Remove file extension
-  result = result.replace(/\.[^.]+$/, "");
-
-  // Convert common separators to spaces
-  result = result.replace(/[\/_]+/g, " ");
-
-  // Remove surrounding/leading brackets if present
-  result = result.replace(/^\[.*?\]\s*/, "");
-  result = result.replace(/^\(.*?\)\s*/, "");
-
+  result = result.replace(/\.[^.]+$/, '');
   // Remove ONLY the last trailing " (number)" suffix
-  result = result.replace(/\s*\(\d+\)\s*$/, "");
-
-  // Handle cases like "(1)-1" at the end
-  result = result.replace(/\s*\(\d+\)\s*[-_]?\d+\s*$/, "");
-
-  // Remove trailing punctuation (e.g. extra dots)
-  result = result.replace(/[\s._-]+$/g, "");
-
-  // Normalize whitespace
-  result = result.replace(/\s+/g, " ").trim();
-
-  return result;
+  result = result.replace(/\s*\(\d+\)$/, '');
+  // Remove surrounding brackets if present
+  result = result.replace(/^\[.*?\]\s*/, '');
+  result = result.replace(/^\(.*?\)\s*/, '');
+  return result.trim();
 }
 
 /**
- * Extract text from PDF using raw byte parsing
- * This extracts visible text from PDF streams without external dependencies
+ * Extract text from PDF page 2 using pdfjs-serverless
  */
-function extractTextFromPDF(pdfBuffer: ArrayBuffer): string {
+async function extractTextFromPage2(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    const bytes = new Uint8Array(pdfBuffer);
-    const text = new TextDecoder('latin1').decode(bytes);
+    const doc = await getDocument(pdfBuffer).promise;
     
-    // Extract text between stream and endstream markers
-    const streamMatches = text.match(/stream[\r\n]+([\s\S]*?)[\r\n]+endstream/g) || [];
-    let extractedText = '';
+    // Get page 2 (or page 1 if only 1 page)
+    const pageNum = Math.min(2, doc.numPages);
+    const page = await doc.getPage(pageNum);
+    const textContent = await page.getTextContent();
     
-    for (const stream of streamMatches) {
-      // Try to extract readable text from the stream
-      const content = stream.replace(/^stream[\r\n]+/, '').replace(/[\r\n]+endstream$/, '');
-      
-      // Look for text operators: Tj, TJ, ', "
-      const textMatches = content.match(/\(([^)]*)\)\s*Tj/g) || [];
-      for (const match of textMatches) {
-        const innerText = match.match(/\(([^)]*)\)/)?.[1] || '';
-        extractedText += innerText + ' ';
-      }
-      
-      // Also extract TJ arrays
-      const tjArrays = content.match(/\[(.*?)\]\s*TJ/g) || [];
-      for (const arr of tjArrays) {
-        const items = arr.match(/\(([^)]*)\)/g) || [];
-        for (const item of items) {
-          const innerText = item.match(/\(([^)]*)\)/)?.[1] || '';
-          extractedText += innerText;
-        }
-        extractedText += ' ';
-      }
-    }
+    const text = textContent.items
+      .map((item: any) => item.str)
+      .join(' ');
     
-    // Also try to find text in BT...ET blocks
-    const btMatches = text.match(/BT[\s\S]*?ET/g) || [];
-    for (const block of btMatches) {
-      const textOps = block.match(/\(([^)]*)\)/g) || [];
-      for (const op of textOps) {
-        const innerText = op.match(/\(([^)]*)\)/)?.[1] || '';
-        extractedText += innerText + ' ';
-      }
-    }
-    
-    // Clean up extracted text
-    extractedText = extractedText
-      .replace(/\\n/g, ' ')
-      .replace(/\\r/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    
-    console.log(`Extracted ${extractedText.length} chars from PDF`);
-    return extractedText;
+    return text;
   } catch (err) {
     console.error('PDF extraction error:', err);
-    return '';
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    throw new Error(`Failed to extract PDF text: ${message}`);
   }
 }
 
@@ -243,18 +191,13 @@ serve(async (req) => {
     }
 
     // Create document lookup by normalized filename
-    // IMPORTANT: normalize BOTH file_name and any existing normalized_filename (older rows may contain punctuation).
     const documentsByNormalized: Record<string, typeof documents[0][]> = {};
     for (const doc of documents || []) {
-      const primaryKey = normalizeFilename(doc.normalized_filename ?? doc.file_name);
-      const fallbackKey = normalizeFilename(doc.file_name);
-
-      for (const key of new Set([primaryKey, fallbackKey])) {
-        if (!documentsByNormalized[key]) {
-          documentsByNormalized[key] = [];
-        }
-        documentsByNormalized[key].push(doc);
+      const key = doc.normalized_filename || normalizeFilename(doc.file_name);
+      if (!documentsByNormalized[key]) {
+        documentsByNormalized[key] = [];
       }
+      documentsByNormalized[key].push(doc);
     }
 
     const result: ProcessingResult = {
@@ -292,11 +235,11 @@ serve(async (req) => {
         continue;
       }
 
-      // Extract text from PDF and classify
+      // Extract text from page 2 and classify
       let classification: ClassificationResult;
       try {
         const pdfBuffer = await pdfData.arrayBuffer();
-        const text = extractTextFromPDF(pdfBuffer);
+        const text = await extractTextFromPage2(pdfBuffer);
         classification = classifyReport(text);
         console.log(`Classified ${report.fileName} as ${classification.reportType} with ${classification.percentage}%`);
       } catch (error) {
@@ -480,11 +423,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (err) {
-    console.error("Error processing bulk reports:", err);
-    const errorMessage = err instanceof Error ? err.message : "Internal server error";
+  } catch (error) {
+    console.error("Error processing bulk reports:", error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: error.message || "Internal server error" }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
