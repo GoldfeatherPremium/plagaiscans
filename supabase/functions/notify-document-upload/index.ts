@@ -1,6 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import webpush from "https://esm.sh/web-push@3.6.7";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,16 +14,6 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
-    const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
-
-    if (!vapidPublicKey || !vapidPrivateKey) {
-      console.error('VAPID keys not configured');
-      return new Response(
-        JSON.stringify({ error: 'VAPID keys not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -81,166 +70,43 @@ serve(async (req) => {
 
     console.log(`Processing ${notifications.length} notifications`);
 
-    // Get all staff and admin users
-    const { data: staffAdminRoles, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('user_id, role')
-      .in('role', ['admin', 'staff']);
-
-    if (rolesError) {
-      console.error('Error fetching roles:', rolesError);
-      throw rolesError;
-    }
-
-    const staffAdminUserIds = staffAdminRoles?.map(r => r.user_id) || [];
-    console.log(`Found ${staffAdminUserIds.length} staff/admin users`);
-
-    if (staffAdminUserIds.length === 0) {
-      // Mark as processed anyway
-      await supabase
-        .from('document_upload_notifications')
-        .update({ processed: true })
-        .in('id', notifications.map(n => n.id));
-
-      return new Response(
-        JSON.stringify({ message: 'No staff/admin users to notify' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Get notification preferences for staff/admin
-    const { data: preferences, error: prefError } = await supabase
-      .from('user_notification_preferences')
-      .select('user_id, document_upload_enabled')
-      .in('user_id', staffAdminUserIds);
-
-    if (prefError) {
-      console.error('Error fetching preferences:', prefError);
-    }
-
-    // Create a map of user preferences (default to true if no preference set)
-    const prefMap = new Map<string, boolean>();
-    for (const userId of staffAdminUserIds) {
-      prefMap.set(userId, true); // Default enabled
-    }
-    for (const pref of preferences || []) {
-      prefMap.set(pref.user_id, pref.document_upload_enabled);
-    }
-
-    // Filter to only users who have notifications enabled
-    const enabledUserIds = staffAdminUserIds.filter(id => prefMap.get(id) === true);
-    console.log(`${enabledUserIds.length} users have document upload notifications enabled`);
-
-    if (enabledUserIds.length === 0) {
-      // Mark as processed
-      await supabase
-        .from('document_upload_notifications')
-        .update({ processed: true })
-        .in('id', notifications.map(n => n.id));
-
-      return new Response(
-        JSON.stringify({ message: 'No users with notifications enabled' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Get push subscriptions for enabled users
-    const { data: subscriptions, error: subError } = await supabase
-      .from('push_subscriptions')
-      .select('*')
-      .in('user_id', enabledUserIds);
-
-    if (subError) {
-      console.error('Error fetching subscriptions:', subError);
-      throw subError;
-    }
-
-    if (!subscriptions || subscriptions.length === 0) {
-      console.log('No push subscriptions found');
-      // Mark as processed
-      await supabase
-        .from('document_upload_notifications')
-        .update({ processed: true })
-        .in('id', notifications.map(n => n.id));
-
-      return new Response(
-        JSON.stringify({ message: 'No push subscriptions found' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`Found ${subscriptions.length} push subscriptions`);
-
-    // Configure web-push
-    webpush.setVapidDetails(
-      'mailto:support@plagaiscans.com',
-      vapidPublicKey,
-      vapidPrivateKey
-    );
-
     let sentCount = 0;
     let failedCount = 0;
-    const invalidSubscriptions: string[] = [];
 
-    // Process each notification
+    // Process each notification by calling send-push-notification function
     for (const notification of notifications) {
-      // Create log entry for this notification
-      await supabase.from('push_notification_logs').insert({
-        event_type: 'document_upload',
-        title: 'New Document Uploaded',
-        body: `${notification.customer_name} uploaded "${notification.file_name}"`,
-        target_audience: 'staff',
-        recipient_count: subscriptions.length,
-        status: 'sending',
-      });
+      try {
+        console.log(`Sending notification for document: ${notification.file_name}`);
+        
+        const response = await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            title: '📄 New Document Uploaded',
+            body: `${notification.customer_name} uploaded "${notification.file_name}"`,
+            icon: '/pwa-icon-192.png',
+            badge: '/pwa-icon-192.png',
+            url: '/document-queue',
+            data: { documentId: notification.document_id },
+            targetAudience: 'staff',
+            eventType: 'document_upload',
+          }),
+        });
 
-      const payload = JSON.stringify({
-        title: '📄 New Document Uploaded',
-        body: `${notification.customer_name} uploaded "${notification.file_name}"`,
-        icon: '/pwa-icon-192.png',
-        badge: '/pwa-icon-192.png',
-        data: {
-          url: '/document-queue',
-          documentId: notification.document_id,
-        },
-      });
-
-      // Send to all subscriptions with retry
-      for (const sub of subscriptions) {
-        let retryCount = 0;
-        const maxRetries = 1;
-        let success = false;
-
-        while (retryCount <= maxRetries && !success) {
-          try {
-            const pushSubscription = {
-              endpoint: sub.endpoint,
-              keys: {
-                p256dh: sub.p256dh,
-                auth: sub.auth,
-              },
-            };
-
-            await webpush.sendNotification(pushSubscription, payload);
-            sentCount++;
-            success = true;
-            console.log(`Sent notification to user ${sub.user_id}`);
-          } catch (error: unknown) {
-            const err = error as { statusCode?: number; message?: string };
-            console.error(`Failed to send to ${sub.endpoint} (attempt ${retryCount + 1}):`, err.message);
-            
-            // Remove invalid subscriptions
-            if (err.statusCode === 410 || err.statusCode === 404) {
-              invalidSubscriptions.push(sub.id);
-              break;
-            }
-            
-            retryCount++;
-            if (retryCount > maxRetries) {
-              failedCount++;
-            }
-          }
+        const result = await response.json();
+        console.log(`Notification result for ${notification.id}:`, result);
+        
+        if (result.success || result.sent > 0) {
+          sentCount += result.sent || 1;
+        } else {
+          failedCount++;
         }
+      } catch (error) {
+        console.error(`Error sending notification for ${notification.id}:`, error);
+        failedCount++;
       }
 
       // Mark notification as processed
@@ -250,16 +116,6 @@ serve(async (req) => {
         .eq('id', notification.id);
     }
 
-    // Clean up invalid subscriptions
-    if (invalidSubscriptions.length > 0) {
-      console.log(`Removing ${invalidSubscriptions.length} invalid subscriptions`);
-      await supabase
-        .from('push_subscriptions')
-        .delete()
-        .in('id', invalidSubscriptions);
-    }
-
-    // Update log with final counts
     console.log(`Completed: ${sentCount} sent, ${failedCount} failed`);
 
     return new Response(
