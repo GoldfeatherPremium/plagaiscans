@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/accordion";
 import Footer from '@/components/Footer';
 import { SEO } from '@/components/SEO';
+import { Breadcrumb } from '@/components/Breadcrumb';
 
 const faqData = [
   {
@@ -109,6 +110,8 @@ export default function FAQ() {
       {/* Main Content */}
       <main className="container-width px-4 py-16">
         <div className="max-w-3xl mx-auto">
+          <Breadcrumb items={[{ label: 'FAQ' }]} />
+          
           {/* Header */}
           <div className="text-center mb-12">
             <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-6">
