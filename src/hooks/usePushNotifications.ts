@@ -114,7 +114,8 @@ export const usePushNotifications = () => {
     const registerServiceWorker = async () => {
       try {
         // Prefer an existing registration (VitePWA auto-registers). This avoids double-registering.
-        let reg = await navigator.serviceWorker.getRegistration('/');
+        // NOTE: getRegistration('/') can miss the active SW depending on scope, so we use getRegistration() first.
+        let reg = await navigator.serviceWorker.getRegistration();
 
         if (!reg) {
           reg = await navigator.serviceWorker.register('/sw.js', {
@@ -123,6 +124,10 @@ export const usePushNotifications = () => {
             updateViaCache: 'none',
           });
         }
+
+        // Wait for the active/ready registration (most reliable way to access PushManager)
+        const readyReg = await navigator.serviceWorker.ready;
+        reg = readyReg ?? reg;
 
         // Force an update check ASAP (replaces old buggy SW)
         try {
