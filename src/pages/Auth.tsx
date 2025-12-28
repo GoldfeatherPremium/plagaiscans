@@ -180,15 +180,19 @@ export default function Auth() {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     const { error } = await signInWithGoogle();
-    setGoogleLoading(false);
     
+    // If there's an error, reset loading state and show toast
+    // Otherwise, keep loading state true since we're redirecting
     if (error) {
+      setGoogleLoading(false);
       toast({
         title: 'Google Sign In Failed',
         description: error.message || 'Could not sign in with Google',
         variant: 'destructive',
       });
     }
+    // Note: If no error, we don't reset googleLoading because
+    // the browser will redirect to Google's OAuth page
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -410,6 +414,36 @@ export default function Auth() {
             </CardContent>
           </Card>
         </div>
+        </div>
+      </>
+    );
+  }
+
+  // Full-screen OAuth loading overlay
+  if (googleLoading) {
+    return (
+      <>
+        <SEO
+          title="Signing in..."
+          description="Redirecting to Google for authentication."
+          noIndex={true}
+        />
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+          <div className="text-center space-y-6 animate-fade-in">
+            <div className="inline-flex items-center gap-2 mb-4">
+              <div className="h-12 w-12 rounded-xl gradient-primary flex items-center justify-center shadow-lg shadow-primary/20">
+                <FileCheck className="h-7 w-7 text-primary-foreground" />
+              </div>
+              <span className="font-display font-bold text-2xl">PlagaiScans</span>
+            </div>
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold">Redirecting to Google...</h2>
+                <p className="text-muted-foreground text-sm">Please wait while we connect you securely.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </>
     );
