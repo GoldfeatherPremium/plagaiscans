@@ -50,33 +50,40 @@ serve(async (req) => {
       const userId = session.metadata?.user_id;
 
       if (credits > 0 && userId === user.id) {
-        // IDEMPOTENCY CHECK: Check if credits were already added for this session
-        const { data: existingTransaction } = await supabaseClient
-          .from("credit_transactions")
-          .select("id")
-          .eq("user_id", userId)
-          .ilike("description", `%${sessionId.slice(-8)}%`)
-          .limit(1);
+        // IDEMPOTENCY CHECK: ensure we only credit once per Stripe session
+        const idempotencyKey = `stripe_session:${sessionId}`;
+        const { error: idemInsertError } = await supabaseClient
+          .from("payment_idempotency_keys")
+          .insert({ key: idempotencyKey, provider: "stripe", user_id: userId });
 
-        if (existingTransaction && existingTransaction.length > 0) {
-          logStep("Credits already added for this session", { sessionId });
-          
-          // Get current balance to return
-          const { data: profile } = await supabaseClient
-            .from("profiles")
-            .select("credit_balance")
-            .eq("id", userId)
-            .single();
+        // Postgres unique violation means we've already processed this session
+        if (idemInsertError) {
+          const maybeCode = (idemInsertError as any)?.code;
+          if (maybeCode === "23505") {
+            logStep("Credits already added for this session", { sessionId });
 
-          return new Response(JSON.stringify({
-            success: true,
-            creditsAdded: credits,
-            newBalance: profile?.credit_balance || 0,
-            alreadyProcessed: true,
-          }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200,
-          });
+            const { data: profile } = await supabaseClient
+              .from("profiles")
+              .select("credit_balance")
+              .eq("id", userId)
+              .single();
+
+            return new Response(
+              JSON.stringify({
+                success: true,
+                creditsAdded: credits,
+                newBalance: profile?.credit_balance || 0,
+                alreadyProcessed: true,
+              }),
+              {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 200,
+              }
+            );
+          }
+
+          // Unexpected DB error
+          throw idemInsertError;
         }
 
         // Get current balance
