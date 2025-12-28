@@ -105,6 +105,33 @@ serve(async (req) => {
 
           if (updateError) throw updateError;
 
+          // Get receipt URL if available
+          let receiptUrl: string | null = null;
+          if (session.payment_intent) {
+            try {
+              const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent as string, {
+                expand: ['latest_charge'],
+              });
+              const charge = paymentIntent.latest_charge as Stripe.Charge;
+              receiptUrl = charge?.receipt_url || null;
+            } catch (e) {
+              logStep("Could not retrieve receipt URL", { error: e });
+            }
+          }
+
+          // Store in stripe_payments for customer receipts (upsert to handle webhook race)
+          await supabaseClient.from("stripe_payments").upsert({
+            user_id: userId,
+            session_id: sessionId,
+            payment_intent_id: session.payment_intent as string || null,
+            amount_usd: parseFloat(session.metadata?.amount_usd || String((session.amount_total || 0) / 100)),
+            credits: credits,
+            status: "completed",
+            customer_email: session.customer_email || user.email,
+            receipt_url: receiptUrl,
+            completed_at: new Date().toISOString(),
+          }, { onConflict: 'session_id' });
+
           // Log transaction
           await supabaseClient.from("credit_transactions").insert({
             user_id: userId,

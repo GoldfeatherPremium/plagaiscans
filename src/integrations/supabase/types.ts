@@ -1312,6 +1312,84 @@ export type Database = {
         }
         Relationships: []
       }
+      stripe_payments: {
+        Row: {
+          amount_usd: number
+          completed_at: string | null
+          created_at: string
+          credits: number
+          customer_email: string | null
+          id: string
+          invoice_url: string | null
+          payment_intent_id: string | null
+          receipt_url: string | null
+          session_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount_usd: number
+          completed_at?: string | null
+          created_at?: string
+          credits: number
+          customer_email?: string | null
+          id?: string
+          invoice_url?: string | null
+          payment_intent_id?: string | null
+          receipt_url?: string | null
+          session_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount_usd?: number
+          completed_at?: string | null
+          created_at?: string
+          credits?: number
+          customer_email?: string | null
+          id?: string
+          invoice_url?: string | null
+          payment_intent_id?: string | null
+          receipt_url?: string | null
+          session_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      stripe_webhook_logs: {
+        Row: {
+          error_message: string | null
+          event_id: string
+          event_type: string
+          id: string
+          payload: Json
+          processed: boolean
+          processed_at: string | null
+          received_at: string
+        }
+        Insert: {
+          error_message?: string | null
+          event_id: string
+          event_type: string
+          id?: string
+          payload: Json
+          processed?: boolean
+          processed_at?: string | null
+          received_at?: string
+        }
+        Update: {
+          error_message?: string | null
+          event_id?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed?: boolean
+          processed_at?: string | null
+          received_at?: string
+        }
+        Relationships: []
+      }
       support_tickets: {
         Row: {
           admin_response: string | null

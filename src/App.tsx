@@ -86,6 +86,8 @@ const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess"));
 const SubscriptionManagement = lazy(() => import("./pages/SubscriptionManagement"));
 const AdminStripePayments = lazy(() => import("./pages/AdminStripePayments"));
 const AdminReferrals = lazy(() => import("./pages/AdminReferrals"));
+const AdminWebhookLogs = lazy(() => import("./pages/AdminWebhookLogs"));
+const AdminUnifiedPayments = lazy(() => import("./pages/AdminUnifiedPayments"));
 const queryClient = new QueryClient();
 
 // Loading skeleton component for Suspense fallback
@@ -296,8 +298,10 @@ const AppRoutes = () => (
       <Route path="/dashboard/needs-review" element={<ProtectedRoute allowedRoles={['admin']}><AdminNeedsReview /></ProtectedRoute>} />
       <Route path="/dashboard/site-content" element={<ProtectedRoute allowedRoles={['admin']}><AdminSiteContent /></ProtectedRoute>} />
       <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['admin']}><AdminReferrals /></ProtectedRoute>} />
-      <Route path="/dashboard/refund-requests" element={<ProtectedRoute allowedRoles={['admin']}><AdminRefundRequests /></ProtectedRoute>} />
-      <Route path="/dashboard/stripe-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminStripePayments /></ProtectedRoute>} />
+        <Route path="/dashboard/refund-requests" element={<ProtectedRoute allowedRoles={['admin']}><AdminRefundRequests /></ProtectedRoute>} />
+        <Route path="/dashboard/stripe-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminStripePayments /></ProtectedRoute>} />
+        <Route path="/dashboard/webhook-logs" element={<ProtectedRoute allowedRoles={['admin']}><AdminWebhookLogs /></ProtectedRoute>} />
+        <Route path="/dashboard/all-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminUnifiedPayments /></ProtectedRoute>} />
       <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       
       <Route path="*" element={<NotFound />} />
