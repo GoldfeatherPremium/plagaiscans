@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, CreditCard, Loader2, Bitcoin, Copy, ExternalLink, 
   RefreshCw, Wallet, ShoppingCart, Plus, Minus, Trash2, Globe, 
-  CheckCircle, MessageCircle, AlertCircle
+  CheckCircle, MessageCircle, AlertCircle, Zap
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
@@ -29,6 +29,7 @@ interface PaymentDetails {
 
 export default function Checkout() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { profile, user } = useAuth();
   const { openWhatsAppCustom } = useWhatsApp();
   const { cart, updateCartQuantity, removeFromCart, clearCart, getCartTotal, getCartCredits } = useCart();
@@ -38,14 +39,16 @@ export default function Checkout() {
   const [usdtEnabled, setUsdtEnabled] = useState(true);
   const [binanceEnabled, setBinanceEnabled] = useState(false);
   const [vivaEnabled, setVivaEnabled] = useState(false);
+  const [stripeEnabled, setStripeEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
   
   // Payment fees
-  const [fees, setFees] = useState<{ whatsapp: number; usdt: number; binance: number; viva: number }>({
+  const [fees, setFees] = useState<{ whatsapp: number; usdt: number; binance: number; viva: number; stripe: number }>({
     whatsapp: 0,
     usdt: 0,
     binance: 0,
     viva: 0,
+    stripe: 0,
   });
   
   // Payment processing states
@@ -62,9 +65,12 @@ export default function Checkout() {
   
   // Viva payment state
   const [creatingVivaPayment, setCreatingVivaPayment] = useState(false);
+  
+  // Stripe payment state
+  const [creatingStripePayment, setCreatingStripePayment] = useState(false);
 
   // Calculate total with fee
-  const calculateTotalWithFee = (method: 'whatsapp' | 'usdt' | 'binance' | 'viva') => {
+  const calculateTotalWithFee = (method: 'whatsapp' | 'usdt' | 'binance' | 'viva' | 'stripe') => {
     const baseTotal = getCartTotal();
     const feePercent = fees[method] || 0;
     const feeAmount = baseTotal * (feePercent / 100);
@@ -77,9 +83,9 @@ export default function Checkout() {
         .from('settings')
         .select('key, value')
         .in('key', [
-          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 
+          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled',
           'binance_pay_id',
-          'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva'
+          'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe'
         ]);
 
       if (settings) {
@@ -87,6 +93,7 @@ export default function Checkout() {
         const usdt = settings.find(s => s.key === 'payment_usdt_enabled');
         const binance = settings.find(s => s.key === 'payment_binance_enabled');
         const viva = settings.find(s => s.key === 'payment_viva_enabled');
+        const stripe = settings.find(s => s.key === 'payment_stripe_enabled');
         const binanceId = settings.find(s => s.key === 'binance_pay_id');
         
         // Get fees
@@ -94,11 +101,13 @@ export default function Checkout() {
         const feeUsdt = settings.find(s => s.key === 'fee_usdt');
         const feeBinance = settings.find(s => s.key === 'fee_binance');
         const feeViva = settings.find(s => s.key === 'fee_viva');
+        const feeStripe = settings.find(s => s.key === 'fee_stripe');
         
         setWhatsappEnabled(whatsapp?.value !== 'false');
         setUsdtEnabled(usdt?.value !== 'false');
         setBinanceEnabled(binance?.value === 'true');
         setVivaEnabled(viva?.value === 'true');
+        setStripeEnabled(stripe?.value === 'true');
         if (binanceId) setBinancePayId(binanceId.value);
         
         setFees({
@@ -106,6 +115,7 @@ export default function Checkout() {
           usdt: parseFloat(feeUsdt?.value || '0') || 0,
           binance: parseFloat(feeBinance?.value || '0') || 0,
           viva: parseFloat(feeViva?.value || '0') || 0,
+          stripe: parseFloat(feeStripe?.value || '0') || 0,
         });
       }
       setLoading(false);
@@ -327,6 +337,50 @@ export default function Checkout() {
     openWhatsAppCustom(message);
   };
 
+  const createStripePayment = async () => {
+    if (!user || cart.length === 0) {
+      toast.error('Please login and add items to cart');
+      return;
+    }
+
+    setCreatingStripePayment(true);
+    try {
+      const totalCredits = getCartCredits();
+      const totalAmount = Math.round(calculateTotalWithFee('stripe') * 100); // Convert to cents
+      
+      // Get the session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const response = await supabase.functions.invoke('create-stripe-checkout', {
+        body: {
+          priceId: null, // We'll use dynamic pricing
+          credits: totalCredits,
+          amount: totalAmount,
+          mode: 'payment',
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const data = response.data;
+      if (!data.url) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+
+      toast.success('Redirecting to Stripe checkout...');
+      clearCart();
+      window.open(data.url, '_blank');
+    } catch (error: any) {
+      console.error('Stripe payment error:', error);
+      toast.error(error.message || 'Failed to create Stripe payment');
+    } finally {
+      setCreatingStripePayment(false);
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -433,6 +487,46 @@ export default function Checkout() {
                 <CardDescription>Choose how you want to pay for your credits</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Stripe Card Payment */}
+                {stripeEnabled && (
+                  <div className="border rounded-lg p-4 hover:border-primary transition-colors border-primary/50 bg-primary/5">
+                    <div className="flex items-start gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-[#635BFF]/10 flex items-center justify-center flex-shrink-0">
+                        <Zap className="h-6 w-6 text-[#635BFF]" />
+                      </div>
+                      <div className="flex-1 space-y-3">
+                        <div>
+                          <h3 className="font-semibold flex items-center gap-2">
+                            Card Payment (Stripe)
+                            <Badge className="text-xs bg-[#635BFF]">Recommended</Badge>
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Pay securely with Visa, Mastercard, Apple Pay, Google Pay
+                            {fees.stripe > 0 && <span className="text-amber-600"> (+{fees.stripe}% fee)</span>}
+                          </p>
+                        </div>
+                        <Button 
+                          className="w-full bg-[#635BFF] hover:bg-[#635BFF]/90"
+                          onClick={createStripePayment}
+                          disabled={creatingStripePayment}
+                        >
+                          {creatingStripePayment ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="h-4 w-4 mr-2" />
+                              Pay ${calculateTotalWithFee('stripe')} with Card
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Viva.com Card Payment */}
                 {vivaEnabled && (
                   <div className="border rounded-lg p-4 hover:border-primary transition-colors">
@@ -561,7 +655,7 @@ export default function Checkout() {
                   </div>
                 )}
 
-                {!vivaEnabled && !binanceEnabled && !usdtEnabled && !whatsappEnabled && (
+                {!stripeEnabled && !vivaEnabled && !binanceEnabled && !usdtEnabled && !whatsappEnabled && (
                   <div className="text-center py-8">
                     <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">No payment methods are currently available. Please contact support.</p>
