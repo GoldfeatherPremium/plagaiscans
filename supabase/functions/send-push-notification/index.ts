@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildPushHTTPRequest } from "https://esm.sh/@pushforge/builder?target=deno";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,7 +16,7 @@ interface PushPayload {
   data?: Record<string, unknown>;
   userId?: string;
   userIds?: string[];
-  targetAudience?: 'all' | 'customers' | 'staff' | 'admins' | 'staff_and_admins';
+  targetAudience?: "all" | "customers" | "staff" | "admins" | "staff_and_admins";
   sendToAll?: boolean;
   eventType?: string;
   sentBy?: string;
@@ -24,14 +25,14 @@ interface PushPayload {
 // Base64 URL encode helper
 function base64UrlEncode(data: Uint8Array): string {
   const base64 = btoa(String.fromCharCode(...data));
-  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 // Base64 URL decode helper
 function base64UrlDecode(input: string): Uint8Array {
-  let base64 = input.replace(/-/g, '+').replace(/_/g, '/');
+  let base64 = input.replace(/-/g, "+").replace(/_/g, "/");
   while (base64.length % 4) {
-    base64 += '=';
+    base64 += "=";
   }
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -41,92 +42,29 @@ function base64UrlDecode(input: string): Uint8Array {
   return bytes;
 }
 
-// Helper function to create VAPID JWT
-async function createVapidJwt(
-  audience: string,
-  subject: string,
-  publicKey: string,
-  privateKey: string,
-  expiration: number
-): Promise<string> {
-  const header = { typ: "JWT", alg: "ES256" };
-  const payload = {
-    aud: audience,
-    exp: expiration,
-    sub: subject,
-  };
+function getVapidPrivateJwk(vapidPublicKey: string, vapidPrivateKey: string) {
+  const pub = base64UrlDecode(vapidPublicKey);
+  const priv = base64UrlDecode(vapidPrivateKey);
 
-  const headerB64 = base64UrlEncode(new TextEncoder().encode(JSON.stringify(header)));
-  const payloadB64 = base64UrlEncode(new TextEncoder().encode(JSON.stringify(payload)));
-  const unsignedToken = `${headerB64}.${payloadB64}`;
-
-  // Import the private key
-  const privateKeyData = base64UrlDecode(privateKey);
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    privateKeyData.buffer as ArrayBuffer,
-    { name: "ECDSA", namedCurve: "P-256" },
-    false,
-    ["sign"]
-  );
-
-  // Sign the token
-  const signature = await crypto.subtle.sign(
-    { name: "ECDSA", hash: "SHA-256" },
-    cryptoKey,
-    new TextEncoder().encode(unsignedToken)
-  );
-
-  const signatureB64 = base64UrlEncode(new Uint8Array(signature));
-
-  return `${unsignedToken}.${signatureB64}`;
-}
-
-// Send push notification using fetch
-async function sendPushNotification(
-  subscription: { endpoint: string; p256dh: string; auth: string },
-  payload: string,
-  vapidPublicKey: string,
-  vapidPrivateKey: string,
-  vapidSubject: string
-): Promise<{ success: boolean; statusCode?: number; error?: string }> {
-  try {
-    const url = new URL(subscription.endpoint);
-    const audience = `${url.protocol}//${url.host}`;
-    const expiration = Math.floor(Date.now() / 1000) + 12 * 60 * 60; // 12 hours
-
-    // Create VAPID authorization
-    const jwt = await createVapidJwt(audience, vapidSubject, vapidPublicKey, vapidPrivateKey, expiration);
-    const vapidAuth = `vapid t=${jwt}, k=${vapidPublicKey}`;
-
-    // For now, send without encryption (some push services accept this)
-    // Full encryption would require ECDH key exchange with user's p256dh key
-    const response = await fetch(subscription.endpoint, {
-      method: "POST",
-      headers: {
-        "Authorization": vapidAuth,
-        "Content-Type": "application/json",
-        "TTL": "86400",
-        "Urgency": "high",
-      },
-      body: payload,
-    });
-
-    if (response.ok || response.status === 201) {
-      return { success: true, statusCode: response.status };
-    }
-
-    return { 
-      success: false, 
-      statusCode: response.status, 
-      error: await response.text() 
-    };
-  } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Unknown error" 
-    };
+  // VAPID public key is usually uncompressed P-256: 65 bytes (0x04 + 32-byte X + 32-byte Y)
+  if (pub.length !== 65 || pub[0] !== 0x04) {
+    throw new Error(`Invalid VAPID public key format (expected 65-byte uncompressed EC point). Got length=${pub.length}`);
   }
+  if (priv.length !== 32) {
+    throw new Error(`Invalid VAPID private key format (expected 32 bytes). Got length=${priv.length}`);
+  }
+
+  const x = pub.slice(1, 33);
+  const y = pub.slice(33, 65);
+
+  return {
+    kty: "EC",
+    crv: "P-256",
+    x: base64UrlEncode(x),
+    y: base64UrlEncode(y),
+    d: base64UrlEncode(priv),
+    ext: true,
+  };
 }
 
 serve(async (req) => {
@@ -137,23 +75,23 @@ serve(async (req) => {
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
     const payload: PushPayload = await req.json();
-    const { 
-      title, 
-      body, 
-      icon, 
-      badge, 
+    const {
+      title,
+      body,
+      icon,
+      badge,
       url,
-      data, 
-      userId, 
-      userIds, 
+      data,
+      userId,
+      userIds,
       targetAudience,
       sendToAll,
-      eventType = 'manual',
-      sentBy
+      eventType = "manual",
+      sentBy,
     } = payload;
 
     console.log("Sending push notification:", { title, body, userId, userIds, targetAudience, sendToAll, eventType });
@@ -164,50 +102,50 @@ serve(async (req) => {
 
     // Check global push notifications toggle
     const { data: globalSetting } = await supabase
-      .from('settings')
-      .select('value')
-      .eq('key', 'push_notifications_enabled')
+      .from("settings")
+      .select("value")
+      .eq("key", "push_notifications_enabled")
       .maybeSingle();
 
-    if (globalSetting?.value === 'false') {
-      console.log('Push notifications are globally disabled');
+    if (globalSetting?.value === "false") {
+      console.log("Push notifications are globally disabled");
       return new Response(
         JSON.stringify({ success: false, message: "Push notifications are globally disabled" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     // Check role-specific toggles based on target audience
     if (targetAudience) {
-      const toggleKey = `push_${targetAudience === 'all' ? 'notifications' : targetAudience}_notifications_enabled`;
+      const toggleKey = `push_${targetAudience === "all" ? "notifications" : targetAudience}_notifications_enabled`;
       const { data: audienceSetting } = await supabase
-        .from('settings')
-        .select('value')
-        .eq('key', toggleKey)
+        .from("settings")
+        .select("value")
+        .eq("key", toggleKey)
         .maybeSingle();
 
-      if (audienceSetting?.value === 'false') {
+      if (audienceSetting?.value === "false") {
         console.log(`Push notifications for ${targetAudience} are disabled`);
         return new Response(
           JSON.stringify({ success: false, message: `Push notifications for ${targetAudience} are disabled` }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
     }
 
     // Create log entry
     const { data: logEntry, error: logError } = await supabase
-      .from('push_notification_logs')
+      .from("push_notification_logs")
       .insert({
         event_type: eventType,
         title,
         body,
-        target_audience: targetAudience || (sendToAll ? 'all' : (userId ? 'specific' : 'multiple')),
+        target_audience: targetAudience || (sendToAll ? "all" : (userId ? "specific" : "multiple")),
         target_user_id: userId || null,
         sent_by: sentBy || null,
-        status: 'sending',
+        status: "sending",
       })
-      .select('id')
+      .select("id")
       .single();
 
     if (logError) {
@@ -221,42 +159,32 @@ serve(async (req) => {
 
     if (sendToAll) {
       console.log("Sending to all subscriptions");
-      // Get all user IDs with subscriptions
-      const { data: allSubs } = await supabase
-        .from('push_subscriptions')
-        .select('user_id');
-      targetUserIds = [...new Set(allSubs?.map(s => s.user_id) || [])];
-    } else if (targetAudience && targetAudience !== 'all') {
-      // Get users by role
-      if (targetAudience === 'staff_and_admins') {
-        // Get both staff and admin users
+      const { data: allSubs } = await supabase.from("push_subscriptions").select("user_id");
+      targetUserIds = [...new Set(allSubs?.map((s) => s.user_id) || [])];
+    } else if (targetAudience && targetAudience !== "all") {
+      if (targetAudience === "staff_and_admins") {
         const { data: roleUsers } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .in('role', ['staff', 'admin']);
-        targetUserIds = roleUsers?.map(r => r.user_id) || [];
+          .from("user_roles")
+          .select("user_id")
+          .in("role", ["staff", "admin"]);
+        targetUserIds = roleUsers?.map((r) => r.user_id) || [];
         console.log(`Found ${targetUserIds.length} staff/admin users`);
       } else {
         const roleMap: Record<string, string> = {
-          'customers': 'customer',
-          'staff': 'staff',
-          'admins': 'admin'
+          customers: "customer",
+          staff: "staff",
+          admins: "admin",
         };
         const role = roleMap[targetAudience];
-        
+
         if (role) {
-          const { data: roleUsers } = await supabase
-            .from('user_roles')
-            .select('user_id')
-            .eq('role', role);
-          targetUserIds = roleUsers?.map(r => r.user_id) || [];
+          const { data: roleUsers } = await supabase.from("user_roles").select("user_id").eq("role", role);
+          targetUserIds = roleUsers?.map((r) => r.user_id) || [];
         }
       }
-    } else if (targetAudience === 'all') {
-      const { data: allSubs } = await supabase
-        .from('push_subscriptions')
-        .select('user_id');
-      targetUserIds = [...new Set(allSubs?.map(s => s.user_id) || [])];
+    } else if (targetAudience === "all") {
+      const { data: allSubs } = await supabase.from("push_subscriptions").select("user_id");
+      targetUserIds = [...new Set(allSubs?.map((s) => s.user_id) || [])];
     } else if (userIds && userIds.length > 0) {
       targetUserIds = userIds;
     } else if (userId) {
@@ -268,47 +196,40 @@ serve(async (req) => {
     if (targetUserIds.length === 0) {
       console.log("No target users found");
       if (logId) {
-        await supabase.from('push_notification_logs').update({ 
-          status: 'completed', 
-          completed_at: new Date().toISOString() 
-        }).eq('id', logId);
+        await supabase
+          .from("push_notification_logs")
+          .update({ status: "completed", completed_at: new Date().toISOString() })
+          .eq("id", logId);
       }
       return new Response(
         JSON.stringify({ success: true, sent: 0, message: "No target users found" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    // Get user notification preferences - respect individual opt-out
+    // Get user notification preferences
     const { data: userPrefs } = await supabase
-      .from('user_notification_preferences')
-      .select('user_id, system_enabled, promotional_enabled, updates_enabled')
-      .in('user_id', targetUserIds);
+      .from("user_notification_preferences")
+      .select("user_id, system_enabled, promotional_enabled, updates_enabled")
+      .in("user_id", targetUserIds);
 
-    // Filter users based on their preferences (system notifications always go through)
     const prefMap = new Map<string, boolean>();
-    targetUserIds.forEach(id => prefMap.set(id, true)); // Default enabled
-    
-    // For non-system notifications, check user preferences
-    if (eventType !== 'system' && eventType !== 'document_upload') {
-      userPrefs?.forEach(pref => {
-        if (eventType === 'promotional' && !pref.promotional_enabled) {
-          prefMap.set(pref.user_id, false);
-        }
-        if (eventType === 'updates' && !pref.updates_enabled) {
-          prefMap.set(pref.user_id, false);
-        }
+    targetUserIds.forEach((id) => prefMap.set(id, true));
+
+    if (eventType !== "system" && eventType !== "document_upload") {
+      userPrefs?.forEach((pref) => {
+        if (eventType === "promotional" && !pref.promotional_enabled) prefMap.set(pref.user_id, false);
+        if (eventType === "updates" && !pref.updates_enabled) prefMap.set(pref.user_id, false);
       });
     }
 
-    const enabledUserIds = targetUserIds.filter(id => prefMap.get(id) === true);
+    const enabledUserIds = targetUserIds.filter((id) => prefMap.get(id) === true);
     console.log(`${enabledUserIds.length} users have notifications enabled for this type`);
 
-    // Get subscriptions for enabled users
     const { data: subscriptions, error: fetchError } = await supabase
-      .from('push_subscriptions')
-      .select('*')
-      .in('user_id', enabledUserIds);
+      .from("push_subscriptions")
+      .select("*")
+      .in("user_id", enabledUserIds);
 
     if (fetchError) {
       console.error("Error fetching subscriptions:", fetchError);
@@ -319,15 +240,14 @@ serve(async (req) => {
 
     if (!subscriptions || subscriptions.length === 0) {
       if (logId) {
-        await supabase.from('push_notification_logs').update({ 
-          status: 'completed',
-          recipient_count: 0,
-          completed_at: new Date().toISOString()
-        }).eq('id', logId);
+        await supabase
+          .from("push_notification_logs")
+          .update({ status: "completed", recipient_count: 0, completed_at: new Date().toISOString() })
+          .eq("id", logId);
       }
       return new Response(
         JSON.stringify({ success: true, sent: 0, message: "No subscriptions found" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -338,51 +258,65 @@ serve(async (req) => {
       throw new Error("VAPID keys not configured");
     }
 
-    const notificationPayload = JSON.stringify({
+    const privateJWK = getVapidPrivateJwk(vapidPublicKey, vapidPrivateKey);
+
+    const pushPayload = {
       title,
       body,
       icon: icon || "/pwa-icon-192.png",
       badge: badge || "/pwa-icon-192.png",
       data: {
-        url: url || '/dashboard',
+        url: url || "/dashboard",
         ...data,
       },
-    });
+    };
 
     let successCount = 0;
     let failureCount = 0;
-    const failedSubscriptions: string[] = [];
+    const removedSubscriptions: string[] = [];
 
-    // Send to each subscription
     for (const subscription of subscriptions) {
       try {
-        const result = await sendPushNotification(
-          {
+        const { endpoint, headers, body: requestBody } = await buildPushHTTPRequest({
+          privateJWK,
+          subscription: {
             endpoint: subscription.endpoint,
-            p256dh: subscription.p256dh,
-            auth: subscription.auth,
+            keys: {
+              p256dh: subscription.p256dh,
+              auth: subscription.auth,
+            },
           },
-          notificationPayload,
-          vapidPublicKey,
-          vapidPrivateKey,
-          "mailto:support@plagaiscans.com"
-        );
+          message: {
+            adminContact: "mailto:support@plagaiscans.com",
+            payload: pushPayload,
+            options: {
+              ttl: 86400,
+              urgency: "high",
+            },
+          },
+        });
 
-        if (result.success) {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers,
+          body: requestBody,
+        });
+
+        if (res.ok || res.status === 201) {
           successCount++;
-          console.log(`Push sent successfully to subscription ${subscription.id}`);
-        } else {
-          console.error(`Failed to send push to subscription ${subscription.id}:`, result.error, result.statusCode);
-          
-          // Check if subscription is no longer valid
-          if (result.statusCode === 410 || result.statusCode === 404) {
-            console.log(`Removing invalid subscription ${subscription.id}`);
-            await supabase.from("push_subscriptions").delete().eq("id", subscription.id);
-            failedSubscriptions.push(subscription.id);
-          }
-          
-          failureCount++;
+          continue;
         }
+
+        // If expired / gone, remove subscription
+        if (res.status === 410 || res.status === 404) {
+          console.log(`Removing invalid subscription ${subscription.id} (status ${res.status})`);
+          await supabase.from("push_subscriptions").delete().eq("id", subscription.id);
+          removedSubscriptions.push(subscription.id);
+        }
+
+        const errText = await res.text().catch(() => "");
+        console.error(`Failed to send push to subscription ${subscription.id}: status=${res.status} body=${errText}`);
+        failureCount++;
       } catch (err) {
         console.error(`Error sending push to subscription ${subscription.id}:`, err);
         failureCount++;
@@ -391,15 +325,17 @@ serve(async (req) => {
 
     console.log(`Push notification results: ${successCount} sent, ${failureCount} failed`);
 
-    // Update log entry
     if (logId) {
-      await supabase.from('push_notification_logs').update({
-        status: 'completed',
-        recipient_count: subscriptions.length,
-        success_count: successCount,
-        failed_count: failureCount,
-        completed_at: new Date().toISOString(),
-      }).eq('id', logId);
+      await supabase
+        .from("push_notification_logs")
+        .update({
+          status: "completed",
+          recipient_count: subscriptions.length,
+          success_count: successCount,
+          failed_count: failureCount,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", logId);
     }
 
     return new Response(
@@ -407,16 +343,16 @@ serve(async (req) => {
         success: true,
         sent: successCount,
         failed: failureCount,
-        removedSubscriptions: failedSubscriptions,
+        removedSubscriptions,
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error in send-push-notification:", err);
     return new Response(
       JSON.stringify({ error: err.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });
