@@ -343,19 +343,6 @@ const handler = async (req: Request): Promise<Response> => {
                       <p style="margin: 0; color: #18181b; font-weight: 600;">${fileName}</p>
                     </div>
                     
-                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;">
-                      <tr>
-                        <td style="width: 48%; background-color: #fef3c7; border-radius: 8px; padding: 20px; text-align: center;">
-                          <p style="margin: 0 0 5px 0; color: #92400e; font-size: 14px;">Similarity</p>
-                          <p style="margin: 0; color: #92400e; font-size: 28px; font-weight: bold;">${similarityPercentage}%</p>
-                        </td>
-                        <td style="width: 4%;"></td>
-                        <td style="width: 48%; background-color: #dbeafe; border-radius: 8px; padding: 20px; text-align: center;">
-                          <p style="margin: 0 0 5px 0; color: #1e40af; font-size: 14px;">AI Detection</p>
-                          <p style="margin: 0; color: #1e40af; font-size: 28px; font-weight: bold;">${aiPercentage}%</p>
-                        </td>
-                      </tr>
-                    </table>
                     
                     <div style="text-align: center;">
                       <a href="${EMAIL_CONFIG.SITE_URL}/dashboard/documents" 
