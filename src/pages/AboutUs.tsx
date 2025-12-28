@@ -103,9 +103,6 @@ export default function AboutUs() {
               <p className="text-muted-foreground mb-4">
                 Plagaiscans is an academic integrity platform designed to support plagiarism detection and similarity analysis for educational and research use. Our system helps users understand content originality by highlighting overlapping text, source references, and similarity percentages in a clear and structured format.
               </p>
-              <p className="text-muted-foreground mb-4">
-                We also provide optional AI-content indicators to help users assess whether parts of a document may include AI-generated text. These indicators are designed to support academic review, not replace human judgment.
-              </p>
               <p className="text-muted-foreground">
                 Plagaiscans prioritizes privacy, transparency, and usability—ensuring users can verify originality with confidence.
               </p>

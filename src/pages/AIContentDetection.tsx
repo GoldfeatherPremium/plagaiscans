@@ -84,24 +84,6 @@ export default function AIContentDetection() {
               </p>
             </div>
 
-            {/* Important Disclaimer */}
-            <Card className="mb-12 border-amber-500/30 bg-amber-500/5">
-              <CardContent className="p-8">
-                <div className="flex items-start gap-4">
-                  <AlertTriangle className="h-8 w-8 text-amber-500 shrink-0" />
-                  <div>
-                    <h2 className="text-xl font-bold mb-2">Important: Understanding AI Detection Limitations</h2>
-                    <p className="text-muted-foreground">
-                      AI-content indicators are designed to support academic review and should not be interpreted as 
-                      definitive judgments. These are probability-based assessments that may indicate patterns 
-                      consistent with AI-generated text, but they are advisory in nature. Human judgment should 
-                      always be applied when reviewing results, as no automated system can determine with certainty 
-                      whether content was AI-generated.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* How It Works */}
             <Card className="mb-12">
