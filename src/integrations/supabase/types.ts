@@ -902,6 +902,27 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_idempotency_keys: {
+        Row: {
+          created_at: string
+          key: string
+          provider: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          key: string
+          provider?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          key?: string
+          provider?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       pricing_packages: {
         Row: {
           billing_interval: string | null
