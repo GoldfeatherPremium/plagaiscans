@@ -306,25 +306,44 @@ export const usePushNotifications = () => {
   }, [subscription, user]);
 
   // Send a local notification (for testing or when app is open)
-  const sendLocalNotification = useCallback((title: string, options?: NotificationOptions) => {
+  // Chrome Android requires ServiceWorker.showNotification; new Notification() is blocked.
+  const sendLocalNotification = useCallback(async (title: string, options?: NotificationOptions) => {
     if (!isSupported || Notification.permission !== 'granted') {
-      console.log('Cannot send local notification');
+      console.log('Cannot send local notification: not supported or permission not granted');
       return;
     }
 
-    const notification = new Notification(title, {
-      icon: '/pwa-icon-192.png',
-      badge: '/pwa-icon-192.png',
-      requireInteraction: false,
-      ...options,
-    });
+    try {
+      // Try ServiceWorker first (required for Chrome Android)
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification(title, {
+        icon: '/pwa-icon-192.png',
+        badge: '/pwa-icon-192.png',
+        requireInteraction: false,
+        ...options,
+      } as NotificationOptions);
+      console.log('Local notification sent via ServiceWorker');
+    } catch (swError) {
+      console.log('ServiceWorker notification failed, falling back to Notification API:', swError);
+      // Fallback to Notification API (works on desktop)
+      try {
+        const notification = new Notification(title, {
+          icon: '/pwa-icon-192.png',
+          badge: '/pwa-icon-192.png',
+          requireInteraction: false,
+          ...options,
+        });
 
-    notification.onclick = () => {
-      window.focus();
-      notification.close();
-    };
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
 
-    setTimeout(() => notification.close(), 5000);
+        setTimeout(() => notification.close(), 5000);
+      } catch (notifError) {
+        console.error('Both notification methods failed:', notifError);
+      }
+    }
   }, [isSupported]);
 
   return {
