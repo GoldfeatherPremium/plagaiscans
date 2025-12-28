@@ -38,6 +38,7 @@ const AdminSystemHealth = lazy(() => import("./pages/AdminSystemHealth"));
 const AdminRevenue = lazy(() => import("./pages/AdminRevenue"));
 const AdminReports = lazy(() => import("./pages/AdminReports"));
 const AdminPromoCodes = lazy(() => import("./pages/AdminPromoCodes"));
+const AdminPromoAnalytics = lazy(() => import("./pages/AdminPromoAnalytics"));
 const AdminAnnouncements = lazy(() => import("./pages/AdminAnnouncements"));
 const AdminNotifications = lazy(() => import("./pages/AdminNotifications"));
 const AdminSupportTickets = lazy(() => import("./pages/AdminSupportTickets"));
@@ -274,6 +275,7 @@ const AppRoutes = () => (
       <Route path="/dashboard/revenue" element={<ProtectedRoute allowedRoles={['admin']}><AdminRevenue /></ProtectedRoute>} />
       <Route path="/dashboard/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminReports /></ProtectedRoute>} />
       <Route path="/dashboard/promo-codes" element={<ProtectedRoute allowedRoles={['admin']}><AdminPromoCodes /></ProtectedRoute>} />
+      <Route path="/dashboard/promo-analytics" element={<ProtectedRoute allowedRoles={['admin']}><AdminPromoAnalytics /></ProtectedRoute>} />
       <Route path="/dashboard/announcements" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnnouncements /></ProtectedRoute>} />
       <Route path="/dashboard/notifications" element={<ProtectedRoute allowedRoles={['admin']}><AdminNotifications /></ProtectedRoute>} />
       <Route path="/dashboard/support-tickets" element={<ProtectedRoute allowedRoles={['admin']}><AdminSupportTickets /></ProtectedRoute>} />
