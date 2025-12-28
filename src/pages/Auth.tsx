@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { FileCheck, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { FileCheck, Loader2, ArrowLeft, Eye, EyeOff, Home } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 import { WhatsAppSupportButton } from '@/components/WhatsAppSupportButton';
@@ -403,13 +404,19 @@ export default function Auth() {
       
       <div className="w-full max-w-md page-enter">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-4 group">
+          <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
             <div className="h-11 w-11 rounded-xl gradient-primary flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-lg shadow-primary/20">
               <FileCheck className="h-6 w-6 text-primary-foreground" />
             </div>
             <span className="font-display font-bold text-2xl">PlagaiScans</span>
-          </div>
+          </Link>
           <p className="text-muted-foreground">Document Plagiarism & AI Detection Platform</p>
+          <Button variant="ghost" size="sm" className="mt-3" asChild>
+            <Link to="/">
+              <Home className="h-4 w-4 mr-2" />
+              Go to Homepage
+            </Link>
+          </Button>
         </div>
 
         <Card className="shadow-xl border-border/50">
