@@ -44,3 +44,9 @@ verify_jwt = false
 
 [functions.notify-pending-documents]
 verify_jwt = false
+
+[functions.expire-crypto-payments]
+verify_jwt = false
+
+[functions.get-vapid-public-key]
+verify_jwt = false
