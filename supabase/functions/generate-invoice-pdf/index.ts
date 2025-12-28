@@ -15,7 +15,7 @@ const logStep = (step: string, details?: any) => {
 const COMPANY = {
   legalName: "Goldfeather Prem Ltd",
   tradingName: "Plagaiscans",
-  companyNumber: "XXXXXXX", // Replace with actual company number
+  companyNumber: "16113228",
   country: "United Kingdom",
   email: "support@plagaiscans.com",
   website: "https://plagaiscans.com",
