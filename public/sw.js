@@ -123,6 +123,7 @@ self.addEventListener('push', (event) => {
     body: 'You have a new notification',
     icon: '/pwa-icon-192.png',
     badge: '/pwa-icon-192.png',
+    tag: null,
     data: {},
   };
 
@@ -133,6 +134,11 @@ self.addEventListener('push', (event) => {
       data.body = event.data.text();
     }
   }
+
+  // Use unique tag from payload, or generate one to prevent notifications replacing each other
+  const notificationTag = data.tag || `notif-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+  
+  console.log(`[SW ${SW_VERSION}] Showing notification with tag: ${notificationTag}`);
 
   event.waitUntil(
     self.registration.showNotification(data.title, {
@@ -145,8 +151,8 @@ self.addEventListener('push', (event) => {
         { action: 'open', title: 'Open App' },
         { action: 'close', title: 'Dismiss' },
       ],
-      requireInteraction: true,
-      tag: data.tag || 'default',
+      requireInteraction: false,
+      tag: notificationTag,
       renotify: true,
     })
   );
