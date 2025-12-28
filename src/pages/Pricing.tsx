@@ -267,7 +267,7 @@ export default function Pricing() {
                 <Zap className="h-10 w-10 text-primary mx-auto mb-4" />
                 <h3 className="font-bold mb-2">Fast Processing</h3>
                 <p className="text-sm text-muted-foreground">
-                  Most documents processed within 24 hours
+                  Most documents processed within minutes
                 </p>
               </Card>
               <Card className="text-center p-6">
@@ -317,7 +317,7 @@ export default function Pricing() {
               <Card className="p-6">
                 <h3 className="font-bold mb-2">How long does processing take?</h3>
                 <p className="text-sm text-muted-foreground">
-                  Most documents are processed within 24 hours. Priority processing is available 
+                  Most documents are processed within minutes. Priority processing is available 
                   with bulk credit packages.
                 </p>
               </Card>
