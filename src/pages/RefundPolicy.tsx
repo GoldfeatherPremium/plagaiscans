@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { FileCheck, ArrowLeft, Mail, Shield, Loader2, AlertTriangle, Clock } from 'lucide-react';
+import { FileCheck, ArrowLeft, Mail, Shield, Loader2, Clock, Calendar, CheckCircle2 } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -100,18 +100,59 @@ export default function RefundPolicy() {
             <p className="text-muted-foreground mb-8">Last updated: December 2024</p>
 
 
+            {/* 14-Day Refund Window Notice */}
+            <Card className="mb-8 border-green-500/30 bg-green-500/5">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <Calendar className="h-8 w-8 text-green-600 dark:text-green-400 flex-shrink-0 mt-1" />
+                  <div>
+                    <h2 className="text-xl font-bold mb-2">14-Day Refund Window</h2>
+                    <p className="text-muted-foreground mb-3">
+                      We offer a <strong>14-day refund window</strong> from the date of purchase. If you haven't used any of your purchased credits within this period, you're eligible to request a full refund.
+                    </p>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        Request must be made within 14 days of purchase
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        Credits must be unused (0 credits consumed)
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        Full refund to your original payment method
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Admin-Managed Refunds Notice */}
             <Card className="mb-8 border-primary/30 bg-primary/5">
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
                   <Shield className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
                   <div>
-                    <h2 className="text-xl font-bold mb-2">Admin-Managed Refund Process</h2>
-                    <p className="text-muted-foreground">
-                      All refund requests are manually reviewed by our admin team on a case-by-case basis. 
-                      This ensures fair handling and prevents abuse. Submit your request, and we'll respond 
-                      within 24-48 business hours.
+                    <h2 className="text-xl font-bold mb-2">Admin Review Process</h2>
+                    <p className="text-muted-foreground mb-3">
+                      All refund requests are personally reviewed by our admin team to ensure fair and consistent handling. Here's what to expect:
                     </p>
+                    <div className="grid sm:grid-cols-3 gap-4 mt-4">
+                      <div className="text-center p-3 bg-background/50 rounded-lg">
+                        <div className="text-2xl font-bold text-primary">1</div>
+                        <div className="text-sm text-muted-foreground">Submit your request</div>
+                      </div>
+                      <div className="text-center p-3 bg-background/50 rounded-lg">
+                        <div className="text-2xl font-bold text-primary">2</div>
+                        <div className="text-sm text-muted-foreground">Admin reviews within 24-48hrs</div>
+                      </div>
+                      <div className="text-center p-3 bg-background/50 rounded-lg">
+                        <div className="text-2xl font-bold text-primary">3</div>
+                        <div className="text-sm text-muted-foreground">Decision sent via email</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -132,19 +173,28 @@ export default function RefundPolicy() {
                 </section>
 
                 <section className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">2. Limited Refund Eligibility</h2>
+                  <h2 className="text-2xl font-bold mb-4">2. Refund Eligibility</h2>
                   <p className="text-muted-foreground mb-4">
-                    Refunds may be considered in the following exceptional circumstances:
+                    You are eligible for a refund in the following situations:
                   </p>
-                  <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                    <li>Technical errors that prevented service delivery</li>
-                    <li>Duplicate charges due to payment processing errors</li>
-                    <li>Request made within 14 days of purchase AND credits have not been used</li>
-                    <li>Service unavailability for extended periods</li>
-                  </ul>
-                  <p className="text-muted-foreground mt-4">
-                    <strong>Note:</strong> Simply changing your mind or not needing the credits is not grounds for a refund.
-                  </p>
+                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
+                    <h3 className="font-semibold text-green-800 dark:text-green-200 mb-2">✓ Eligible for Refund</h3>
+                    <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+                      <li><strong>14-day window:</strong> Request made within 14 days of purchase with no credits used</li>
+                      <li><strong>Technical errors:</strong> System failures that prevented service delivery</li>
+                      <li><strong>Duplicate charges:</strong> You were accidentally charged twice for the same purchase</li>
+                      <li><strong>Service outages:</strong> Extended unavailability that affected your ability to use credits</li>
+                    </ul>
+                  </div>
+                  <div className="bg-muted/50 border border-border rounded-lg p-4">
+                    <h3 className="font-semibold mb-2">× Not Eligible for Refund</h3>
+                    <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+                      <li>Credits have already been used (even partially)</li>
+                      <li>Request made after 14 days from purchase date</li>
+                      <li>Change of mind or no longer needing credits</li>
+                      <li>Expired credits (use them before they expire!)</li>
+                    </ul>
+                  </div>
                 </section>
 
                 <section className="mb-8">
