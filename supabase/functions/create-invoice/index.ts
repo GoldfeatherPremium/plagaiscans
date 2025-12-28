@@ -158,6 +158,14 @@ serve(async (req) => {
       ? (payment_date ? new Date(payment_date).toISOString() : finalInvoiceDate)
       : null;
 
+    // Auto-generate transaction_id if not provided
+    let finalTransactionId = transaction_id;
+    if (!finalTransactionId) {
+      const { data: generatedId } = await supabaseClient.rpc('generate_transaction_id');
+      finalTransactionId = generatedId || `TXN-${Date.now()}`;
+      logStep("Generated transaction_id", { transaction_id: finalTransactionId });
+    }
+
     // Create the invoice
     const { data: invoice, error: insertError } = await supabaseClient
       .from('invoices')
@@ -167,7 +175,7 @@ serve(async (req) => {
         credits,
         payment_type,
         payment_id: payment_id || null,
-        transaction_id: transaction_id || null,
+        transaction_id: finalTransactionId,
         description: description || 'Plagiarism & AI Content Analysis Service',
         customer_name: finalCustomerName,
         customer_email: finalCustomerEmail,

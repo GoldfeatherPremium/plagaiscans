@@ -219,7 +219,7 @@ export default function AdminBankStatements() {
       let totalCredits = 0;
       let totalDebits = 0;
 
-      // Add invoice entries (credits)
+      // Add invoice entries (credits) - include transaction_id
       invoices?.forEach(inv => {
         runningBalance += Number(inv.amount_usd);
         totalCredits += Number(inv.amount_usd);
@@ -228,6 +228,7 @@ export default function AdminBankStatements() {
           entry_date: inv.paid_at || inv.created_at,
           description: `Payment - ${inv.customer_name || 'Customer'} - ${inv.credits} credits`,
           reference: inv.invoice_number,
+          transaction_id: inv.transaction_id || null,
           entry_type: 'credit',
           amount: inv.amount_usd,
           running_balance: runningBalance,
