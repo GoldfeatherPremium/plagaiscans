@@ -1264,6 +1264,92 @@ export type Database = {
         }
         Relationships: []
       }
+      receipts: {
+        Row: {
+          amount_paid: number
+          created_at: string
+          credits: number
+          currency: string | null
+          customer_country: string | null
+          customer_email: string | null
+          customer_name: string | null
+          description: string | null
+          id: string
+          invoice_id: string | null
+          payment_id: string | null
+          payment_method: string
+          pdf_path: string | null
+          quantity: number | null
+          receipt_date: string
+          receipt_number: string
+          subtotal: number | null
+          transaction_id: string | null
+          unit_price: number | null
+          updated_at: string
+          user_id: string
+          vat_amount: number | null
+          vat_rate: number | null
+        }
+        Insert: {
+          amount_paid: number
+          created_at?: string
+          credits: number
+          currency?: string | null
+          customer_country?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          description?: string | null
+          id?: string
+          invoice_id?: string | null
+          payment_id?: string | null
+          payment_method: string
+          pdf_path?: string | null
+          quantity?: number | null
+          receipt_date?: string
+          receipt_number: string
+          subtotal?: number | null
+          transaction_id?: string | null
+          unit_price?: number | null
+          updated_at?: string
+          user_id: string
+          vat_amount?: number | null
+          vat_rate?: number | null
+        }
+        Update: {
+          amount_paid?: number
+          created_at?: string
+          credits?: number
+          currency?: string | null
+          customer_country?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          description?: string | null
+          id?: string
+          invoice_id?: string | null
+          payment_id?: string | null
+          payment_method?: string
+          pdf_path?: string | null
+          quantity?: number | null
+          receipt_date?: string
+          receipt_number?: string
+          subtotal?: number | null
+          transaction_id?: string | null
+          unit_price?: number | null
+          updated_at?: string
+          user_id?: string
+          vat_amount?: number | null
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipts_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referrals: {
         Row: {
           completed_at: string | null

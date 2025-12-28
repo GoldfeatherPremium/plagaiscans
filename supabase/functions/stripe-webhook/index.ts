@@ -182,6 +182,7 @@ serve(async (req) => {
           }).select().single();
 
           // Auto-generate invoice for the payment
+          let invoiceId: string | null = null;
           try {
             const invoiceResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/create-invoice`, {
               method: 'POST',
@@ -205,12 +206,52 @@ serve(async (req) => {
             
             const invoiceData = await invoiceResponse.json();
             if (invoiceData.success) {
+              invoiceId = invoiceData.invoice.id;
               logStep("Invoice created automatically", { invoiceNumber: invoiceData.invoice.invoice_number });
             } else {
               logStep("Failed to create invoice", { error: invoiceData.error });
             }
           } catch (invoiceError) {
             logStep("Error creating invoice", { error: invoiceError });
+          }
+
+          // Auto-generate receipt for the payment
+          try {
+            const receiptResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/create-receipt`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              },
+              body: JSON.stringify({
+                userId: userId,
+                invoiceId: invoiceId,
+                customerName: session.customer_details?.name || null,
+                customerEmail: session.customer_email || profile?.email,
+                customerCountry: session.customer_details?.address?.country || null,
+                description: `${credits} Document Check Credits`,
+                quantity: credits,
+                unitPrice: amountTotal / credits,
+                subtotal: amountTotal,
+                vatRate: 0,
+                vatAmount: 0,
+                amountPaid: amountTotal,
+                currency: (session.currency || 'usd').toUpperCase(),
+                paymentMethod: 'Stripe',
+                transactionId: session.payment_intent as string || null,
+                paymentId: session.id,
+                credits: credits,
+              }),
+            });
+            
+            const receiptData = await receiptResponse.json();
+            if (receiptData.success) {
+              logStep("Receipt created automatically", { receiptNumber: receiptData.receipt.receipt_number });
+            } else {
+              logStep("Failed to create receipt", { error: receiptData.error });
+            }
+          } catch (receiptError) {
+            logStep("Error creating receipt", { error: receiptError });
           }
 
           // Create notification
