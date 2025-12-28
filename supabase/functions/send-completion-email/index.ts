@@ -417,6 +417,28 @@ const handler = async (req: Request): Promise<Response> => {
       await incrementWarmupCounter(supabase);
     }
 
+    // Send push notification to the user (background delivery)
+    try {
+      const pushRes = await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          title: 'Document Ready 📄',
+          body: `Your document "${fileName}" has been processed.`,
+          userId,
+          url: '/dashboard/documents',
+          eventType: 'document_completion',
+        }),
+      });
+      const pushData = await pushRes.json();
+      console.log('Push notification result:', pushData);
+    } catch (pushErr) {
+      console.error('Failed to send push notification:', pushErr);
+    }
+
     if (!result.success) {
       throw new Error(result.error || "Failed to send email");
     }
