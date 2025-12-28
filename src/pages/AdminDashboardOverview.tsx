@@ -1,7 +1,7 @@
 import React from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
+import { Shimmer } from '@/components/ui/shimmer';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -12,7 +12,6 @@ import {
   TrendingUp,
   CheckCircle,
   AlertCircle,
-  Loader2,
   UserCheck
 } from 'lucide-react';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
@@ -27,6 +26,41 @@ import {
   BarChart,
   Bar
 } from 'recharts';
+
+// Skeleton components for admin dashboard
+const MetricCardSkeleton = () => (
+  <Card className="overflow-hidden">
+    <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <Shimmer className="h-4 w-32" />
+      <Shimmer className="h-8 w-8 rounded-lg" />
+    </CardHeader>
+    <CardContent>
+      <Shimmer className="h-8 w-20 mb-1" />
+      <Shimmer className="h-3 w-24" />
+    </CardContent>
+  </Card>
+);
+
+const ChartSkeleton = () => (
+  <Card>
+    <CardHeader>
+      <Shimmer className="h-6 w-48" />
+    </CardHeader>
+    <CardContent>
+      <div className="h-[300px] flex items-end justify-between gap-2 p-4">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-2">
+            <Shimmer 
+              className="w-full rounded-t" 
+              style={{ height: `${Math.random() * 60 + 40}%` }} 
+            />
+            <Shimmer className="h-3 w-8" />
+          </div>
+        ))}
+      </div>
+    </CardContent>
+  </Card>
+);
 
 export default function AdminDashboardOverview() {
   // Fetch dashboard metrics
@@ -145,29 +179,6 @@ export default function AdminDashboardOverview() {
     refetchInterval: 30000 // Refresh every 30 seconds
   });
 
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <div>
-            <Skeleton className="h-9 w-64 mb-2" />
-            <Skeleton className="h-5 w-48" />
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {[...Array(4)].map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {[...Array(3)].map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   const formatTime = (minutes: number) => {
     if (minutes < 60) return `${minutes}m`;
     const hours = Math.floor(minutes / 60);
@@ -178,177 +189,207 @@ export default function AdminDashboardOverview() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
+        <div className={isLoading ? '' : 'content-reveal'}>
           <h1 className="text-3xl font-display font-bold">Dashboard Overview</h1>
           <p className="text-muted-foreground">Real-time insights into your platform</p>
         </div>
 
         {/* Key Metrics Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 stagger-children">
-          <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-amber-500/30 transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Pending Documents</CardTitle>
-              <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
-                <AlertCircle className="h-4 w-4 text-amber-500" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics?.pendingCount}</div>
-              <p className="text-xs text-muted-foreground">Awaiting processing</p>
-            </CardContent>
-          </Card>
+        <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 ${isLoading ? '' : 'content-reveal-stagger'}`}>
+          {isLoading ? (
+            <>
+              <MetricCardSkeleton />
+              <MetricCardSkeleton />
+              <MetricCardSkeleton />
+              <MetricCardSkeleton />
+            </>
+          ) : (
+            <>
+              <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-amber-500/30 transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Documents</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                    <AlertCircle className="h-4 w-4 text-amber-500" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{metrics?.pendingCount}</div>
+                  <p className="text-xs text-muted-foreground">Awaiting processing</p>
+                </CardContent>
+              </Card>
 
-          <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
-                <Clock className="h-4 w-4 text-primary" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics?.inProgressCount}</div>
-              <p className="text-xs text-muted-foreground">Being processed now</p>
-            </CardContent>
-          </Card>
+              <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                    <Clock className="h-4 w-4 text-primary" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{metrics?.inProgressCount}</div>
+                  <p className="text-xs text-muted-foreground">Being processed now</p>
+                </CardContent>
+              </Card>
 
-          <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-secondary/30 transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
-              <div className="h-8 w-8 rounded-lg bg-secondary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
-                <CheckCircle className="h-4 w-4 text-secondary" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics?.completedToday}</div>
-              <p className="text-xs text-muted-foreground">Documents finished</p>
-            </CardContent>
-          </Card>
+              <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-secondary/30 transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-secondary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                    <CheckCircle className="h-4 w-4 text-secondary" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{metrics?.completedToday}</div>
+                  <p className="text-xs text-muted-foreground">Documents finished</p>
+                </CardContent>
+              </Card>
 
-          <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Today's Revenue</CardTitle>
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
-                <DollarSign className="h-4 w-4 text-primary" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics?.todayRevenue} Credits</div>
-              <p className="text-xs text-muted-foreground">Credits purchased today</p>
-            </CardContent>
-          </Card>
+              <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Today's Revenue</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                    <DollarSign className="h-4 w-4 text-primary" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{metrics?.todayRevenue} Credits</div>
+                  <p className="text-xs text-muted-foreground">Credits purchased today</p>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         {/* Secondary Metrics */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="group hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/10">
-                <Users className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics?.totalUsers}</div>
-              <p className="text-xs text-muted-foreground">Registered customers</p>
-            </CardContent>
-          </Card>
+        <div className={`grid gap-4 md:grid-cols-3 ${isLoading ? '' : 'content-reveal-stagger'}`}>
+          {isLoading ? (
+            <>
+              <MetricCardSkeleton />
+              <MetricCardSkeleton />
+              <MetricCardSkeleton />
+            </>
+          ) : (
+            <>
+              <Card className="group hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/10">
+                    <Users className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{metrics?.totalUsers}</div>
+                  <p className="text-xs text-muted-foreground">Registered customers</p>
+                </CardContent>
+              </Card>
 
-          <Card className="group hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Active Staff</CardTitle>
-              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-secondary/10">
-                <UserCheck className="h-4 w-4 text-muted-foreground group-hover:text-secondary transition-colors duration-300" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics?.activeStaff}</div>
-              <p className="text-xs text-muted-foreground">Processed docs this week</p>
-            </CardContent>
-          </Card>
+              <Card className="group hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Active Staff</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-secondary/10">
+                    <UserCheck className="h-4 w-4 text-muted-foreground group-hover:text-secondary transition-colors duration-300" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{metrics?.activeStaff}</div>
+                  <p className="text-xs text-muted-foreground">Processed docs this week</p>
+                </CardContent>
+              </Card>
 
-          <Card className="group hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Avg Processing Time</CardTitle>
-              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-accent/10">
-                <TrendingUp className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-colors duration-300" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatTime(metrics?.avgProcessingTime || 0)}</div>
-              <p className="text-xs text-muted-foreground">Last 30 days average</p>
-            </CardContent>
-          </Card>
+              <Card className="group hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Avg Processing Time</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-accent/10">
+                    <TrendingUp className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-colors duration-300" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatTime(metrics?.avgProcessingTime || 0)}</div>
+                  <p className="text-xs text-muted-foreground">Last 30 days average</p>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         {/* Charts */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Document Activity (Last 7 Days)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={metrics?.chartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" className="text-xs" />
-                    <YAxis className="text-xs" />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="uploads" 
-                      stackId="1"
-                      stroke="hsl(var(--primary))" 
-                      fill="hsl(var(--primary))" 
-                      fillOpacity={0.3}
-                      name="Uploads"
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="completed" 
-                      stackId="2"
-                      stroke="hsl(var(--secondary))" 
-                      fill="hsl(var(--secondary))" 
-                      fillOpacity={0.3}
-                      name="Completed"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+        <div className={`grid gap-4 md:grid-cols-2 ${isLoading ? '' : 'content-reveal-stagger'}`}>
+          {isLoading ? (
+            <>
+              <ChartSkeleton />
+              <ChartSkeleton />
+            </>
+          ) : (
+            <>
+              <Card className="content-reveal" style={{ animationDelay: '300ms' }}>
+                <CardHeader>
+                  <CardTitle>Document Activity (Last 7 Days)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={metrics?.chartData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="date" className="text-xs" />
+                        <YAxis className="text-xs" />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px'
+                          }}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="uploads" 
+                          stackId="1"
+                          stroke="hsl(var(--primary))" 
+                          fill="hsl(var(--primary))" 
+                          fillOpacity={0.3}
+                          name="Uploads"
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="completed" 
+                          stackId="2"
+                          stroke="hsl(var(--secondary))" 
+                          fill="hsl(var(--secondary))" 
+                          fillOpacity={0.3}
+                          name="Completed"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Daily Comparison</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={metrics?.chartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" className="text-xs" />
-                    <YAxis className="text-xs" />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Bar dataKey="uploads" fill="hsl(var(--primary))" name="Uploads" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="completed" fill="hsl(var(--secondary))" name="Completed" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+              <Card className="content-reveal" style={{ animationDelay: '350ms' }}>
+                <CardHeader>
+                  <CardTitle>Daily Comparison</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={metrics?.chartData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="date" className="text-xs" />
+                        <YAxis className="text-xs" />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px'
+                          }}
+                        />
+                        <Bar dataKey="uploads" fill="hsl(var(--primary))" name="Uploads" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="completed" fill="hsl(var(--secondary))" name="Completed" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
       </div>
     </DashboardLayout>
