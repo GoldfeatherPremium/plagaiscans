@@ -48,18 +48,28 @@ interface VivaPayment {
   created_at: string;
 }
 
+interface StripeTransaction {
+  id: string;
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  description: string | null;
+  created_at: string;
+}
+
 export default function PaymentHistory() {
   const { user } = useAuth();
   const [manualPayments, setManualPayments] = useState<ManualPayment[]>([]);
   const [cryptoPayments, setCryptoPayments] = useState<CryptoPayment[]>([]);
   const [vivaPayments, setVivaPayments] = useState<VivaPayment[]>([]);
+  const [stripePayments, setStripePayments] = useState<StripeTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPayments = async () => {
       if (!user) return;
 
-      const [manualRes, cryptoRes, vivaRes] = await Promise.all([
+      const [manualRes, cryptoRes, vivaRes, stripeRes] = await Promise.all([
         supabase
           .from('manual_payments')
           .select('*')
@@ -75,11 +85,19 @@ export default function PaymentHistory() {
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('credit_transactions')
+          .select('id, amount, balance_before, balance_after, description, created_at')
+          .eq('user_id', user.id)
+          .eq('transaction_type', 'purchase')
+          .ilike('description', '%Stripe%')
+          .order('created_at', { ascending: false }),
       ]);
 
       if (manualRes.data) setManualPayments(manualRes.data);
       if (cryptoRes.data) setCryptoPayments(cryptoRes.data);
       if (vivaRes.data) setVivaPayments(vivaRes.data);
+      if (stripeRes.data) setStripePayments(stripeRes.data);
       setLoading(false);
     };
 
@@ -214,7 +232,8 @@ export default function PaymentHistory() {
       .reduce((sum, p) => sum + p.credits, 0) +
     vivaPayments
       .filter(p => p.status === 'completed')
-      .reduce((sum, p) => sum + p.credits, 0);
+      .reduce((sum, p) => sum + p.credits, 0) +
+    stripePayments.reduce((sum, p) => sum + p.amount, 0);
 
   const pendingVivaCount = vivaPayments.filter(p => p.status === 'pending').length;
   const totalPending = pendingManualCount + pendingVivaCount;
@@ -284,17 +303,21 @@ export default function PaymentHistory() {
 
         {/* Payment Tabs */}
         <Card>
-          <Tabs defaultValue="viva" className="w-full">
+          <Tabs defaultValue="stripe" className="w-full">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>All Transactions</CardTitle>
                   <CardDescription>View your payment history by method</CardDescription>
                 </div>
-                <TabsList>
+                <TabsList className="flex-wrap">
+                  <TabsTrigger value="stripe" className="gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Stripe
+                  </TabsTrigger>
                   <TabsTrigger value="viva" className="gap-2">
                     <Globe className="h-4 w-4" />
-                    Card
+                    Card (Viva)
                   </TabsTrigger>
                   <TabsTrigger value="binance" className="gap-2">
                     <Wallet className="h-4 w-4" />
@@ -308,6 +331,57 @@ export default function PaymentHistory() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Stripe Payments Tab */}
+              <TabsContent value="stripe" className="mt-0">
+                {stripePayments.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CreditCard className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No Stripe transactions yet</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Credits</TableHead>
+                          <TableHead>Balance Before</TableHead>
+                          <TableHead>Balance After</TableHead>
+                          <TableHead>Reference</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {stripePayments.map((payment) => (
+                          <TableRow key={payment.id}>
+                            <TableCell>
+                              <div className="text-sm">
+                                <div>{format(new Date(payment.created_at), 'MMM dd, yyyy')}</div>
+                                <div className="text-muted-foreground">
+                                  {format(new Date(payment.created_at), 'HH:mm')}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-semibold text-green-600">+{payment.amount}</TableCell>
+                            <TableCell>{payment.balance_before}</TableCell>
+                            <TableCell>{payment.balance_after}</TableCell>
+                            <TableCell>
+                              <code className="text-xs bg-muted px-2 py-1 rounded">
+                                {payment.description?.replace('Stripe payment - Session: ', '') || '-'}
+                              </code>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
+                                <CheckCircle className="h-3 w-3 mr-1" /> Completed
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </TabsContent>
               <TabsContent value="binance" className="mt-0">
                 {manualPayments.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
