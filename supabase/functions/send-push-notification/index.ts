@@ -20,6 +20,7 @@ interface PushPayload {
   sendToAll?: boolean;
   eventType?: string;
   sentBy?: string;
+  tag?: string; // Notification tag for grouping
 }
 
 // Base64 URL encode helper
@@ -260,11 +261,16 @@ serve(async (req) => {
 
     const privateJWK = getVapidPrivateJwk(vapidPublicKey, vapidPrivateKey);
 
+    // Generate unique tag for each notification to prevent replacement
+    // Use timestamp + random to ensure uniqueness
+    const uniqueTag = payload.tag || `${eventType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     const pushPayload = {
       title,
       body,
       icon: icon || "/pwa-icon-192.png",
       badge: badge || "/pwa-icon-192.png",
+      tag: uniqueTag,
       data: {
         url: url || "/dashboard",
         ...data,
