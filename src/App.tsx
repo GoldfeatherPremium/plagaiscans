@@ -83,10 +83,49 @@ const SimilarityReport = lazy(() => import("./pages/SimilarityReport"));
 const AIContentDetection = lazy(() => import("./pages/AIContentDetection"));
 const queryClient = new QueryClient();
 
-// Loading spinner component for Suspense fallback
+// Loading skeleton component for Suspense fallback
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+  <div className="min-h-screen bg-background p-8 pt-24">
+    <div className="max-w-7xl mx-auto space-y-8 animate-pulse">
+      {/* Header shimmer */}
+      <div className="space-y-2">
+        <div className="h-9 w-64 bg-muted rounded" />
+        <div className="h-5 w-96 bg-muted rounded" />
+      </div>
+      
+      {/* Stats grid shimmer */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="rounded-lg border bg-card p-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-lg bg-muted" />
+              <div className="space-y-2">
+                <div className="h-4 w-20 bg-muted rounded" />
+                <div className="h-8 w-12 bg-muted rounded" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {/* Content shimmer */}
+      <div className="rounded-lg border bg-card overflow-hidden">
+        <div className="p-6 border-b">
+          <div className="h-6 w-40 bg-muted rounded" />
+        </div>
+        <div className="divide-y">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="p-4 flex items-center gap-4" style={{ opacity: 1 - (i * 0.15) }}>
+              <div className="h-4 w-8 bg-muted rounded" />
+              <div className="h-4 flex-1 max-w-[200px] bg-muted rounded" />
+              <div className="h-4 w-20 bg-muted rounded" />
+              <div className="h-6 w-16 bg-muted rounded-full" />
+              <div className="h-8 w-8 bg-muted rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   </div>
 );
 
