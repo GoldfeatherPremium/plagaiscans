@@ -11,6 +11,7 @@ const Footer = () => {
       title: "Platform",
       links: [
         { label: "How It Works", to: "/how-it-works" },
+        { label: "Plagiarism Checker", to: "/plagiarism-checker" },
         { label: "Pricing", to: "/pricing" },
         { label: "FAQ", to: "/faq" },
       ],
@@ -19,7 +20,14 @@ const Footer = () => {
       title: "Resources",
       links: [
         { label: "Academic Integrity", to: "/academic-integrity" },
+        { label: "Similarity Report", to: "/similarity-report" },
+        { label: "AI Content Detection", to: "/ai-content-detection" },
         { label: "Learning Center", to: "/resources" },
+      ],
+    },
+    {
+      title: "Company",
+      links: [
         { label: "About Us", to: "/about-us" },
         { label: "Contact", to: "/contact" },
       ],
@@ -37,7 +45,15 @@ const Footer = () => {
   return (
     <footer className="border-t border-border bg-card">
       <div className="container-width section-padding pb-8">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+        {/* AI Disclaimer */}
+        <div className="mb-8 p-4 rounded-lg bg-muted/50 border border-border">
+          <p className="text-xs text-muted-foreground text-center">
+            <strong>Disclaimer:</strong> AI-content indicators are designed to support academic review and should not be interpreted as definitive judgments. 
+            Similarity reports identify matching text for review purposes. Human judgment should always be applied when evaluating academic work.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4 group">
