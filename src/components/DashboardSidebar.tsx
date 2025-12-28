@@ -332,6 +332,7 @@ export const DashboardSidebar: React.FC = () => {
       badgeKey: 'payments',
       links: [
         { to: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
+        { to: '/dashboard/stripe-payments', icon: CreditCard, label: 'Stripe' },
         { to: '/dashboard/promo-codes', icon: Ticket, label: 'Promo Codes' },
         { to: '/dashboard/promo-analytics', icon: PieChart, label: 'Promo Analytics' },
         { to: '/dashboard/revenue', icon: DollarSign, label: 'Revenue' },

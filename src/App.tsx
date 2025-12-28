@@ -84,6 +84,8 @@ const SimilarityReport = lazy(() => import("./pages/SimilarityReport"));
 const AIContentDetection = lazy(() => import("./pages/AIContentDetection"));
 const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess"));
 const SubscriptionManagement = lazy(() => import("./pages/SubscriptionManagement"));
+const AdminStripePayments = lazy(() => import("./pages/AdminStripePayments"));
+const AdminReferrals = lazy(() => import("./pages/AdminReferrals"));
 const queryClient = new QueryClient();
 
 // Loading skeleton component for Suspense fallback
@@ -295,6 +297,7 @@ const AppRoutes = () => (
       <Route path="/dashboard/site-content" element={<ProtectedRoute allowedRoles={['admin']}><AdminSiteContent /></ProtectedRoute>} />
       <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['admin']}><AdminReferrals /></ProtectedRoute>} />
       <Route path="/dashboard/refund-requests" element={<ProtectedRoute allowedRoles={['admin']}><AdminRefundRequests /></ProtectedRoute>} />
+      <Route path="/dashboard/stripe-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminStripePayments /></ProtectedRoute>} />
       <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       
       <Route path="*" element={<NotFound />} />
@@ -302,8 +305,6 @@ const AppRoutes = () => (
   </Suspense>
 );
 
-// Lazy load AdminReferrals
-const AdminReferrals = lazy(() => import("./pages/AdminReferrals"));
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
