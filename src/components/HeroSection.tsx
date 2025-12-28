@@ -59,19 +59,21 @@ const HeroSection = () => {
           </span>
         </div>
 
-        {/* Feature Pills */}
-        <div className="flex flex-wrap justify-center gap-3 mb-16 animate-fade-in" style={{ animationDelay: "0.3s" }}>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
-            <CheckCircle className="w-4 h-4 text-secondary" />
-            <span>{get('hero_feature_1', 'Detailed Similarity Reports')}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
-            <CheckCircle className="w-4 h-4 text-secondary" />
-            <span>{get('hero_feature_2', 'AI Content Detection')}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
-            <CheckCircle className="w-4 h-4 text-secondary" />
-            <span>{get('hero_feature_3', 'Privacy-First Scanning')}</span>
+        {/* Feature Pills - Horizontal scroll on mobile */}
+        <div className="w-full overflow-x-auto pb-2 mb-14 animate-fade-in scrollbar-hide" style={{ animationDelay: "0.3s" }}>
+          <div className="flex md:flex-wrap md:justify-center gap-3 px-4 md:px-0 min-w-max md:min-w-0">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300 whitespace-nowrap">
+              <CheckCircle className="w-4 h-4 text-secondary flex-shrink-0" />
+              <span>{get('hero_feature_1', 'Detailed Similarity Reports')}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300 whitespace-nowrap">
+              <CheckCircle className="w-4 h-4 text-secondary flex-shrink-0" />
+              <span>{get('hero_feature_2', 'AI Content Detection')}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300 whitespace-nowrap">
+              <CheckCircle className="w-4 h-4 text-secondary flex-shrink-0" />
+              <span>{get('hero_feature_3', 'Privacy-First Scanning')}</span>
+            </div>
           </div>
         </div>
 
