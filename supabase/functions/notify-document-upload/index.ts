@@ -91,7 +91,7 @@ serve(async (req) => {
             badge: '/pwa-icon-192.png',
             url: '/document-queue',
             data: { documentId: notification.document_id },
-            targetAudience: 'staff',
+            targetAudience: 'staff_and_admins',
             eventType: 'document_upload',
           }),
         });
