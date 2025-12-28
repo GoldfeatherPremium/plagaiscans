@@ -195,6 +195,7 @@ export type Database = {
           created_at: string
           description: string
           entry_date: string
+          entry_time: string | null
           entry_type: string
           id: string
           invoice_id: string | null
@@ -203,12 +204,14 @@ export type Database = {
           reference: string | null
           running_balance: number | null
           statement_id: string
+          transaction_id: string | null
         }
         Insert: {
           amount: number
           created_at?: string
           description: string
           entry_date: string
+          entry_time?: string | null
           entry_type?: string
           id?: string
           invoice_id?: string | null
@@ -217,12 +220,14 @@ export type Database = {
           reference?: string | null
           running_balance?: number | null
           statement_id: string
+          transaction_id?: string | null
         }
         Update: {
           amount?: number
           created_at?: string
           description?: string
           entry_date?: string
+          entry_time?: string | null
           entry_type?: string
           id?: string
           invoice_id?: string | null
@@ -231,6 +236,7 @@ export type Database = {
           reference?: string | null
           running_balance?: number | null
           statement_id?: string
+          transaction_id?: string | null
         }
         Relationships: [
           {
