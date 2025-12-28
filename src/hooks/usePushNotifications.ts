@@ -15,6 +15,32 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+// Check if browser supports push notifications (Safari requires specific checks)
+const checkPushSupport = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  // Basic checks
+  if (!('serviceWorker' in navigator)) return false;
+  if (!('PushManager' in window)) return false;
+  if (!('Notification' in window)) return false;
+  
+  // Safari on iOS 16.4+ supports web push, but needs to be installed as PWA
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  
+  if (isIOS && isSafari) {
+    // Check if running as standalone PWA (required for iOS push)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         (window.navigator as any).standalone === true;
+    if (!isStandalone) {
+      console.log('iOS Safari requires PWA installation for push notifications');
+      return false;
+    }
+  }
+  
+  return true;
+};
+
 export const usePushNotifications = () => {
   const { user } = useAuth();
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -22,11 +48,21 @@ export const usePushNotifications = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [vapidPublicKey, setVapidPublicKey] = useState<string | null>(null);
+  const [isSafariPWA, setIsSafariPWA] = useState(false);
 
-  const isSupported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const isSupported = checkPushSupport();
   const permission = typeof window !== 'undefined' && 'Notification' in window 
     ? Notification.permission 
     : 'denied';
+
+  // Detect Safari PWA mode
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         (window.navigator as any).standalone === true;
+    setIsSafariPWA(isIOS && isSafari && isStandalone);
+  }, []);
 
   // Fetch VAPID public key from settings - deferred to not block initial render
   useEffect(() => {
@@ -134,11 +170,32 @@ export const usePushNotifications = () => {
         return false;
       }
 
-      // Wait for service worker to be ready
+      // Wait for service worker to be ready (important for Safari)
       const reg = await navigator.serviceWorker.ready;
-      console.log('Service worker ready');
+      console.log('Service worker ready for subscription');
+      
+      // Ensure SW is active (Safari requirement)
+      if (reg.active?.state !== 'activated') {
+        await new Promise<void>((resolve) => {
+          if (reg.active?.state === 'activated') {
+            resolve();
+            return;
+          }
+          const sw = reg.installing || reg.waiting || reg.active;
+          if (sw) {
+            sw.addEventListener('statechange', function handler() {
+              if (sw.state === 'activated') {
+                sw.removeEventListener('statechange', handler);
+                resolve();
+              }
+            });
+          } else {
+            resolve();
+          }
+        });
+      }
 
-      // Subscribe to push manager
+      // Subscribe to push manager with Safari-compatible options
       const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
       const pushSubscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
@@ -259,6 +316,7 @@ export const usePushNotifications = () => {
     isLoading,
     permission,
     subscription,
+    isSafariPWA,
     requestPermission,
     subscribe,
     unsubscribe,

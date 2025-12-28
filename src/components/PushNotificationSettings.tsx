@@ -14,10 +14,21 @@ export const PushNotificationSettings: React.FC = () => {
     isSubscribed, 
     isLoading, 
     permission,
+    isSafariPWA,
     subscribe, 
     unsubscribe,
     sendLocalNotification,
   } = usePushNotifications();
+
+  // Check if user is on iOS Safari but not in PWA mode
+  const isIOSSafariBrowser = React.useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         (window.navigator as any).standalone === true;
+    return isIOS && isSafari && !isStandalone;
+  }, []);
 
   const handleToggle = async () => {
     if (isSubscribed) {
@@ -52,6 +63,36 @@ export const PushNotificationSettings: React.FC = () => {
       body: 'This is a test notification from PlagaiScans!',
     });
   };
+
+  // iOS Safari requires PWA installation
+  if (isIOSSafariBrowser) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            Push Notifications
+          </CardTitle>
+          <CardDescription>
+            Install this app to enable push notifications on iOS.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              To receive push notifications on iPhone/iPad:
+            </p>
+            <ol className="text-sm text-muted-foreground list-decimal list-inside space-y-1">
+              <li>Tap the <strong>Share</strong> button in Safari</li>
+              <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
+              <li>Open the app from your home screen</li>
+              <li>Enable notifications in the app settings</li>
+            </ol>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!isSupported) {
     return (
