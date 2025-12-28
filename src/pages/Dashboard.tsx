@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';
 import { AnnouncementBanner } from '@/components/AnnouncementBanner';
+import { PushNotificationBanner } from '@/components/PushNotificationBanner';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import {
@@ -125,6 +126,9 @@ export default function Dashboard() {
       <div className="space-y-8">
         {/* Announcements */}
         <AnnouncementBanner />
+
+        {/* Push Notification Prompt for Customers */}
+        {role === 'customer' && <PushNotificationBanner />}
 
         {/* Header */}
         <div>
