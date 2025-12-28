@@ -61,15 +61,15 @@ export default function PaymentHistory() {
   const { user } = useAuth();
   const [manualPayments, setManualPayments] = useState<ManualPayment[]>([]);
   const [cryptoPayments, setCryptoPayments] = useState<CryptoPayment[]>([]);
-  const [vivaPayments, setVivaPayments] = useState<VivaPayment[]>([]);
-  const [stripePayments, setStripePayments] = useState<StripeTransaction[]>([]);
+  const [stripePayments, setStripePayments] = useState<StripePayment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPayments = async () => {
       if (!user) return;
 
-      const [manualRes, cryptoRes, vivaRes, stripeRes] = await Promise.all([
+      const [manualRes, cryptoRes, stripeRes] = await Promise.all([
         supabase
           .from('manual_payments')
           .select('*')
@@ -81,23 +81,15 @@ export default function PaymentHistory() {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
         supabase
-          .from('viva_payments')
-          .select('*')
+          .from('stripe_payments')
+          .select('id, session_id, amount_usd, credits, status, receipt_url, created_at, completed_at')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('credit_transactions')
-          .select('id, amount, balance_before, balance_after, description, created_at')
-          .eq('user_id', user.id)
-          .eq('transaction_type', 'purchase')
-          .ilike('description', '%Stripe%')
           .order('created_at', { ascending: false }),
       ]);
 
       if (manualRes.data) setManualPayments(manualRes.data);
       if (cryptoRes.data) setCryptoPayments(cryptoRes.data);
-      if (vivaRes.data) setVivaPayments(vivaRes.data);
-      if (stripeRes.data) setStripePayments(stripeRes.data);
+      if (stripeRes.data) setStripePayments(stripeRes.data as StripePayment[]);
       setLoading(false);
     };
 

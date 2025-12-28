@@ -331,12 +331,13 @@ export const DashboardSidebar: React.FC = () => {
       icon: Wallet,
       badgeKey: 'payments',
       links: [
+        { to: '/dashboard/all-payments', icon: DollarSign, label: 'All Payments' },
         { to: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
         { to: '/dashboard/stripe-payments', icon: CreditCard, label: 'Stripe' },
+        { to: '/dashboard/webhook-logs', icon: Activity, label: 'Webhook Logs' },
         { to: '/dashboard/promo-codes', icon: Ticket, label: 'Promo Codes' },
         { to: '/dashboard/promo-analytics', icon: PieChart, label: 'Promo Analytics' },
         { to: '/dashboard/revenue', icon: DollarSign, label: 'Revenue' },
-        
         { to: '/dashboard/crypto-payments', icon: CreditCard, label: 'Crypto', badgeKey: 'pendingCrypto' },
         { to: '/dashboard/manual-payments', icon: Wallet, label: 'Manual', badgeKey: 'pendingManualPayments' },
       ],
