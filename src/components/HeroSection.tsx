@@ -29,28 +29,38 @@ const HeroSection = () => {
       />
 
       <div className="relative z-10 container-width section-padding text-center">
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-8 animate-fade-in hover:border-primary/30 transition-colors duration-300">
-          <Sparkles className="w-4 h-4 text-primary animate-pulse-soft" />
-          <span className="text-sm text-muted-foreground">
-            {get('hero_badge', 'Trusted by 10,000+ academics & researchers')}
-          </span>
-        </div>
-
         {/* Main Heading - H1 with primary keyword */}
-        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-display font-bold leading-[1.1] mb-6 animate-fade-in" style={{ animationDelay: "0.1s" }}>
+        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-display font-bold leading-[1.1] mb-6 animate-fade-in">
           {get('hero_title_line1', 'Plagiarism & Similarity Check')}
           <br />
           <span className="gradient-text">{get('hero_title_line2', 'for Academic Integrity')}</span>
         </h1>
 
         {/* Subtitle with SEO keywords */}
-        <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+        <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-8 animate-fade-in" style={{ animationDelay: "0.1s" }}>
           {get('hero_subtitle', 'Plagaiscans helps students, researchers, and educators verify originality, identify overlapping content, and understand similarity results through clear and easy-to-read reports.')}
         </p>
 
+        {/* CTA Buttons */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+          <Link to="/auth">
+            <Button variant="hero" size="xl" className="group">
+              {get('hero_cta_primary', 'Check Document')}
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </Link>
+        </div>
+
+        {/* Badge - Trusted by */}
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-10 animate-fade-in hover:border-primary/30 transition-colors duration-300" style={{ animationDelay: "0.25s" }}>
+          <Sparkles className="w-4 h-4 text-primary animate-pulse-soft" />
+          <span className="text-sm text-muted-foreground">
+            {get('hero_badge', 'Trusted by 10,000+ academics & researchers')}
+          </span>
+        </div>
+
         {/* Feature Pills */}
-        <div className="flex flex-wrap justify-center gap-3 mb-10 animate-fade-in" style={{ animationDelay: "0.25s" }}>
+        <div className="flex flex-wrap justify-center gap-3 mb-16 animate-fade-in" style={{ animationDelay: "0.3s" }}>
           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
             <CheckCircle className="w-4 h-4 text-secondary" />
             <span>{get('hero_feature_1', 'Detailed Similarity Reports')}</span>
@@ -65,18 +75,8 @@ const HeroSection = () => {
           </div>
         </div>
 
-        {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{ animationDelay: "0.3s" }}>
-          <Link to="/auth">
-            <Button variant="hero" size="xl" className="group">
-              {get('hero_cta_primary', 'Check Document')}
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </Link>
-        </div>
-
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-8 max-w-xl mx-auto mt-20 animate-fade-in" style={{ animationDelay: "0.4s" }}>
+        <div className="grid grid-cols-3 gap-8 max-w-xl mx-auto animate-fade-in" style={{ animationDelay: "0.4s" }}>
           <div className="text-center group">
             <div className="text-2xl md:text-3xl font-display font-bold gradient-text transition-transform duration-300 group-hover:scale-110">
               {get('hero_stat_1_value', '1B+')}
