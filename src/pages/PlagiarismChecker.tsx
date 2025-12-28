@@ -40,6 +40,7 @@ export default function PlagiarismChecker() {
         description="Check your academic documents for similarity and originality. Get detailed reports with source attribution to support academic integrity and ethical writing."
         keywords="plagiarism checker, similarity analysis, originality verification, academic writing review, document analysis, academic integrity"
         canonicalUrl="/plagiarism-checker"
+        ogImage="/og-plagiarism-checker.png"
         structuredData={serviceSchema}
       />
       <div className="min-h-screen bg-background">

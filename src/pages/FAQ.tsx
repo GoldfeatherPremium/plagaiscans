@@ -85,6 +85,7 @@ export default function FAQ() {
         description="Find answers to frequently asked questions about Plagaiscans plagiarism detection, AI content analysis, pricing, refunds, and document processing."
         keywords="FAQ, frequently asked questions, plagiarism checker help, AI detection FAQ, academic integrity questions"
         canonicalUrl="/faq"
+        ogImage="/og-faq.png"
         structuredData={faqSchema}
       />
       <div className="min-h-screen bg-background">

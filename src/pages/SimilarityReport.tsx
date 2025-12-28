@@ -62,6 +62,7 @@ export default function SimilarityReport() {
         description="Understand how to read and interpret similarity reports. Learn about similarity scores, highlighted matches, and source attribution for academic documents."
         keywords="similarity report, plagiarism report, originality report, academic similarity, source matching, citation review"
         canonicalUrl="/similarity-report"
+        ogImage="/og-similarity-report.png"
         structuredData={pageSchema}
       />
       <div className="min-h-screen bg-background">
