@@ -1,10 +1,108 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText, Upload, Search, Download, ArrowLeft, ArrowRight, CheckCircle, Shield, Clock } from 'lucide-react';
+import { FileText, Upload, Search, Download, ArrowLeft, ArrowRight, CheckCircle, Shield, Clock, Play, Pause } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
+import { Breadcrumb } from '@/components/Breadcrumb';
+
+// Animated Process Demo Component
+function ProcessDemo() {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [progress, setProgress] = useState(0);
+
+  const demoSteps = [
+    { label: "Upload Document", icon: Upload, color: "from-blue-500 to-cyan-500" },
+    { label: "Analyzing Content", icon: Search, color: "from-purple-500 to-pink-500" },
+    { label: "Generating Report", icon: FileText, color: "from-orange-500 to-amber-500" },
+    { label: "Complete!", icon: CheckCircle, color: "from-green-500 to-emerald-500" },
+  ];
+
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          setCurrentStep(step => (step + 1) % demoSteps.length);
+          return 0;
+        }
+        return prev + 2;
+      });
+    }, 50);
+
+    return () => clearInterval(progressInterval);
+  }, [isPlaying, demoSteps.length]);
+
+  const CurrentIcon = demoSteps[currentStep].icon;
+
+  return (
+    <Card className="mb-16 overflow-hidden">
+      <CardContent className="p-0">
+        <div className="bg-gradient-to-br from-muted/50 to-muted p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold">Document Checking Process</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsPlaying(!isPlaying)}
+              className="gap-2"
+            >
+              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              {isPlaying ? "Pause" : "Play"}
+            </Button>
+          </div>
+
+          {/* Animation Container */}
+          <div className="relative flex flex-col items-center justify-center py-12">
+            {/* Animated Icon */}
+            <div 
+              className={`h-24 w-24 rounded-2xl bg-gradient-to-br ${demoSteps[currentStep].color} flex items-center justify-center mb-6 transition-all duration-500 animate-pulse-soft`}
+            >
+              <CurrentIcon className="h-12 w-12 text-white" />
+            </div>
+
+            {/* Step Label */}
+            <p className="text-xl font-semibold mb-4 transition-all duration-300">
+              {demoSteps[currentStep].label}
+            </p>
+
+            {/* Progress Bar */}
+            <div className="w-full max-w-xs h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
+              <div 
+                className={`h-full bg-gradient-to-r ${demoSteps[currentStep].color} transition-all duration-100`}
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Step Indicators */}
+          <div className="flex justify-center gap-3">
+            {demoSteps.map((step, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  setCurrentStep(index);
+                  setProgress(0);
+                }}
+                className={`h-3 w-3 rounded-full transition-all duration-300 ${
+                  index === currentStep 
+                    ? 'bg-primary scale-125' 
+                    : index < currentStep 
+                      ? 'bg-primary/50' 
+                      : 'bg-muted-foreground/30'
+                }`}
+                aria-label={`Go to step ${index + 1}`}
+              />
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function HowItWorks() {
   const steps = [
@@ -85,10 +183,13 @@ export default function HowItWorks() {
       </nav>
 
       {/* Main Content */}
-      <main className="container-width px-4 py-16">
+      <main className="container-width px-4 py-8 md:py-16">
         <div className="max-w-5xl mx-auto">
+          {/* Breadcrumb */}
+          <Breadcrumb items={[{ label: 'How It Works' }]} />
+
           {/* Hero Section */}
-          <div className="text-center mb-16">
+          <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
               How <span className="gradient-text">Plagaiscans</span> Works
             </h1>
@@ -96,6 +197,9 @@ export default function HowItWorks() {
               A simple, transparent process to verify document originality and maintain academic integrity.
             </p>
           </div>
+
+          {/* Animated Demo */}
+          <ProcessDemo />
 
           {/* Steps */}
           <div className="space-y-8 mb-20">

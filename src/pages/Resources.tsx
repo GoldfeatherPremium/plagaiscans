@@ -7,6 +7,7 @@ import Footer from '@/components/Footer';
 import { useSiteContent } from '@/hooks/useSiteContent';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
+import { Breadcrumb } from '@/components/Breadcrumb';
 
 const articleMeta = [
   {
@@ -104,8 +105,11 @@ export default function Resources() {
       </nav>
 
       {/* Main Content */}
-      <main className="container-width px-4 py-16">
+      <main className="container-width px-4 py-8 md:py-16">
         <div className="max-w-5xl mx-auto">
+          {/* Breadcrumb */}
+          <Breadcrumb items={[{ label: 'Resources' }]} />
+
           {/* Hero Section */}
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
