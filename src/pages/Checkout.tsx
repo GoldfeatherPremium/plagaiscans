@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, CreditCard, Loader2, Bitcoin, Copy, ExternalLink, 
   RefreshCw, Wallet, ShoppingCart, Plus, Minus, Trash2, Globe, 
-  CheckCircle, MessageCircle, AlertCircle, Zap, Tag, X
+  CheckCircle, MessageCircle, AlertCircle, Zap, Tag, X, Shield
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
@@ -413,15 +413,27 @@ export default function Checkout() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/credits')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-display font-bold">Checkout</h1>
-            <p className="text-muted-foreground">Complete your purchase</p>
+      <div className="max-w-5xl mx-auto space-y-8">
+        {/* Premium Header */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 p-6 md:p-8">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="relative flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/credits')} className="shrink-0">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <ShoppingCart className="h-5 w-5 text-primary" />
+                </div>
+                <h1 className="text-2xl md:text-3xl font-display font-bold">Secure Checkout</h1>
+              </div>
+              <p className="text-muted-foreground">Complete your purchase securely</p>
+            </div>
+            <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+              <Shield className="h-4 w-4 text-green-500" />
+              <span>SSL Encrypted</span>
+            </div>
           </div>
         </div>
 
@@ -557,48 +569,59 @@ export default function Checkout() {
           </div>
 
           {/* Payment Methods */}
-          <div className="lg:col-span-2 lg:order-1 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Select Payment Method</CardTitle>
-                <CardDescription>Choose how you want to pay for your credits</CardDescription>
+          <div className="lg:col-span-2 lg:order-1 space-y-6">
+            <Card className="overflow-hidden">
+              <CardHeader className="bg-muted/30 border-b">
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-primary" />
+                  Payment Method
+                </CardTitle>
+                <CardDescription>All transactions are secure and encrypted</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Stripe Card Payment */}
+              <CardContent className="p-6 space-y-4">
+                {/* Stripe Card Payment - Premium Style */}
                 {stripeEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary transition-colors border-primary/50 bg-primary/5">
-                    <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-[#635BFF]/10 flex items-center justify-center flex-shrink-0">
-                        <Zap className="h-6 w-6 text-[#635BFF]" />
-                      </div>
-                      <div className="flex-1 space-y-3">
-                        <div>
-                          <h3 className="font-semibold flex items-center gap-2">
-                            Card Payment (Stripe)
-                            <Badge className="text-xs bg-[#635BFF]">Recommended</Badge>
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            Pay securely with Visa, Mastercard, Apple Pay, Google Pay
-                            {fees.stripe > 0 && <span className="text-amber-600"> (+{fees.stripe}% fee)</span>}
-                          </p>
+                  <div className="relative group">
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-[#635BFF] to-[#8B5CF6] rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300" />
+                    <div className="relative border-2 border-[#635BFF]/30 rounded-xl p-5 bg-gradient-to-br from-[#635BFF]/5 to-transparent hover:border-[#635BFF]/50 transition-all duration-300">
+                      <div className="flex items-start gap-4">
+                        <div className="h-14 w-14 rounded-xl bg-[#635BFF] flex items-center justify-center flex-shrink-0 shadow-lg shadow-[#635BFF]/30">
+                          <CreditCard className="h-7 w-7 text-white" />
                         </div>
-                        <Button 
-                          className="w-full bg-[#635BFF] hover:bg-[#635BFF]/90"
-                          onClick={createStripePayment}
-                          disabled={creatingStripePayment}
-                        >
-                          {creatingStripePayment ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <Zap className="h-4 w-4 mr-2" />
-                              Pay ${calculateTotalWithFee('stripe')} with Card
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex-1 space-y-4">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-bold text-lg">Credit / Debit Card</h3>
+                              <Badge className="bg-[#635BFF] text-white border-0">Recommended</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Visa, Mastercard, American Express, Apple Pay, Google Pay
+                              {fees.stripe > 0 && <span className="text-amber-600 ml-1">(+{fees.stripe}% fee)</span>}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/Visa.svg" alt="Visa" className="h-6" />
+                              <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-6" />
+                              <span className="text-xs text-muted-foreground">& more</span>
+                            </div>
+                          </div>
+                          <Button 
+                            className="w-full h-12 text-base bg-[#635BFF] hover:bg-[#5851DB] shadow-lg shadow-[#635BFF]/20"
+                            onClick={createStripePayment}
+                            disabled={creatingStripePayment}
+                          >
+                            {creatingStripePayment ? (
+                              <>
+                                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <Zap className="h-5 w-5 mr-2" />
+                                Pay ${calculateTotalWithFee('stripe')} Now
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
