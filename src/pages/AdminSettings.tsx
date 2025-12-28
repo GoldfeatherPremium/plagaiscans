@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench, Mail, FileText } from 'lucide-react';
+import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench, Mail, FileText, Chrome, Eye, EyeOff } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -53,6 +53,12 @@ export default function AdminSettings() {
   const [savingPendingNotification, setSavingPendingNotification] = useState(false);
   const [testingPendingNotification, setTestingPendingNotification] = useState(false);
 
+  // Google OAuth settings
+  const [googleClientId, setGoogleClientId] = useState('');
+  const [googleClientSecret, setGoogleClientSecret] = useState('');
+  const [savingGoogle, setSavingGoogle] = useState(false);
+  const [showGoogleSecret, setShowGoogleSecret] = useState(false);
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -75,7 +81,9 @@ export default function AdminSettings() {
       'maintenance_mode_enabled',
       'maintenance_message',
       'pending_notification_enabled',
-      'pending_notification_minutes'
+      'pending_notification_minutes',
+      'google_client_id',
+      'google_client_secret'
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
@@ -116,6 +124,11 @@ export default function AdminSettings() {
       const pendingNotificationMinutesSetting = data.find(s => s.key === 'pending_notification_minutes');
       setPendingNotificationEnabled(pendingNotificationEnabledSetting?.value !== 'false');
       if (pendingNotificationMinutesSetting) setPendingNotificationMinutes(pendingNotificationMinutesSetting.value);
+      
+      const googleClientIdSetting = data.find(s => s.key === 'google_client_id');
+      const googleClientSecretSetting = data.find(s => s.key === 'google_client_secret');
+      if (googleClientIdSetting) setGoogleClientId(googleClientIdSetting.value);
+      if (googleClientSecretSetting) setGoogleClientSecret(googleClientSecretSetting.value);
     }
     setLoading(false);
   };
@@ -333,6 +346,26 @@ export default function AdminSettings() {
       });
     } finally {
       setTestingPendingNotification(false);
+    }
+  };
+
+  const saveGoogleSettings = async () => {
+    setSavingGoogle(true);
+    
+    const updates = [
+      supabase.from('settings').upsert({ key: 'google_client_id', value: googleClientId }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'google_client_secret', value: googleClientSecret }, { onConflict: 'key' }),
+    ];
+    
+    const results = await Promise.all(updates);
+    const hasError = results.some(r => r.error);
+    
+    setSavingGoogle(false);
+    
+    if (hasError) {
+      toast({ title: 'Error', description: 'Failed to save Google OAuth settings', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: 'Google OAuth settings updated' });
     }
   };
 
@@ -767,6 +800,73 @@ export default function AdminSettings() {
                 Run Check Now
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Google OAuth Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Chrome className="h-5 w-5 text-[#4285F4]" />
+              Google OAuth Configuration
+            </CardTitle>
+            <CardDescription>Configure Google Sign-In for user authentication</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="googleClientId">Client ID</Label>
+              <Input
+                id="googleClientId"
+                placeholder="Enter your Google OAuth Client ID"
+                value={googleClientId}
+                onChange={(e) => setGoogleClientId(e.target.value)}
+                className="font-mono text-xs"
+              />
+              <p className="text-xs text-muted-foreground">
+                From Google Cloud Console → APIs & Services → Credentials
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="googleClientSecret">Client Secret</Label>
+              <div className="relative">
+                <Input
+                  id="googleClientSecret"
+                  type={showGoogleSecret ? 'text' : 'password'}
+                  placeholder="Enter your Google OAuth Client Secret"
+                  value={googleClientSecret}
+                  onChange={(e) => setGoogleClientSecret(e.target.value)}
+                  className="font-mono text-xs pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  onClick={() => setShowGoogleSecret(!showGoogleSecret)}
+                >
+                  {showGoogleSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+            
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Setup steps:</strong>
+                <ol className="list-decimal ml-4 mt-2 space-y-1">
+                  <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google Cloud Console</a></li>
+                  <li>Create OAuth 2.0 Client ID (Web application)</li>
+                  <li>Add authorized JavaScript origins: <code className="bg-muted px-1 rounded text-xs">{window.location.origin}</code></li>
+                  <li>Add authorized redirect URIs: <code className="bg-muted px-1 rounded text-xs">{import.meta.env.VITE_SUPABASE_URL}/auth/v1/callback</code></li>
+                </ol>
+              </AlertDescription>
+            </Alert>
+            
+            <Button onClick={saveGoogleSettings} disabled={savingGoogle}>
+              {savingGoogle ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Google OAuth Settings
+            </Button>
           </CardContent>
         </Card>
 
