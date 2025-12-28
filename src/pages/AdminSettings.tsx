@@ -54,6 +54,7 @@ export default function AdminSettings() {
   const [testingPendingNotification, setTestingPendingNotification] = useState(false);
 
   // Google OAuth settings
+  const [googleEnabled, setGoogleEnabled] = useState(false);
   const [googleClientId, setGoogleClientId] = useState('');
   const [googleClientSecret, setGoogleClientSecret] = useState('');
   const [savingGoogle, setSavingGoogle] = useState(false);
@@ -83,7 +84,8 @@ export default function AdminSettings() {
       'pending_notification_enabled',
       'pending_notification_minutes',
       'google_client_id',
-      'google_client_secret'
+      'google_client_secret',
+      'google_oauth_enabled'
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
@@ -127,8 +129,10 @@ export default function AdminSettings() {
       
       const googleClientIdSetting = data.find(s => s.key === 'google_client_id');
       const googleClientSecretSetting = data.find(s => s.key === 'google_client_secret');
+      const googleEnabledSetting = data.find(s => s.key === 'google_oauth_enabled');
       if (googleClientIdSetting) setGoogleClientId(googleClientIdSetting.value);
       if (googleClientSecretSetting) setGoogleClientSecret(googleClientSecretSetting.value);
+      setGoogleEnabled(googleEnabledSetting?.value === 'true');
     }
     setLoading(false);
   };
@@ -353,6 +357,7 @@ export default function AdminSettings() {
     setSavingGoogle(true);
     
     const updates = [
+      supabase.from('settings').upsert({ key: 'google_oauth_enabled', value: googleEnabled.toString() }, { onConflict: 'key' }),
       supabase.from('settings').upsert({ key: 'google_client_id', value: googleClientId }, { onConflict: 'key' }),
       supabase.from('settings').upsert({ key: 'google_client_secret', value: googleClientSecret }, { onConflict: 'key' }),
     ];
@@ -813,6 +818,24 @@ export default function AdminSettings() {
             <CardDescription>Configure Google Sign-In for user authentication</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className={`h-10 w-10 rounded-lg ${googleEnabled ? 'bg-[#4285F4]/20' : 'bg-muted'} flex items-center justify-center`}>
+                  <Chrome className={`h-5 w-5 ${googleEnabled ? 'text-[#4285F4]' : 'text-muted-foreground'}`} />
+                </div>
+                <div>
+                  <p className="font-medium">Enable Google Sign-In</p>
+                  <p className="text-sm text-muted-foreground">
+                    {googleEnabled ? 'Users can sign in with Google' : 'Google sign-in is disabled'}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={googleEnabled}
+                onCheckedChange={setGoogleEnabled}
+              />
+            </div>
+            
             <div className="space-y-2">
               <Label htmlFor="googleClientId">Client ID</Label>
               <Input
@@ -821,6 +844,7 @@ export default function AdminSettings() {
                 value={googleClientId}
                 onChange={(e) => setGoogleClientId(e.target.value)}
                 className="font-mono text-xs"
+                disabled={!googleEnabled}
               />
               <p className="text-xs text-muted-foreground">
                 From Google Cloud Console → APIs & Services → Credentials
@@ -837,6 +861,7 @@ export default function AdminSettings() {
                   value={googleClientSecret}
                   onChange={(e) => setGoogleClientSecret(e.target.value)}
                   className="font-mono text-xs pr-10"
+                  disabled={!googleEnabled}
                 />
                 <Button
                   type="button"
@@ -850,18 +875,20 @@ export default function AdminSettings() {
               </div>
             </div>
             
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                <strong>Setup steps:</strong>
-                <ol className="list-decimal ml-4 mt-2 space-y-1">
-                  <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google Cloud Console</a></li>
-                  <li>Create OAuth 2.0 Client ID (Web application)</li>
-                  <li>Add authorized JavaScript origins: <code className="bg-muted px-1 rounded text-xs">{window.location.origin}</code></li>
-                  <li>Add authorized redirect URIs: <code className="bg-muted px-1 rounded text-xs">{import.meta.env.VITE_SUPABASE_URL}/auth/v1/callback</code></li>
-                </ol>
-              </AlertDescription>
-            </Alert>
+            {googleEnabled && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Setup steps:</strong>
+                  <ol className="list-decimal ml-4 mt-2 space-y-1">
+                    <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google Cloud Console</a></li>
+                    <li>Create OAuth 2.0 Client ID (Web application)</li>
+                    <li>Add authorized JavaScript origins: <code className="bg-muted px-1 rounded text-xs">{window.location.origin}</code></li>
+                    <li>Add authorized redirect URIs: <code className="bg-muted px-1 rounded text-xs">{import.meta.env.VITE_SUPABASE_URL}/auth/v1/callback</code></li>
+                  </ol>
+                </AlertDescription>
+              </Alert>
+            )}
             
             <Button onClick={saveGoogleSettings} disabled={savingGoogle}>
               {savingGoogle ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
