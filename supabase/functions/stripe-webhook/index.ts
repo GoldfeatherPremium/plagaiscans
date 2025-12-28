@@ -169,7 +169,7 @@ serve(async (req) => {
           }
 
           // Store in stripe_payments for customer receipts
-          await supabaseAdmin.from("stripe_payments").insert({
+          const { data: stripePayment } = await supabaseAdmin.from("stripe_payments").insert({
             user_id: userId,
             session_id: session.id,
             payment_intent_id: session.payment_intent as string || null,
@@ -179,7 +179,39 @@ serve(async (req) => {
             customer_email: session.customer_email || profile?.email,
             receipt_url: receiptUrl,
             completed_at: new Date().toISOString(),
-          });
+          }).select().single();
+
+          // Auto-generate invoice for the payment
+          try {
+            const invoiceResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/create-invoice`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              },
+              body: JSON.stringify({
+                user_id: userId,
+                amount_usd: amountTotal,
+                credits: credits,
+                payment_type: 'stripe',
+                payment_id: session.id,
+                transaction_id: session.payment_intent as string || null,
+                customer_email: session.customer_email || profile?.email,
+                description: `${credits} Document Check Credits`,
+                currency: (session.currency || 'usd').toUpperCase(),
+                status: 'paid'
+              }),
+            });
+            
+            const invoiceData = await invoiceResponse.json();
+            if (invoiceData.success) {
+              logStep("Invoice created automatically", { invoiceNumber: invoiceData.invoice.invoice_number });
+            } else {
+              logStep("Failed to create invoice", { error: invoiceData.error });
+            }
+          } catch (invoiceError) {
+            logStep("Error creating invoice", { error: invoiceError });
+          }
 
           // Create notification
           await supabaseAdmin.from("user_notifications").insert({

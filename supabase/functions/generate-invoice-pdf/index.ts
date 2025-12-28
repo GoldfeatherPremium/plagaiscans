@@ -11,6 +11,18 @@ const logStep = (step: string, details?: any) => {
   console.log(`[GENERATE-INVOICE-PDF] ${step}${detailsStr}`);
 };
 
+// UK Business Details
+const COMPANY = {
+  legalName: "Goldfeather Prem Ltd",
+  tradingName: "Plagaiscans",
+  companyNumber: "XXXXXXX", // Replace with actual company number
+  country: "United Kingdom",
+  email: "support@plagaiscans.com",
+  website: "https://plagaiscans.com",
+  vatNumber: null as string | null, // Set when VAT registered
+  isVatRegistered: false,
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -55,72 +67,261 @@ serve(async (req) => {
     }
     logStep("Invoice fetched", { invoiceNumber: invoice.invoice_number });
 
-    // Get site content for company details
-    const { data: siteContent } = await supabaseClient
-      .from('site_content')
-      .select('content_key, content_value')
-      .in('content_key', ['company_name', 'company_address', 'company_email', 'company_phone']);
-    
-    const companyDetails: Record<string, string> = {};
-    siteContent?.forEach(item => {
-      companyDetails[item.content_key] = item.content_value;
-    });
+    // Format dates
+    const formatDate = (dateStr: string) => {
+      return new Date(dateStr).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      });
+    };
 
-    const companyName = companyDetails.company_name || 'Plagaiscan';
-    const companyAddress = companyDetails.company_address || '';
-    const companyEmail = companyDetails.company_email || '';
-    const companyPhone = companyDetails.company_phone || '';
+    const invoiceDate = formatDate(invoice.created_at);
+    const paymentDate = invoice.paid_at ? formatDate(invoice.paid_at) : invoiceDate;
 
-    // Generate PDF content as HTML (will be converted to PDF by frontend)
-    const invoiceDate = new Date(invoice.created_at).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-    
-    const paidDate = invoice.paid_at 
-      ? new Date(invoice.paid_at).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        })
-      : invoiceDate;
+    // Calculate amounts
+    const subtotal = Number(invoice.subtotal || invoice.amount_usd);
+    const vatRate = Number(invoice.vat_rate || 0);
+    const vatAmount = Number(invoice.vat_amount || 0);
+    const totalAmount = subtotal + vatAmount;
+    const unitPrice = Number(invoice.unit_price || invoice.amount_usd);
+    const quantity = invoice.quantity || 1;
+    const currency = invoice.currency || 'USD';
+
+    // Currency symbol
+    const currencySymbol = currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : '$';
+
+    // Payment method display
+    const paymentMethodDisplay = (type: string) => {
+      switch (type) {
+        case 'stripe': return 'Card (Stripe)';
+        case 'crypto': return 'Cryptocurrency';
+        case 'manual': return 'Bank Transfer';
+        case 'usdt_trc20': return 'USDT (TRC20)';
+        default: return type.charAt(0).toUpperCase() + type.slice(1);
+      }
+    };
+
+    // VAT section HTML
+    const vatSection = COMPANY.isVatRegistered ? `
+      <div class="vat-info">
+        <p><strong>VAT Number:</strong> ${COMPANY.vatNumber}</p>
+      </div>
+    ` : '';
+
+    const vatRowHtml = vatRate > 0 ? `
+      <div class="totals-row">
+        <span>VAT (${vatRate}%)</span>
+        <span>${currencySymbol}${vatAmount.toFixed(2)}</span>
+      </div>
+    ` : `
+      <div class="totals-row vat-note">
+        <span colspan="2" style="font-size: 11px; color: #666;">VAT not applicable under current UK tax regulations.</span>
+      </div>
+    `;
 
     const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Invoice ${invoice.invoice_number}</title>
+  <title>Invoice ${invoice.invoice_number} - Plagaiscans</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1a1a1a; line-height: 1.6; }
-    .invoice-container { max-width: 800px; margin: 0 auto; padding: 40px; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 3px solid #3b82f6; padding-bottom: 30px; }
-    .company-info h1 { font-size: 28px; color: #3b82f6; margin-bottom: 5px; }
-    .company-info p { color: #666; font-size: 13px; }
+    body { 
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Oxygen, Ubuntu, sans-serif; 
+      color: #1a1a1a; 
+      line-height: 1.6; 
+      background: #fff;
+    }
+    .invoice-container { 
+      max-width: 800px; 
+      margin: 0 auto; 
+      padding: 40px; 
+    }
+    .header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: flex-start; 
+      margin-bottom: 40px; 
+      padding-bottom: 30px; 
+      border-bottom: 2px solid #e5e7eb; 
+    }
+    .company-info h1 { 
+      font-size: 24px; 
+      color: #1e40af; 
+      margin-bottom: 4px; 
+      font-weight: 700;
+    }
+    .company-info .trading-name { 
+      font-size: 14px; 
+      color: #6b7280; 
+      margin-bottom: 8px;
+    }
+    .company-info p { 
+      color: #6b7280; 
+      font-size: 12px; 
+      line-height: 1.4;
+    }
     .invoice-title { text-align: right; }
-    .invoice-title h2 { font-size: 32px; color: #1a1a1a; margin-bottom: 10px; }
-    .invoice-title .invoice-number { font-size: 18px; color: #3b82f6; font-weight: 600; }
-    .invoice-title .status { display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-top: 10px; }
+    .invoice-title h2 { 
+      font-size: 28px; 
+      color: #111827; 
+      margin-bottom: 8px; 
+      font-weight: 600;
+      letter-spacing: 2px;
+    }
+    .invoice-title .invoice-number { 
+      font-size: 16px; 
+      color: #1e40af; 
+      font-weight: 600; 
+      font-family: 'Courier New', monospace;
+    }
+    .invoice-title .status { 
+      display: inline-block; 
+      padding: 6px 16px; 
+      border-radius: 4px; 
+      font-size: 11px; 
+      font-weight: 600; 
+      text-transform: uppercase; 
+      margin-top: 12px;
+      letter-spacing: 0.5px;
+    }
     .status-paid { background: #dcfce7; color: #166534; }
     .status-pending { background: #fef3c7; color: #92400e; }
-    .details-row { display: flex; justify-content: space-between; margin-bottom: 40px; }
-    .detail-box { width: 48%; }
-    .detail-box h3 { font-size: 12px; text-transform: uppercase; color: #888; letter-spacing: 1px; margin-bottom: 10px; }
-    .detail-box p { color: #333; }
-    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-    .items-table th { background: #f8fafc; padding: 14px 16px; text-align: left; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0; }
-    .items-table td { padding: 16px; border-bottom: 1px solid #e2e8f0; }
-    .items-table .amount { text-align: right; font-weight: 600; }
-    .totals { margin-left: auto; width: 300px; }
-    .totals-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e2e8f0; }
-    .totals-row.total { border-bottom: none; border-top: 2px solid #1a1a1a; font-size: 20px; font-weight: 700; padding-top: 16px; }
-    .footer { margin-top: 60px; padding-top: 30px; border-top: 1px solid #e2e8f0; text-align: center; color: #888; font-size: 13px; }
-    .footer p { margin-bottom: 5px; }
-    .payment-info { background: #f0f9ff; border-radius: 8px; padding: 20px; margin-top: 30px; }
-    .payment-info h4 { color: #0369a1; margin-bottom: 10px; }
-    .payment-info p { color: #0c4a6e; font-size: 14px; }
+    
+    .details-section { 
+      display: flex; 
+      justify-content: space-between; 
+      margin-bottom: 35px; 
+      gap: 40px;
+    }
+    .detail-box { flex: 1; }
+    .detail-box h3 { 
+      font-size: 10px; 
+      text-transform: uppercase; 
+      color: #9ca3af; 
+      letter-spacing: 1.5px; 
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .detail-box p { 
+      color: #374151; 
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .detail-box p strong { color: #111827; }
+    
+    .items-table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      margin-bottom: 25px; 
+    }
+    .items-table th { 
+      background: #f9fafb; 
+      padding: 12px 14px; 
+      text-align: left; 
+      font-size: 10px; 
+      text-transform: uppercase; 
+      color: #6b7280; 
+      letter-spacing: 0.8px;
+      font-weight: 600;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .items-table th.amount { text-align: right; }
+    .items-table td { 
+      padding: 16px 14px; 
+      border-bottom: 1px solid #f3f4f6; 
+      font-size: 13px;
+      color: #374151;
+    }
+    .items-table td.amount { 
+      text-align: right; 
+      font-weight: 600;
+      color: #111827;
+    }
+    .items-table .description-cell strong {
+      display: block;
+      color: #111827;
+      margin-bottom: 2px;
+    }
+    .items-table .description-cell span {
+      color: #6b7280;
+      font-size: 12px;
+    }
+    
+    .totals { 
+      margin-left: auto; 
+      width: 280px; 
+      background: #f9fafb;
+      padding: 20px;
+      border-radius: 6px;
+    }
+    .totals-row { 
+      display: flex; 
+      justify-content: space-between; 
+      padding: 8px 0; 
+      font-size: 13px;
+      color: #374151;
+    }
+    .totals-row.total { 
+      border-top: 2px solid #e5e7eb; 
+      font-size: 16px; 
+      font-weight: 700;
+      color: #111827;
+      padding-top: 12px;
+      margin-top: 8px;
+    }
+    .totals-row.vat-note {
+      display: block;
+      padding: 6px 0;
+    }
+    
+    .payment-details {
+      background: #eff6ff;
+      border-radius: 6px;
+      padding: 16px 20px;
+      margin: 30px 0;
+    }
+    .payment-details h4 {
+      color: #1e40af;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+    .payment-details p {
+      font-size: 12px;
+      color: #1e3a8a;
+      margin-bottom: 4px;
+    }
+    
+    .footer { 
+      margin-top: 50px; 
+      padding-top: 25px; 
+      border-top: 1px solid #e5e7eb; 
+      text-align: center;
+    }
+    .footer-company {
+      margin-bottom: 15px;
+    }
+    .footer-company p {
+      font-size: 11px;
+      color: #6b7280;
+      line-height: 1.6;
+    }
+    .footer-company p strong {
+      color: #374151;
+    }
+    .footer-legal {
+      font-size: 10px;
+      color: #9ca3af;
+      font-style: italic;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px dashed #e5e7eb;
+    }
+    
     @media print { 
       body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
       .invoice-container { padding: 20px; }
@@ -131,51 +332,55 @@ serve(async (req) => {
   <div class="invoice-container">
     <div class="header">
       <div class="company-info">
-        <h1>${companyName}</h1>
-        ${companyAddress ? `<p>${companyAddress}</p>` : ''}
-        ${companyEmail ? `<p>${companyEmail}</p>` : ''}
-        ${companyPhone ? `<p>${companyPhone}</p>` : ''}
+        <h1>Plagaiscans</h1>
+        <p class="trading-name">Trading name of ${COMPANY.legalName}</p>
+        <p>${COMPANY.email}</p>
+        <p>${COMPANY.website}</p>
+        ${vatSection}
       </div>
       <div class="invoice-title">
         <h2>INVOICE</h2>
         <div class="invoice-number">${invoice.invoice_number}</div>
-        <div class="status ${invoice.status === 'paid' ? 'status-paid' : 'status-pending'}">${invoice.status}</div>
+        <div class="status ${invoice.status === 'paid' ? 'status-paid' : 'status-pending'}">
+          ${invoice.status.toUpperCase()}
+        </div>
       </div>
     </div>
 
-    <div class="details-row">
+    <div class="details-section">
       <div class="detail-box">
         <h3>Bill To</h3>
-        <p><strong>${invoice.customer_name || 'Customer'}</strong></p>
+        <p><strong>${invoice.customer_name || 'Guest Customer'}</strong></p>
         <p>${invoice.customer_email || ''}</p>
+        ${invoice.customer_country ? `<p>${invoice.customer_country}</p>` : ''}
         ${invoice.customer_address ? `<p>${invoice.customer_address}</p>` : ''}
       </div>
       <div class="detail-box">
         <h3>Invoice Details</h3>
         <p><strong>Invoice Date:</strong> ${invoiceDate}</p>
-        <p><strong>Payment Date:</strong> ${paidDate}</p>
-        <p><strong>Payment Method:</strong> ${invoice.payment_type.charAt(0).toUpperCase() + invoice.payment_type.slice(1)}</p>
+        <p><strong>Payment Date:</strong> ${paymentDate}</p>
+        <p><strong>Currency:</strong> ${currency}</p>
       </div>
     </div>
 
     <table class="items-table">
       <thead>
         <tr>
-          <th>Description</th>
-          <th>Quantity</th>
-          <th>Unit Price</th>
-          <th class="amount">Amount</th>
+          <th style="width: 50%;">Description</th>
+          <th style="width: 15%;">Quantity</th>
+          <th style="width: 15%;">Unit Price</th>
+          <th class="amount" style="width: 20%;">Amount</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td>
-            <strong>${invoice.description || 'Document Check Credits'}</strong>
-            <br><span style="color: #666; font-size: 13px;">${invoice.credits} Credits</span>
+          <td class="description-cell">
+            <strong>${invoice.description || 'Plagiarism & AI Content Analysis Service'}</strong>
+            <span>${invoice.credits} Document Check Credits</span>
           </td>
-          <td>1</td>
-          <td>$${Number(invoice.amount_usd).toFixed(2)}</td>
-          <td class="amount">$${Number(invoice.amount_usd).toFixed(2)}</td>
+          <td>${quantity}</td>
+          <td>${currencySymbol}${unitPrice.toFixed(2)}</td>
+          <td class="amount">${currencySymbol}${subtotal.toFixed(2)}</td>
         </tr>
       </tbody>
     </table>
@@ -183,28 +388,34 @@ serve(async (req) => {
     <div class="totals">
       <div class="totals-row">
         <span>Subtotal</span>
-        <span>$${Number(invoice.amount_usd).toFixed(2)}</span>
+        <span>${currencySymbol}${subtotal.toFixed(2)}</span>
       </div>
-      <div class="totals-row">
-        <span>Tax (0%)</span>
-        <span>$0.00</span>
-      </div>
+      ${vatRowHtml}
       <div class="totals-row total">
-        <span>Total</span>
-        <span>$${Number(invoice.amount_usd).toFixed(2)}</span>
+        <span>Total Paid</span>
+        <span>${currencySymbol}${totalAmount.toFixed(2)}</span>
       </div>
     </div>
 
-    ${invoice.notes ? `
-    <div class="payment-info">
-      <h4>Notes</h4>
-      <p>${invoice.notes}</p>
+    <div class="payment-details">
+      <h4>Payment Information</h4>
+      <p><strong>Payment Method:</strong> ${paymentMethodDisplay(invoice.payment_type)}</p>
+      ${invoice.transaction_id ? `<p><strong>Transaction ID:</strong> ${invoice.transaction_id}</p>` : ''}
+      ${invoice.payment_id ? `<p><strong>Reference:</strong> ${invoice.payment_id}</p>` : ''}
     </div>
-    ` : ''}
 
     <div class="footer">
-      <p>Thank you for your business!</p>
-      <p>If you have any questions about this invoice, please contact us at ${companyEmail}</p>
+      <div class="footer-company">
+        <p><strong>${COMPANY.legalName}</strong></p>
+        <p>Company Number: ${COMPANY.companyNumber}</p>
+        <p>Registered in the ${COMPANY.country}</p>
+        <p>Operating as: ${COMPANY.tradingName}</p>
+        <p>${COMPANY.email} | ${COMPANY.website}</p>
+      </div>
+      <div class="footer-legal">
+        <p>This invoice is generated electronically and is valid without a signature.</p>
+        <p>Plagaiscans is a trading name of ${COMPANY.legalName}, a company registered in the ${COMPANY.country}.</p>
+      </div>
     </div>
   </div>
 </body>
@@ -216,12 +427,14 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       html: htmlContent,
+      fileName: `Invoice_${invoice.invoice_number}_Plagaiscans.pdf`,
       invoice: {
         invoice_number: invoice.invoice_number,
         amount_usd: invoice.amount_usd,
         credits: invoice.credits,
         status: invoice.status,
-        created_at: invoice.created_at
+        created_at: invoice.created_at,
+        currency: currency
       }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
