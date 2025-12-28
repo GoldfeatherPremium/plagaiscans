@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';
 import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { PushNotificationBanner } from '@/components/PushNotificationBanner';
+import { CreditExpirationCard } from '@/components/CreditExpirationCard';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Shimmer } from '@/components/ui/shimmer';
@@ -253,6 +254,9 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         )}
+
+        {/* Credit Expiration Warning - Customer Only */}
+        {role === 'customer' && <CreditExpirationCard />}
 
         {/* Quick Actions */}
         {role === 'customer' && (
