@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
 import { DocumentTagManager } from '@/components/DocumentTagManager';
 import { FileText, Download, Loader2, Star, StarOff, DownloadCloud, Package, Trash2 } from 'lucide-react';
+import { PushNotificationBanner } from '@/components/PushNotificationBanner';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -149,6 +150,8 @@ export default function MyDocuments() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Push Notification Prompt */}
+        {role === 'customer' && <PushNotificationBanner />}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-display font-bold">My Documents</h1>
