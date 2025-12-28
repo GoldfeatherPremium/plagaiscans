@@ -252,11 +252,11 @@ export default function AdminInvoices() {
   };
 
   const getCurrencySymbol = (currency: string | null) => {
-    switch (currency) {
-      case 'GBP': return '£';
-      case 'EUR': return '€';
-      default: return '$';
-    }
+    const symbols: Record<string, string> = {
+      USD: '$', GBP: '£', EUR: '€', AED: 'د.إ', INR: '₹', 
+      CAD: 'C$', AUD: 'A$', SGD: 'S$', CHF: 'Fr', JPY: '¥', CNY: '¥'
+    };
+    return symbols[currency || 'USD'] || '$';
   };
 
   const filteredInvoices = invoices.filter(invoice => {
@@ -359,6 +359,14 @@ export default function AdminInvoices() {
                         <SelectItem value="USD">USD ($)</SelectItem>
                         <SelectItem value="GBP">GBP (£)</SelectItem>
                         <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="AED">AED (د.إ)</SelectItem>
+                        <SelectItem value="INR">INR (₹)</SelectItem>
+                        <SelectItem value="CAD">CAD ($)</SelectItem>
+                        <SelectItem value="AUD">AUD ($)</SelectItem>
+                        <SelectItem value="SGD">SGD ($)</SelectItem>
+                        <SelectItem value="CHF">CHF (Fr)</SelectItem>
+                        <SelectItem value="JPY">JPY (¥)</SelectItem>
+                        <SelectItem value="CNY">CNY (¥)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

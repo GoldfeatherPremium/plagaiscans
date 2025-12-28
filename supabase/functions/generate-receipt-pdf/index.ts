@@ -90,7 +90,11 @@ serve(async (req) => {
     const subtotal = receipt.subtotal || receipt.amount_paid;
     const vatAmount = receipt.vat_amount || 0;
     const totalAmount = receipt.amount_paid;
-    const currencySymbol = receipt.currency === 'GBP' ? '£' : receipt.currency === 'EUR' ? '€' : '$';
+    const currencySymbols: Record<string, string> = {
+      USD: '$', GBP: '£', EUR: '€', AED: 'د.إ', INR: '₹',
+      CAD: 'C$', AUD: 'A$', SGD: 'S$', CHF: 'Fr', JPY: '¥', CNY: '¥'
+    };
+    const currencySymbol = currencySymbols[receipt.currency || 'USD'] || '$';
 
     // Generate HTML for receipt
     const html = `

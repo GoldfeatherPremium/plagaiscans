@@ -89,7 +89,11 @@ serve(async (req) => {
     const currency = invoice.currency || 'USD';
 
     // Currency symbol
-    const currencySymbol = currency === 'GBP' ? '£' : currency === 'EUR' ? '€' : '$';
+    const currencySymbols: Record<string, string> = {
+      USD: '$', GBP: '£', EUR: '€', AED: 'د.إ', INR: '₹',
+      CAD: 'C$', AUD: 'A$', SGD: 'S$', CHF: 'Fr', JPY: '¥', CNY: '¥'
+    };
+    const currencySymbol = currencySymbols[currency] || '$';
 
     // Payment method display
     const paymentMethodDisplay = (type: string) => {
