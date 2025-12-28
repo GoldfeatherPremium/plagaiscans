@@ -51,6 +51,8 @@ interface StatementEntry {
   id: string;
   statement_id: string;
   entry_date: string;
+  entry_time: string | null;
+  transaction_id: string | null;
   description: string;
   reference: string | null;
   entry_type: string;
@@ -125,8 +127,13 @@ export default function AdminBankStatements() {
       .eq('statement_id', statementId)
       .order('entry_date', { ascending: true });
 
-    if (!error) {
-      setEntries(data || []);
+    if (!error && data) {
+      // Cast data to include new columns that may not be in types yet
+      setEntries(data.map(entry => ({
+        ...entry,
+        entry_time: (entry as any).entry_time ?? null,
+        transaction_id: (entry as any).transaction_id ?? null
+      })));
     }
     setLoadingEntries(false);
   };
@@ -904,7 +911,8 @@ export default function AdminBankStatements() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
+                      <TableHead>Date/Time</TableHead>
+                      <TableHead>Transaction ID</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Reference</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
@@ -916,7 +924,17 @@ export default function AdminBankStatements() {
                     {entries.map((entry) => (
                       <TableRow key={entry.id}>
                         <TableCell className="font-mono text-sm">
-                          {format(new Date(entry.entry_date), 'dd MMM yyyy')}
+                          <div>
+                            {format(new Date(entry.entry_date), 'dd MMM yyyy')}
+                            {entry.entry_time && (
+                              <span className="text-muted-foreground ml-1">
+                                {entry.entry_time.substring(0, 5)}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {entry.transaction_id || '-'}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -946,7 +964,7 @@ export default function AdminBankStatements() {
                     ))}
                     {entries.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                           No entries yet
                         </TableCell>
                       </TableRow>

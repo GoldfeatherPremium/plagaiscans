@@ -79,13 +79,24 @@ serve(async (req) => {
       return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     };
 
+    // Format time
+    const formatTime = (timeStr: string | null) => {
+      if (!timeStr) return '';
+      // timeStr is in format HH:MM:SS
+      const [hours, minutes] = timeStr.split(':');
+      return `${hours}:${minutes}`;
+    };
+
     // Generate entries HTML
     let entriesHtml = '';
     entries?.forEach((entry: any) => {
       const isCredit = entry.entry_type === 'credit';
+      const entryTime = entry.entry_time ? formatTime(entry.entry_time) : '';
+      const dateTimeDisplay = entryTime ? `${formatDate(entry.entry_date)} ${entryTime}` : formatDate(entry.entry_date);
       entriesHtml += `
         <tr>
-          <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${formatDate(entry.entry_date)}</td>
+          <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${dateTimeDisplay}</td>
+          <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb; font-family: monospace; font-size: 10px; color: #6b7280;">${entry.transaction_id || '-'}</td>
           <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${entry.description}</td>
           <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb; font-family: monospace; font-size: 11px;">${entry.reference || '-'}</td>
           <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; color: ${isCredit ? '#059669' : '#dc2626'};">
@@ -170,7 +181,8 @@ serve(async (req) => {
   <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
     <thead>
       <tr style="background: #f3f4f6;">
-        <th style="padding: 12px 8px; text-align: left; font-size: 11px; color: #6b7280; text-transform: uppercase; border-bottom: 2px solid #d1d5db;">Date</th>
+        <th style="padding: 12px 8px; text-align: left; font-size: 11px; color: #6b7280; text-transform: uppercase; border-bottom: 2px solid #d1d5db;">Date/Time</th>
+        <th style="padding: 12px 8px; text-align: left; font-size: 11px; color: #6b7280; text-transform: uppercase; border-bottom: 2px solid #d1d5db;">Transaction ID</th>
         <th style="padding: 12px 8px; text-align: left; font-size: 11px; color: #6b7280; text-transform: uppercase; border-bottom: 2px solid #d1d5db;">Description</th>
         <th style="padding: 12px 8px; text-align: left; font-size: 11px; color: #6b7280; text-transform: uppercase; border-bottom: 2px solid #d1d5db;">Reference</th>
         <th style="padding: 12px 8px; text-align: right; font-size: 11px; color: #6b7280; text-transform: uppercase; border-bottom: 2px solid #d1d5db;">Amount</th>
@@ -178,7 +190,7 @@ serve(async (req) => {
       </tr>
     </thead>
     <tbody>
-      ${entriesHtml || '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #9ca3af;">No transactions in this period</td></tr>'}
+      ${entriesHtml || '<tr><td colspan="6" style="padding: 20px; text-align: center; color: #9ca3af;">No transactions in this period</td></tr>'}
     </tbody>
   </table>
 
