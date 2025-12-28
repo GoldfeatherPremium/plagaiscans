@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { FileText, Download, Loader2, Receipt, Calendar, DollarSign, Plus, Search, Users, Globe, Shield, CalendarIcon } from 'lucide-react';
+import { FileText, Download, Loader2, Receipt, Calendar, DollarSign, Plus, Search, Users, Globe, Shield, CalendarIcon, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,6 +71,7 @@ export default function AdminInvoices() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   
@@ -220,6 +221,47 @@ export default function AdminInvoices() {
       });
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDeleteInvoice = async (invoice: Invoice) => {
+    if (invoice.is_immutable) {
+      toast({
+        title: "Cannot Delete",
+        description: "This invoice is locked and cannot be deleted.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!confirm(`Delete invoice ${invoice.invoice_number}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingId(invoice.id);
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', invoice.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Deleted",
+        description: `Invoice ${invoice.invoice_number} has been deleted.`
+      });
+      
+      fetchInvoices();
+    } catch (error: any) {
+      console.error('Error deleting invoice:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete invoice",
+        variant: "destructive"
+      });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -660,20 +702,36 @@ export default function AdminInvoices() {
                         </TableCell>
                         <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDownloadInvoice(invoice)}
-                            disabled={downloadingId === invoice.id}
-                            className="gap-1"
-                          >
-                            {downloadingId === invoice.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Download className="h-4 w-4" />
-                            )}
-                            PDF
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownloadInvoice(invoice)}
+                              disabled={downloadingId === invoice.id}
+                              className="gap-1"
+                            >
+                              {downloadingId === invoice.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
+                              PDF
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteInvoice(invoice)}
+                              disabled={deletingId === invoice.id || invoice.is_immutable}
+                              className="text-destructive hover:text-destructive"
+                              title={invoice.is_immutable ? "Locked invoices cannot be deleted" : "Delete invoice"}
+                            >
+                              {deletingId === invoice.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

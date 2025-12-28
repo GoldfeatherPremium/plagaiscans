@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { supabase } from '@/integrations/supabase/client';
 import { 
   FileText, Download, Loader2, Plus, Trash2, Edit, Calendar as CalendarIcon, 
-  Building2, Upload, RefreshCw, DollarSign, TrendingUp, TrendingDown, ImageIcon, X
+  Building2, Upload, RefreshCw, DollarSign, TrendingUp, TrendingDown, ImageIcon, X, Copy
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -106,6 +106,31 @@ export default function AdminBankStatements() {
   useEffect(() => {
     fetchStatements();
   }, []);
+
+  // Load previous bank details when statements are available
+  const loadPreviousBankDetails = () => {
+    if (statements.length === 0) {
+      toast({ title: "No Previous Statements", description: "No previous statement found to copy details from.", variant: "destructive" });
+      return;
+    }
+    
+    const lastStatement = statements[0]; // Already sorted by created_at desc
+    setFormData({
+      bank_name: lastStatement.bank_name,
+      bank_country: lastStatement.bank_country,
+      bank_logo_url: lastStatement.bank_logo_url || '',
+      account_name: lastStatement.account_name,
+      account_number: lastStatement.account_number || '',
+      sort_code: lastStatement.sort_code || '',
+      iban: lastStatement.iban || '',
+      swift_code: lastStatement.swift_code || '',
+      opening_balance: lastStatement.closing_balance.toString(), // Use closing balance as new opening
+      currency: lastStatement.currency,
+      notes: ''
+    });
+    
+    toast({ title: "Loaded", description: `Bank details loaded from ${lastStatement.statement_number}` });
+  };
 
   const fetchStatements = async () => {
     const { data, error } = await supabase
@@ -543,7 +568,21 @@ export default function AdminBankStatements() {
                 <DialogTitle>Create Bank Statement</DialogTitle>
                 <DialogDescription>Configure bank details and statement period</DialogDescription>
               </DialogHeader>
-              <Tabs defaultValue="bank" className="mt-4">
+              
+              {/* Load Previous Bank Details Button */}
+              {statements.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={loadPreviousBankDetails}
+                  className="w-full gap-2 mb-2"
+                >
+                  <Copy className="h-4 w-4" />
+                  Use Previous Bank Details (from {statements[0].statement_number})
+                </Button>
+              )}
+              
+              <Tabs defaultValue="bank" className="mt-2">
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="bank">Bank Details</TabsTrigger>
                   <TabsTrigger value="account">Account</TabsTrigger>

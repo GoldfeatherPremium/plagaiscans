@@ -159,7 +159,7 @@ serve(async (req) => {
   <div style="background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); padding: 35px 40px; color: white;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <div>
-        ${statement.bank_logo_url ? `<img src="${statement.bank_logo_url}" alt="Bank Logo" style="max-height: 45px; margin-bottom: 12px; filter: brightness(0) invert(1);">` : ''}
+        ${statement.bank_logo_url ? `<img src="${statement.bank_logo_url}" alt="Bank Logo" style="max-height: 50px; max-width: 180px; margin-bottom: 12px; object-fit: contain; background: white; padding: 6px 10px; border-radius: 6px;">` : ''}
         <h1 style="font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 4px;">${statement.bank_name}</h1>
         <p style="color: rgba(255,255,255,0.7); font-size: 13px;">${statement.bank_country}</p>
       </div>
