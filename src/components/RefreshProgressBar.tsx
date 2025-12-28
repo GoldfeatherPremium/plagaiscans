@@ -42,10 +42,11 @@ export const RefreshProgressBar = () => {
   }, [queryClient]);
 
   // Pull to refresh hook
-  const { pullDistance, isRefreshing, pullProgress } = usePullToRefresh({
+  const { pullDistance, isRefreshing, pullProgress, showBounce } = usePullToRefresh({
     onRefresh: handleRefresh,
     threshold: 80,
     maxPull: 120,
+    enableHaptics: true,
   });
 
   // Route change loading
@@ -94,7 +95,7 @@ export const RefreshProgressBar = () => {
     >
       {/* Dynamic Island Container */}
       <div 
-        className="relative bg-black/90 backdrop-blur-xl rounded-full overflow-hidden shadow-2xl shadow-primary/20 transition-all duration-300 ease-out"
+        className={`relative bg-black/90 backdrop-blur-xl rounded-full overflow-hidden shadow-2xl shadow-primary/20 transition-all duration-300 ease-out ${showBounce ? 'animate-bounce-success' : ''}`}
         style={{
           width: isActive ? '180px' : '120px',
           height: '32px',
@@ -102,6 +103,11 @@ export const RefreshProgressBar = () => {
           transform: `scale(${isActive ? 1 : 0.8})`,
         }}
       >
+        {/* Success glow effect on bounce */}
+        {showBounce && (
+          <div className="absolute inset-0 rounded-full bg-green-500/30 animate-pulse" />
+        )}
+        
         {/* Inner glow effect */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/10 to-transparent" />
         
@@ -109,17 +115,34 @@ export const RefreshProgressBar = () => {
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
           {/* Progress bar fill */}
           <div 
-            className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 transition-all duration-200 ease-out"
+            className={`h-full transition-all duration-200 ease-out ${showBounce ? 'bg-gradient-to-r from-green-400 via-green-500 to-green-600' : 'bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600'}`}
             style={{ 
               width: `${Math.min(currentProgress, 100)}%`,
-              boxShadow: '0 0 10px rgba(59, 130, 246, 0.8), 0 0 20px rgba(59, 130, 246, 0.4)'
+              boxShadow: showBounce 
+                ? '0 0 10px rgba(34, 197, 94, 0.8), 0 0 20px rgba(34, 197, 94, 0.4)'
+                : '0 0 10px rgba(59, 130, 246, 0.8), 0 0 20px rgba(59, 130, 246, 0.4)'
             }}
           />
         </div>
 
         {/* Loading/Pull indicator */}
         <div className="flex items-center justify-center h-full px-4 gap-2">
-          {showPullIndicator && !isRefreshing ? (
+          {showBounce ? (
+            <>
+              {/* Success checkmark */}
+              <svg 
+                className="w-4 h-4 text-green-400"
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-xs font-medium text-green-400">
+                Refreshed!
+              </span>
+            </>
+          ) : showPullIndicator && !isRefreshing ? (
             <>
               {/* Pull arrow indicator */}
               <svg 

@@ -337,3 +337,24 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Bounce success animation for pull-to-refresh */
+@keyframes bounce-success {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.15) translateY(-4px); }
+  50% { transform: scale(0.95); }
+  75% { transform: scale(1.05); }
+}
+
+.animate-bounce-success {
+  animation: bounce-success 0.5s ease-out;
+}
+
+/* Shimmer loading animation */
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s infinite;
+}
