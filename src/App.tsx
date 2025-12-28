@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
+import { RefreshProgressBar } from "@/components/RefreshProgressBar";
 
 // Lazy load non-critical components
 const InstallPromptBanner = lazy(() => import("@/components/InstallPromptBanner").then(m => ({ default: m.InstallPromptBanner })));
@@ -267,6 +268,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <CartProvider>
+            <RefreshProgressBar />
             <Suspense fallback={null}>
               <DocumentCompletionNotifier />
             </Suspense>
