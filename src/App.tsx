@@ -17,6 +17,7 @@ const DocumentCompletionNotifier = lazy(() => import("@/components/DocumentCompl
 const Landing = lazy(() => import("./pages/Landing"));
 const Auth = lazy(() => import("./pages/Auth"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const CompleteProfile = lazy(() => import("./pages/CompleteProfile"));
 const Maintenance = lazy(() => import("./pages/Maintenance"));
 
 // Lazy loaded pages (split into separate chunks)
@@ -88,8 +89,8 @@ const PageLoader = () => (
   </div>
 );
 
-const ProtectedRoute = ({ children, allowedRoles, bypassMaintenance = false }: { children: React.ReactNode; allowedRoles?: string[]; bypassMaintenance?: boolean }) => {
-  const { user, role, loading } = useAuth();
+const ProtectedRoute = ({ children, allowedRoles, bypassMaintenance = false, allowIncompleteProfile = false }: { children: React.ReactNode; allowedRoles?: string[]; bypassMaintenance?: boolean; allowIncompleteProfile?: boolean }) => {
+  const { user, role, loading, needsPhoneNumber } = useAuth();
   const { isMaintenanceMode, loading: maintenanceLoading } = useMaintenanceMode();
   
   if (loading || maintenanceLoading) {
@@ -97,6 +98,11 @@ const ProtectedRoute = ({ children, allowedRoles, bypassMaintenance = false }: {
   }
   
   if (!user) return <Navigate to="/auth" replace />;
+  
+  // Redirect to complete profile if phone number is missing (OAuth users)
+  if (needsPhoneNumber && !allowIncompleteProfile) {
+    return <Navigate to="/complete-profile" replace />;
+  }
   
   // Allow admins to bypass maintenance mode, block customers and staff
   if (isMaintenanceMode && !bypassMaintenance && role !== 'admin') {
@@ -193,6 +199,7 @@ const AppRoutes = () => (
       <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
       {/* Password reset page - bypasses auth checks to allow password change */}
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/complete-profile" element={<ProtectedRoute allowIncompleteProfile={true}><CompleteProfile /></ProtectedRoute>} />
       <Route path="/install" element={<Install />} />
       <Route path="/guest-upload" element={<PublicRoute><GuestUpload /></PublicRoute>} />
       

@@ -18,8 +18,10 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, fullName: string, phone: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  needsPhoneNumber: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -212,6 +214,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
+    
+    return { error };
+  };
+
+  // Check if user needs to provide phone number (for OAuth users)
+  const needsPhoneNumber = !!(user && profile && !profile.phone);
+
   return (
     <AuthContext.Provider
       value={{
@@ -222,8 +238,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         signUp,
         signIn,
+        signInWithGoogle,
         signOut,
         refreshProfile,
+        needsPhoneNumber,
       }}
     >
       {children}
