@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,8 +49,12 @@ const resetPasswordSchema = z.object({
   path: ['confirmPassword'],
 });
 
+// OAuth timeout duration (30 seconds)
+const OAUTH_TIMEOUT_MS = 30000;
+
 export default function Auth() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const isResetMode = searchParams.get('reset') === 'true';
   const { signIn, signUp, signInWithGoogle } = useAuth();
@@ -62,6 +66,7 @@ export default function Auth() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [resetPasswordData, setResetPasswordData] = useState({ password: '', confirmPassword: '' });
   const [isPhoneValid, setIsPhoneValid] = useState(false);
+  const oauthTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Password visibility states
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -80,6 +85,41 @@ export default function Auth() {
     confirmPassword: '',
   });
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
+
+  // Check for OAuth error in URL (when user cancels or error occurs)
+  useEffect(() => {
+    const hashParams = new URLSearchParams(location.hash.replace('#', ''));
+    const errorParam = hashParams.get('error');
+    const errorDescription = hashParams.get('error_description');
+    
+    if (errorParam) {
+      let errorMessage = 'Authentication was cancelled or failed.';
+      
+      if (errorParam === 'access_denied') {
+        errorMessage = 'You cancelled the sign-in process. Please try again when ready.';
+      } else if (errorDescription) {
+        errorMessage = decodeURIComponent(errorDescription.replace(/\+/g, ' '));
+      }
+      
+      toast({
+        title: 'Sign In Cancelled',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      
+      // Clean up the URL by removing the hash
+      window.history.replaceState(null, '', location.pathname);
+    }
+  }, [location.hash, toast]);
+
+  // Cleanup OAuth timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (oauthTimeoutRef.current) {
+        clearTimeout(oauthTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const fetchGoogleOAuthSetting = async () => {
@@ -179,11 +219,26 @@ export default function Auth() {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
+    
+    // Set a timeout to handle cases where user doesn't complete OAuth
+    // (e.g., closes the popup/tab, takes too long, etc.)
+    oauthTimeoutRef.current = setTimeout(() => {
+      // Only reset if we're still in loading state (user came back without completing)
+      setGoogleLoading(false);
+      toast({
+        title: 'Sign In Timeout',
+        description: 'The sign-in process took too long. Please try again.',
+        variant: 'destructive',
+      });
+    }, OAUTH_TIMEOUT_MS);
+    
     const { error } = await signInWithGoogle();
     
     // If there's an error, reset loading state and show toast
-    // Otherwise, keep loading state true since we're redirecting
     if (error) {
+      if (oauthTimeoutRef.current) {
+        clearTimeout(oauthTimeoutRef.current);
+      }
       setGoogleLoading(false);
       toast({
         title: 'Google Sign In Failed',
