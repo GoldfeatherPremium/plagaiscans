@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SEO, generateOrganizationSchema, generateServiceSchema } from "@/components/SEO";
+import { SEO, generateOrganizationSchema, generateServiceSchema, generateSoftwareApplicationSchema } from "@/components/SEO";
 
 const Landing = () => {
   const { user } = useAuth();
@@ -19,7 +19,7 @@ const Landing = () => {
     {
       icon: Bot,
       title: "AI Content Indicators",
-      description: "Analyze text for potential AI-generated patterns to support responsible academic use",
+      description: "Analyze text for potential AI-generated patterns to support responsible academic use. Indicators are advisory, not definitive.",
     },
     {
       icon: Clock,
@@ -62,7 +62,7 @@ const Landing = () => {
         canonicalUrl="/"
         structuredData={{
           '@context': 'https://schema.org',
-          '@graph': [generateOrganizationSchema(), generateServiceSchema()],
+          '@graph': [generateOrganizationSchema(), generateServiceSchema(), generateSoftwareApplicationSchema()],
         }}
       />
       <div className="min-h-screen bg-background">

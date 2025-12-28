@@ -18,16 +18,16 @@ const faqData = [
     answer: "Plagaiscans is an academic integrity platform that analyzes documents for similarity against billions of academic sources, publications, and web content. Our system identifies overlapping text, provides similarity percentages, and generates clear reports to help users understand and improve document originality."
   },
   {
-    question: "Is this similar to traditional academic plagiarism tools?",
-    answer: "Plagaiscans provides similarity analysis and originality insights designed to support academic integrity in a transparent and privacy-focused way. Our platform focuses on delivering clear, understandable reports with source attribution and actionable insights."
+    question: "Is this similar to academic similarity tools?",
+    answer: "This platform provides originality insights and similarity analysis designed to support academic integrity in a transparent way. Modern tools emphasize clarity, transparency, and ethical evaluation."
   },
   {
-    question: "Does Plagaiscans detect AI-written content?",
-    answer: "Our system provides AI-content indicators that help assess potential AI involvement in document writing. These are probability-based indicators that may suggest patterns consistent with AI-generated text."
+    question: "Can this detect AI-generated writing?",
+    answer: "The system provides AI-content indicators to assist evaluation, without claiming certainty. AI-content indicators are provided to support academic review and should not be considered definitive judgments."
   },
   {
-    question: "Is my data stored or shared?",
-    answer: "No. Your documents are processed securely and are not permanently stored, reused, or indexed. We prioritize privacy and data security. Files are analyzed and then removed from our systems after report generation."
+    question: "Is uploaded content stored?",
+    answer: "No. Files are processed securely and are not reused or retained. Your documents are analyzed and then removed from our systems after report generation. We prioritize privacy and data security."
   },
   {
     question: "What file formats are supported?",
@@ -54,8 +54,8 @@ const faqData = [
     answer: "We accept various payment methods including credit/debit cards and cryptocurrency. Contact our support team for specific payment options available in your region."
   },
   {
-    question: "Can I get a refund?",
-    answer: "Please refer to our Refund Policy for detailed information about our refund terms and conditions. We aim to ensure customer satisfaction while maintaining fair usage policies."
+    question: "How do I interpret similarity percentages?",
+    answer: "Similarity percentages indicate how much of your document matches other sources. A higher percentage isn't automatically problematic—properly cited quotes and common terminology will show as matches. The key is ensuring proper attribution for all matched content."
   },
   {
     question: "Is there customer support available?",

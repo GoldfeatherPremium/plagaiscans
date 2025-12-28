@@ -26,7 +26,7 @@ const ServicesSection = () => {
     {
       icon: Bot,
       title: "AI-Content Detection Indicators",
-      description: "Analyze text for potential AI-generated patterns to support responsible academic use. Advisory only, not guaranteed detection.",
+      description: "Analyze text for potential AI-generated patterns to support responsible academic use. Indicators are advisory and should not be considered definitive.",
       highlight: "AI Detection",
     },
     {
