@@ -290,6 +290,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/subscription', icon: Crown, label: 'Subscription' },
     { to: '/dashboard/payments', icon: Receipt, label: 'Payment History' },
     { to: '/dashboard/invoices', icon: FileDown, label: 'My Invoices' },
+    { to: '/dashboard/receipts', icon: Receipt, label: 'My Receipts' },
     { to: '/dashboard/profile', icon: User, label: 'Profile' },
   ];
 

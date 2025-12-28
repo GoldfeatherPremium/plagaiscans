@@ -65,3 +65,9 @@ verify_jwt = false
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.create-receipt]
+verify_jwt = false
+
+[functions.generate-receipt-pdf]
+verify_jwt = false
