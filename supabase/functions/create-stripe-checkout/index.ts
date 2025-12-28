@@ -38,10 +38,11 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { priceId, credits, mode = "payment" } = await req.json();
-    logStep("Request body parsed", { priceId, credits, mode });
+    const { priceId, credits, amount, mode = "payment" } = await req.json();
+    logStep("Request body parsed", { priceId, credits, amount, mode });
 
-    if (!priceId) throw new Error("Price ID is required");
+    if (!priceId && !amount) throw new Error("Price ID or amount is required");
+    if (!credits) throw new Error("Credits amount is required");
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
@@ -55,15 +56,30 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://fyssbzgmhnolazjfwafm.lovableproject.com";
     
+    // Build line items - use priceId if provided, otherwise use dynamic price_data
+    let lineItems: Stripe.Checkout.SessionCreateParams.LineItem[];
+    
+    if (priceId) {
+      lineItems = [{ price: priceId, quantity: 1 }];
+    } else {
+      // Dynamic pricing using price_data
+      lineItems = [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `${credits} Credits`,
+            description: `Purchase of ${credits} document check credits`,
+          },
+          unit_amount: amount, // amount in cents
+        },
+        quantity: 1,
+      }];
+    }
+
     const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
+      line_items: lineItems,
       mode: mode as "payment" | "subscription",
       success_url: `${origin}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/dashboard/credits?canceled=true`,
