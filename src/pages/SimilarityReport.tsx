@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { FileText, ArrowLeft, ArrowRight, BarChart3, FileSearch, Highlighter, Link2, Percent, BookOpen } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
+import { Breadcrumb } from '@/components/Breadcrumb';
 
 export default function SimilarityReport() {
   const reportFeatures = [
@@ -85,6 +86,8 @@ export default function SimilarityReport() {
         {/* Main Content */}
         <main className="container-width px-4 py-16">
           <div className="max-w-5xl mx-auto">
+            <Breadcrumb items={[{ label: 'Similarity Report' }]} />
+            
             {/* Hero Section */}
             <div className="text-center mb-16">
               <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mx-auto mb-6">
