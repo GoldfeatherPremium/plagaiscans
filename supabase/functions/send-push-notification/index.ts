@@ -15,7 +15,7 @@ interface PushPayload {
   data?: Record<string, unknown>;
   userId?: string;
   userIds?: string[];
-  targetAudience?: 'all' | 'customers' | 'staff' | 'admins';
+  targetAudience?: 'all' | 'customers' | 'staff' | 'admins' | 'staff_and_admins';
   sendToAll?: boolean;
   eventType?: string;
   sentBy?: string;
@@ -120,19 +120,29 @@ serve(async (req) => {
       targetUserIds = [...new Set(allSubs?.map(s => s.user_id) || [])];
     } else if (targetAudience && targetAudience !== 'all') {
       // Get users by role
-      const roleMap: Record<string, string> = {
-        'customers': 'customer',
-        'staff': 'staff',
-        'admins': 'admin'
-      };
-      const role = roleMap[targetAudience];
-      
-      if (role) {
+      if (targetAudience === 'staff_and_admins') {
+        // Get both staff and admin users
         const { data: roleUsers } = await supabase
           .from('user_roles')
           .select('user_id')
-          .eq('role', role);
+          .in('role', ['staff', 'admin']);
         targetUserIds = roleUsers?.map(r => r.user_id) || [];
+        console.log(`Found ${targetUserIds.length} staff/admin users`);
+      } else {
+        const roleMap: Record<string, string> = {
+          'customers': 'customer',
+          'staff': 'staff',
+          'admins': 'admin'
+        };
+        const role = roleMap[targetAudience];
+        
+        if (role) {
+          const { data: roleUsers } = await supabase
+            .from('user_roles')
+            .select('user_id')
+            .eq('role', role);
+          targetUserIds = roleUsers?.map(r => r.user_id) || [];
+        }
       }
     } else if (targetAudience === 'all') {
       const { data: allSubs } = await supabase
