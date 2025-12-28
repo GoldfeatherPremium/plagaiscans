@@ -50,6 +50,35 @@ serve(async (req) => {
       const userId = session.metadata?.user_id;
 
       if (credits > 0 && userId === user.id) {
+        // IDEMPOTENCY CHECK: Check if credits were already added for this session
+        const { data: existingTransaction } = await supabaseClient
+          .from("credit_transactions")
+          .select("id")
+          .eq("user_id", userId)
+          .ilike("description", `%${sessionId.slice(-8)}%`)
+          .limit(1);
+
+        if (existingTransaction && existingTransaction.length > 0) {
+          logStep("Credits already added for this session", { sessionId });
+          
+          // Get current balance to return
+          const { data: profile } = await supabaseClient
+            .from("profiles")
+            .select("credit_balance")
+            .eq("id", userId)
+            .single();
+
+          return new Response(JSON.stringify({
+            success: true,
+            creditsAdded: credits,
+            newBalance: profile?.credit_balance || 0,
+            alreadyProcessed: true,
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        }
+
         // Get current balance
         const { data: profile } = await supabaseClient
           .from("profiles")
