@@ -18,7 +18,6 @@ export default function Pricing() {
         "Non-Repository check",
         "Similarity report",
         "AI detection report",
-        "24-hour delivery",
       ],
       popular: false,
     },
