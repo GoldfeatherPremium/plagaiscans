@@ -189,6 +189,151 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_statement_entries: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          entry_date: string
+          entry_type: string
+          id: string
+          invoice_id: string | null
+          is_manual: boolean
+          receipt_id: string | null
+          reference: string | null
+          running_balance: number | null
+          statement_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          entry_date: string
+          entry_type?: string
+          id?: string
+          invoice_id?: string | null
+          is_manual?: boolean
+          receipt_id?: string | null
+          reference?: string | null
+          running_balance?: number | null
+          statement_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          entry_date?: string
+          entry_type?: string
+          id?: string
+          invoice_id?: string | null
+          is_manual?: boolean
+          receipt_id?: string | null
+          reference?: string | null
+          running_balance?: number | null
+          statement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statement_entries_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_entries_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_entries_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "bank_statements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_statements: {
+        Row: {
+          account_name: string
+          account_number: string | null
+          bank_country: string
+          bank_logo_url: string | null
+          bank_name: string
+          closing_balance: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          iban: string | null
+          id: string
+          notes: string | null
+          opening_balance: number
+          pdf_path: string | null
+          period_end: string
+          period_start: string
+          sort_code: string | null
+          statement_date: string
+          statement_number: string
+          swift_code: string | null
+          total_credits: number
+          total_debits: number
+          updated_at: string
+        }
+        Insert: {
+          account_name?: string
+          account_number?: string | null
+          bank_country?: string
+          bank_logo_url?: string | null
+          bank_name?: string
+          closing_balance?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          iban?: string | null
+          id?: string
+          notes?: string | null
+          opening_balance?: number
+          pdf_path?: string | null
+          period_end: string
+          period_start: string
+          sort_code?: string | null
+          statement_date?: string
+          statement_number: string
+          swift_code?: string | null
+          total_credits?: number
+          total_debits?: number
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string | null
+          bank_country?: string
+          bank_logo_url?: string | null
+          bank_name?: string
+          closing_balance?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          iban?: string | null
+          id?: string
+          notes?: string | null
+          opening_balance?: number
+          pdf_path?: string | null
+          period_end?: string
+          period_start?: string
+          sort_code?: string | null
+          statement_date?: string
+          statement_number?: string
+          swift_code?: string | null
+          total_credits?: number
+          total_debits?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       blocked_users: {
         Row: {
           blocked_at: string
