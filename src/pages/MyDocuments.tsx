@@ -11,6 +11,8 @@ import { FileText, Download, Loader2, Star, StarOff, DownloadCloud, Package, Tra
 import { PushNotificationBanner } from '@/components/PushNotificationBanner';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Shimmer } from '@/components/ui/shimmer';
+import { DocumentsSkeleton } from '@/components/ui/page-skeleton';
 import {
   Table,
   TableBody,
@@ -203,9 +205,46 @@ export default function MyDocuments() {
         />
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <Card className="overflow-hidden">
+            <CardContent className="p-0">
+              {/* Shimmer Table Header */}
+              <div className="flex items-center gap-4 p-4 border-b bg-muted/50">
+                <Shimmer className="h-4 w-4 rounded" />
+                <Shimmer className="h-4 w-4" />
+                <Shimmer className="h-4 w-8" />
+                <Shimmer className="h-4 w-40" />
+                <Shimmer className="h-4 w-16" />
+                <Shimmer className="h-4 w-20" />
+                <Shimmer className="h-4 w-16" />
+                <Shimmer className="h-4 w-12" />
+                <Shimmer className="h-4 w-12" />
+                <Shimmer className="h-4 w-20" />
+                <Shimmer className="h-4 w-20" />
+                <Shimmer className="h-4 w-16" />
+              </div>
+              {/* Shimmer Rows */}
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div 
+                  key={i} 
+                  className="flex items-center gap-4 p-4 border-b last:border-b-0"
+                  style={{ opacity: 1 - (i * 0.08) }}
+                >
+                  <Shimmer className="h-4 w-4 rounded" />
+                  <Shimmer className="h-4 w-4" />
+                  <Shimmer className="h-4 w-8" />
+                  <Shimmer className="h-4 w-40" />
+                  <Shimmer className="h-6 w-16 rounded-full" />
+                  <Shimmer className="h-4 w-20" />
+                  <Shimmer className="h-6 w-16 rounded-full" />
+                  <Shimmer className="h-4 w-12" />
+                  <Shimmer className="h-4 w-12" />
+                  <Shimmer className="h-8 w-8 rounded" />
+                  <Shimmer className="h-8 w-8 rounded" />
+                  <Shimmer className="h-4 w-20" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         ) : filteredDocuments.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">

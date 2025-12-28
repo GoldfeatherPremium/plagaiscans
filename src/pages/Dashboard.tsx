@@ -12,6 +12,8 @@ import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { PushNotificationBanner } from '@/components/PushNotificationBanner';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { Shimmer } from '@/components/ui/shimmer';
+import { StatCardSkeleton } from '@/components/ui/page-skeleton';
 import {
   Table,
   TableBody,
@@ -32,8 +34,8 @@ interface ManualPayment {
 }
 
 export default function Dashboard() {
-  const { role, profile, user } = useAuth();
-  const { documents, downloadFile } = useDocuments();
+  const { role, profile, user, loading: authLoading } = useAuth();
+  const { documents, loading: docsLoading, downloadFile } = useDocuments();
   const [pendingPayments, setPendingPayments] = useState<ManualPayment[]>([]);
 
   const stats = {
@@ -146,61 +148,72 @@ export default function Dashboard() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {role === 'customer' && (
-            <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/20">
-                    <CreditCard className="h-6 w-6 text-primary" />
+          {docsLoading ? (
+            <>
+              {role === 'customer' && <StatCardSkeleton />}
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              {role !== 'staff' && <StatCardSkeleton />}
+            </>
+          ) : (
+            <>
+              {role === 'customer' && (
+                <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/20">
+                        <CreditCard className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Credit Balance</p>
+                        <p className="text-2xl font-bold">{profile?.credit_balance || 0}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-accent/30 transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-accent/20">
+                      <Clock className="h-6 w-6 text-accent" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Pending</p>
+                      <p className="text-2xl font-bold">{stats.pending}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Credit Balance</p>
-                    <p className="text-2xl font-bold">{profile?.credit_balance || 0}</p>
+                </CardContent>
+              </Card>
+              <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/20">
+                      <FileText className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">In Progress</p>
+                      <p className="text-2xl font-bold">{stats.inProgress}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-accent/30 transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-accent/20">
-                  <Clock className="h-6 w-6 text-accent" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending</p>
-                  <p className="text-2xl font-bold">{stats.pending}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/20">
-                  <FileText className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">In Progress</p>
-                  <p className="text-2xl font-bold">{stats.inProgress}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          {role !== 'staff' && (
-            <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-secondary/30 transition-all duration-300">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-lg bg-secondary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-secondary/20">
-                    <CheckCircle className="h-6 w-6 text-secondary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Completed</p>
-                    <p className="text-2xl font-bold">{stats.completed}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+              {role !== 'staff' && (
+                <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-secondary/30 transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-lg bg-secondary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-secondary/20">
+                        <CheckCircle className="h-6 w-6 text-secondary" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Completed</p>
+                        <p className="text-2xl font-bold">{stats.completed}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </div>
 
