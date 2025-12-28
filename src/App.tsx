@@ -45,7 +45,7 @@ const AdminSupportTickets = lazy(() => import("./pages/AdminSupportTickets"));
 const AdminBlockedUsers = lazy(() => import("./pages/AdminBlockedUsers"));
 const AdminCryptoPayments = lazy(() => import("./pages/AdminCryptoPayments"));
 const AdminManualPayments = lazy(() => import("./pages/AdminManualPayments"));
-const AdminVivaPayments = lazy(() => import("./pages/AdminVivaPayments"));
+
 const AdminStaffPermissions = lazy(() => import("./pages/AdminStaffPermissions"));
 const AdminEmails = lazy(() => import("./pages/AdminEmails"));
 const AdminEmailDeliveryLogs = lazy(() => import("./pages/AdminEmailDeliveryLogs"));
@@ -284,7 +284,7 @@ const AppRoutes = () => (
       <Route path="/dashboard/blocked-users" element={<ProtectedRoute allowedRoles={['admin']}><AdminBlockedUsers /></ProtectedRoute>} />
       <Route path="/dashboard/crypto-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminCryptoPayments /></ProtectedRoute>} />
       <Route path="/dashboard/manual-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminManualPayments /></ProtectedRoute>} />
-      <Route path="/dashboard/viva-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminVivaPayments /></ProtectedRoute>} />
+      
       <Route path="/dashboard/staff-permissions" element={<ProtectedRoute allowedRoles={['admin']}><AdminStaffPermissions /></ProtectedRoute>} />
       <Route path="/dashboard/emails" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmails /></ProtectedRoute>} />
       <Route path="/dashboard/email-logs" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmailDeliveryLogs /></ProtectedRoute>} />
