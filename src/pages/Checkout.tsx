@@ -11,13 +11,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, CreditCard, Loader2, Bitcoin, Copy, ExternalLink, 
   RefreshCw, Wallet, ShoppingCart, Plus, Minus, Trash2, Globe, 
-  CheckCircle, MessageCircle, AlertCircle, Zap
+  CheckCircle, MessageCircle, AlertCircle, Zap, Tag, X
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useWhatsApp } from '@/hooks/useWhatsApp';
+import { usePromoCode } from '@/hooks/usePromoCode';
 
 interface PaymentDetails {
   paymentId: string;
@@ -33,8 +34,18 @@ export default function Checkout() {
   const { profile, user } = useAuth();
   const { openWhatsAppCustom } = useWhatsApp();
   const { cart, updateCartQuantity, removeFromCart, clearCart, getCartTotal, getCartCredits } = useCart();
+  const { 
+    validatingPromo, 
+    appliedPromo, 
+    validatePromoCode, 
+    recordPromoUse, 
+    clearPromo, 
+    calculateDiscountedTotal, 
+    getTotalBonusCredits 
+  } = usePromoCode();
   
   const [loading, setLoading] = useState(true);
+  const [promoInput, setPromoInput] = useState('');
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
   const [usdtEnabled, setUsdtEnabled] = useState(true);
   const [binanceEnabled, setBinanceEnabled] = useState(false);
@@ -69,12 +80,17 @@ export default function Checkout() {
   // Stripe payment state
   const [creatingStripePayment, setCreatingStripePayment] = useState(false);
 
-  // Calculate total with fee
+  // Calculate total with fee and promo discount
   const calculateTotalWithFee = (method: 'whatsapp' | 'usdt' | 'binance' | 'viva' | 'stripe') => {
     const baseTotal = getCartTotal();
+    const discountedTotal = calculateDiscountedTotal(baseTotal);
     const feePercent = fees[method] || 0;
-    const feeAmount = baseTotal * (feePercent / 100);
-    return Math.round((baseTotal + feeAmount) * 100) / 100;
+    const feeAmount = discountedTotal * (feePercent / 100);
+    return Math.round((discountedTotal + feeAmount) * 100) / 100;
+  };
+
+  const handleApplyPromo = async () => {
+    await validatePromoCode(promoInput);
   };
 
   useEffect(() => {
@@ -458,14 +474,75 @@ export default function Checkout() {
 
                 <Separator />
 
+                {/* Promo Code Input */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <Tag className="h-4 w-4" />
+                    Promo Code
+                  </Label>
+                  {appliedPromo ? (
+                    <div className="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span className="font-medium text-green-700 dark:text-green-400">{appliedPromo.code}</span>
+                        {appliedPromo.discountPercentage > 0 && (
+                          <Badge variant="secondary" className="text-xs">-{appliedPromo.discountPercentage}%</Badge>
+                        )}
+                        {appliedPromo.creditsBonus > 0 && (
+                          <Badge variant="secondary" className="text-xs">+{appliedPromo.creditsBonus} credits</Badge>
+                        )}
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={clearPromo}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Enter code"
+                        value={promoInput}
+                        onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                        className="flex-1"
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleApplyPromo}
+                        disabled={validatingPromo || !promoInput.trim()}
+                      >
+                        {validatingPromo ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Total Credits</span>
-                    <span className="font-medium">{getCartCredits()}</span>
+                    <span className="font-medium">
+                      {getCartCredits()}
+                      {getTotalBonusCredits() > 0 && (
+                        <span className="text-green-600 ml-1">+{getTotalBonusCredits()}</span>
+                      )}
+                    </span>
                   </div>
+                  {appliedPromo?.discountPercentage && appliedPromo.discountPercentage > 0 && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className="line-through text-muted-foreground">${getCartTotal()}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-green-600">
+                        <span>Discount ({appliedPromo.discountPercentage}%)</span>
+                        <span>-${(getCartTotal() - calculateDiscountedTotal(getCartTotal())).toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span className="text-primary">${getCartTotal()}</span>
+                    <span className="text-primary">${calculateDiscountedTotal(getCartTotal())}</span>
                   </div>
                 </div>
 
