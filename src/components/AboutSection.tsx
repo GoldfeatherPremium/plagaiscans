@@ -51,7 +51,7 @@ const AboutSection = () => {
             {get('about_paragraph_1', 'Plagaiscans is an academic integrity platform designed to support plagiarism detection and similarity analysis for educational and research use. Our system helps users understand content originality by highlighting overlapping text, source references, and similarity percentages in a clear and structured format.')}
           </p>
           <p className="text-lg text-muted-foreground leading-relaxed mt-4">
-            {get('about_paragraph_2', 'We also provide optional AI-content indicators to help users assess whether parts of a document may include AI-generated text. These indicators are designed to support academic review, not replace human judgment. Plagaiscans prioritizes privacy, transparency, and usability—ensuring users can verify originality with confidence.')}
+            {get('about_paragraph_2', 'Plagaiscans prioritizes privacy, transparency, and usability—ensuring users can verify originality with confidence.')}
           </p>
         </div>
 

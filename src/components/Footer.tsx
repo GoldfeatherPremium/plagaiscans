@@ -45,14 +45,6 @@ const Footer = () => {
   return (
     <footer className="border-t border-border bg-card">
       <div className="container-width section-padding pb-8">
-        {/* AI Disclaimer */}
-        <div className="mb-8 p-4 rounded-lg bg-muted/50 border border-border">
-          <p className="text-xs text-muted-foreground text-center">
-            <strong>Disclaimer:</strong> AI-content indicators are designed to support academic review and should not be interpreted as definitive judgments. 
-            Similarity reports identify matching text for review purposes. Human judgment should always be applied when evaluating academic work.
-          </p>
-        </div>
-
         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
           {/* Brand */}
           <div className="lg:col-span-2">

@@ -23,7 +23,7 @@ const faqData = [
   },
   {
     question: "Does Plagaiscans detect AI-written content?",
-    answer: "Our system provides AI-content indicators that help assess potential AI involvement in document writing. These are probability-based indicators designed to support academic review—they are advisory in nature and not definitive detection. Human judgment should always be applied when reviewing results."
+    answer: "Our system provides AI-content indicators that help assess potential AI involvement in document writing. These are probability-based indicators that may suggest patterns consistent with AI-generated text."
   },
   {
     question: "Is my data stored or shared?",
