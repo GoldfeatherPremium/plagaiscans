@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.generate-receipt-pdf]
 verify_jwt = false
+
+[functions.generate-bank-statement-pdf]
+verify_jwt = false

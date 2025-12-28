@@ -335,6 +335,7 @@ export const DashboardSidebar: React.FC = () => {
       links: [
         { to: '/dashboard/all-payments', icon: DollarSign, label: 'All Payments' },
         { to: '/dashboard/admin-invoices', icon: FileDown, label: 'Invoices' },
+        { to: '/dashboard/bank-statements', icon: FileText, label: 'Bank Statements' },
         { to: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
         { to: '/dashboard/stripe-payments', icon: CreditCard, label: 'Stripe' },
         { to: '/dashboard/webhook-logs', icon: Activity, label: 'Webhook Logs' },
