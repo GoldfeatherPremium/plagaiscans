@@ -853,28 +853,52 @@ export type Database = {
       }
       pricing_packages: {
         Row: {
+          billing_interval: string | null
           created_at: string
           credits: number
+          description: string | null
+          features: string[] | null
           id: string
           is_active: boolean
+          name: string | null
+          package_type: string
           price: number
+          stripe_price_id: string | null
+          stripe_product_id: string | null
           updated_at: string
+          validity_days: number | null
         }
         Insert: {
+          billing_interval?: string | null
           created_at?: string
           credits: number
+          description?: string | null
+          features?: string[] | null
           id?: string
           is_active?: boolean
+          name?: string | null
+          package_type?: string
           price: number
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
           updated_at?: string
+          validity_days?: number | null
         }
         Update: {
+          billing_interval?: string | null
           created_at?: string
           credits?: number
+          description?: string | null
+          features?: string[] | null
           id?: string
           is_active?: boolean
+          name?: string | null
+          package_type?: string
           price?: number
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
           updated_at?: string
+          validity_days?: number | null
         }
         Relationships: []
       }
