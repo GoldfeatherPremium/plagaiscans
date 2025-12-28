@@ -225,17 +225,23 @@ export default function AdminInvoices() {
   };
 
   const handleDeleteInvoice = async (invoice: Invoice) => {
-    if (invoice.is_immutable) {
-      toast({
-        title: "Cannot Delete",
-        description: "This invoice is locked and cannot be deleted.",
-        variant: "destructive"
-      });
-      return;
-    }
+    const confirmMessage = invoice.is_immutable 
+      ? `⚠️ WARNING: Invoice ${invoice.invoice_number} is LOCKED. Are you absolutely sure you want to delete it? Type "DELETE" to confirm.`
+      : `Delete invoice ${invoice.invoice_number}? This action cannot be undone.`;
 
-    if (!confirm(`Delete invoice ${invoice.invoice_number}? This action cannot be undone.`)) {
-      return;
+    if (invoice.is_immutable) {
+      const userInput = prompt(confirmMessage);
+      if (userInput !== 'DELETE') {
+        toast({
+          title: "Cancelled",
+          description: "Invoice deletion cancelled.",
+        });
+        return;
+      }
+    } else {
+      if (!confirm(confirmMessage)) {
+        return;
+      }
     }
 
     setDeletingId(invoice.id);
@@ -721,9 +727,9 @@ export default function AdminInvoices() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDeleteInvoice(invoice)}
-                              disabled={deletingId === invoice.id || invoice.is_immutable}
-                              className="text-destructive hover:text-destructive"
-                              title={invoice.is_immutable ? "Locked invoices cannot be deleted" : "Delete invoice"}
+                              disabled={deletingId === invoice.id}
+                              className={cn("text-destructive hover:text-destructive", invoice.is_immutable && "opacity-70")}
+                              title={invoice.is_immutable ? "Click to force delete locked invoice" : "Delete invoice"}
                             >
                               {deletingId === invoice.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
