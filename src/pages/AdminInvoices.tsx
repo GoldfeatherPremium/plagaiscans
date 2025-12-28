@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { FileText, Download, Loader2, Receipt, Calendar, DollarSign, Plus, Search, Users } from 'lucide-react';
+import { FileText, Download, Loader2, Receipt, Calendar, DollarSign, Plus, Search, Users, Globe, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,12 @@ interface Invoice {
   description: string | null;
   customer_name: string | null;
   customer_email: string | null;
+  customer_country: string | null;
+  currency: string | null;
+  transaction_id: string | null;
+  vat_rate: number | null;
+  vat_amount: number | null;
+  is_immutable: boolean | null;
   created_at: string;
   paid_at: string | null;
 }
@@ -72,7 +78,9 @@ export default function AdminInvoices() {
     credits: '',
     description: '',
     notes: '',
-    status: 'paid'
+    status: 'paid',
+    currency: 'USD',
+    customer_country: ''
   });
 
   useEffect(() => {
@@ -162,10 +170,12 @@ export default function AdminInvoices() {
           user_id: formData.user_id,
           amount_usd: parseFloat(formData.amount_usd),
           credits: parseInt(formData.credits),
-          payment_type: 'custom',
-          description: formData.description || undefined,
+          payment_type: 'manual',
+          description: formData.description || 'Plagiarism & AI Content Analysis Service',
           notes: formData.notes || undefined,
-          status: formData.status
+          status: formData.status,
+          currency: formData.currency,
+          customer_country: formData.customer_country || undefined
         }
       });
 
@@ -184,7 +194,9 @@ export default function AdminInvoices() {
         credits: '',
         description: '',
         notes: '',
-        status: 'paid'
+        status: 'paid',
+        currency: 'USD',
+        customer_country: ''
       });
       fetchInvoices();
     } catch (error: any) {
@@ -217,13 +229,22 @@ export default function AdminInvoices() {
       stripe: 'bg-purple-500/10 text-purple-500',
       crypto: 'bg-orange-500/10 text-orange-500',
       manual: 'bg-blue-500/10 text-blue-500',
+      usdt_trc20: 'bg-teal-500/10 text-teal-500',
       custom: 'bg-gray-500/10 text-gray-500'
     };
     return (
       <Badge className={`${colors[type] || colors.custom} border-transparent`}>
-        {type.charAt(0).toUpperCase() + type.slice(1)}
+        {type === 'usdt_trc20' ? 'USDT' : type.charAt(0).toUpperCase() + type.slice(1)}
       </Badge>
     );
+  };
+
+  const getCurrencySymbol = (currency: string | null) => {
+    switch (currency) {
+      case 'GBP': return '£';
+      case 'EUR': return '€';
+      default: return '$';
+    }
   };
 
   const filteredInvoices = invoices.filter(invoice => {
@@ -231,7 +252,8 @@ export default function AdminInvoices() {
     return (
       invoice.invoice_number.toLowerCase().includes(query) ||
       invoice.customer_email?.toLowerCase().includes(query) ||
-      invoice.customer_name?.toLowerCase().includes(query)
+      invoice.customer_name?.toLowerCase().includes(query) ||
+      invoice.transaction_id?.toLowerCase().includes(query)
     );
   });
 
@@ -244,6 +266,8 @@ export default function AdminInvoices() {
     const now = new Date();
     return invoiceDate.getMonth() === now.getMonth() && invoiceDate.getFullYear() === now.getFullYear();
   });
+
+  const immutableCount = invoices.filter(inv => inv.is_immutable).length;
 
   if (loading) {
     return (
@@ -262,7 +286,7 @@ export default function AdminInvoices() {
           <div>
             <h1 className="text-3xl font-display font-bold">Invoices</h1>
             <p className="text-muted-foreground mt-1">
-              Manage and create customer invoices
+              Manage and create UK-compliant customer invoices
             </p>
           </div>
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -272,11 +296,11 @@ export default function AdminInvoices() {
                 Create Invoice
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[550px]">
               <DialogHeader>
                 <DialogTitle>Create New Invoice</DialogTitle>
                 <DialogDescription>
-                  Create a custom invoice for a customer
+                  Create a legally compliant invoice for Goldfeather Prem Ltd
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -298,9 +322,9 @@ export default function AdminInvoices() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="amount">Amount (USD) *</Label>
+                    <Label htmlFor="amount">Amount *</Label>
                     <Input
                       id="amount"
                       type="number"
@@ -309,6 +333,22 @@ export default function AdminInvoices() {
                       value={formData.amount_usd}
                       onChange={(e) => setFormData({ ...formData, amount_usd: e.target.value })}
                     />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="currency">Currency</Label>
+                    <Select
+                      value={formData.currency}
+                      onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="GBP">GBP (£)</SelectItem>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="credits">Credits *</Label>
@@ -321,35 +361,46 @@ export default function AdminInvoices() {
                     />
                   </div>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) => setFormData({ ...formData, status: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="paid">Paid</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="status">Status</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => setFormData({ ...formData, status: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="paid">Paid</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="country">Customer Country</Label>
+                    <Input
+                      id="country"
+                      placeholder="e.g., United Kingdom"
+                      value={formData.customer_country}
+                      onChange={(e) => setFormData({ ...formData, customer_country: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">Service Description</Label>
                   <Input
                     id="description"
-                    placeholder="e.g., 50 Document Check Credits"
+                    placeholder="Plagiarism & AI Content Analysis Service"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="notes">Notes</Label>
+                  <Label htmlFor="notes">Internal Notes</Label>
                   <Textarea
                     id="notes"
-                    placeholder="Additional notes for the invoice..."
+                    placeholder="Additional notes (not shown to customer)..."
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   />
@@ -375,7 +426,7 @@ export default function AdminInvoices() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
@@ -422,10 +473,23 @@ export default function AdminInvoices() {
                   <Users className="h-6 w-6 text-purple-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Unique Customers</p>
+                  <p className="text-sm text-muted-foreground">Customers</p>
                   <p className="text-2xl font-bold">
                     {new Set(invoices.map(inv => inv.user_id)).size}
                   </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                  <Shield className="h-6 w-6 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Locked</p>
+                  <p className="text-2xl font-bold">{immutableCount}</p>
                 </div>
               </div>
             </CardContent>
@@ -438,12 +502,12 @@ export default function AdminInvoices() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>All Invoices</CardTitle>
-                <CardDescription>View and manage all customer invoices</CardDescription>
+                <CardDescription>UK-compliant invoices for Goldfeather Prem Ltd (Trading as Plagaiscans)</CardDescription>
               </div>
-              <div className="relative w-64">
+              <div className="relative w-72">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search invoices..."
+                  placeholder="Search invoices, emails, transactions..."
                   className="pl-9"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -476,19 +540,30 @@ export default function AdminInvoices() {
                     {filteredInvoices.map((invoice) => (
                       <TableRow key={invoice.id}>
                         <TableCell>
-                          <code className="text-sm font-medium">{invoice.invoice_number}</code>
+                          <div className="flex items-center gap-2">
+                            <code className="text-sm font-medium">{invoice.invoice_number}</code>
+                            {invoice.is_immutable && (
+                              <span title="Locked invoice"><Shield className="h-3 w-3 text-amber-500" /></span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          {format(new Date(invoice.created_at), 'MMM dd, yyyy')}
+                          {format(new Date(invoice.created_at), 'dd MMM yyyy')}
                         </TableCell>
                         <TableCell>
                           <div>
                             <p className="font-medium">
-                              {invoice.customer_name || 'Customer'}
+                              {invoice.customer_name || 'Guest Customer'}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {invoice.customer_email || '-'}
                             </p>
+                            {invoice.customer_country && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Globe className="h-3 w-3" />
+                                {invoice.customer_country}
+                              </p>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>{getPaymentTypeBadge(invoice.payment_type)}</TableCell>
@@ -496,7 +571,8 @@ export default function AdminInvoices() {
                           +{invoice.credits}
                         </TableCell>
                         <TableCell className="font-medium">
-                          ${Number(invoice.amount_usd).toFixed(2)}
+                          {getCurrencySymbol(invoice.currency)}{Number(invoice.amount_usd).toFixed(2)}
+                          <span className="text-xs text-muted-foreground ml-1">{invoice.currency || 'USD'}</span>
                         </TableCell>
                         <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                         <TableCell>
@@ -521,6 +597,17 @@ export default function AdminInvoices() {
                 </Table>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Legal Notice */}
+        <Card className="bg-muted/50">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground text-center">
+              All invoices are generated for <strong>Goldfeather Prem Ltd</strong> (Company Number: XXXXXXX), 
+              trading as <strong>Plagaiscans</strong>, registered in the United Kingdom. 
+              Paid invoices are immutable and cannot be edited for audit compliance.
+            </p>
           </CardContent>
         </Card>
       </div>

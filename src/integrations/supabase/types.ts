@@ -733,60 +733,90 @@ export type Database = {
           created_at: string
           created_by: string | null
           credits: number
+          currency: string | null
           customer_address: string | null
+          customer_country: string | null
           customer_email: string | null
           customer_name: string | null
           description: string | null
           due_date: string | null
           id: string
           invoice_number: string
+          is_immutable: boolean | null
           notes: string | null
           paid_at: string | null
           payment_id: string | null
           payment_type: string
+          pdf_path: string | null
+          quantity: number | null
           status: string
+          subtotal: number | null
+          transaction_id: string | null
+          unit_price: number | null
           updated_at: string
           user_id: string
+          vat_amount: number | null
+          vat_rate: number | null
         }
         Insert: {
           amount_usd: number
           created_at?: string
           created_by?: string | null
           credits: number
+          currency?: string | null
           customer_address?: string | null
+          customer_country?: string | null
           customer_email?: string | null
           customer_name?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
           invoice_number: string
+          is_immutable?: boolean | null
           notes?: string | null
           paid_at?: string | null
           payment_id?: string | null
           payment_type: string
+          pdf_path?: string | null
+          quantity?: number | null
           status?: string
+          subtotal?: number | null
+          transaction_id?: string | null
+          unit_price?: number | null
           updated_at?: string
           user_id: string
+          vat_amount?: number | null
+          vat_rate?: number | null
         }
         Update: {
           amount_usd?: number
           created_at?: string
           created_by?: string | null
           credits?: number
+          currency?: string | null
           customer_address?: string | null
+          customer_country?: string | null
           customer_email?: string | null
           customer_name?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
           invoice_number?: string
+          is_immutable?: boolean | null
           notes?: string | null
           paid_at?: string | null
           payment_id?: string | null
           payment_type?: string
+          pdf_path?: string | null
+          quantity?: number | null
           status?: string
+          subtotal?: number | null
+          transaction_id?: string | null
+          unit_price?: number | null
           updated_at?: string
           user_id?: string
+          vat_amount?: number | null
+          vat_rate?: number | null
         }
         Relationships: []
       }
