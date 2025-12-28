@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { FileCheck, ArrowLeft, CheckCircle, Zap, Shield, Clock, Info, Send, Loader2 } from 'lucide-react';
+import { FileCheck, ArrowLeft, CheckCircle, Zap, Shield, Clock, Info, Send, Loader2, RefreshCw, Crown } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { supabase } from '@/integrations/supabase/client';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const quoteSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100),
@@ -16,6 +19,18 @@ const quoteSchema = z.object({
   phone: z.string().trim().min(1, "Phone number is required").max(20),
   credits: z.number().min(20, "Minimum 20 credits for custom plan").max(10000),
 });
+
+interface PricingPackage {
+  id: string;
+  credits: number;
+  price: number;
+  package_type: string;
+  billing_interval: string | null;
+  validity_days: number | null;
+  name: string | null;
+  description: string | null;
+  features: string[];
+}
 
 export default function Pricing() {
   const [quoteForm, setQuoteForm] = useState({
@@ -26,37 +41,28 @@ export default function Pricing() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [packages, setPackages] = useState<PricingPackage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('one_time');
 
-  const pricingPackages = [
-    {
-      name: "Starter",
-      credits: 1,
-      price: "$2",
-      perCredit: "$2.00",
-      features: [
-        "1 document check",
-        "Non-Repository check",
-        "Similarity report",
-        "AI detection report",
-      ],
-      popular: false,
-    },
-    {
-      name: "Standard",
-      credits: 10,
-      price: "$10",
-      perCredit: "$1.00",
-      features: [
-        "10 document checks",
-        "Non-Repository check",
-        "Similarity reports",
-        "AI detection reports",
-        "Priority processing",
-        "50% savings per credit",
-      ],
-      popular: true,
-    },
-  ];
+  useEffect(() => {
+    const fetchPackages = async () => {
+      const { data } = await supabase
+        .from('pricing_packages')
+        .select('*')
+        .eq('is_active', true)
+        .order('price', { ascending: true });
+      
+      if (data) {
+        setPackages(data as PricingPackage[]);
+      }
+      setLoading(false);
+    };
+    fetchPackages();
+  }, []);
+
+  const getPackagesByType = (type: string) => 
+    packages.filter(p => p.package_type === type);
 
   const handleQuoteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,53 +140,141 @@ export default function Pricing() {
               Simple, Transparent Pricing
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Pay only for what you use. No subscriptions required. Credits never expire.
+              Choose the plan that fits your needs. One-time purchases, subscriptions, or limited-time offers.
             </p>
           </div>
 
-          {/* Pricing Cards */}
-          <div className="grid md:grid-cols-2 gap-8 mb-16 max-w-3xl mx-auto">
-            {pricingPackages.map((pkg, index) => (
-              <Card 
-                key={index} 
-                className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg ${
-                  pkg.popular ? 'border-primary shadow-lg ring-2 ring-primary/20' : ''
-                }`}
-              >
-                {pkg.popular && (
-                  <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-4 py-1 text-sm font-semibold rounded-bl-lg">
-                    Best Value
-                  </div>
-                )}
-                <CardHeader className="text-center pb-4">
-                  <CardTitle className="text-2xl font-display">{pkg.name}</CardTitle>
-                  <div className="mt-4">
-                    <span className="text-5xl font-bold">{pkg.price}</span>
-                  </div>
-                  <p className="text-muted-foreground mt-2">
-                    {pkg.perCredit} per credit
-                  </p>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <ul className="space-y-3 mb-8">
-                    {pkg.features.map((feature, featureIndex) => (
-                      <li key={featureIndex} className="flex items-center gap-3">
-                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                        <span className="text-muted-foreground">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Link to="/auth" className="block">
-                    <Button className="w-full" variant={pkg.popular ? "default" : "outline"}>
-                      Get Started
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+              {/* Package Type Tabs */}
+              {(getPackagesByType('one_time').length > 0 || getPackagesByType('subscription').length > 0 || getPackagesByType('time_limited').length > 0) && (
+                <div className="mb-8 max-w-3xl mx-auto">
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <TabsList className="grid w-full grid-cols-3">
+                      {getPackagesByType('one_time').length > 0 && (
+                        <TabsTrigger value="one_time" className="gap-2">
+                          <Zap className="h-4 w-4" />
+                          Credit Packs
+                        </TabsTrigger>
+                      )}
+                      {getPackagesByType('subscription').length > 0 && (
+                        <TabsTrigger value="subscription" className="gap-2">
+                          <RefreshCw className="h-4 w-4" />
+                          Subscriptions
+                        </TabsTrigger>
+                      )}
+                      {getPackagesByType('time_limited').length > 0 && (
+                        <TabsTrigger value="time_limited" className="gap-2">
+                          <Clock className="h-4 w-4" />
+                          Limited Time
+                        </TabsTrigger>
+                      )}
+                    </TabsList>
+                  </Tabs>
+                </div>
+              )}
 
-            {/* Custom Plan Card */}
-            <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg border-dashed border-2 md:col-span-2">
+              {/* Pricing Cards */}
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 max-w-5xl mx-auto">
+                {getPackagesByType(activeTab).map((pkg, index) => {
+                  const isPopular = index === getPackagesByType(activeTab).length - 1;
+                  const isSubscription = pkg.package_type === 'subscription';
+                  
+                  return (
+                    <Card 
+                      key={pkg.id} 
+                      className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${
+                        isPopular ? 'border-primary shadow-lg ring-2 ring-primary/20' : ''
+                      }`}
+                    >
+                      {isPopular && (
+                        <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-4 py-1 text-sm font-semibold rounded-bl-lg">
+                          Best Value
+                        </div>
+                      )}
+                      {isSubscription && (
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-green-500" />
+                      )}
+                      <CardHeader className="text-center pb-4">
+                        <div className={`mx-auto h-12 w-12 rounded-xl flex items-center justify-center mb-2 ${
+                          isSubscription ? 'bg-green-500/10' : 'bg-primary/10'
+                        }`}>
+                          {isSubscription ? (
+                            <Crown className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <Zap className="h-5 w-5 text-primary" />
+                          )}
+                        </div>
+                        <CardTitle className="text-2xl font-display">
+                          {pkg.name || `${pkg.credits} Credits`}
+                        </CardTitle>
+                        <div className="mt-4">
+                          <span className={`text-5xl font-bold ${isSubscription ? 'text-green-600' : ''}`}>
+                            ${pkg.price}
+                          </span>
+                          {isSubscription && (
+                            <span className="text-muted-foreground text-sm">/{pkg.billing_interval || 'month'}</span>
+                          )}
+                        </div>
+                        <p className="text-muted-foreground mt-2">
+                          {isSubscription 
+                            ? `${pkg.credits} credits per ${pkg.billing_interval || 'month'}`
+                            : `$${(pkg.price / pkg.credits).toFixed(2)} per credit`
+                          }
+                        </p>
+                        {pkg.validity_days && (
+                          <Badge variant="outline" className="mt-2 bg-amber-500/10 text-amber-600 border-amber-500/20">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Valid for {pkg.validity_days} days
+                          </Badge>
+                        )}
+                      </CardHeader>
+                      <CardContent className="pt-4">
+                        <ul className="space-y-3 mb-8">
+                          {pkg.features && pkg.features.length > 0 ? (
+                            pkg.features.map((feature, featureIndex) => (
+                              <li key={featureIndex} className="flex items-center gap-3">
+                                <CheckCircle className={`w-5 h-5 flex-shrink-0 ${isSubscription ? 'text-green-500' : 'text-green-500'}`} />
+                                <span className="text-muted-foreground">{feature}</span>
+                              </li>
+                            ))
+                          ) : (
+                            <>
+                              <li className="flex items-center gap-3">
+                                <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                                <span className="text-muted-foreground">{pkg.credits} document checks</span>
+                              </li>
+                              <li className="flex items-center gap-3">
+                                <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                                <span className="text-muted-foreground">Non-Repository check</span>
+                              </li>
+                              <li className="flex items-center gap-3">
+                                <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                                <span className="text-muted-foreground">Similarity & AI reports</span>
+                              </li>
+                            </>
+                          )}
+                        </ul>
+                        <Link to="/auth" className="block">
+                          <Button className="w-full" variant={isPopular ? "default" : "outline"}>
+                            Get Started
+                          </Button>
+                        </Link>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Custom Plan Card */}
+          <div className="max-w-3xl mx-auto mb-16">
+            <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg border-dashed border-2">
               <CardHeader className="text-center pb-4">
                 <CardTitle className="text-2xl font-display">Custom Plan</CardTitle>
                 <p className="text-muted-foreground mt-2">
