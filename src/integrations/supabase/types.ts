@@ -294,6 +294,57 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_validity: {
+        Row: {
+          created_at: string
+          credits_amount: number
+          expired: boolean
+          expires_at: string
+          id: string
+          package_id: string | null
+          remaining_credits: number
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_amount: number
+          expired?: boolean
+          expires_at: string
+          id?: string
+          package_id?: string | null
+          remaining_credits: number
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_amount?: number
+          expired?: boolean
+          expires_at?: string
+          id?: string
+          package_id?: string | null
+          remaining_credits?: number
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_validity_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_validity_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "credit_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crypto_payments: {
         Row: {
           amount_usd: number
@@ -1712,6 +1763,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_promo_uses: { Args: { promo_id: string }; Returns: undefined }
       normalize_filename: { Args: { filename: string }; Returns: string }
     }
     Enums: {
