@@ -333,6 +333,7 @@ export const DashboardSidebar: React.FC = () => {
       links: [
         { to: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
         { to: '/dashboard/promo-codes', icon: Ticket, label: 'Promo Codes' },
+        { to: '/dashboard/promo-analytics', icon: PieChart, label: 'Promo Analytics' },
         { to: '/dashboard/revenue', icon: DollarSign, label: 'Revenue' },
         { to: '/dashboard/viva-payments', icon: Globe, label: 'Viva.com' },
         { to: '/dashboard/crypto-payments', icon: CreditCard, label: 'Crypto', badgeKey: 'pendingCrypto' },
