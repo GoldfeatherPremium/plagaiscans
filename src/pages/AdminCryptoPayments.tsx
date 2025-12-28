@@ -3,9 +3,11 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Bitcoin, DollarSign, Clock, CheckCircle } from 'lucide-react';
+import { Loader2, Bitcoin, DollarSign, Clock, CheckCircle, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface CryptoPayment {
   id: string;
@@ -25,6 +27,7 @@ interface CryptoPayment {
 export default function AdminCryptoPayments() {
   const [payments, setPayments] = useState<CryptoPayment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expiring, setExpiring] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
@@ -76,6 +79,27 @@ export default function AdminCryptoPayments() {
     setLoading(false);
   };
 
+  const runExpirationCheck = async () => {
+    setExpiring(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('expire-crypto-payments');
+      
+      if (error) throw error;
+      
+      if (data.expiredCount > 0) {
+        toast.success(`Expired ${data.expiredCount} payment(s)`);
+        fetchPayments();
+      } else {
+        toast.info('No payments to expire');
+      }
+    } catch (error) {
+      console.error('Error running expiration check:', error);
+      toast.error('Failed to run expiration check');
+    } finally {
+      setExpiring(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'finished':
@@ -106,11 +130,25 @@ export default function AdminCryptoPayments() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-display font-bold">Crypto Payments</h1>
-          <p className="text-muted-foreground mt-1">
-            Monitor USDT payments via NOWPayments
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-display font-bold">Crypto Payments</h1>
+            <p className="text-muted-foreground mt-1">
+              Monitor USDT payments via NOWPayments
+            </p>
+          </div>
+          <Button 
+            onClick={runExpirationCheck} 
+            disabled={expiring}
+            variant="outline"
+          >
+            {expiring ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Run Expiration Check
+          </Button>
         </div>
 
         {/* Stats */}
