@@ -161,6 +161,7 @@ export default function HowItWorks() {
         description="Learn how Plagaiscans works in 4 simple steps: create account, upload document, get analysis, and download reports. Fast, secure plagiarism detection."
         keywords="how plagiarism checker works, document analysis process, similarity detection steps"
         canonicalUrl="/how-it-works"
+        ogImage="/og-how-it-works.png"
         structuredData={generateWebPageSchema('How It Works', 'Simple, transparent process to verify document originality', '/how-it-works')}
       />
       <div className="min-h-screen bg-background">

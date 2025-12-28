@@ -44,6 +44,7 @@ export default function AIContentDetection() {
         description="Understand AI content detection indicators for academic documents. Learn how AI writing analysis works and how to interpret probability-based results."
         keywords="AI content detection, AI writing detection, AI text analysis, academic writing analysis, content authenticity, writing verification"
         canonicalUrl="/ai-content-detection"
+        ogImage="/og-ai-detection.png"
         structuredData={pageSchema}
       />
       <div className="min-h-screen bg-background">

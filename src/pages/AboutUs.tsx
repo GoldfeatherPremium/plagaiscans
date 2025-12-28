@@ -56,6 +56,7 @@ export default function AboutUs() {
         description="Learn about Plagaiscans, an academic integrity platform for plagiarism detection and similarity analysis. Operated by Goldfeather Prem Ltd, United Kingdom."
         keywords="about Plagaiscans, plagiarism detection company, academic integrity platform, Goldfeather Prem Ltd"
         canonicalUrl="/about-us"
+        ogImage="/og-about.png"
         structuredData={{
           '@context': 'https://schema.org',
           '@graph': [
