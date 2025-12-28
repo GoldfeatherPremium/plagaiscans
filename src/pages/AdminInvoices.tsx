@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { FileText, Download, Loader2, Receipt, Calendar, DollarSign, Plus, Search, Users, Globe, Shield, CalendarIcon, Trash2 } from 'lucide-react';
+import { FileText, Download, Loader2, Receipt, Calendar, DollarSign, Plus, Search, Users, Globe, Shield, CalendarIcon, Trash2, CheckSquare } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,6 +73,8 @@ export default function AdminInvoices() {
   const [searchQuery, setSearchQuery] = useState('');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   
@@ -268,6 +271,76 @@ export default function AdminInvoices() {
       });
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredInvoices.map(inv => inv.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (invoiceId: string, checked: boolean) => {
+    const newSelected = new Set(selectedIds);
+    if (checked) {
+      newSelected.add(invoiceId);
+    } else {
+      newSelected.delete(invoiceId);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    const hasImmutable = invoices.filter(inv => selectedIds.has(inv.id)).some(inv => inv.is_immutable);
+    
+    const confirmMessage = hasImmutable 
+      ? `⚠️ WARNING: You are about to delete ${selectedIds.size} invoice(s), some of which are LOCKED. Type "DELETE ALL" to confirm.`
+      : `Delete ${selectedIds.size} invoice(s)? This action cannot be undone.`;
+
+    if (hasImmutable) {
+      const userInput = prompt(confirmMessage);
+      if (userInput !== 'DELETE ALL') {
+        toast({
+          title: "Cancelled",
+          description: "Bulk deletion cancelled.",
+        });
+        return;
+      }
+    } else {
+      if (!confirm(confirmMessage)) {
+        return;
+      }
+    }
+
+    setBulkDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .delete()
+        .in('id', Array.from(selectedIds));
+
+      if (error) throw error;
+
+      toast({
+        title: "Deleted",
+        description: `${selectedIds.size} invoice(s) have been deleted.`
+      });
+      
+      setSelectedIds(new Set());
+      fetchInvoices();
+    } catch (error: any) {
+      console.error('Error bulk deleting invoices:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete invoices",
+        variant: "destructive"
+      });
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -636,14 +709,32 @@ export default function AdminInvoices() {
                 <CardTitle>All Invoices</CardTitle>
                 <CardDescription>UK-compliant invoices for Goldfeather Prem Ltd (Trading as Plagaiscans)</CardDescription>
               </div>
-              <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search invoices, emails, transactions..."
-                  className="pl-9"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+              <div className="flex items-center gap-3">
+                {selectedIds.size > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    disabled={bulkDeleting}
+                    className="gap-2"
+                  >
+                    {bulkDeleting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    Delete {selectedIds.size} Selected
+                  </Button>
+                )}
+                <div className="relative w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search invoices, emails, transactions..."
+                    className="pl-9"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -658,6 +749,12 @@ export default function AdminInvoices() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={filteredInvoices.length > 0 && selectedIds.size === filteredInvoices.length}
+                          onCheckedChange={handleSelectAll}
+                        />
+                      </TableHead>
                       <TableHead>Invoice #</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Customer</TableHead>
@@ -670,7 +767,13 @@ export default function AdminInvoices() {
                   </TableHeader>
                   <TableBody>
                     {filteredInvoices.map((invoice) => (
-                      <TableRow key={invoice.id}>
+                      <TableRow key={invoice.id} className={selectedIds.has(invoice.id) ? "bg-muted/50" : ""}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedIds.has(invoice.id)}
+                            onCheckedChange={(checked) => handleSelectOne(invoice.id, checked as boolean)}
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <code className="text-sm font-medium">{invoice.invoice_number}</code>
