@@ -289,6 +289,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/credits', icon: CreditCard, label: 'Buy Credits' },
     { to: '/dashboard/subscription', icon: Crown, label: 'Subscription' },
     { to: '/dashboard/payments', icon: Receipt, label: 'Payment History' },
+    { to: '/dashboard/invoices', icon: FileDown, label: 'My Invoices' },
     { to: '/dashboard/profile', icon: User, label: 'Profile' },
   ];
 
@@ -332,6 +333,7 @@ export const DashboardSidebar: React.FC = () => {
       badgeKey: 'payments',
       links: [
         { to: '/dashboard/all-payments', icon: DollarSign, label: 'All Payments' },
+        { to: '/dashboard/admin-invoices', icon: FileDown, label: 'Invoices' },
         { to: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
         { to: '/dashboard/stripe-payments', icon: CreditCard, label: 'Stripe' },
         { to: '/dashboard/webhook-logs', icon: Activity, label: 'Webhook Logs' },

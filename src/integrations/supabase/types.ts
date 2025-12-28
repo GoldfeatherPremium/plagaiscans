@@ -727,6 +727,69 @@ export type Database = {
         }
         Relationships: []
       }
+      invoices: {
+        Row: {
+          amount_usd: number
+          created_at: string
+          created_by: string | null
+          credits: number
+          customer_address: string | null
+          customer_email: string | null
+          customer_name: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          invoice_number: string
+          notes: string | null
+          paid_at: string | null
+          payment_id: string | null
+          payment_type: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_usd: number
+          created_at?: string
+          created_by?: string | null
+          credits: number
+          customer_address?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_id?: string | null
+          payment_type: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_usd?: number
+          created_at?: string
+          created_by?: string | null
+          credits?: number
+          customer_address?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_id?: string | null
+          payment_type?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       magic_upload_files: {
         Row: {
           file_name: string
