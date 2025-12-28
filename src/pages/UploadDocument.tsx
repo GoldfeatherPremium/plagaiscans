@@ -6,19 +6,30 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
-import { Upload, FileText, AlertCircle, CheckCircle, Info, ArrowRight, X } from 'lucide-react';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { Upload, FileText, AlertCircle, CheckCircle, Info, ArrowRight, X, Bell, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
+import { toast } from 'sonner';
 
 export default function UploadDocument() {
   const { profile } = useAuth();
   const { uploadDocuments } = useDocuments();
+  const { 
+    isSupported: pushSupported, 
+    isSubscribed: pushSubscribed, 
+    isLoading: pushLoading,
+    permission: pushPermission,
+    subscribe: subscribePush,
+    sendLocalNotification 
+  } = usePushNotifications();
   const navigate = useNavigate();
   const [dragActive, setDragActive] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [uploadResults, setUploadResults] = useState<{ success: number; failed: number } | null>(null);
+  const [showPushPrompt, setShowPushPrompt] = useState(false);
   
   const [excludeBibliographic, setExcludeBibliographic] = useState(true);
   const [excludeQuoted, setExcludeQuoted] = useState(false);
@@ -94,6 +105,26 @@ export default function UploadDocument() {
     setUploadResults(results);
     setSelectedFiles([]);
     if (inputRef.current) inputRef.current.value = '';
+    
+    // Show push notification prompt after successful upload if not subscribed
+    if (results.success > 0 && pushSupported && !pushSubscribed && pushPermission !== 'denied') {
+      setShowPushPrompt(true);
+    }
+  };
+
+  const handleEnablePush = async () => {
+    const success = await subscribePush();
+    if (success) {
+      toast.success('Push notifications enabled!');
+      setShowPushPrompt(false);
+      setTimeout(() => {
+        sendLocalNotification('Notifications Enabled! 🎉', {
+          body: 'You will now be notified when your documents are ready.',
+        });
+      }, 1000);
+    } else {
+      toast.error('Failed to enable notifications');
+    }
   };
 
   const handleCancel = () => {
@@ -149,6 +180,40 @@ export default function UploadDocument() {
               <Button variant="outline" asChild>
                 <Link to="/dashboard/documents">View Documents</Link>
               </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Push Notification Prompt after Upload */}
+        {showPushPrompt && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Bell className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Get notified when your documents are ready!</p>
+                    <p className="text-sm text-muted-foreground">
+                      Enable push notifications to receive instant updates.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setShowPushPrompt(false)}>
+                    Not now
+                  </Button>
+                  <Button size="sm" onClick={handleEnablePush} disabled={pushLoading}>
+                    {pushLoading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Bell className="h-4 w-4 mr-2" />
+                    )}
+                    Enable Notifications
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
