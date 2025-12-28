@@ -83,9 +83,9 @@ const Landing = () => {
               <Link to="/faq" className="text-muted-foreground hover:text-foreground font-medium hidden md:block transition-colors duration-200 link-underline">
                 FAQ
               </Link>
-              <a href="#pricing" className="text-muted-foreground hover:text-foreground font-medium hidden sm:block transition-colors duration-200 link-underline">
+              <Link to="/pricing" className="text-muted-foreground hover:text-foreground font-medium hidden sm:block transition-colors duration-200 link-underline">
                 Pricing
-              </a>
+              </Link>
               {user ? (
                 <Link to="/dashboard">
                   <Button variant="hero" className="rounded-full px-6">
@@ -239,121 +239,24 @@ const Landing = () => {
           </div>
         </section>
 
-        {/* Pricing Section */}
-        <section id="pricing" className="py-20 px-4 bg-background">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-display font-bold text-foreground mb-4">
-                Simple, Transparent Pricing
-              </h2>
-              <p className="text-muted-foreground text-lg">
-                Pay per document with no hidden fees. 1 credit = 1 document check
-              </p>
+        {/* CTA to Pricing Section */}
+        <section className="py-20 px-4 bg-background">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-6">
+              <Zap className="w-8 h-8 text-primary" />
             </div>
-
-            <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-              {/* Starter Package */}
-              <Card className="relative hover:-translate-y-2 hover:shadow-xl transition-all duration-300">
-                <CardHeader className="text-center pb-2">
-                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Zap className="w-6 h-6 text-primary" />
-                  </div>
-                  <CardTitle className="text-xl font-bold text-foreground">Starter</CardTitle>
-                  <p className="text-muted-foreground text-sm">Perfect for single documents</p>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <div className="mb-6">
-                    <span className="text-4xl font-bold text-foreground">$2</span>
-                    <span className="text-muted-foreground"> / 1 credit</span>
-                  </div>
-                  <ul className="space-y-3 text-sm text-muted-foreground mb-6">
-                    <li className="flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-secondary" />
-                      <span>1 document check</span>
-                    </li>
-                    <li className="flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-secondary" />
-                      <span>Non-Repository check</span>
-                    </li>
-                    <li className="flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-secondary" />
-                      <span>Similarity report</span>
-                    </li>
-                    <li className="flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-secondary" />
-                      <span>AI detection report</span>
-                    </li>
-                    <li className="flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-secondary" />
-                      <span>PDF downloadable reports</span>
-                    </li>
-                  </ul>
-                  <Link to="/auth">
-                    <Button variant="outline" className="w-full rounded-full">
-                      Get Started
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-
-              {/* Value Package */}
-              <Card className="relative border-2 border-primary shadow-lg hover:-translate-y-2 hover:shadow-xl transition-all duration-300">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-primary text-primary-foreground text-xs font-semibold px-4 py-1 rounded-full shadow-lg">
-                    BEST VALUE
-                  </span>
-                </div>
-                <CardHeader className="text-center pb-2">
-                  <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Crown className="w-6 h-6 text-primary" />
-                  </div>
-                  <CardTitle className="text-xl font-bold text-foreground">Value Pack</CardTitle>
-                  <p className="text-muted-foreground text-sm">Best for multiple documents</p>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <div className="mb-6">
-                    <span className="text-4xl font-bold text-foreground">$10</span>
-                    <span className="text-muted-foreground"> / 10 credits</span>
-                    <div className="text-secondary text-sm font-medium mt-1">Save $10!</div>
-                  </div>
-                  <ul className="space-y-3 text-sm text-muted-foreground mb-6">
-                    <li className="flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-secondary" />
-                      <span>10 document checks</span>
-                    </li>
-                    <li className="flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-secondary" />
-                      <span>Non-Repository check</span>
-                    </li>
-                    <li className="flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-secondary" />
-                      <span>Similarity reports</span>
-                    </li>
-                    <li className="flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-secondary" />
-                      <span>AI detection reports</span>
-                    </li>
-                    <li className="flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-secondary" />
-                      <span>PDF downloadable reports</span>
-                    </li>
-                    <li className="flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-secondary" />
-                      <span>Priority processing</span>
-                    </li>
-                  </ul>
-                  <Link to="/auth">
-                    <Button variant="hero" className="w-full rounded-full">
-                      Get Started
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            </div>
-
-            <p className="text-center text-muted-foreground text-sm mt-8">
-              Need more credits? Contact us on WhatsApp for custom packages.
+            <h2 className="text-3xl sm:text-4xl font-display font-bold text-foreground mb-4">
+              Simple, Transparent Pricing
+            </h2>
+            <p className="text-muted-foreground text-lg mb-8">
+              Pay per document with no hidden fees. Choose from one-time packages or subscription plans.
             </p>
+            <Link to="/pricing">
+              <Button variant="hero" size="xl" className="rounded-full group">
+                View Pricing Plans
+                <ArrowRight className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:translate-x-1" />
+              </Button>
+            </Link>
           </div>
         </section>
 
