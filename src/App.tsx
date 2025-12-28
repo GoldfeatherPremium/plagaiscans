@@ -76,6 +76,9 @@ const AcademicIntegrity = lazy(() => import("./pages/AcademicIntegrity"));
 const Resources = lazy(() => import("./pages/Resources"));
 const Article = lazy(() => import("./pages/Article"));
 const AdminRefundRequests = lazy(() => import("./pages/AdminRefundRequests"));
+const PlagiarismChecker = lazy(() => import("./pages/PlagiarismChecker"));
+const SimilarityReport = lazy(() => import("./pages/SimilarityReport"));
+const AIContentDetection = lazy(() => import("./pages/AIContentDetection"));
 const queryClient = new QueryClient();
 
 // Loading spinner component for Suspense fallback
@@ -181,8 +184,11 @@ const AppRoutes = () => (
       <Route path="/unsubscribe" element={<Unsubscribe />} />
       <Route path="/how-it-works" element={<HowItWorks />} />
       <Route path="/faq" element={<FAQ />} />
-      <Route path="/academic-integrity" element={<AcademicIntegrity />} />
-      <Route path="/resources" element={<Resources />} />
+        <Route path="/academic-integrity" element={<AcademicIntegrity />} />
+        <Route path="/plagiarism-checker" element={<PlagiarismChecker />} />
+        <Route path="/similarity-report" element={<SimilarityReport />} />
+        <Route path="/ai-content-detection" element={<AIContentDetection />} />
+        <Route path="/resources" element={<Resources />} />
       <Route path="/resources/:slug" element={<Article />} />
       <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
       {/* Password reset page - bypasses auth checks to allow password change */}
