@@ -2,12 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { FileText, Download, Loader2, Receipt, Calendar, DollarSign, Plus, Search, Users, Globe, Shield } from 'lucide-react';
+import { FileText, Download, Loader2, Receipt, Calendar, DollarSign, Plus, Search, Users, Globe, Shield, CalendarIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -80,8 +83,11 @@ export default function AdminInvoices() {
     notes: '',
     status: 'paid',
     currency: 'USD',
-    customer_country: ''
+    customer_country: '',
+    transaction_id: ''
   });
+  const [invoiceDate, setInvoiceDate] = useState<Date | undefined>(new Date());
+  const [paymentDate, setPaymentDate] = useState<Date | undefined>(new Date());
 
   useEffect(() => {
     fetchInvoices();
@@ -175,7 +181,10 @@ export default function AdminInvoices() {
           notes: formData.notes || undefined,
           status: formData.status,
           currency: formData.currency,
-          customer_country: formData.customer_country || undefined
+          customer_country: formData.customer_country || undefined,
+          transaction_id: formData.transaction_id || undefined,
+          invoice_date: invoiceDate?.toISOString(),
+          payment_date: formData.status === 'paid' ? paymentDate?.toISOString() : undefined
         }
       });
 
@@ -196,8 +205,11 @@ export default function AdminInvoices() {
         notes: '',
         status: 'paid',
         currency: 'USD',
-        customer_country: ''
+        customer_country: '',
+        transaction_id: ''
       });
+      setInvoiceDate(new Date());
+      setPaymentDate(new Date());
       fetchInvoices();
     } catch (error: any) {
       console.error('Error creating invoice:', error);
@@ -363,6 +375,59 @@ export default function AdminInvoices() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
+                    <Label>Invoice Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "justify-start text-left font-normal",
+                            !invoiceDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {invoiceDate ? format(invoiceDate, "dd MMM yyyy") : "Select date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={invoiceDate}
+                          onSelect={setInvoiceDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Payment Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "justify-start text-left font-normal",
+                            !paymentDate && "text-muted-foreground"
+                          )}
+                          disabled={formData.status !== 'paid'}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {paymentDate ? format(paymentDate, "dd MMM yyyy") : "Select date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={paymentDate}
+                          onSelect={setPaymentDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
                     <Label htmlFor="status">Status</Label>
                     <Select
                       value={formData.status}
@@ -387,14 +452,25 @@ export default function AdminInvoices() {
                     />
                   </div>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="description">Service Description</Label>
-                  <Input
-                    id="description"
-                    placeholder="Plagiarism & AI Content Analysis Service"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="description">Service Description</Label>
+                    <Input
+                      id="description"
+                      placeholder="Plagiarism & AI Content Analysis Service"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="transaction_id">Transaction/Reference ID</Label>
+                    <Input
+                      id="transaction_id"
+                      placeholder="e.g., TXN-12345 or payment reference"
+                      value={formData.transaction_id}
+                      onChange={(e) => setFormData({ ...formData, transaction_id: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="notes">Internal Notes</Label>
