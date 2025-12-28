@@ -32,6 +32,7 @@ interface UserProfile {
   phone: string | null;
   credit_balance: number;
   created_at: string;
+  role?: 'admin' | 'staff' | 'customer';
 }
 
 interface CreditTransaction {
@@ -86,11 +87,26 @@ export default function AdminUsers() {
   }, []);
 
   const fetchUsers = async () => {
-    const { data, error } = await supabase
+    const { data: profiles, error } = await supabase
       .from('profiles')
       .select('*')
       .order('created_at', { ascending: false });
-    if (!error && data) setUsers(data);
+    
+    if (!error && profiles) {
+      // Fetch roles for all users
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+      
+      const roleMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
+      
+      const usersWithRoles = profiles.map(profile => ({
+        ...profile,
+        role: roleMap.get(profile.id) || 'customer'
+      }));
+      
+      setUsers(usersWithRoles);
+    }
     setLoading(false);
   };
 
@@ -342,6 +358,7 @@ export default function AdminUsers() {
                               Email
                             </div>
                           </TableHead>
+                          <TableHead>Role</TableHead>
                           <TableHead>
                             <div className="flex items-center gap-2">
                               <Phone className="h-4 w-4" />
@@ -372,6 +389,18 @@ export default function AdminUsers() {
                               {user.full_name || <span className="text-muted-foreground">No name</span>}
                             </TableCell>
                             <TableCell>{user.email}</TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant={
+                                  user.role === 'admin' ? 'destructive' : 
+                                  user.role === 'staff' ? 'default' : 
+                                  'secondary'
+                                }
+                                className="capitalize"
+                              >
+                                {user.role || 'customer'}
+                              </Badge>
+                            </TableCell>
                             <TableCell>
                               {user.phone || <span className="text-muted-foreground">-</span>}
                             </TableCell>
