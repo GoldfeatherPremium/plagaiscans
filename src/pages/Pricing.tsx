@@ -1,12 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileCheck, ArrowLeft, CheckCircle, Zap, Shield, Clock, Info } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { FileCheck, ArrowLeft, CheckCircle, Zap, Shield, Clock, Info, Send, Loader2 } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
+import { toast } from 'sonner';
+import { z } from 'zod';
+
+const quoteSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(100),
+  email: z.string().trim().email("Invalid email address").max(255),
+  phone: z.string().trim().min(1, "Phone number is required").max(20),
+  credits: z.number().min(20, "Minimum 20 credits for custom plan").max(10000),
+});
 
 export default function Pricing() {
+  const [quoteForm, setQuoteForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    credits: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   const pricingPackages = [
     {
       name: "Starter",
@@ -37,6 +57,40 @@ export default function Pricing() {
       popular: true,
     },
   ];
+
+  const handleQuoteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrors({});
+
+    const validation = quoteSchema.safeParse({
+      ...quoteForm,
+      credits: parseInt(quoteForm.credits) || 0,
+    });
+
+    if (!validation.success) {
+      const fieldErrors: Record<string, string> = {};
+      validation.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          fieldErrors[err.path[0].toString()] = err.message;
+        }
+      });
+      setErrors(fieldErrors);
+      return;
+    }
+
+    setSubmitting(true);
+    
+    // Create WhatsApp message with quote details
+    const message = `Hi! I'd like to request a custom quote.\n\nName: ${quoteForm.name}\nEmail: ${quoteForm.email}\nPhone: ${quoteForm.phone}\nCredits Needed: ${quoteForm.credits}`;
+    const whatsappUrl = `https://wa.me/923224615aborar?text=${encodeURIComponent(message)}`;
+    
+    // Open WhatsApp
+    window.open(whatsappUrl, '_blank');
+    
+    toast.success('Redirecting to WhatsApp for your custom quote request');
+    setQuoteForm({ name: '', email: '', phone: '', credits: '' });
+    setSubmitting(false);
+  };
 
   return (
     <>
@@ -124,6 +178,83 @@ export default function Pricing() {
                 </CardContent>
               </Card>
             ))}
+
+            {/* Custom Plan Card */}
+            <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg border-dashed border-2 md:col-span-2">
+              <CardHeader className="text-center pb-4">
+                <CardTitle className="text-2xl font-display">Custom Plan</CardTitle>
+                <p className="text-muted-foreground mt-2">
+                  Need more credits? Get a personalized quote for bulk purchases.
+                </p>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <form onSubmit={handleQuoteSubmit} className="space-y-4 max-w-md mx-auto">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name *</Label>
+                      <Input
+                        id="name"
+                        placeholder="Your name"
+                        value={quoteForm.name}
+                        onChange={(e) => setQuoteForm(prev => ({ ...prev, name: e.target.value }))}
+                        className={errors.name ? 'border-destructive' : ''}
+                      />
+                      {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="your@email.com"
+                        value={quoteForm.email}
+                        onChange={(e) => setQuoteForm(prev => ({ ...prev, email: e.target.value }))}
+                        className={errors.email ? 'border-destructive' : ''}
+                      />
+                      {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number *</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="+1234567890"
+                        value={quoteForm.phone}
+                        onChange={(e) => setQuoteForm(prev => ({ ...prev, phone: e.target.value }))}
+                        className={errors.phone ? 'border-destructive' : ''}
+                      />
+                      {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="credits">Credits Needed *</Label>
+                      <Input
+                        id="credits"
+                        type="number"
+                        placeholder="e.g., 50"
+                        min="20"
+                        value={quoteForm.credits}
+                        onChange={(e) => setQuoteForm(prev => ({ ...prev, credits: e.target.value }))}
+                        className={errors.credits ? 'border-destructive' : ''}
+                      />
+                      {errors.credits && <p className="text-xs text-destructive">{errors.credits}</p>}
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
+                    Get Quote Price
+                  </Button>
+                  <p className="text-xs text-center text-muted-foreground">
+                    Minimum 20 credits for custom pricing. We'll respond within 24 hours.
+                  </p>
+                </form>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Features Section */}
