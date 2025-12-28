@@ -1,14 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Bell, BellOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 
 export const PushNotificationSettings: React.FC = () => {
+  const { user } = useAuth();
   const { 
     isSupported, 
     isSubscribed, 
@@ -59,9 +62,33 @@ export const PushNotificationSettings: React.FC = () => {
   };
 
   const handleTestNotification = () => {
-    sendLocalNotification('Test Notification 🔔', {
-      body: 'This is a test notification from PlagaiScans!',
+    sendLocalNotification('Local Test Notification 🔔', {
+      body: 'This is a local test (works only while the app is open).',
     });
+  };
+
+  const handleServerTestPush = async () => {
+    if (!user?.id) {
+      toast.error('Please login to test push notifications.');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.functions.invoke('send-push-notification', {
+        body: {
+          title: 'Test Push 🔔',
+          body: 'If you see this, Android/Chrome push delivery is working.',
+          userId: user.id,
+          eventType: 'system',
+        },
+      });
+
+      if (error) throw error;
+      toast.success('Test push sent (check your notification tray).');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to send test push.');
+    }
   };
 
   // iOS Safari requires PWA installation
@@ -147,14 +174,24 @@ export const PushNotificationSettings: React.FC = () => {
         </div>
 
         {isSubscribed && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleTestNotification}
-            className="w-full"
-          >
-            Send Test Notification
-          </Button>
+          <div className="space-y-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleTestNotification}
+              className="w-full"
+            >
+              Send Local Test Notification
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleServerTestPush}
+              className="w-full"
+            >
+              Send Server Test Push
+            </Button>
+          </div>
         )}
 
         {permission === 'denied' && (
