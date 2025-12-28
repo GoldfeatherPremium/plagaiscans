@@ -3,7 +3,7 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet, Clock, CheckCircle, XCircle, Loader2, CreditCard, Bitcoin, Globe } from 'lucide-react';
+import { Wallet, Clock, CheckCircle, XCircle, Loader2, CreditCard, Bitcoin, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import {
@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 
 interface ManualPayment {
   id: string;
@@ -38,23 +39,15 @@ interface CryptoPayment {
   created_at: string;
 }
 
-interface VivaPayment {
+interface StripePayment {
   id: string;
-  order_code: string;
+  session_id: string;
   amount_usd: number;
   credits: number;
   status: string;
+  receipt_url: string | null;
+  created_at: string;
   completed_at: string | null;
-  created_at: string;
-}
-
-interface StripeTransaction {
-  id: string;
-  amount: number;
-  balance_before: number;
-  balance_after: number;
-  description: string | null;
-  created_at: string;
 }
 
 export default function PaymentHistory() {
@@ -62,7 +55,6 @@ export default function PaymentHistory() {
   const [manualPayments, setManualPayments] = useState<ManualPayment[]>([]);
   const [cryptoPayments, setCryptoPayments] = useState<CryptoPayment[]>([]);
   const [stripePayments, setStripePayments] = useState<StripePayment[]>([]);
-  const [loading, setLoading] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -141,23 +133,23 @@ export default function PaymentHistory() {
         )
         .subscribe();
 
-      const vivaChannel = supabase
-        .channel('viva-payments-history')
+      const stripeChannel = supabase
+        .channel('stripe-payments-history')
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
-            table: 'viva_payments',
+            table: 'stripe_payments',
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
             if (payload.eventType === 'UPDATE') {
-              setVivaPayments(prev =>
-                prev.map(p => p.id === payload.new.id ? payload.new as VivaPayment : p)
+              setStripePayments(prev =>
+                prev.map(p => p.id === payload.new.id ? payload.new as StripePayment : p)
               );
             } else if (payload.eventType === 'INSERT') {
-              setVivaPayments(prev => [payload.new as VivaPayment, ...prev]);
+              setStripePayments(prev => [payload.new as StripePayment, ...prev]);
             }
           }
         )
@@ -166,7 +158,7 @@ export default function PaymentHistory() {
       return () => {
         supabase.removeChannel(manualChannel);
         supabase.removeChannel(cryptoChannel);
-        supabase.removeChannel(vivaChannel);
+        supabase.removeChannel(stripeChannel);
       };
     }
   }, [user]);
@@ -216,19 +208,18 @@ export default function PaymentHistory() {
 
   const pendingManualCount = manualPayments.filter(p => p.status === 'pending').length;
   const verifiedManualCount = manualPayments.filter(p => p.status === 'verified').length;
-  const totalCreditsEarned = manualPayments
-    .filter(p => p.status === 'verified')
-    .reduce((sum, p) => sum + p.credits, 0) +
+  const completedStripeCount = stripePayments.filter(p => p.status === 'completed').length;
+  
+  const totalCreditsEarned = 
+    manualPayments
+      .filter(p => p.status === 'verified')
+      .reduce((sum, p) => sum + p.credits, 0) +
     cryptoPayments
       .filter(p => p.status === 'finished' || p.status === 'confirmed')
       .reduce((sum, p) => sum + p.credits, 0) +
-    vivaPayments
+    stripePayments
       .filter(p => p.status === 'completed')
-      .reduce((sum, p) => sum + p.credits, 0) +
-    stripePayments.reduce((sum, p) => sum + p.amount, 0);
-
-  const pendingVivaCount = vivaPayments.filter(p => p.status === 'pending').length;
-  const totalPending = pendingManualCount + pendingVivaCount;
+      .reduce((sum, p) => sum + p.credits, 0);
 
   if (loading) {
     return (
@@ -260,7 +251,7 @@ export default function PaymentHistory() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Pending</p>
-                  <p className="text-2xl font-bold">{totalPending}</p>
+                  <p className="text-2xl font-bold">{pendingManualCount}</p>
                 </div>
               </div>
             </CardContent>
@@ -272,8 +263,8 @@ export default function PaymentHistory() {
                   <CheckCircle className="h-6 w-6 text-green-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Verified</p>
-                  <p className="text-2xl font-bold">{verifiedManualCount}</p>
+                  <p className="text-sm text-muted-foreground">Completed</p>
+                  <p className="text-2xl font-bold">{verifiedManualCount + completedStripeCount}</p>
                 </div>
               </div>
             </CardContent>
@@ -307,10 +298,6 @@ export default function PaymentHistory() {
                     <CreditCard className="h-4 w-4" />
                     Stripe
                   </TabsTrigger>
-                  <TabsTrigger value="viva" className="gap-2">
-                    <Globe className="h-4 w-4" />
-                    Card (Viva)
-                  </TabsTrigger>
                   <TabsTrigger value="binance" className="gap-2">
                     <Wallet className="h-4 w-4" />
                     Binance
@@ -337,10 +324,10 @@ export default function PaymentHistory() {
                         <TableRow>
                           <TableHead>Date</TableHead>
                           <TableHead>Credits</TableHead>
-                          <TableHead>Balance Before</TableHead>
-                          <TableHead>Balance After</TableHead>
-                          <TableHead>Reference</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Session ID</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Receipt</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -354,18 +341,28 @@ export default function PaymentHistory() {
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell className="font-semibold text-green-600">+{payment.amount}</TableCell>
-                            <TableCell>{payment.balance_before}</TableCell>
-                            <TableCell>{payment.balance_after}</TableCell>
+                            <TableCell className="font-semibold text-green-600">+{payment.credits}</TableCell>
+                            <TableCell>${payment.amount_usd}</TableCell>
                             <TableCell>
                               <code className="text-xs bg-muted px-2 py-1 rounded">
-                                {payment.description?.replace('Stripe payment - Session: ', '') || '-'}
+                                {payment.session_id.substring(0, 20)}...
                               </code>
                             </TableCell>
+                            <TableCell>{getStatusBadge(payment.status)}</TableCell>
                             <TableCell>
-                              <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
-                                <CheckCircle className="h-3 w-3 mr-1" /> Completed
-                              </Badge>
+                              {payment.receipt_url ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => window.open(payment.receipt_url!, '_blank')}
+                                  className="gap-1"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  View
+                                </Button>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -374,6 +371,7 @@ export default function PaymentHistory() {
                   </div>
                 )}
               </TabsContent>
+
               <TabsContent value="binance" className="mt-0">
                 {manualPayments.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
@@ -468,69 +466,13 @@ export default function PaymentHistory() {
                             <TableCell className="font-semibold">{payment.credits}</TableCell>
                             <TableCell>${payment.amount_usd}</TableCell>
                             <TableCell>
-                              {payment.pay_amount && payment.pay_currency
-                                ? `${payment.pay_amount} ${payment.pay_currency}`
-                                : '-'}
-                            </TableCell>
-                            <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="viva" className="mt-0">
-                {vivaPayments.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Globe className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No card transactions yet</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Credits</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Order Code</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Completed At</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {vivaPayments.map((payment) => (
-                          <TableRow key={payment.id}>
-                            <TableCell>
-                              <div className="text-sm">
-                                <div>{format(new Date(payment.created_at), 'MMM dd, yyyy')}</div>
-                                <div className="text-muted-foreground">
-                                  {format(new Date(payment.created_at), 'HH:mm')}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-semibold">{payment.credits}</TableCell>
-                            <TableCell>${payment.amount_usd}</TableCell>
-                            <TableCell>
-                              <code className="text-xs bg-muted px-2 py-1 rounded">
-                                {payment.order_code}
-                              </code>
-                            </TableCell>
-                            <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                            <TableCell>
-                              {payment.completed_at ? (
-                                <div className="text-sm">
-                                  <div>{format(new Date(payment.completed_at), 'MMM dd, yyyy')}</div>
-                                  <div className="text-muted-foreground">
-                                    {format(new Date(payment.completed_at), 'HH:mm')}
-                                  </div>
-                                </div>
+                              {payment.pay_amount ? (
+                                <span>{payment.pay_amount} {payment.pay_currency}</span>
                               ) : (
                                 <span className="text-muted-foreground">-</span>
                               )}
                             </TableCell>
+                            <TableCell>{getStatusBadge(payment.status)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
