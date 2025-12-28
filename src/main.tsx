@@ -4,41 +4,35 @@ import App from "./App.tsx";
 import "./index.css";
 
 /**
- * HARD RESET: Unregister ALL service workers and re-register fresh.
- * This ensures old buggy SWs are completely removed.
+ * Service worker init
+ * - Keep existing registrations (do NOT unregister on every load)
+ * - Register if missing, then trigger an update check
+ *
+ * Unregistering clears PushManager subscriptions, which makes the push toggle
+ * look "off" again after refresh.
  */
 async function initServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
   try {
-    // Step 1: Unregister ALL existing service workers
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    
-    for (const reg of registrations) {
-      console.log('[PWA] Unregistering old SW:', reg.scope);
-      await reg.unregister();
+    // Prefer existing registration (keeps any existing push subscription)
+    let reg = await navigator.serviceWorker.getRegistration();
+
+    if (!reg) {
+      reg = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/',
+        updateViaCache: 'none',
+      });
     }
 
-    // Step 2: Clear ALL caches to remove stale offline pages
-    if ('caches' in window) {
-      const cacheNames = await caches.keys();
-      for (const name of cacheNames) {
-        console.log('[PWA] Deleting cache:', name);
-        await caches.delete(name);
-      }
+    // Ask the browser to check for an updated SW script
+    try {
+      await reg.update();
+    } catch (e) {
+      console.log('[PWA] Service worker update check failed (non-fatal):', e);
     }
 
-    // Step 3: Register our clean service worker
-    const newReg = await navigator.serviceWorker.register('/sw.js', {
-      scope: '/',
-      updateViaCache: 'none', // Never use cached SW script
-    });
-
-    console.log('[PWA] New SW registered:', newReg.scope);
-
-    // Force update check
-    await newReg.update();
-
+    console.log('[PWA] Service worker ready:', reg.scope);
   } catch (e) {
     console.log('[PWA] Service worker init failed (non-fatal):', e);
   }
