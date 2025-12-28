@@ -81,6 +81,61 @@ serve(async (req) => {
 
           logStep("Credits added", { credits, newBalance });
 
+          // Get user email for notification
+          const { data: userProfile } = await supabaseClient
+            .from("profiles")
+            .select("email, full_name")
+            .eq("id", userId)
+            .single();
+
+          // Send payment confirmation email
+          try {
+            const emailResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-payment-confirmation-email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              },
+              body: JSON.stringify({
+                userId: userId,
+                credits: credits,
+                amount: parseFloat(session.metadata?.amount_usd || "0"),
+                paymentMethod: 'Stripe Card Payment',
+                transactionId: sessionId.slice(-12),
+              }),
+            });
+            logStep("Payment confirmation email sent", { status: emailResponse.status });
+          } catch (emailError) {
+            logStep("Failed to send confirmation email", { error: emailError });
+          }
+
+          // Send push notification
+          try {
+            const pushResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-push-notification`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              },
+              body: JSON.stringify({
+                userId: userId,
+                title: 'Payment Successful! 💳',
+                body: `${credits} credits have been added to your account.`,
+                data: { type: 'payment_success', url: '/dashboard' },
+              }),
+            });
+            logStep("Push notification sent", { status: pushResponse.status });
+          } catch (pushError) {
+            logStep("Failed to send push notification", { error: pushError });
+          }
+
+          // Create in-app notification
+          await supabaseClient.from("user_notifications").insert({
+            user_id: userId,
+            title: "✅ Payment Successful",
+            message: `Your Stripe payment was successful! ${credits} credits have been added to your account.`,
+          });
+
           return new Response(JSON.stringify({
             success: true,
             creditsAdded: credits,
