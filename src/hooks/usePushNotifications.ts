@@ -64,24 +64,41 @@ export const usePushNotifications = () => {
     setIsSafariPWA(isIOS && isSafari && isStandalone);
   }, []);
 
-  // Fetch VAPID public key from settings - deferred to not block initial render
+  // Fetch VAPID public key - prefer settings, fallback to backend (fixes empty settings on Android/Chrome)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       const fetchVapidKey = async () => {
-        const { data } = await supabase
-          .from('settings')
-          .select('value')
-          .eq('key', 'vapid_public_key')
-          .maybeSingle();
-        
-        if (data?.value) {
-          setVapidPublicKey(data.value.trim());
-          console.log('VAPID public key loaded');
+        try {
+          const { data } = await supabase
+            .from('settings')
+            .select('value')
+            .eq('key', 'vapid_public_key')
+            .maybeSingle();
+
+          const fromSettings = data?.value?.trim();
+          if (fromSettings) {
+            setVapidPublicKey(fromSettings);
+            console.log('VAPID public key loaded (settings)');
+            return;
+          }
+
+          console.log('VAPID key missing in settings; fetching from backend...');
+          const { data: fnData, error: fnError } = await supabase.functions.invoke('get-vapid-public-key');
+          if (fnError) throw fnError;
+
+          const fromBackend = (fnData?.vapidPublicKey as string | undefined)?.trim();
+          if (fromBackend) {
+            setVapidPublicKey(fromBackend);
+            console.log('VAPID public key loaded (backend)');
+          }
+        } catch (e) {
+          console.log('Failed to load VAPID public key:', e);
         }
       };
-      fetchVapidKey();
+
+      void fetchVapidKey();
     }, 200);
-    
+
     return () => clearTimeout(timeoutId);
   }, []);
 
