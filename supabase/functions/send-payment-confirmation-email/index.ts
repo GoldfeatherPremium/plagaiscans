@@ -179,11 +179,6 @@ serve(async (req) => {
                       Your credits have been added to your account and are ready to use.
                     </p>
                     
-                    <div style="background-color: #fef3c7; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                      <p style="margin: 0; color: #92400e; font-size: 13px; text-align: center;">
-                        <strong>Note:</strong> Purchased credits are non-refundable. Please check our <a href="${EMAIL_CONFIG.SITE_URL}/refund-policy" style="color: #6366f1;">refund policy</a> for details.
-                      </p>
-                    </div>
                     
                     <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                       <p style="color: #6b7280; text-align: center; margin: 0 0 10px 0; font-size: 13px;">

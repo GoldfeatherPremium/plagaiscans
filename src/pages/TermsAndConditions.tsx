@@ -122,7 +122,7 @@ export default function TermsAndConditions() {
                 <section className="mb-8">
                   <h2 className="text-2xl font-bold mb-4">5. Refund Policy</h2>
                   <p className="text-muted-foreground">
-                    <strong>Important:</strong> Purchased credits are non-refundable once added to your account.
+                    All refund requests are reviewed and managed by our admin team on a case-by-case basis.
                   </p>
                   <ul className="list-disc pl-6 text-muted-foreground mt-4 space-y-2">
                     <li>All refund requests are reviewed and managed by our admin team</li>

@@ -71,7 +71,7 @@ export default function RefundPolicy() {
     <>
       <SEO
         title="Refund Policy"
-        description="Learn about our refund policy. Purchased credits are non-refundable. All refund requests are reviewed by our admin team on a case-by-case basis."
+        description="Learn about our refund policy. All refund requests are reviewed by our admin team on a case-by-case basis."
         keywords="refund policy, credit refunds, plagiarism checker refund, admin-managed refunds"
         canonicalUrl="/refund-policy"
         structuredData={generateWebPageSchema('Refund Policy', 'Our refund and cancellation policy', '/refund-policy')}
@@ -99,22 +99,6 @@ export default function RefundPolicy() {
             <h1 className="text-4xl font-display font-bold mb-4">Refund Policy</h1>
             <p className="text-muted-foreground mb-8">Last updated: December 2024</p>
 
-            {/* Important Notice */}
-            <Card className="mb-8 border-destructive/30 bg-destructive/5">
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <AlertTriangle className="h-8 w-8 text-destructive flex-shrink-0 mt-1" />
-                  <div>
-                    <h2 className="text-xl font-bold mb-2">Important: Credits Are Non-Refundable</h2>
-                    <p className="text-muted-foreground">
-                      Once credits are added to your account, they cannot be refunded or exchanged for cash. 
-                      Please ensure you understand your needs before purchasing. All refund requests are 
-                      reviewed and managed by our admin team—there are no automatic refunds.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Admin-Managed Refunds Notice */}
             <Card className="mb-8 border-primary/30 bg-primary/5">
@@ -141,7 +125,6 @@ export default function RefundPolicy() {
                     By purchasing credits on PlagaiScans, you acknowledge and agree that:
                   </p>
                   <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                    <li><strong>Credits are non-refundable</strong> once added to your account</li>
                     <li>Credits cannot be transferred to other accounts</li>
                     <li>Credits cannot be exchanged for cash or other payment methods</li>
                     <li>Unused credits may expire based on your package terms</li>

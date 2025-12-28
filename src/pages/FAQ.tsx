@@ -52,7 +52,7 @@ const faqData = [
   },
   {
     question: "Can I get a refund for unused credits?",
-    answer: "Purchased credits are non-refundable once added to your account. However, you may request a refund within 14 days of purchase if credits haven't been used. All refund requests are reviewed and managed by our admin team on a case-by-case basis."
+    answer: "You may request a refund within 14 days of purchase if credits haven't been used. All refund requests are reviewed and managed by our admin team on a case-by-case basis."
   },
   // Subscription FAQs
   {
