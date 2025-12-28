@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   FileText, Download, Loader2, Plus, Trash2, Edit, Calendar as CalendarIcon, 
-  Building2, Upload, RefreshCw, DollarSign, TrendingUp, TrendingDown
+  Building2, Upload, RefreshCw, DollarSign, TrendingUp, TrendingDown, ImageIcon, X
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -75,6 +75,8 @@ export default function AdminBankStatements() {
   const [creating, setCreating] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     bank_name: 'Default Bank',
@@ -412,6 +414,54 @@ export default function AdminBankStatements() {
     }
   };
 
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Error", description: "Please upload an image file", variant: "destructive" });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "Error", description: "Image must be less than 2MB", variant: "destructive" });
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `logos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('bank-logos')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('bank-logos')
+        .getPublicUrl(filePath);
+
+      setFormData({ ...formData, bank_logo_url: publicUrl });
+      toast({ title: "Success", description: "Logo uploaded successfully" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) {
+        logoInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setFormData({ ...formData, bank_logo_url: '' });
+  };
+
   const resetForm = () => {
     setFormData({
       bank_name: 'Default Bank',
@@ -516,12 +566,55 @@ export default function AdminBankStatements() {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label>Bank Logo URL</Label>
-                      <Input
-                        value={formData.bank_logo_url}
-                        onChange={(e) => setFormData({ ...formData, bank_logo_url: e.target.value })}
-                        placeholder="https://..."
+                      <Label>Bank Logo</Label>
+                      <input
+                        type="file"
+                        ref={logoInputRef}
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
                       />
+                      {formData.bank_logo_url ? (
+                        <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                          <img 
+                            src={formData.bank_logo_url} 
+                            alt="Bank logo" 
+                            className="h-12 w-auto max-w-[120px] object-contain rounded"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-muted-foreground truncate">Logo uploaded</p>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={handleRemoveLogo}
+                            className="shrink-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => logoInputRef.current?.click()}
+                          disabled={uploadingLogo}
+                          className="w-full justify-center gap-2 h-20 border-dashed"
+                        >
+                          {uploadingLogo ? (
+                            <>
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <ImageIcon className="h-5 w-5" />
+                              Click to upload logo
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      <p className="text-xs text-muted-foreground">PNG, JPG or SVG. Max 2MB.</p>
                     </div>
                   </div>
                 </TabsContent>
