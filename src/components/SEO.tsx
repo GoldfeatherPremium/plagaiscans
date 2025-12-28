@@ -84,7 +84,7 @@ export function SEO({
 export const generateOrganizationSchema = () => ({
   '@context': 'https://schema.org',
   '@type': 'Organization',
-  name: 'PlagaiScans',
+  name: 'Plagaiscans',
   url: defaultSEO.siteUrl,
   logo: `${defaultSEO.siteUrl}/favicon.png`,
   description: defaultSEO.description,
@@ -103,7 +103,7 @@ export const generateWebPageSchema = (title: string, description: string, url: s
   url: `${defaultSEO.siteUrl}${url}`,
   isPartOf: {
     '@type': 'WebSite',
-    name: 'PlagaiScans',
+    name: 'Plagaiscans',
     url: defaultSEO.siteUrl,
   },
 });
@@ -114,9 +114,53 @@ export const generateServiceSchema = () => ({
   name: 'Plagiarism Detection Service',
   provider: {
     '@type': 'Organization',
-    name: 'PlagaiScans',
+    name: 'Plagaiscans',
   },
-  description: 'Professional plagiarism detection and AI content analysis for academic documents.',
+  description: 'Professional similarity analysis and AI content indicators for academic documents.',
   serviceType: 'Document Analysis',
   areaServed: 'Worldwide',
+});
+
+export const generateFAQSchema = (faqs: { question: string; answer: string }[]) => ({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map(faq => ({
+    '@type': 'Question',
+    name: faq.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.answer,
+    },
+  })),
+});
+
+export const generateArticleSchema = (title: string, description: string, url: string, datePublished?: string) => ({
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: title,
+  description,
+  url: `${defaultSEO.siteUrl}${url}`,
+  publisher: {
+    '@type': 'Organization',
+    name: 'Plagaiscans',
+    logo: {
+      '@type': 'ImageObject',
+      url: `${defaultSEO.siteUrl}/favicon.png`,
+    },
+  },
+  datePublished: datePublished || new Date().toISOString(),
+});
+
+export const generateSoftwareApplicationSchema = () => ({
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Plagaiscans',
+  applicationCategory: 'EducationalApplication',
+  operatingSystem: 'Web Browser',
+  description: 'Academic integrity platform for similarity analysis and originality verification.',
+  offers: {
+    '@type': 'Offer',
+    price: '2.00',
+    priceCurrency: 'USD',
+  },
 });

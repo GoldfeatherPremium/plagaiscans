@@ -5,7 +5,7 @@ import WorkSection from "@/components/WorkSection";
 import ServicesSection from "@/components/ServicesSection";
 import ContactSection from "@/components/ContactSection";
 import Footer from "@/components/Footer";
-import { SEO, generateOrganizationSchema, generateServiceSchema } from "@/components/SEO";
+import { SEO, generateOrganizationSchema, generateServiceSchema, generateSoftwareApplicationSchema } from "@/components/SEO";
 
 const Index = () => {
   return (
@@ -14,7 +14,7 @@ const Index = () => {
         canonicalUrl="/"
         structuredData={{
           '@context': 'https://schema.org',
-          '@graph': [generateOrganizationSchema(), generateServiceSchema()],
+          '@graph': [generateOrganizationSchema(), generateServiceSchema(), generateSoftwareApplicationSchema()],
         }}
       />
       <div className="min-h-screen bg-background">

@@ -2,10 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText, ArrowLeft, ArrowRight, Bot, AlertTriangle, Brain, BarChart, Info, Shield } from 'lucide-react';
+import { FileText, ArrowLeft, ArrowRight, Bot, Brain, BarChart, Info, Shield } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
 import { Breadcrumb } from '@/components/Breadcrumb';
+import { AIDisclaimer } from '@/components/AIDisclaimer';
 
 export default function AIContentDetection() {
   const features = [
@@ -79,10 +80,11 @@ export default function AIContentDetection() {
               <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
                 AI Content <span className="gradient-text">Detection Indicators</span>
               </h1>
-              <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-6">
                 Understand how AI content analysis works and how to interpret probability-based indicators 
                 to support academic review and writing authenticity.
               </p>
+              <AIDisclaimer />
             </div>
 
 

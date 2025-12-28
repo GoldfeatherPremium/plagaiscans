@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText, ArrowLeft, ArrowRight, BookOpen, Lightbulb, GraduationCap, PenTool, Bot, Search } from 'lucide-react';
+import { FileText, ArrowLeft, ArrowRight, BookOpen, Lightbulb, GraduationCap, PenTool, Bot, Search, Scale, Globe } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { useSiteContent } from '@/hooks/useSiteContent';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,42 +15,72 @@ const articleMeta = [
     contentKey: 'article_1',
     icon: Search,
     category: 'Educational',
-    readTime: '5 min read'
+    readTime: '5 min read',
+    defaultTitle: 'How Similarity Analysis Supports Academic Integrity',
+    defaultExcerpt: 'Learn how academic institutions use similarity analysis to support originality and responsible research practices.'
   },
   {
     slug: 'plagiarism-reports',
     contentKey: 'article_2',
     icon: FileText,
     category: 'Guide',
-    readTime: '7 min read'
+    readTime: '7 min read',
+    defaultTitle: 'Understanding Similarity Reports',
+    defaultExcerpt: 'A comprehensive guide to reading and interpreting similarity reports for academic documents.'
   },
   {
     slug: 'academic-integrity',
     contentKey: 'article_3',
     icon: GraduationCap,
     category: 'Academic',
-    readTime: '6 min read'
+    readTime: '6 min read',
+    defaultTitle: 'Principles of Academic Integrity',
+    defaultExcerpt: 'Understanding the foundations of honest scholarship and ethical academic writing practices.'
   },
   {
     slug: 'ai-writing-indicators',
     contentKey: 'article_4',
     icon: Bot,
     category: 'Technology',
-    readTime: '8 min read'
+    readTime: '8 min read',
+    defaultTitle: 'Ethical Writing in the Age of AI',
+    defaultExcerpt: 'Explore how to navigate AI tools responsibly while maintaining academic authenticity.'
   },
   {
     slug: 'improve-originality',
     contentKey: 'article_5',
     icon: PenTool,
     category: 'Tips',
-    readTime: '6 min read'
+    readTime: '6 min read',
+    defaultTitle: 'Improving Originality in Research Work',
+    defaultExcerpt: 'Practical strategies to enhance the originality of your academic writing and research.'
   },
   {
     slug: 'citation-best-practices',
     contentKey: 'article_6',
     icon: BookOpen,
     category: 'Guide',
-    readTime: '5 min read'
+    readTime: '5 min read',
+    defaultTitle: 'Citation Best Practices',
+    defaultExcerpt: 'Master the art of proper citation to strengthen your academic work and avoid unintentional plagiarism.'
+  },
+  {
+    slug: 'interpreting-similarity-scores',
+    contentKey: 'article_7',
+    icon: Scale,
+    category: 'Educational',
+    readTime: '5 min read',
+    defaultTitle: 'Interpreting Similarity Scores Correctly',
+    defaultExcerpt: 'Learn what similarity percentages really mean and how to evaluate them in context.'
+  },
+  {
+    slug: 'global-academic-standards',
+    contentKey: 'article_8',
+    icon: Globe,
+    category: 'Academic',
+    readTime: '7 min read',
+    defaultTitle: 'Understanding Global Academic Standards',
+    defaultExcerpt: 'How different institutions approach academic integrity and originality verification.'
   }
 ];
 
@@ -136,8 +166,8 @@ export default function Resources() {
             <h2 className="text-2xl font-display font-bold mb-8">Featured Articles</h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {articleMeta.map((article) => {
-                const title = get(`${article.contentKey}_title`, 'Loading...');
-                const excerpt = get(`${article.contentKey}_excerpt`, '');
+                const title = get(`${article.contentKey}_title`, article.defaultTitle || 'Article');
+                const excerpt = get(`${article.contentKey}_excerpt`, article.defaultExcerpt || '');
                 const Icon = article.icon;
 
                 return (
