@@ -66,7 +66,10 @@ serve(async (req) => {
 
     // Format currency
     const formatCurrency = (amount: number, currency: string) => {
-      const symbols: Record<string, string> = { GBP: '£', USD: '$', EUR: '€' };
+      const symbols: Record<string, string> = { 
+        GBP: '£', USD: '$', EUR: '€', AED: 'د.إ', INR: '₹',
+        CAD: 'C$', AUD: 'A$', SGD: 'S$', CHF: 'Fr', JPY: '¥', CNY: '¥'
+      };
       return `${symbols[currency] || currency} ${amount.toFixed(2)}`;
     };
 

@@ -115,11 +115,11 @@ export default function MyReceipts() {
   };
 
   const getCurrencySymbol = (currency: string) => {
-    switch (currency?.toUpperCase()) {
-      case 'GBP': return '£';
-      case 'EUR': return '€';
-      default: return '$';
-    }
+    const symbols: Record<string, string> = {
+      USD: '$', GBP: '£', EUR: '€', AED: 'د.إ', INR: '₹',
+      CAD: 'C$', AUD: 'A$', SGD: 'S$', CHF: 'Fr', JPY: '¥', CNY: '¥'
+    };
+    return symbols[currency?.toUpperCase()] || '$';
   };
 
   const totalAmount = receipts.reduce((sum, r) => sum + Number(r.amount_paid), 0);

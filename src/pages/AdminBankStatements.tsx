@@ -448,7 +448,10 @@ export default function AdminBankStatements() {
   };
 
   const getCurrencySymbol = (currency: string) => {
-    const symbols: Record<string, string> = { GBP: '£', USD: '$', EUR: '€' };
+    const symbols: Record<string, string> = { 
+      GBP: '£', USD: '$', EUR: '€', AED: 'د.إ', INR: '₹', 
+      CAD: 'C$', AUD: 'A$', SGD: 'S$', CHF: 'Fr', JPY: '¥', CNY: '¥'
+    };
     return symbols[currency] || currency;
   };
 
@@ -609,6 +612,14 @@ export default function AdminBankStatements() {
                             <SelectItem value="GBP">GBP (£)</SelectItem>
                             <SelectItem value="USD">USD ($)</SelectItem>
                             <SelectItem value="EUR">EUR (€)</SelectItem>
+                            <SelectItem value="AED">AED (د.إ)</SelectItem>
+                            <SelectItem value="INR">INR (₹)</SelectItem>
+                            <SelectItem value="CAD">CAD ($)</SelectItem>
+                            <SelectItem value="AUD">AUD ($)</SelectItem>
+                            <SelectItem value="SGD">SGD ($)</SelectItem>
+                            <SelectItem value="CHF">CHF (Fr)</SelectItem>
+                            <SelectItem value="JPY">JPY (¥)</SelectItem>
+                            <SelectItem value="CNY">CNY (¥)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
