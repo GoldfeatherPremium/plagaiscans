@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench, Mail, FileText, Chrome, Eye, EyeOff } from 'lucide-react';
+import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench, Mail, FileText, Chrome, Eye, EyeOff, Zap } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -23,6 +23,7 @@ export default function AdminSettings() {
   const [usdtEnabled, setUsdtEnabled] = useState(true);
   const [binanceEnabled, setBinanceEnabled] = useState(false);
   const [vivaEnabled, setVivaEnabled] = useState(false);
+  const [stripeEnabled, setStripeEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
   const [savingBinance, setSavingBinance] = useState(false);
   
@@ -35,6 +36,7 @@ export default function AdminSettings() {
   const [usdtFee, setUsdtFee] = useState('0');
   const [binanceFee, setBinanceFee] = useState('0');
   const [vivaFee, setVivaFee] = useState('0');
+  const [stripeFee, setStripeFee] = useState('0');
   const [savingFees, setSavingFees] = useState(false);
   
   // Push notification settings
@@ -72,12 +74,14 @@ export default function AdminSettings() {
       'payment_usdt_enabled',
       'payment_binance_enabled',
       'payment_viva_enabled',
+      'payment_stripe_enabled',
       'binance_pay_id',
       'viva_source_code',
       'fee_whatsapp',
       'fee_usdt',
       'fee_binance',
       'fee_viva',
+      'fee_stripe',
       'vapid_public_key',
       'maintenance_mode_enabled',
       'maintenance_message',
@@ -94,12 +98,14 @@ export default function AdminSettings() {
       const usdtPayment = data.find(s => s.key === 'payment_usdt_enabled');
       const binancePayment = data.find(s => s.key === 'payment_binance_enabled');
       const vivaPayment = data.find(s => s.key === 'payment_viva_enabled');
+      const stripePayment = data.find(s => s.key === 'payment_stripe_enabled');
       const binanceId = data.find(s => s.key === 'binance_pay_id');
       const vivaSource = data.find(s => s.key === 'viva_source_code');
       const feeWhatsapp = data.find(s => s.key === 'fee_whatsapp');
       const feeUsdt = data.find(s => s.key === 'fee_usdt');
       const feeBinance = data.find(s => s.key === 'fee_binance');
       const feeViva = data.find(s => s.key === 'fee_viva');
+      const feeStripe = data.find(s => s.key === 'fee_stripe');
       
       if (whatsapp) setWhatsappNumber(whatsapp.value);
       if (timeout) setProcessingTimeout(timeout.value);
@@ -107,12 +113,14 @@ export default function AdminSettings() {
       setUsdtEnabled(usdtPayment?.value !== 'false');
       setBinanceEnabled(binancePayment?.value === 'true');
       setVivaEnabled(vivaPayment?.value === 'true');
+      setStripeEnabled(stripePayment?.value === 'true');
       if (binanceId) setBinancePayId(binanceId.value);
       if (vivaSource) setVivaSourceCode(vivaSource.value);
       if (feeWhatsapp) setWhatsappFee(feeWhatsapp.value);
       if (feeUsdt) setUsdtFee(feeUsdt.value);
       if (feeBinance) setBinanceFee(feeBinance.value);
       if (feeViva) setVivaFee(feeViva.value);
+      if (feeStripe) setStripeFee(feeStripe.value);
       
       const vapidKey = data.find(s => s.key === 'vapid_public_key');
       if (vapidKey) setVapidPublicKey(vapidKey.value);
@@ -178,9 +186,13 @@ export default function AdminSettings() {
       .from('settings')
       .upsert({ key: 'payment_viva_enabled', value: vivaEnabled.toString() }, { onConflict: 'key' });
     
+    const { error: error5 } = await supabase
+      .from('settings')
+      .upsert({ key: 'payment_stripe_enabled', value: stripeEnabled.toString() }, { onConflict: 'key' });
+    
     setSavingPaymentMethods(false);
     
-    if (error1 || error2 || error3 || error4) {
+    if (error1 || error2 || error3 || error4 || error5) {
       toast({ title: 'Error', description: 'Failed to save payment settings', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Payment methods updated' });
@@ -227,6 +239,7 @@ export default function AdminSettings() {
       supabase.from('settings').upsert({ key: 'fee_usdt', value: usdtFee }, { onConflict: 'key' }),
       supabase.from('settings').upsert({ key: 'fee_binance', value: binanceFee }, { onConflict: 'key' }),
       supabase.from('settings').upsert({ key: 'fee_viva', value: vivaFee }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'fee_stripe', value: stripeFee }, { onConflict: 'key' }),
     ];
     
     const results = await Promise.all(updates);
@@ -521,6 +534,21 @@ export default function AdminSettings() {
                 onCheckedChange={setVivaEnabled}
               />
             </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg border-[#635BFF]/30 bg-[#635BFF]/5">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-[#635BFF]/10 flex items-center justify-center">
+                  <Zap className="h-5 w-5 text-[#635BFF]" />
+                </div>
+                <div>
+                  <p className="font-medium">Stripe (Card Payment)</p>
+                  <p className="text-sm text-muted-foreground">Credit/debit card, Apple Pay, Google Pay via Stripe</p>
+                </div>
+              </div>
+              <Switch
+                checked={stripeEnabled}
+                onCheckedChange={setStripeEnabled}
+              />
+            </div>
             <Button onClick={savePaymentMethods} disabled={savingPaymentMethods}>
               {savingPaymentMethods ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Payment Settings
@@ -604,6 +632,21 @@ export default function AdminSettings() {
                   placeholder="0"
                   value={vivaFee}
                   onChange={(e) => setVivaFee(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-[#635BFF]" />
+                  Stripe Fee (%)
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.1"
+                  placeholder="0"
+                  value={stripeFee}
+                  onChange={(e) => setStripeFee(e.target.value)}
                 />
               </div>
             </div>
