@@ -45,10 +45,11 @@ export const usePushNotifications = () => {
   const { user } = useAuth();
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start as loading
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [vapidPublicKey, setVapidPublicKey] = useState<string | null>(null);
   const [isSafariPWA, setIsSafariPWA] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
 
   const isSupported = checkPushSupport();
   const permission = typeof window !== 'undefined' && 'Notification' in window 
@@ -102,10 +103,11 @@ export const usePushNotifications = () => {
     return () => clearTimeout(timeoutId);
   }, []);
 
-  // Register service worker
+  // Register service worker and check subscription status
   useEffect(() => {
     if (!isSupported) {
       console.log('Push notifications not supported');
+      setIsLoading(false);
       return;
     }
 
@@ -132,15 +134,21 @@ export const usePushNotifications = () => {
         console.log('Service worker ready:', reg);
         setRegistration(reg);
 
-        // Check if already subscribed
+        // Check if already subscribed in browser
         const existingSub = await reg.pushManager.getSubscription();
         if (existingSub) {
-          console.log('Existing subscription found:', existingSub);
+          console.log('Existing browser subscription found:', existingSub.endpoint);
           setSubscription(existingSub);
           setIsSubscribed(true);
+        } else {
+          console.log('No existing browser subscription');
+          setIsSubscribed(false);
         }
       } catch (error) {
         console.error('Service worker registration failed:', error);
+        setInitError('Service worker registration failed');
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -353,6 +361,7 @@ export const usePushNotifications = () => {
     permission,
     subscription,
     isSafariPWA,
+    initError,
     requestPermission,
     subscribe,
     unsubscribe,

@@ -18,10 +18,13 @@ export const PushNotificationSettings: React.FC = () => {
     isLoading, 
     permission,
     isSafariPWA,
+    initError,
     subscribe, 
     unsubscribe,
     sendLocalNotification,
   } = usePushNotifications();
+  
+  const [isToggling, setIsToggling] = React.useState(false);
 
   // Check if user is on iOS Safari but not in PWA mode
   const isIOSSafariBrowser = React.useMemo(() => {
@@ -34,30 +37,42 @@ export const PushNotificationSettings: React.FC = () => {
   }, []);
 
   const handleToggle = async () => {
-    if (isSubscribed) {
-      const success = await unsubscribe();
-      if (success) {
-        toast.success('Push notifications disabled');
-      } else {
-        toast.error('Failed to disable push notifications');
-      }
-    } else {
-      const success = await subscribe();
-      if (success) {
-        toast.success('Push notifications enabled!');
-        // Send a test notification
-        setTimeout(() => {
-          sendLocalNotification('Notifications Enabled! 🎉', {
-            body: 'You will now receive push notifications for important updates.',
-          });
-        }, 1000);
-      } else {
-        if (permission === 'denied') {
-          toast.error('Notifications are blocked. Please enable them in your browser settings.');
+    if (isToggling || isLoading) return;
+    
+    setIsToggling(true);
+    try {
+      if (isSubscribed) {
+        const success = await unsubscribe();
+        if (success) {
+          toast.success('Push notifications disabled');
         } else {
-          toast.error('Failed to enable push notifications');
+          toast.error('Failed to disable push notifications');
+        }
+      } else {
+        console.log('Attempting to subscribe...');
+        const success = await subscribe();
+        console.log('Subscribe result:', success);
+        if (success) {
+          toast.success('Push notifications enabled!');
+          // Send a test notification
+          setTimeout(() => {
+            sendLocalNotification('Notifications Enabled! 🎉', {
+              body: 'You will now receive push notifications for important updates.',
+            });
+          }, 1000);
+        } else {
+          if (permission === 'denied') {
+            toast.error('Notifications are blocked. Please enable them in your browser settings.');
+          } else {
+            toast.error('Failed to enable push notifications. Please try again.');
+          }
         }
       }
+    } catch (error) {
+      console.error('Toggle error:', error);
+      toast.error('An error occurred. Please try again.');
+    } finally {
+      setIsToggling(false);
     }
   };
 
@@ -160,14 +175,14 @@ export const PushNotificationSettings: React.FC = () => {
             {permission === 'denied' && (
               <Badge variant="destructive">Blocked</Badge>
             )}
-            {isLoading ? (
+            {(isLoading || isToggling) ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Switch
                 id="push-toggle"
                 checked={isSubscribed}
                 onCheckedChange={handleToggle}
-                disabled={permission === 'denied'}
+                disabled={permission === 'denied' || isLoading || isToggling}
               />
             )}
           </div>
