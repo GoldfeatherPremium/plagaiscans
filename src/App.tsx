@@ -81,6 +81,8 @@ const AdminRefundRequests = lazy(() => import("./pages/AdminRefundRequests"));
 const PlagiarismChecker = lazy(() => import("./pages/PlagiarismChecker"));
 const SimilarityReport = lazy(() => import("./pages/SimilarityReport"));
 const AIContentDetection = lazy(() => import("./pages/AIContentDetection"));
+const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess"));
+const SubscriptionManagement = lazy(() => import("./pages/SubscriptionManagement"));
 const queryClient = new QueryClient();
 
 // Loading skeleton component for Suspense fallback
@@ -250,6 +252,8 @@ const AppRoutes = () => (
       <Route path="/dashboard/credits" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><BuyCredits /></ProtectedRoute>} />
       <Route path="/dashboard/payments" element={<ProtectedRoute allowedRoles={['customer']}><PaymentHistory /></ProtectedRoute>} />
       <Route path="/dashboard/checkout" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><Checkout /></ProtectedRoute>} />
+      <Route path="/dashboard/payment-success" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><PaymentSuccess /></ProtectedRoute>} />
+      <Route path="/dashboard/subscription" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><SubscriptionManagement /></ProtectedRoute>} />
       <Route path="/dashboard/analytics" element={<ProtectedRoute allowedRoles={['customer']}><CustomerDocumentAnalytics /></ProtectedRoute>} />
       <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['customer']}><ReferralProgram /></ProtectedRoute>} />
       
