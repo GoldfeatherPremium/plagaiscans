@@ -21,6 +21,114 @@ interface PushPayload {
   sentBy?: string;
 }
 
+// Base64 URL encode helper
+function base64UrlEncode(data: Uint8Array): string {
+  const base64 = btoa(String.fromCharCode(...data));
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Base64 URL decode helper
+function base64UrlDecode(input: string): Uint8Array {
+  let base64 = input.replace(/-/g, '+').replace(/_/g, '/');
+  while (base64.length % 4) {
+    base64 += '=';
+  }
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+// Helper function to create VAPID JWT
+async function createVapidJwt(
+  audience: string,
+  subject: string,
+  publicKey: string,
+  privateKey: string,
+  expiration: number
+): Promise<string> {
+  const header = { typ: "JWT", alg: "ES256" };
+  const payload = {
+    aud: audience,
+    exp: expiration,
+    sub: subject,
+  };
+
+  const headerB64 = base64UrlEncode(new TextEncoder().encode(JSON.stringify(header)));
+  const payloadB64 = base64UrlEncode(new TextEncoder().encode(JSON.stringify(payload)));
+  const unsignedToken = `${headerB64}.${payloadB64}`;
+
+  // Import the private key
+  const privateKeyData = base64UrlDecode(privateKey);
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    privateKeyData.buffer as ArrayBuffer,
+    { name: "ECDSA", namedCurve: "P-256" },
+    false,
+    ["sign"]
+  );
+
+  // Sign the token
+  const signature = await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" },
+    cryptoKey,
+    new TextEncoder().encode(unsignedToken)
+  );
+
+  const signatureB64 = base64UrlEncode(new Uint8Array(signature));
+
+  return `${unsignedToken}.${signatureB64}`;
+}
+
+// Send push notification using fetch
+async function sendPushNotification(
+  subscription: { endpoint: string; p256dh: string; auth: string },
+  payload: string,
+  vapidPublicKey: string,
+  vapidPrivateKey: string,
+  vapidSubject: string
+): Promise<{ success: boolean; statusCode?: number; error?: string }> {
+  try {
+    const url = new URL(subscription.endpoint);
+    const audience = `${url.protocol}//${url.host}`;
+    const expiration = Math.floor(Date.now() / 1000) + 12 * 60 * 60; // 12 hours
+
+    // Create VAPID authorization
+    const jwt = await createVapidJwt(audience, vapidSubject, vapidPublicKey, vapidPrivateKey, expiration);
+    const vapidAuth = `vapid t=${jwt}, k=${vapidPublicKey}`;
+
+    // For now, send without encryption (some push services accept this)
+    // Full encryption would require ECDH key exchange with user's p256dh key
+    const response = await fetch(subscription.endpoint, {
+      method: "POST",
+      headers: {
+        "Authorization": vapidAuth,
+        "Content-Type": "application/json",
+        "TTL": "86400",
+        "Urgency": "high",
+      },
+      body: payload,
+    });
+
+    if (response.ok || response.status === 201) {
+      return { success: true, statusCode: response.status };
+    }
+
+    return { 
+      success: false, 
+      statusCode: response.status, 
+      error: await response.text() 
+    };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Unknown error" 
+    };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -245,52 +353,39 @@ serve(async (req) => {
     let failureCount = 0;
     const failedSubscriptions: string[] = [];
 
-    // Dynamic import of web-push
-    const webpush = await import("https://esm.sh/web-push@3.6.7");
-
-    webpush.setVapidDetails(
-      "mailto:support@plagaiscans.com",
-      vapidPublicKey,
-      vapidPrivateKey
-    );
-
-    // Send to each subscription with retry logic
+    // Send to each subscription
     for (const subscription of subscriptions) {
-      let retryCount = 0;
-      const maxRetries = 1;
-      let success = false;
-
-      while (retryCount <= maxRetries && !success) {
-        try {
-          const pushSubscription = {
+      try {
+        const result = await sendPushNotification(
+          {
             endpoint: subscription.endpoint,
-            keys: {
-              p256dh: subscription.p256dh,
-              auth: subscription.auth,
-            },
-          };
+            p256dh: subscription.p256dh,
+            auth: subscription.auth,
+          },
+          notificationPayload,
+          vapidPublicKey,
+          vapidPrivateKey,
+          "mailto:support@plagaiscans.com"
+        );
 
-          await webpush.sendNotification(pushSubscription, notificationPayload);
+        if (result.success) {
           successCount++;
-          success = true;
           console.log(`Push sent successfully to subscription ${subscription.id}`);
-        } catch (err: unknown) {
-          const error = err as { statusCode?: number; message?: string };
-          console.error(`Error sending push to subscription ${subscription.id} (attempt ${retryCount + 1}):`, error.message);
+        } else {
+          console.error(`Failed to send push to subscription ${subscription.id}:`, result.error, result.statusCode);
           
           // Check if subscription is no longer valid
-          if (error.statusCode === 410 || error.statusCode === 404) {
+          if (result.statusCode === 410 || result.statusCode === 404) {
             console.log(`Removing invalid subscription ${subscription.id}`);
             await supabase.from("push_subscriptions").delete().eq("id", subscription.id);
             failedSubscriptions.push(subscription.id);
-            break; // Don't retry for invalid subscriptions
           }
           
-          retryCount++;
-          if (retryCount > maxRetries) {
-            failureCount++;
-          }
+          failureCount++;
         }
+      } catch (err) {
+        console.error(`Error sending push to subscription ${subscription.id}:`, err);
+        failureCount++;
       }
     }
 
