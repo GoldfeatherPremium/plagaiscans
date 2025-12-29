@@ -77,10 +77,11 @@ Deno.serve(async (req) => {
     
     const dodoResponse = await fetch(`${dodoBaseUrl}/checkout_sessions`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${dodoApiKey}`,
-        'Content-Type': 'application/json',
-      },
+       headers: {
+         'Authorization': `Bearer ${dodoApiKey}`,
+         'Content-Type': 'application/json',
+         'Accept': 'application/json',
+       },
       body: JSON.stringify({
         customer: {
           email: profile?.email || user.email,
@@ -101,13 +102,34 @@ Deno.serve(async (req) => {
       }),
     });
 
-    const dodoData = await dodoResponse.json();
-    console.log('Dodo API response:', dodoData);
+    // Dodo may sometimes return a non-JSON (or empty) body on errors.
+    const rawBody = await dodoResponse.text();
+    let dodoData: any = null;
+
+    try {
+      dodoData = rawBody ? JSON.parse(rawBody) : null;
+    } catch {
+      console.error('Dodo API returned non-JSON body:', rawBody);
+    }
+
+    console.log('Dodo API response (parsed):', dodoData);
 
     if (!dodoResponse.ok) {
-      console.error('Dodo API error:', dodoData);
+      console.error('Dodo API error:', { status: dodoResponse.status, rawBody, parsed: dodoData });
       return new Response(
-        JSON.stringify({ error: dodoData.message || 'Failed to create Dodo payment' }),
+        JSON.stringify({
+          error:
+            (dodoData && (dodoData.message || dodoData.error || dodoData.detail)) ||
+            `Failed to create Dodo checkout session (HTTP ${dodoResponse.status})`,
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!dodoData) {
+      console.error('Dodo API success response but empty body');
+      return new Response(
+        JSON.stringify({ error: 'Dodo returned an empty response' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
