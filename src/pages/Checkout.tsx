@@ -51,15 +51,17 @@ export default function Checkout() {
   const [binanceEnabled, setBinanceEnabled] = useState(false);
   const [vivaEnabled, setVivaEnabled] = useState(false);
   const [stripeEnabled, setStripeEnabled] = useState(false);
+  const [dodoEnabled, setDodoEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
   
   // Payment fees
-  const [fees, setFees] = useState<{ whatsapp: number; usdt: number; binance: number; viva: number; stripe: number }>({
+  const [fees, setFees] = useState<{ whatsapp: number; usdt: number; binance: number; viva: number; stripe: number; dodo: number }>({
     whatsapp: 0,
     usdt: 0,
     binance: 0,
     viva: 0,
     stripe: 0,
+    dodo: 0,
   });
   
   // Payment processing states
@@ -80,8 +82,11 @@ export default function Checkout() {
   // Stripe payment state
   const [creatingStripePayment, setCreatingStripePayment] = useState(false);
 
+  // Dodo payment state
+  const [creatingDodoPayment, setCreatingDodoPayment] = useState(false);
+
   // Calculate total with fee and promo discount
-  const calculateTotalWithFee = (method: 'whatsapp' | 'usdt' | 'binance' | 'viva' | 'stripe') => {
+  const calculateTotalWithFee = (method: 'whatsapp' | 'usdt' | 'binance' | 'viva' | 'stripe' | 'dodo') => {
     const baseTotal = getCartTotal();
     const discountedTotal = calculateDiscountedTotal(baseTotal);
     const feePercent = fees[method] || 0;
@@ -99,9 +104,9 @@ export default function Checkout() {
         .from('settings')
         .select('key, value')
         .in('key', [
-          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled',
+          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled',
           'binance_pay_id',
-          'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe'
+          'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe', 'fee_dodo'
         ]);
 
       if (settings) {
@@ -110,6 +115,7 @@ export default function Checkout() {
         const binance = settings.find(s => s.key === 'payment_binance_enabled');
         const viva = settings.find(s => s.key === 'payment_viva_enabled');
         const stripe = settings.find(s => s.key === 'payment_stripe_enabled');
+        const dodo = settings.find(s => s.key === 'payment_dodo_enabled');
         const binanceId = settings.find(s => s.key === 'binance_pay_id');
         
         // Get fees
@@ -118,12 +124,14 @@ export default function Checkout() {
         const feeBinance = settings.find(s => s.key === 'fee_binance');
         const feeViva = settings.find(s => s.key === 'fee_viva');
         const feeStripe = settings.find(s => s.key === 'fee_stripe');
+        const feeDodo = settings.find(s => s.key === 'fee_dodo');
         
         setWhatsappEnabled(whatsapp?.value !== 'false');
         setUsdtEnabled(usdt?.value !== 'false');
         setBinanceEnabled(binance?.value === 'true');
         setVivaEnabled(viva?.value === 'true');
         setStripeEnabled(stripe?.value === 'true');
+        setDodoEnabled(dodo?.value === 'true');
         if (binanceId) setBinancePayId(binanceId.value);
         
         setFees({
@@ -132,6 +140,7 @@ export default function Checkout() {
           binance: parseFloat(feeBinance?.value || '0') || 0,
           viva: parseFloat(feeViva?.value || '0') || 0,
           stripe: parseFloat(feeStripe?.value || '0') || 0,
+          dodo: parseFloat(feeDodo?.value || '0') || 0,
         });
       }
       setLoading(false);
@@ -397,6 +406,44 @@ export default function Checkout() {
     }
   };
 
+  const createDodoPayment = async () => {
+    if (!user || cart.length === 0) {
+      toast.error('Please login and add items to cart');
+      return;
+    }
+
+    setCreatingDodoPayment(true);
+    try {
+      const totalCredits = getCartCredits();
+      const totalAmount = Math.round(calculateTotalWithFee('dodo') * 100);
+
+      const response = await supabase.functions.invoke('create-dodo-checkout', {
+        body: {
+          credits: totalCredits,
+          amount: totalAmount,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const data = response.data;
+      if (!data.url) {
+        throw new Error(data.error || 'Failed to create Dodo checkout');
+      }
+
+      toast.success('Redirecting to Dodo checkout...');
+      clearCart();
+      window.location.href = data.url;
+    } catch (error: any) {
+      console.error('Dodo payment error:', error);
+      toast.error(error.message || 'Failed to create Dodo payment');
+    } finally {
+      setCreatingDodoPayment(false);
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -622,6 +669,45 @@ export default function Checkout() {
                             )}
                           </Button>
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Dodo Payments */}
+                {dodoEnabled && (
+                  <div className="border rounded-lg p-4 hover:border-primary transition-colors">
+                    <div className="flex items-start gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-[#4F46E5]/10 flex items-center justify-center flex-shrink-0">
+                        <CreditCard className="h-6 w-6 text-[#4F46E5]" />
+                      </div>
+                      <div className="flex-1 space-y-3">
+                        <div>
+                          <h3 className="font-semibold flex items-center gap-2">
+                            Dodo Payments
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Pay securely with cards and other payment methods
+                            {fees.dodo > 0 && <span className="text-amber-600"> (+{fees.dodo}% fee)</span>}
+                          </p>
+                        </div>
+                        <Button 
+                          className="w-full bg-[#4F46E5] hover:bg-[#4338CA]"
+                          onClick={createDodoPayment}
+                          disabled={creatingDodoPayment}
+                        >
+                          {creatingDodoPayment ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <CreditCard className="h-4 w-4 mr-2" />
+                              Pay ${calculateTotalWithFee('dodo')} with Dodo
+                            </>
+                          )}
+                        </Button>
                       </div>
                     </div>
                   </div>

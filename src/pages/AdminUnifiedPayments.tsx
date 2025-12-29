@@ -13,7 +13,7 @@ import { Search, Download, RefreshCw, CreditCard, Wallet, DollarSign, TrendingUp
 
 interface UnifiedPayment {
   id: string;
-  type: 'stripe' | 'crypto' | 'manual';
+  type: 'stripe' | 'crypto' | 'manual' | 'dodo';
   user_id: string;
   user_email?: string;
   user_name?: string;
@@ -62,6 +62,19 @@ const AdminUnifiedPayments: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('manual_payments')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch Dodo payments
+  const { data: dodoPayments } = useQuery({
+    queryKey: ['dodo-payments-admin'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('dodo_payments')
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -137,12 +150,28 @@ const AdminUnifiedPayments: React.FC = () => {
         status: p.status,
         created_at: p.created_at,
         completed_at: p.verified_at,
-        reference: p.transaction_id || p.id.slice(-8),
+      reference: p.transaction_id || p.id.slice(-8),
+      });
+    });
+
+    dodoPayments?.forEach(p => {
+      payments.push({
+        id: p.id,
+        type: 'dodo',
+        user_id: p.user_id,
+        user_email: p.customer_email || profileMap[p.user_id]?.email,
+        user_name: profileMap[p.user_id]?.name,
+        amount_usd: Number(p.amount_usd),
+        credits: p.credits,
+        status: p.status,
+        created_at: p.created_at,
+        completed_at: p.completed_at,
+        reference: p.payment_id?.slice(-12),
       });
     });
 
     return payments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [stripePayments, cryptoPayments, manualPayments, profileMap]);
+  }, [stripePayments, cryptoPayments, manualPayments, dodoPayments, profileMap]);
 
   const filteredPayments = unifiedPayments.filter(p => {
     const matchesSearch = 
@@ -176,6 +205,8 @@ const AdminUnifiedPayments: React.FC = () => {
         return <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/20"><Wallet className="h-3 w-3 mr-1" />Crypto</Badge>;
       case 'manual':
         return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20"><DollarSign className="h-3 w-3 mr-1" />Manual</Badge>;
+      case 'dodo':
+        return <Badge className="bg-indigo-500/10 text-indigo-500 border-indigo-500/20"><CreditCard className="h-3 w-3 mr-1" />Dodo</Badge>;
       default:
         return <Badge variant="outline">{type}</Badge>;
     }
@@ -317,6 +348,7 @@ const AdminUnifiedPayments: React.FC = () => {
                   <SelectItem value="stripe">Stripe</SelectItem>
                   <SelectItem value="crypto">Crypto</SelectItem>
                   <SelectItem value="manual">Manual</SelectItem>
+                  <SelectItem value="dodo">Dodo</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>

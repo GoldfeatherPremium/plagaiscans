@@ -714,6 +714,54 @@ export type Database = {
           },
         ]
       }
+      dodo_payments: {
+        Row: {
+          amount_usd: number
+          checkout_session_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          credits: number
+          customer_email: string | null
+          id: string
+          metadata: Json | null
+          payment_id: string
+          receipt_url: string | null
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_usd: number
+          checkout_session_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          credits: number
+          customer_email?: string | null
+          id?: string
+          metadata?: Json | null
+          payment_id: string
+          receipt_url?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_usd?: number
+          checkout_session_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          credits?: number
+          customer_email?: string | null
+          id?: string
+          metadata?: Json | null
+          payment_id?: string
+          receipt_url?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_logs: {
         Row: {
           created_at: string
