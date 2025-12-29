@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench, Mail, FileText, Chrome, Eye, EyeOff, Zap } from 'lucide-react';
+import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench, Mail, FileText, Chrome, Eye, EyeOff, Zap, Bird } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -24,6 +24,7 @@ export default function AdminSettings() {
   const [binanceEnabled, setBinanceEnabled] = useState(false);
   const [vivaEnabled, setVivaEnabled] = useState(false);
   const [stripeEnabled, setStripeEnabled] = useState(false);
+  const [dodoEnabled, setDodoEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
   const [savingBinance, setSavingBinance] = useState(false);
   
@@ -37,6 +38,7 @@ export default function AdminSettings() {
   const [binanceFee, setBinanceFee] = useState('0');
   const [vivaFee, setVivaFee] = useState('0');
   const [stripeFee, setStripeFee] = useState('0');
+  const [dodoFee, setDodoFee] = useState('0');
   const [savingFees, setSavingFees] = useState(false);
   
   // Push notification settings
@@ -75,6 +77,7 @@ export default function AdminSettings() {
       'payment_binance_enabled',
       'payment_viva_enabled',
       'payment_stripe_enabled',
+      'payment_dodo_enabled',
       'binance_pay_id',
       'viva_source_code',
       'fee_whatsapp',
@@ -82,6 +85,7 @@ export default function AdminSettings() {
       'fee_binance',
       'fee_viva',
       'fee_stripe',
+      'fee_dodo',
       'vapid_public_key',
       'maintenance_mode_enabled',
       'maintenance_message',
@@ -99,6 +103,7 @@ export default function AdminSettings() {
       const binancePayment = data.find(s => s.key === 'payment_binance_enabled');
       const vivaPayment = data.find(s => s.key === 'payment_viva_enabled');
       const stripePayment = data.find(s => s.key === 'payment_stripe_enabled');
+      const dodoPayment = data.find(s => s.key === 'payment_dodo_enabled');
       const binanceId = data.find(s => s.key === 'binance_pay_id');
       const vivaSource = data.find(s => s.key === 'viva_source_code');
       const feeWhatsapp = data.find(s => s.key === 'fee_whatsapp');
@@ -106,6 +111,7 @@ export default function AdminSettings() {
       const feeBinance = data.find(s => s.key === 'fee_binance');
       const feeViva = data.find(s => s.key === 'fee_viva');
       const feeStripe = data.find(s => s.key === 'fee_stripe');
+      const feeDodo = data.find(s => s.key === 'fee_dodo');
       
       if (whatsapp) setWhatsappNumber(whatsapp.value);
       if (timeout) setProcessingTimeout(timeout.value);
@@ -114,6 +120,7 @@ export default function AdminSettings() {
       setBinanceEnabled(binancePayment?.value === 'true');
       setVivaEnabled(vivaPayment?.value === 'true');
       setStripeEnabled(stripePayment?.value === 'true');
+      setDodoEnabled(dodoPayment?.value === 'true');
       if (binanceId) setBinancePayId(binanceId.value);
       if (vivaSource) setVivaSourceCode(vivaSource.value);
       if (feeWhatsapp) setWhatsappFee(feeWhatsapp.value);
@@ -121,6 +128,7 @@ export default function AdminSettings() {
       if (feeBinance) setBinanceFee(feeBinance.value);
       if (feeViva) setVivaFee(feeViva.value);
       if (feeStripe) setStripeFee(feeStripe.value);
+      if (feeDodo) setDodoFee(feeDodo.value);
       
       const vapidKey = data.find(s => s.key === 'vapid_public_key');
       if (vapidKey) setVapidPublicKey(vapidKey.value);
@@ -190,9 +198,13 @@ export default function AdminSettings() {
       .from('settings')
       .upsert({ key: 'payment_stripe_enabled', value: stripeEnabled.toString() }, { onConflict: 'key' });
     
+    const { error: error6 } = await supabase
+      .from('settings')
+      .upsert({ key: 'payment_dodo_enabled', value: dodoEnabled.toString() }, { onConflict: 'key' });
+    
     setSavingPaymentMethods(false);
     
-    if (error1 || error2 || error3 || error4 || error5) {
+    if (error1 || error2 || error3 || error4 || error5 || error6) {
       toast({ title: 'Error', description: 'Failed to save payment settings', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Payment methods updated' });
@@ -240,6 +252,7 @@ export default function AdminSettings() {
       supabase.from('settings').upsert({ key: 'fee_binance', value: binanceFee }, { onConflict: 'key' }),
       supabase.from('settings').upsert({ key: 'fee_viva', value: vivaFee }, { onConflict: 'key' }),
       supabase.from('settings').upsert({ key: 'fee_stripe', value: stripeFee }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'fee_dodo', value: dodoFee }, { onConflict: 'key' }),
     ];
     
     const results = await Promise.all(updates);
@@ -549,6 +562,21 @@ export default function AdminSettings() {
                 onCheckedChange={setStripeEnabled}
               />
             </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg border-emerald-500/30 bg-emerald-500/5">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <Bird className="h-5 w-5 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="font-medium">Dodo Payments</p>
+                  <p className="text-sm text-muted-foreground">Multiple payment methods via Dodo checkout</p>
+                </div>
+              </div>
+              <Switch
+                checked={dodoEnabled}
+                onCheckedChange={setDodoEnabled}
+              />
+            </div>
             <Button onClick={savePaymentMethods} disabled={savingPaymentMethods}>
               {savingPaymentMethods ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Payment Settings
@@ -647,6 +675,21 @@ export default function AdminSettings() {
                   placeholder="0"
                   value={stripeFee}
                   onChange={(e) => setStripeFee(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Bird className="h-4 w-4 text-emerald-500" />
+                  Dodo Fee (%)
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.1"
+                  placeholder="0"
+                  value={dodoFee}
+                  onChange={(e) => setDodoFee(e.target.value)}
                 />
               </div>
             </div>
