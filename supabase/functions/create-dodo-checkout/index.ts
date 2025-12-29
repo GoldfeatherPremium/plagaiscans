@@ -155,12 +155,14 @@ Deno.serve(async (req) => {
       // Continue anyway - payment was created in Dodo
     }
 
-    console.log('Checkout session created:', { sessionId: dodoData.session_id, url: dodoData.url });
+    const checkoutUrl = dodoData.checkout_url || dodoData.url;
+
+    console.log('Checkout session created:', { sessionId: dodoData.session_id, url: checkoutUrl });
 
     return new Response(
       JSON.stringify({
         success: true,
-        url: dodoData.url,
+        url: checkoutUrl,
         paymentId: dodoData.session_id,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
