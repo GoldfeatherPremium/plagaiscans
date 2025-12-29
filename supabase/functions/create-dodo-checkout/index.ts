@@ -71,29 +71,24 @@ Deno.serve(async (req) => {
     // Get origin for return URL
     const origin = req.headers.get('origin') || 'https://plagaiscans.com';
 
-    // Create Dodo payment
-    const dodoResponse = await fetch('https://api.dodopayments.com/payments', {
+    // Create Dodo checkout session
+    // Use test.dodopayments.com for test mode, live.dodopayments.com for production
+    const dodoBaseUrl = 'https://live.dodopayments.com';
+    
+    const dodoResponse = await fetch(`${dodoBaseUrl}/checkout_sessions`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${dodoApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        billing: {
-          city: 'N/A',
-          country: 'US',
-          state: 'N/A',
-          street: 'N/A',
-          zipcode: '00000',
-        },
         customer: {
           email: profile?.email || user.email,
           name: profile?.full_name || 'Customer',
         },
-        payment_link: true,
         product_cart: [
           {
-            product_id: 'pdt_HhZC2SRKMdPbNUGYQy6rE', // Credits product ID
+            product_id: 'pdt_HhZC2SRKMdPbNUGYQy6rE', // Credits product ID from Dodo dashboard
             quantity: credits,
           },
         ],
@@ -117,11 +112,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Store payment in database
+    // Store payment in database - checkout session returns session_id and url
     const { error: dbError } = await supabase.from('dodo_payments').insert({
       user_id: user.id,
-      payment_id: dodoData.payment_id || orderId,
-      checkout_session_id: dodoData.payment_id,
+      payment_id: dodoData.session_id || orderId,
+      checkout_session_id: dodoData.session_id,
       amount_usd: amountUsd,
       credits: credits,
       status: 'pending',
@@ -137,13 +132,13 @@ Deno.serve(async (req) => {
       // Continue anyway - payment was created in Dodo
     }
 
-    console.log('Payment created successfully:', { paymentId: dodoData.payment_id, url: dodoData.payment_link });
+    console.log('Checkout session created:', { sessionId: dodoData.session_id, url: dodoData.url });
 
     return new Response(
       JSON.stringify({
         success: true,
-        url: dodoData.payment_link,
-        paymentId: dodoData.payment_id,
+        url: dodoData.url,
+        paymentId: dodoData.session_id,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
