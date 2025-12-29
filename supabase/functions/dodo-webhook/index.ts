@@ -49,11 +49,11 @@ Deno.serve(async (req) => {
       let credits = parseInt(metadata.credits || '0');
 
       if (!userId) {
-        // Try to find payment in database
+        // Try to find payment in database - check both payment_id and checkout_session_id
         const { data: existingPayment } = await supabase
           .from('dodo_payments')
           .select('*')
-          .eq('payment_id', paymentId)
+          .or(`payment_id.eq.${paymentId},checkout_session_id.eq.${paymentId}`)
           .single();
 
         if (existingPayment) {
@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
         description: `Dodo Payments - ${credits} credits`,
       });
 
-      // Update dodo_payments table
+      // Update dodo_payments table - check both payment_id and checkout_session_id
       const { error: paymentUpdateError } = await supabase
         .from('dodo_payments')
         .update({
@@ -142,20 +142,22 @@ Deno.serve(async (req) => {
           completed_at: new Date().toISOString(),
           receipt_url: paymentData.receipt_url,
         })
-        .eq('payment_id', paymentId);
+        .or(`payment_id.eq.${paymentId},checkout_session_id.eq.${paymentId}`);
 
       if (paymentUpdateError) {
         console.error('Failed to update payment record:', paymentUpdateError);
       }
 
-      // Get payment record for invoice
+      // Get payment record for invoice - check both fields
       const { data: dodoPayment } = await supabase
         .from('dodo_payments')
         .select('*')
-        .eq('payment_id', paymentId)
-        .single();
+        .or(`payment_id.eq.${paymentId},checkout_session_id.eq.${paymentId}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      const amountUsd = dodoPayment?.amount_usd || paymentData.amount / 100;
+      const amountUsd = dodoPayment?.amount_usd || (paymentData.amount ? paymentData.amount / 100 : 0);
 
       // Create invoice
       try {
