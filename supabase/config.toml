@@ -74,3 +74,9 @@ verify_jwt = false
 
 [functions.generate-bank-statement-pdf]
 verify_jwt = false
+
+[functions.create-dodo-checkout]
+verify_jwt = false
+
+[functions.dodo-webhook]
+verify_jwt = false
