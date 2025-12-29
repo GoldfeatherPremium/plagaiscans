@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     // Use test.dodopayments.com for test mode, live.dodopayments.com for production
     const dodoBaseUrl = 'https://live.dodopayments.com';
     
-    const dodoResponse = await fetch(`${dodoBaseUrl}/checkout_sessions`, {
+    const dodoResponse = await fetch(`${dodoBaseUrl}/checkouts`, {
       method: 'POST',
        headers: {
          'Authorization': `Bearer ${dodoApiKey}`,
