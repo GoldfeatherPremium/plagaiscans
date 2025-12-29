@@ -39,12 +39,16 @@ const PaymentSuccess = () => {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [paymentProvider, setPaymentProvider] = useState<string>("stripe");
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const sessionId = searchParams.get("session_id");
+  const provider = searchParams.get("provider");
+  const paymentId = searchParams.get("payment_id");
+  const paymentStatus = searchParams.get("status");
 
   useEffect(() => {
-    const verifyPayment = async () => {
+    const verifyStripePayment = async () => {
       if (!sessionId) {
         setStatus('error');
         setErrorMessage("No payment session found");
@@ -93,8 +97,79 @@ const PaymentSuccess = () => {
       }
     };
 
-    verifyPayment();
-  }, [sessionId, refreshProfile, user, profile]);
+    const verifyDodoPayment = async () => {
+      // For Dodo, the webhook already processed the payment
+      // We just need to verify the payment status from URL params and show success
+      if (paymentStatus === 'succeeded') {
+        try {
+          // Refresh profile to get updated credit balance
+          await refreshProfile();
+          
+          // Get the latest profile data
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            setStatus('error');
+            setErrorMessage("Not authenticated");
+            return;
+          }
+
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('credit_balance, full_name, email')
+            .eq('id', session.user.id)
+            .single();
+
+          // Try to get payment details from dodo_payments table
+          const { data: dodoPayment } = await supabase
+            .from('dodo_payments')
+            .select('credits, amount_usd, completed_at')
+            .or(`payment_id.eq.${paymentId},checkout_session_id.eq.${paymentId}`)
+            .eq('status', 'completed')
+            .order('completed_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          setPaymentDetails({
+            creditsAdded: dodoPayment?.credits || 0,
+            newBalance: profileData?.credit_balance || 0,
+            transactionId: (paymentId || '').slice(-12).toUpperCase(),
+            paymentDate: dodoPayment?.completed_at || new Date().toISOString(),
+            customerEmail: profileData?.email || user?.email || '',
+            customerName: profileData?.full_name || profile?.full_name || 'Customer',
+            amountPaid: dodoPayment?.amount_usd,
+          });
+          setStatus('success');
+        } catch (err) {
+          console.error('Error fetching Dodo payment details:', err);
+          // Still show success since the URL indicates payment succeeded
+          setPaymentDetails({
+            creditsAdded: 0,
+            newBalance: profile?.credit_balance || 0,
+            transactionId: (paymentId || '').slice(-12).toUpperCase(),
+            paymentDate: new Date().toISOString(),
+            customerEmail: user?.email || '',
+            customerName: profile?.full_name || 'Customer',
+          });
+          setStatus('success');
+          await refreshProfile();
+        }
+      } else {
+        setStatus('error');
+        setErrorMessage("Payment was not completed");
+      }
+    };
+
+    if (provider === 'dodo') {
+      setPaymentProvider('dodo');
+      verifyDodoPayment();
+    } else if (sessionId) {
+      setPaymentProvider('stripe');
+      verifyStripePayment();
+    } else {
+      setStatus('error');
+      setErrorMessage("No payment session found");
+    }
+  }, [sessionId, provider, paymentId, paymentStatus, refreshProfile, user, profile]);
 
   const handlePrint = () => {
     window.print();
@@ -120,7 +195,7 @@ Payment Details:
 Credits Purchased: ${paymentDetails.creditsAdded}
 New Credit Balance: ${paymentDetails.newBalance}
 
-Payment Method: Stripe
+Payment Method: ${paymentProvider === 'dodo' ? 'Dodo Payments' : 'Stripe'}
 Status: Completed
 
 Thank you for your purchase!
@@ -227,7 +302,7 @@ Visit us at: ${window.location.origin}
                       <CreditCard className="h-4 w-4" />
                       <span>Payment Method</span>
                     </div>
-                    <span className="font-medium">Stripe</span>
+                    <span className="font-medium">{paymentProvider === 'dodo' ? 'Dodo Payments' : 'Stripe'}</span>
                   </div>
                 </div>
 
