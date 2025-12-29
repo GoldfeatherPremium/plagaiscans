@@ -15,9 +15,10 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const dodoApiKey = Deno.env.get('DODO_PAYMENTS_API_KEY');
+    const dodoProductId = Deno.env.get('DODO_CREDITS_PRODUCT_ID');
 
-    if (!dodoApiKey) {
-      console.error('DODO_PAYMENTS_API_KEY not configured');
+    if (!dodoApiKey || !dodoProductId) {
+      console.error('DODO_PAYMENTS_API_KEY or DODO_CREDITS_PRODUCT_ID not configured');
       return new Response(
         JSON.stringify({ error: 'Dodo Payments not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -89,7 +90,7 @@ Deno.serve(async (req) => {
         },
         product_cart: [
           {
-            product_id: 'pdt_HhZC2SRKMdPbNUGYQy6rE', // Credits product ID from Dodo dashboard
+            product_id: dodoProductId,
             quantity: credits,
           },
         ],
