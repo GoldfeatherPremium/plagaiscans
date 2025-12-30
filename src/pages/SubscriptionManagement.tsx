@@ -14,17 +14,44 @@ interface SubscriptionData {
   subscription_end: string | null;
 }
 
-const SUBSCRIPTION_TIERS: Record<string, { name: string; credits: number; price: number }> = {
-  'prod_RYGQOhj1qChqc7': { name: 'Monthly Pro', credits: 20, price: 15 },
-};
+interface PricingPackage {
+  id: string;
+  name: string | null;
+  credits: number;
+  price: number;
+  description: string | null;
+  features: string[] | null;
+  package_type: string;
+  billing_interval: string | null;
+  stripe_price_id: string | null;
+  stripe_product_id: string | null;
+  is_active: boolean;
+}
 
 const SubscriptionManagement = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
-  const [subscribeLoading, setSubscribeLoading] = useState(false);
+  const [subscribeLoading, setSubscribeLoading] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
+  const [packages, setPackages] = useState<PricingPackage[]>([]);
+
+  const fetchPackages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pricing_packages')
+        .select('*')
+        .eq('is_active', true)
+        .eq('package_type', 'subscription')
+        .order('price', { ascending: true });
+
+      if (error) throw error;
+      setPackages(data || []);
+    } catch (err) {
+      console.error('Error fetching packages:', err);
+    }
+  };
 
   const checkSubscription = async () => {
     try {
@@ -48,7 +75,7 @@ const SubscriptionManagement = () => {
   };
 
   useEffect(() => {
-    checkSubscription();
+    Promise.all([checkSubscription(), fetchPackages()]);
   }, []);
 
   const handleRefresh = async () => {
@@ -84,8 +111,8 @@ const SubscriptionManagement = () => {
     }
   };
 
-  const handleSubscribe = async (priceId: string) => {
-    setSubscribeLoading(true);
+  const handleSubscribe = async (priceId: string, packageId: string) => {
+    setSubscribeLoading(packageId);
     try {
       const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
         body: { priceId, mode: 'subscription' },
@@ -106,11 +133,12 @@ const SubscriptionManagement = () => {
         variant: "destructive",
       });
     } finally {
-      setSubscribeLoading(false);
+      setSubscribeLoading(null);
     }
   };
 
-  const currentTier = subscription?.product_id ? SUBSCRIPTION_TIERS[subscription.product_id] : null;
+  // Find current plan from packages
+  const currentPlan = packages.find(pkg => pkg.stripe_product_id === subscription?.product_id);
 
   if (loading) {
     return (
@@ -155,7 +183,7 @@ const SubscriptionManagement = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {subscription?.subscribed && currentTier ? (
+            {subscription?.subscribed && currentPlan ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-muted rounded-lg">
@@ -163,14 +191,14 @@ const SubscriptionManagement = () => {
                       <Sparkles className="h-4 w-4" />
                       Plan Name
                     </div>
-                    <p className="text-lg font-semibold">{currentTier.name}</p>
+                    <p className="text-lg font-semibold">{currentPlan.name}</p>
                   </div>
                   <div className="p-4 bg-muted rounded-lg">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                       <CreditCard className="h-4 w-4" />
                       Monthly Credits
                     </div>
-                    <p className="text-lg font-semibold">{currentTier.credits} credits</p>
+                    <p className="text-lg font-semibold">{currentPlan.credits} credits</p>
                   </div>
                   <div className="p-4 bg-muted rounded-lg">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
@@ -206,84 +234,118 @@ const SubscriptionManagement = () => {
           </CardContent>
         </Card>
 
-        {/* Available Plans */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Available Plans</CardTitle>
-            <CardDescription>Choose a subscription plan that fits your needs</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Monthly Pro Plan */}
-              <Card className={`relative ${subscription?.product_id === 'prod_RYGQOhj1qChqc7' ? 'border-primary ring-2 ring-primary' : ''}`}>
-                {subscription?.product_id === 'prod_RYGQOhj1qChqc7' && (
-                  <Badge className="absolute -top-2 -right-2 bg-primary">Your Plan</Badge>
-                )}
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Crown className="h-5 w-5 text-primary" />
-                    Monthly Pro
-                  </CardTitle>
-                  <CardDescription>Perfect for regular users</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-3xl font-bold">
-                    $15<span className="text-sm font-normal text-muted-foreground">/month</span>
-                  </div>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-primary" />
-                      20 credits per month
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-primary" />
-                      Auto-renewal
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-primary" />
-                      Priority support
-                    </li>
-                  </ul>
-                  {subscription?.product_id === 'prod_RYGQOhj1qChqc7' ? (
-                    <Button variant="outline" className="w-full" disabled>
-                      Current Plan
-                    </Button>
-                  ) : (
-                    <Button 
-                      className="w-full" 
-                      onClick={() => handleSubscribe('price_1RcZaJRxU1B9mfBfKDplKPMl')}
-                      disabled={subscribeLoading}
+        {/* Available Plans - Only show if there are packages from admin */}
+        {packages.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Available Plans</CardTitle>
+              <CardDescription>Choose a subscription plan that fits your needs</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {packages.map((pkg) => {
+                  const isCurrentPlan = pkg.stripe_product_id === subscription?.product_id;
+                  
+                  return (
+                    <Card 
+                      key={pkg.id} 
+                      className={`relative ${isCurrentPlan ? 'border-primary ring-2 ring-primary' : ''}`}
                     >
-                      {subscribeLoading ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : null}
-                      Subscribe Now
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
+                      {isCurrentPlan && (
+                        <Badge className="absolute -top-2 -right-2 bg-primary">Your Plan</Badge>
+                      )}
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Crown className="h-5 w-5 text-primary" />
+                          {pkg.name || `${pkg.credits} Credits Plan`}
+                        </CardTitle>
+                        {pkg.description && (
+                          <CardDescription>{pkg.description}</CardDescription>
+                        )}
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="text-3xl font-bold">
+                          ${pkg.price}
+                          <span className="text-sm font-normal text-muted-foreground">
+                            /{pkg.billing_interval || 'month'}
+                          </span>
+                        </div>
+                        <ul className="space-y-2 text-sm">
+                          <li className="flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-primary" />
+                            {pkg.credits} credits per {pkg.billing_interval || 'month'}
+                          </li>
+                          {pkg.features?.map((feature, index) => (
+                            <li key={index} className="flex items-center gap-2">
+                              <Sparkles className="h-4 w-4 text-primary" />
+                              {feature}
+                            </li>
+                          ))}
+                        </ul>
+                        {isCurrentPlan ? (
+                          <Button variant="outline" className="w-full" disabled>
+                            Current Plan
+                          </Button>
+                        ) : (
+                          <Button 
+                            className="w-full" 
+                            onClick={() => pkg.stripe_price_id && handleSubscribe(pkg.stripe_price_id, pkg.id)}
+                            disabled={subscribeLoading === pkg.id || !pkg.stripe_price_id}
+                          >
+                            {subscribeLoading === pkg.id ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : null}
+                            Subscribe Now
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
 
-              {/* One-time Purchase Card */}
-              <Card className="border-dashed">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-muted-foreground" />
-                    One-Time Purchase
-                  </CardTitle>
-                  <CardDescription>Buy credits without a subscription</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Prefer to buy credits as you need them? Check out our credit packages.
-                  </p>
-                  <Button variant="outline" className="w-full" onClick={() => window.location.href = '/dashboard/credits'}>
-                    View Credit Packages
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </CardContent>
-        </Card>
+                {/* One-time Purchase Card */}
+                <Card className="border-dashed">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-muted-foreground" />
+                      One-Time Purchase
+                    </CardTitle>
+                    <CardDescription>Buy credits without a subscription</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Prefer to buy credits as you need them? Check out our credit packages.
+                    </p>
+                    <Button variant="outline" className="w-full" onClick={() => window.location.href = '/dashboard/credits'}>
+                      View Credit Packages
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Show only one-time purchase if no subscription packages */}
+        {packages.length === 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-muted-foreground" />
+                Buy Credits
+              </CardTitle>
+              <CardDescription>Purchase credits without a subscription</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Check out our available credit packages.
+              </p>
+              <Button variant="outline" onClick={() => window.location.href = '/dashboard/credits'}>
+                View Credit Packages
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   );
