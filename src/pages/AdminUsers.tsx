@@ -6,7 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Loader2, User, Mail, Phone, CreditCard, Calendar, History, TrendingUp, TrendingDown, ArrowUpDown, UserPlus, Clock, Users, Settings2, Save } from 'lucide-react';
+import { Search, Loader2, User, Mail, Phone, CreditCard, Calendar, History, TrendingUp, TrendingDown, ArrowUpDown, UserPlus, Clock, Users, Settings2, Save, CalendarClock } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { format, addDays } from 'date-fns';
+import { cn } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -70,6 +74,8 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [creditInputs, setCreditInputs] = useState<Record<string, string>>({});
   const [similarityCreditInputs, setSimilarityCreditInputs] = useState<Record<string, string>>({});
+  const [creditExpiryDates, setCreditExpiryDates] = useState<Record<string, Date | undefined>>({});
+  const [similarityCreditExpiryDates, setSimilarityCreditExpiryDates] = useState<Record<string, Date | undefined>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
@@ -186,11 +192,15 @@ export default function AdminUsers() {
       return;
     }
 
+    const expiryDate = creditType === 'full' 
+      ? creditExpiryDates[userId] 
+      : similarityCreditExpiryDates[userId];
+
     const description = creditType === 'full' 
       ? (amount > 0 ? 'Full credits added by admin' : 'Full credits deducted by admin')
       : (amount > 0 ? 'Similarity credits added by admin' : 'Similarity credits deducted by admin');
 
-    const { error: logError } = await supabase
+    const { data: transactionData, error: logError } = await supabase
       .from('credit_transactions')
       .insert({
         user_id: userId,
@@ -201,16 +211,41 @@ export default function AdminUsers() {
         credit_type: creditType,
         description,
         performed_by: currentUser?.id
-      });
+      })
+      .select('id')
+      .single();
 
     if (logError) {
       console.error('Failed to log transaction:', logError);
     }
 
-    toast({ title: 'Success', description: `${creditType === 'full' ? 'Full' : 'Similarity'} credits updated` });
+    // If adding credits and expiry date is set, create credit_validity record
+    if (amount > 0 && expiryDate) {
+      const { error: validityError } = await supabase
+        .from('credit_validity')
+        .insert({
+          user_id: userId,
+          credits_amount: amount,
+          remaining_credits: amount,
+          expires_at: expiryDate.toISOString(),
+          credit_type: creditType,
+          transaction_id: transactionData?.id || null
+        });
+
+      if (validityError) {
+        console.error('Failed to create credit validity:', validityError);
+      }
+    }
+
+    toast({ 
+      title: 'Success', 
+      description: `${creditType === 'full' ? 'Full' : 'Similarity'} credits updated${expiryDate && amount > 0 ? ` (expires ${format(expiryDate, 'PPP')})` : ''}` 
+    });
     fetchUsers();
     setCreditInputs({ ...creditInputs, [userId]: '' });
     setSimilarityCreditInputs({ ...similarityCreditInputs, [userId]: '' });
+    setCreditExpiryDates({ ...creditExpiryDates, [userId]: undefined });
+    setSimilarityCreditExpiryDates({ ...similarityCreditExpiryDates, [userId]: undefined });
   };
 
   const fetchUserHistory = async (user: UserProfile) => {
@@ -450,6 +485,37 @@ export default function AdminUsers() {
                                     setCreditInputs({ ...creditInputs, [user.id]: e.target.value })
                                   }
                                 />
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className={cn(
+                                        "w-[100px] h-8 text-xs justify-start text-left font-normal",
+                                        !creditExpiryDates[user.id] && "text-muted-foreground"
+                                      )}
+                                    >
+                                      <CalendarClock className="mr-1 h-3 w-3" />
+                                      {creditExpiryDates[user.id] ? format(creditExpiryDates[user.id], "MMM d") : "Expiry"}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <CalendarComponent
+                                      mode="single"
+                                      selected={creditExpiryDates[user.id]}
+                                      onSelect={(date) => setCreditExpiryDates({ ...creditExpiryDates, [user.id]: date })}
+                                      disabled={(date) => date < new Date()}
+                                      initialFocus
+                                      className="p-3 pointer-events-auto"
+                                    />
+                                    <div className="p-2 border-t flex gap-1">
+                                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setCreditExpiryDates({ ...creditExpiryDates, [user.id]: addDays(new Date(), 30) })}>30d</Button>
+                                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setCreditExpiryDates({ ...creditExpiryDates, [user.id]: addDays(new Date(), 60) })}>60d</Button>
+                                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setCreditExpiryDates({ ...creditExpiryDates, [user.id]: addDays(new Date(), 90) })}>90d</Button>
+                                      <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => setCreditExpiryDates({ ...creditExpiryDates, [user.id]: undefined })}>Clear</Button>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
                                 <Button
                                   size="sm"
                                   onClick={() => updateCredits(user.id, parseInt(creditInputs[user.id]) || 0, 'full')}
@@ -478,6 +544,37 @@ export default function AdminUsers() {
                                     setSimilarityCreditInputs({ ...similarityCreditInputs, [user.id]: e.target.value })
                                   }
                                 />
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className={cn(
+                                        "w-[100px] h-8 text-xs justify-start text-left font-normal",
+                                        !similarityCreditExpiryDates[user.id] && "text-muted-foreground"
+                                      )}
+                                    >
+                                      <CalendarClock className="mr-1 h-3 w-3" />
+                                      {similarityCreditExpiryDates[user.id] ? format(similarityCreditExpiryDates[user.id], "MMM d") : "Expiry"}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <CalendarComponent
+                                      mode="single"
+                                      selected={similarityCreditExpiryDates[user.id]}
+                                      onSelect={(date) => setSimilarityCreditExpiryDates({ ...similarityCreditExpiryDates, [user.id]: date })}
+                                      disabled={(date) => date < new Date()}
+                                      initialFocus
+                                      className="p-3 pointer-events-auto"
+                                    />
+                                    <div className="p-2 border-t flex gap-1">
+                                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setSimilarityCreditExpiryDates({ ...similarityCreditExpiryDates, [user.id]: addDays(new Date(), 30) })}>30d</Button>
+                                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setSimilarityCreditExpiryDates({ ...similarityCreditExpiryDates, [user.id]: addDays(new Date(), 60) })}>60d</Button>
+                                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setSimilarityCreditExpiryDates({ ...similarityCreditExpiryDates, [user.id]: addDays(new Date(), 90) })}>90d</Button>
+                                      <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => setSimilarityCreditExpiryDates({ ...similarityCreditExpiryDates, [user.id]: undefined })}>Clear</Button>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
                                 <Button
                                   size="sm"
                                   className="bg-blue-600 hover:bg-blue-700"
