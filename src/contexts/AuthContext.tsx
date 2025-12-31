@@ -14,6 +14,7 @@ interface AuthContextType {
     full_name: string | null;
     phone: string | null;
     credit_balance: number;
+    similarity_credit_balance: number;
   } | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string, phone: string) => Promise<{ error: Error | null }>;
@@ -79,6 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           full_name: profileResult.data.full_name,
           phone: profileResult.data.phone,
           credit_balance: profileResult.data.credit_balance,
+          similarity_credit_balance: profileResult.data.similarity_credit_balance,
         });
       }
 

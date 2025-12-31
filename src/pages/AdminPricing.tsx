@@ -28,6 +28,7 @@ import {
 
 type PackageType = 'one_time' | 'subscription' | 'time_limited';
 type BillingInterval = 'day' | 'week' | 'month' | 'year';
+type CreditType = 'full' | 'similarity_only';
 
 interface PricingPackage {
   id: string;
@@ -42,7 +43,21 @@ interface PricingPackage {
   name: string | null;
   description: string | null;
   features: string[];
+  credit_type: CreditType;
 }
+
+const CREDIT_TYPE_CONFIG = {
+  full: {
+    label: 'Full Scan',
+    description: 'Similarity + AI Detection',
+    color: 'bg-primary',
+  },
+  similarity_only: {
+    label: 'Similarity Only',
+    description: 'Plagiarism check only',
+    color: 'bg-orange-500',
+  },
+};
 
 const PACKAGE_TYPE_CONFIG = {
   one_time: {
@@ -93,6 +108,7 @@ export default function AdminPricing() {
     stripe_product_id: '',
     description: '',
     features: '',
+    credit_type: 'full' as CreditType,
   });
 
   useEffect(() => {
@@ -127,6 +143,7 @@ export default function AdminPricing() {
       stripe_product_id: '',
       description: '',
       features: '',
+      credit_type: 'full',
     });
     setEditingPackage(null);
   };
@@ -144,6 +161,7 @@ export default function AdminPricing() {
       stripe_product_id: pkg.stripe_product_id || '',
       description: pkg.description || '',
       features: pkg.features?.join('\n') || '',
+      credit_type: pkg.credit_type || 'full',
     });
     setDialogOpen(true);
   };
@@ -171,6 +189,7 @@ export default function AdminPricing() {
       stripe_product_id: formData.stripe_product_id || null,
       description: formData.description || null,
       features: formData.features.split('\n').filter(f => f.trim()),
+      credit_type: formData.credit_type,
     };
 
     let error;
@@ -293,6 +312,33 @@ export default function AdminPricing() {
                           </div>
                           <p className="font-medium text-sm">{config.label}</p>
                           <p className="text-xs text-muted-foreground mt-1">{config.description}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Credit Type Selection */}
+                <div className="space-y-3">
+                  <Label>Credit Type</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(Object.keys(CREDIT_TYPE_CONFIG) as CreditType[]).map((type) => {
+                      const config = CREDIT_TYPE_CONFIG[type];
+                      const isSelected = formData.credit_type === type;
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, credit_type: type }))}
+                          className={`p-3 rounded-lg border-2 text-left transition-all ${
+                            isSelected 
+                              ? 'border-primary bg-primary/5' 
+                              : 'border-border hover:border-muted-foreground/50'
+                          }`}
+                        >
+                          <div className={`h-2 w-8 rounded ${config.color} mb-2`} />
+                          <p className="font-medium text-sm">{config.label}</p>
+                          <p className="text-xs text-muted-foreground">{config.description}</p>
                         </button>
                       );
                     })}
