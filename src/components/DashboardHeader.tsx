@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Moon, Sun, Coins, ShoppingCart } from 'lucide-react';
+import { Moon, Sun, Coins, ShoppingCart, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
 import { useAuth } from '@/contexts/AuthContext';
@@ -60,12 +60,21 @@ export const DashboardHeader: React.FC = () => {
 
         {/* Right side - Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Credit Balance for customers */}
+          {/* Credit Balances for customers */}
           {role === 'customer' && profile && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted rounded-full">
-              <Coins className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold text-primary">{profile.credit_balance}</span>
-              <span className="text-xs text-muted-foreground hidden sm:inline">credits</span>
+            <div className="flex items-center gap-2">
+              {/* Full Credits */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted rounded-full">
+                <Coins className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold text-primary">{profile.credit_balance}</span>
+                <span className="text-xs text-muted-foreground hidden sm:inline">full</span>
+              </div>
+              {/* Similarity Credits */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 rounded-full">
+                <Search className="h-4 w-4 text-orange-500" />
+                <span className="text-sm font-semibold text-orange-500">{profile.similarity_credit_balance}</span>
+                <span className="text-xs text-muted-foreground hidden sm:inline">sim</span>
+              </div>
             </div>
           )}
 

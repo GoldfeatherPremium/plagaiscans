@@ -24,10 +24,12 @@ const Maintenance = lazy(() => import("./pages/Maintenance"));
 // Lazy loaded pages (split into separate chunks)
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const UploadDocument = lazy(() => import("./pages/UploadDocument"));
+const UploadSimilarity = lazy(() => import("./pages/UploadSimilarity"));
 const MyDocuments = lazy(() => import("./pages/MyDocuments"));
 const BuyCredits = lazy(() => import("./pages/BuyCredits"));
 const PaymentHistory = lazy(() => import("./pages/PaymentHistory"));
 const DocumentQueue = lazy(() => import("./pages/DocumentQueue"));
+const SimilarityQueue = lazy(() => import("./pages/SimilarityQueue"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
 const AdminAnalytics = lazy(() => import("./pages/AdminAnalytics"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings"));
@@ -257,6 +259,7 @@ const AppRoutes = () => (
       {/* Customer Routes */}
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/dashboard/upload" element={<ProtectedRoute allowedRoles={['customer']}><UploadDocument /></ProtectedRoute>} />
+      <Route path="/dashboard/upload-similarity" element={<ProtectedRoute allowedRoles={['customer']}><UploadSimilarity /></ProtectedRoute>} />
       <Route path="/dashboard/documents" element={<ProtectedRoute><MyDocuments /></ProtectedRoute>} />
       <Route path="/dashboard/credits" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><BuyCredits /></ProtectedRoute>} />
       <Route path="/dashboard/payments" element={<ProtectedRoute allowedRoles={['customer']}><PaymentHistory /></ProtectedRoute>} />
@@ -270,6 +273,7 @@ const AppRoutes = () => (
       
       {/* Staff Routes */}
       <Route path="/dashboard/queue" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><DocumentQueue /></ProtectedRoute>} />
+      <Route path="/dashboard/queue-similarity" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><SimilarityQueue /></ProtectedRoute>} />
       <Route path="/dashboard/my-work" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><StaffProcessed /></ProtectedRoute>} />
       <Route path="/dashboard/stats" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><StaffStats /></ProtectedRoute>} />
       

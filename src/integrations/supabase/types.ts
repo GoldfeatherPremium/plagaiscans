@@ -415,6 +415,7 @@ export type Database = {
           balance_after: number
           balance_before: number
           created_at: string
+          credit_type: string
           description: string | null
           id: string
           performed_by: string | null
@@ -426,6 +427,7 @@ export type Database = {
           balance_after: number
           balance_before: number
           created_at?: string
+          credit_type?: string
           description?: string | null
           id?: string
           performed_by?: string | null
@@ -437,6 +439,7 @@ export type Database = {
           balance_after?: number
           balance_before?: number
           created_at?: string
+          credit_type?: string
           description?: string | null
           id?: string
           performed_by?: string | null
@@ -448,6 +451,7 @@ export type Database = {
       credit_validity: {
         Row: {
           created_at: string
+          credit_type: string
           credits_amount: number
           expired: boolean
           expires_at: string
@@ -459,6 +463,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          credit_type?: string
           credits_amount: number
           expired?: boolean
           expires_at: string
@@ -470,6 +475,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          credit_type?: string
           credits_amount?: number
           expired?: boolean
           expires_at?: string
@@ -649,6 +655,7 @@ export type Database = {
           pending_reminder_sent_at: string | null
           remarks: string | null
           review_reason: string | null
+          scan_type: string
           similarity_percentage: number | null
           similarity_report_path: string | null
           status: Database["public"]["Enums"]["document_status"]
@@ -673,6 +680,7 @@ export type Database = {
           pending_reminder_sent_at?: string | null
           remarks?: string | null
           review_reason?: string | null
+          scan_type?: string
           similarity_percentage?: number | null
           similarity_report_path?: string | null
           status?: Database["public"]["Enums"]["document_status"]
@@ -697,6 +705,7 @@ export type Database = {
           pending_reminder_sent_at?: string | null
           remarks?: string | null
           review_reason?: string | null
+          scan_type?: string
           similarity_percentage?: number | null
           similarity_report_path?: string | null
           status?: Database["public"]["Enums"]["document_status"]
@@ -1219,6 +1228,7 @@ export type Database = {
         Row: {
           billing_interval: string | null
           created_at: string
+          credit_type: string
           credits: number
           description: string | null
           features: string[] | null
@@ -1235,6 +1245,7 @@ export type Database = {
         Insert: {
           billing_interval?: string | null
           created_at?: string
+          credit_type?: string
           credits: number
           description?: string | null
           features?: string[] | null
@@ -1251,6 +1262,7 @@ export type Database = {
         Update: {
           billing_interval?: string | null
           created_at?: string
+          credit_type?: string
           credits?: number
           description?: string | null
           features?: string[] | null
@@ -1277,6 +1289,7 @@ export type Database = {
           phone: string | null
           referral_code: string | null
           referred_by: string | null
+          similarity_credit_balance: number
           updated_at: string
         }
         Insert: {
@@ -1289,6 +1302,7 @@ export type Database = {
           phone?: string | null
           referral_code?: string | null
           referred_by?: string | null
+          similarity_credit_balance?: number
           updated_at?: string
         }
         Update: {
@@ -1301,6 +1315,7 @@ export type Database = {
           phone?: string | null
           referral_code?: string | null
           referred_by?: string | null
+          similarity_credit_balance?: number
           updated_at?: string
         }
         Relationships: []
