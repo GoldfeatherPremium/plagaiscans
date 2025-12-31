@@ -31,6 +31,7 @@ interface UserProfile {
   full_name: string | null;
   phone: string | null;
   credit_balance: number;
+  similarity_credit_balance: number;
   created_at: string;
   role?: 'admin' | 'staff' | 'customer';
 }
@@ -42,6 +43,7 @@ interface CreditTransaction {
   balance_before: number;
   balance_after: number;
   transaction_type: string;
+  credit_type: string;
   description: string | null;
   performed_by: string | null;
   created_at: string;
@@ -67,6 +69,7 @@ export default function AdminUsers() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [creditInputs, setCreditInputs] = useState<Record<string, string>>({});
+  const [similarityCreditInputs, setSimilarityCreditInputs] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
@@ -158,11 +161,13 @@ export default function AdminUsers() {
     );
   }, [users, searchQuery]);
 
-  const updateCredits = async (userId: string, amount: number) => {
+  const updateCredits = async (userId: string, amount: number, creditType: 'full' | 'similarity_only' = 'full') => {
     const user = users.find((u) => u.id === userId);
     if (!user) return;
     
-    const newBalance = user.credit_balance + amount;
+    const currentBalance = creditType === 'full' ? user.credit_balance : user.similarity_credit_balance;
+    const newBalance = currentBalance + amount;
+    
     if (newBalance < 0) {
       toast({ title: 'Error', description: 'Balance cannot be negative', variant: 'destructive' });
       return;
@@ -170,9 +175,10 @@ export default function AdminUsers() {
 
     const { data: { user: currentUser } } = await supabase.auth.getUser();
 
+    const updateField = creditType === 'full' ? 'credit_balance' : 'similarity_credit_balance';
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({ credit_balance: newBalance })
+      .update({ [updateField]: newBalance })
       .eq('id', userId);
 
     if (updateError) {
@@ -180,15 +186,20 @@ export default function AdminUsers() {
       return;
     }
 
+    const description = creditType === 'full' 
+      ? (amount > 0 ? 'Full credits added by admin' : 'Full credits deducted by admin')
+      : (amount > 0 ? 'Similarity credits added by admin' : 'Similarity credits deducted by admin');
+
     const { error: logError } = await supabase
       .from('credit_transactions')
       .insert({
         user_id: userId,
         amount: amount,
-        balance_before: user.credit_balance,
+        balance_before: currentBalance,
         balance_after: newBalance,
         transaction_type: amount > 0 ? 'add' : 'deduct',
-        description: amount > 0 ? 'Credits added by admin' : 'Credits deducted by admin',
+        credit_type: creditType,
+        description,
         performed_by: currentUser?.id
       });
 
@@ -196,9 +207,10 @@ export default function AdminUsers() {
       console.error('Failed to log transaction:', logError);
     }
 
-    toast({ title: 'Success', description: 'Credits updated' });
+    toast({ title: 'Success', description: `${creditType === 'full' ? 'Full' : 'Similarity'} credits updated` });
     fetchUsers();
     setCreditInputs({ ...creditInputs, [userId]: '' });
+    setSimilarityCreditInputs({ ...similarityCreditInputs, [userId]: '' });
   };
 
   const fetchUserHistory = async (user: UserProfile) => {
@@ -374,11 +386,18 @@ export default function AdminUsers() {
                           <TableHead className="text-center">
                             <div className="flex items-center justify-center gap-2">
                               <CreditCard className="h-4 w-4" />
-                              Credits
+                              Full Credits
+                            </div>
+                          </TableHead>
+                          <TableHead className="text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <CreditCard className="h-4 w-4" />
+                              Similarity Credits
                             </div>
                           </TableHead>
                           <TableHead className="text-center">History</TableHead>
-                          <TableHead className="text-center">Actions</TableHead>
+                          <TableHead className="text-center">Full Credit Actions</TableHead>
+                          <TableHead className="text-center">Similarity Credit Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -409,6 +428,9 @@ export default function AdminUsers() {
                               <span className="text-lg font-bold text-primary">{user.credit_balance}</span>
                             </TableCell>
                             <TableCell className="text-center">
+                              <span className="text-lg font-bold text-blue-600">{user.similarity_credit_balance}</span>
+                            </TableCell>
+                            <TableCell className="text-center">
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -430,7 +452,7 @@ export default function AdminUsers() {
                                 />
                                 <Button
                                   size="sm"
-                                  onClick={() => updateCredits(user.id, parseInt(creditInputs[user.id]) || 0)}
+                                  onClick={() => updateCredits(user.id, parseInt(creditInputs[user.id]) || 0, 'full')}
                                 >
                                   Add
                                 </Button>
@@ -438,7 +460,36 @@ export default function AdminUsers() {
                                   size="sm"
                                   variant="outline"
                                   onClick={() =>
-                                    updateCredits(user.id, -(parseInt(creditInputs[user.id]) || 0))
+                                    updateCredits(user.id, -(parseInt(creditInputs[user.id]) || 0), 'full')
+                                  }
+                                >
+                                  Deduct
+                                </Button>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-center gap-2">
+                                <Input
+                                  type="number"
+                                  placeholder="Amount"
+                                  className="w-20 h-8 text-sm"
+                                  value={similarityCreditInputs[user.id] || ''}
+                                  onChange={(e) =>
+                                    setSimilarityCreditInputs({ ...similarityCreditInputs, [user.id]: e.target.value })
+                                  }
+                                />
+                                <Button
+                                  size="sm"
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                  onClick={() => updateCredits(user.id, parseInt(similarityCreditInputs[user.id]) || 0, 'similarity_only')}
+                                >
+                                  Add
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    updateCredits(user.id, -(parseInt(similarityCreditInputs[user.id]) || 0), 'similarity_only')
                                   }
                                 >
                                   Deduct
@@ -657,6 +708,7 @@ export default function AdminUsers() {
                       <TableRow>
                         <TableHead>Date</TableHead>
                         <TableHead>Type</TableHead>
+                        <TableHead>Credit Type</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead className="text-right">Before</TableHead>
                         <TableHead className="text-right">After</TableHead>
@@ -675,6 +727,14 @@ export default function AdminUsers() {
                               className={tx.transaction_type === 'add' ? 'bg-green-500' : tx.transaction_type === 'deduct' ? 'bg-red-500' : ''}
                             >
                               {tx.transaction_type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant="outline"
+                              className={tx.credit_type === 'similarity_only' ? 'border-blue-500 text-blue-600' : 'border-primary text-primary'}
+                            >
+                              {tx.credit_type === 'similarity_only' ? 'Similarity' : 'Full'}
                             </Badge>
                           </TableCell>
                           <TableCell className={`text-right font-medium ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
