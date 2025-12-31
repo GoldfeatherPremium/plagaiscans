@@ -8,7 +8,7 @@ import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   CreditCard, CheckCircle, Loader2, ShoppingCart, Plus, Minus, Trash2, 
-  Sparkles, Zap, Star, RefreshCw, Clock, Calendar, Crown, ArrowRight
+  Sparkles, Zap, Star, RefreshCw, Clock, Calendar, Crown, ArrowRight, FileText
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
@@ -16,12 +16,14 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type PackageType = 'one_time' | 'subscription' | 'time_limited';
+type CreditType = 'full' | 'similarity_only';
 
 interface PricingPackage {
   id: string;
   credits: number;
   price: number;
   package_type: PackageType;
+  credit_type: CreditType;
   billing_interval: string | null;
   validity_days: number | null;
   stripe_price_id: string | null;
@@ -60,6 +62,7 @@ export default function BuyCredits() {
   const [packages, setPackages] = useState<PricingPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<PackageType>('one_time');
+  const [creditTypeTab, setCreditTypeTab] = useState<CreditType>('full');
   const [subscribing, setSubscribing] = useState<string | null>(null);
   
   // Cart dialog state
@@ -80,8 +83,9 @@ export default function BuyCredits() {
   }, []);
 
   const handleAddToCart = (plan: PricingPackage) => {
-    addToCart({ id: plan.id, credits: plan.credits, price: plan.price });
-    toast.success(`Added ${plan.credits} credits to cart`);
+    addToCart({ id: plan.id, credits: plan.credits, price: plan.price, credit_type: plan.credit_type });
+    const creditLabel = plan.credit_type === 'similarity_only' ? 'Similarity' : 'Full Scan';
+    toast.success(`Added ${plan.credits} ${creditLabel} credits to cart`);
   };
 
   const handleSubscribe = async (plan: PricingPackage) => {
@@ -152,12 +156,12 @@ export default function BuyCredits() {
   };
 
   const getPackagesByType = (type: PackageType) => 
-    packages.filter(p => p.package_type === type);
+    packages.filter(p => p.package_type === type && (p.credit_type || 'full') === creditTypeTab);
 
   const getPackageCounts = () => ({
-    one_time: getPackagesByType('one_time').length,
-    subscription: getPackagesByType('subscription').length,
-    time_limited: getPackagesByType('time_limited').length,
+    one_time: packages.filter(p => p.package_type === 'one_time' && (p.credit_type || 'full') === creditTypeTab).length,
+    subscription: packages.filter(p => p.package_type === 'subscription' && (p.credit_type || 'full') === creditTypeTab).length,
+    time_limited: packages.filter(p => p.package_type === 'time_limited' && (p.credit_type || 'full') === creditTypeTab).length,
   });
 
   const counts = getPackageCounts();
@@ -201,14 +205,25 @@ export default function BuyCredits() {
         <Card className="overflow-hidden">
           <div className="gradient-primary p-6 sm:p-8">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4 text-primary-foreground">
-                <div className="h-16 w-16 rounded-2xl bg-primary-foreground/20 backdrop-blur-sm flex items-center justify-center">
-                  <CreditCard className="h-8 w-8" />
+              <div className="flex items-center gap-6 text-primary-foreground">
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-2xl bg-primary-foreground/20 backdrop-blur-sm flex items-center justify-center">
+                    <CreditCard className="h-7 w-7" />
+                  </div>
+                  <div>
+                    <p className="text-primary-foreground/80 text-xs font-medium">Full Scan Credits</p>
+                    <p className="text-3xl font-bold">{profile?.credit_balance || 0}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-primary-foreground/80 text-sm font-medium">Current Balance</p>
-                  <p className="text-4xl font-bold">{profile?.credit_balance || 0}</p>
-                  <p className="text-primary-foreground/80 text-sm">Available Credits</p>
+                <div className="h-12 w-px bg-primary-foreground/20" />
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-2xl bg-primary-foreground/20 backdrop-blur-sm flex items-center justify-center">
+                    <FileText className="h-7 w-7" />
+                  </div>
+                  <div>
+                    <p className="text-primary-foreground/80 text-xs font-medium">Similarity Credits</p>
+                    <p className="text-3xl font-bold">{profile?.similarity_credit_balance || 0}</p>
+                  </div>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -230,6 +245,22 @@ export default function BuyCredits() {
             </div>
           </div>
         </Card>
+
+        {/* Credit Type Selector */}
+        <Tabs value={creditTypeTab} onValueChange={(v) => setCreditTypeTab(v as CreditType)} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="full" className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              Full Scan Credits
+              <Badge variant="outline" className="ml-1 text-xs">Similarity + AI</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="similarity_only" className="gap-2">
+              <FileText className="h-4 w-4" />
+              Similarity Credits
+              <Badge variant="outline" className="ml-1 text-xs">Similarity Only</Badge>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {/* Cart Summary Bar */}
         {cart.length > 0 && (

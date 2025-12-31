@@ -44,9 +44,10 @@ Deno.serve(async (req) => {
     console.log('Processing event:', { eventType, paymentId, metadata });
 
     if (eventType === 'payment.succeeded' || eventType === 'payment_success' || eventType === 'payment.completed') {
-      // Get user_id from metadata or find payment in database
+      // Get user_id and credit_type from metadata or find payment in database
       let userId = metadata.user_id;
       let credits = parseInt(metadata.credits || '0');
+      let creditType = metadata.credit_type || 'full'; // full or similarity_only
 
       if (!userId) {
         // Try to find payment in database - check both payment_id and checkout_session_id
@@ -59,6 +60,8 @@ Deno.serve(async (req) => {
         if (existingPayment) {
           userId = existingPayment.user_id;
           credits = existingPayment.credits;
+          // Try to get credit_type from metadata
+          creditType = existingPayment.metadata?.credit_type || 'full';
         }
       }
 
@@ -93,10 +96,11 @@ Deno.serve(async (req) => {
         user_id: userId,
       });
 
-      // Get user's current balance
+      // Get user's current balance based on credit type
+      const balanceField = creditType === 'similarity_only' ? 'similarity_credit_balance' : 'credit_balance';
       const { data: profile } = await supabase
         .from('profiles')
-        .select('credit_balance, email, full_name')
+        .select(`${balanceField}, email, full_name`)
         .eq('id', userId)
         .single();
 
@@ -108,15 +112,15 @@ Deno.serve(async (req) => {
         );
       }
 
-      const balanceBefore = profile.credit_balance;
+      const balanceBefore = (profile as any)[balanceField] || 0;
       const balanceAfter = balanceBefore + credits;
 
-      console.log('Adding credits:', { userId, credits, balanceBefore, balanceAfter });
+      console.log('Adding credits:', { userId, credits, creditType, balanceBefore, balanceAfter });
 
-      // Update user balance
+      // Update user balance based on credit type
       const { error: balanceError } = await supabase
         .from('profiles')
-        .update({ credit_balance: balanceAfter })
+        .update({ [balanceField]: balanceAfter })
         .eq('id', userId);
 
       if (balanceError) {
@@ -124,14 +128,15 @@ Deno.serve(async (req) => {
         throw balanceError;
       }
 
-      // Log credit transaction
+      // Log credit transaction with credit type
       await supabase.from('credit_transactions').insert({
         user_id: userId,
         amount: credits,
         balance_before: balanceBefore,
         balance_after: balanceAfter,
         transaction_type: 'purchase',
-        description: `Dodo Payments - ${credits} credits`,
+        credit_type: creditType,
+        description: `Dodo Payments - ${credits} ${creditType === 'similarity_only' ? 'Similarity' : 'Full'} credits`,
       });
 
       // Update dodo_payments table - check both payment_id and checkout_session_id
@@ -196,10 +201,11 @@ Deno.serve(async (req) => {
       }
 
       // Send user notification
+      const creditTypeLabel = creditType === 'similarity_only' ? 'Similarity' : 'Full Scan';
       await supabase.from('user_notifications').insert({
         user_id: userId,
         title: '✅ Payment Successful',
-        message: `Your payment was successful! ${credits} credits have been added to your account.`,
+        message: `Your payment was successful! ${credits} ${creditTypeLabel} credits have been added to your account.`,
       });
 
       // Send push notification

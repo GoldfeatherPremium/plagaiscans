@@ -1,9 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+type CreditType = 'full' | 'similarity_only';
+
 interface PricingPackage {
   id: string;
   credits: number;
   price: number;
+  credit_type?: CreditType;
 }
 
 interface CartItem {
@@ -20,6 +23,7 @@ interface CartContextType {
   getCartTotal: () => number;
   getCartCredits: () => number;
   getCartCount: () => number;
+  getCartCreditType: () => CreditType | null;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -81,6 +85,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return cart.reduce((sum, item) => sum + item.quantity, 0);
   };
 
+  // Get the credit type of items in cart (assumes all items are same type)
+  const getCartCreditType = (): CreditType | null => {
+    if (cart.length === 0) return null;
+    return cart[0].package.credit_type || 'full';
+  };
+
   return (
     <CartContext.Provider value={{
       cart,
@@ -91,6 +101,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       getCartTotal,
       getCartCredits,
       getCartCount,
+      getCartCreditType,
     }}>
       {children}
     </CartContext.Provider>

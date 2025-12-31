@@ -283,7 +283,8 @@ export const DashboardSidebar: React.FC = () => {
 
   const customerLinks: NavLink[] = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/dashboard/upload', icon: Upload, label: 'Upload Document' },
+    { to: '/dashboard/upload', icon: Upload, label: 'Upload (Full Scan)' },
+    { to: '/dashboard/upload-similarity', icon: FileCheck, label: 'Upload (Similarity)' },
     { to: '/dashboard/documents', icon: FileText, label: 'My Documents' },
     { to: '/dashboard/analytics', icon: PieChart, label: 'Analytics' },
     { to: '/dashboard/credits', icon: CreditCard, label: 'Buy Credits' },
@@ -296,7 +297,8 @@ export const DashboardSidebar: React.FC = () => {
 
   const staffLinks: NavLink[] = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/dashboard/queue', icon: FileCheck, label: 'Document Queue' },
+    { to: '/dashboard/queue', icon: FileCheck, label: 'Full Scan Queue' },
+    { to: '/dashboard/queue-similarity', icon: FileText, label: 'Similarity Queue' },
     { to: '/dashboard/my-work', icon: FileText, label: 'My Processed' },
     { to: '/dashboard/stats', icon: BarChart3, label: 'My Stats' },
     { to: '/dashboard/performance', icon: Activity, label: 'Performance' },
@@ -310,7 +312,8 @@ export const DashboardSidebar: React.FC = () => {
       icon: FolderOpen,
       badgeKey: 'documents',
       links: [
-        { to: '/dashboard/queue', icon: FileCheck, label: 'Queue', badgeKey: 'pendingDocuments' },
+        { to: '/dashboard/queue', icon: FileCheck, label: 'Full Scan Queue', badgeKey: 'pendingDocuments' },
+        { to: '/dashboard/queue-similarity', icon: FileText, label: 'Similarity Queue' },
         { to: '/dashboard/documents', icon: FileText, label: 'All Documents' },
         { to: '/dashboard/magic-links', icon: Upload, label: 'Magic Links' },
         { to: '/dashboard/bulk-upload', icon: FileStack, label: 'Bulk Upload' },
@@ -642,9 +645,15 @@ export const DashboardSidebar: React.FC = () => {
 
         <div className="p-4 border-t border-border space-y-4">
           {role === 'customer' && profile && (
-            <div className="px-4 py-3 bg-muted rounded-lg">
-              <p className="text-xs text-muted-foreground">Credit Balance</p>
-              <p className="text-2xl font-bold text-primary">{profile.credit_balance}</p>
+            <div className="px-4 py-3 bg-muted rounded-lg space-y-2">
+              <div>
+                <p className="text-xs text-muted-foreground">Full Scan Credits</p>
+                <p className="text-xl font-bold text-primary">{profile.credit_balance}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Similarity Credits</p>
+                <p className="text-xl font-bold text-secondary">{profile.similarity_credit_balance || 0}</p>
+              </div>
             </div>
           )}
           

@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { credits, amount } = await req.json();
+    const { credits, amount, creditType = 'full' } = await req.json();
 
     if (!credits || !amount) {
       return new Response(
@@ -98,6 +98,7 @@ Deno.serve(async (req) => {
         metadata: {
           user_id: user.id,
           credits: credits.toString(),
+          credit_type: creditType,
           order_id: orderId,
         },
       }),

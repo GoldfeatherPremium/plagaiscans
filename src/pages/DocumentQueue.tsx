@@ -125,9 +125,14 @@ export default function DocumentQueue() {
   const canPickMore = role === 'admin' || myInProgressCount < mySettings.max_concurrent_files;
 
   // Filter documents: show pending (not assigned) or assigned to current user
+  // Only show FULL SCAN documents (scan_type = 'full' or null)
   // Sort by uploaded_at ascending (oldest first, newest last)
   const availableDocs = useMemo(() => {
     const roleFiltered = documents.filter((d) => {
+      // Only show full scan documents in this queue
+      const isFullScan = !d.scan_type || d.scan_type === 'full';
+      if (!isFullScan) return false;
+      
       if (role === 'admin') {
         return d.status === 'pending' || d.status === 'in_progress';
       }
@@ -483,8 +488,8 @@ export default function DocumentQueue() {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-display font-bold">Document Queue</h1>
-            <p className="text-muted-foreground mt-1">Process pending documents</p>
+            <h1 className="text-3xl font-display font-bold">Full Scan Queue</h1>
+            <p className="text-muted-foreground mt-1">Process full scan documents (Similarity + AI)</p>
             {role === 'staff' && (
               <p className="text-sm text-muted-foreground mt-2">
                 Your limits: {mySettings.max_concurrent_files} file(s) at a time, {mySettings.time_limit_minutes} min per document

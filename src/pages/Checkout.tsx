@@ -33,7 +33,7 @@ export default function Checkout() {
   const [searchParams] = useSearchParams();
   const { profile, user } = useAuth();
   const { openWhatsAppCustom } = useWhatsApp();
-  const { cart, updateCartQuantity, removeFromCart, clearCart, getCartTotal, getCartCredits } = useCart();
+  const { cart, updateCartQuantity, removeFromCart, clearCart, getCartTotal, getCartCredits, getCartCreditType } = useCart();
   const { 
     validatingPromo, 
     appliedPromo, 
@@ -383,6 +383,7 @@ export default function Checkout() {
           credits: totalCredits,
           amount: totalAmount,
           mode: 'payment',
+          creditType: getCartCreditType() || 'full',
         },
       });
 
@@ -421,6 +422,7 @@ export default function Checkout() {
         body: {
           credits: totalCredits,
           amount: totalAmount,
+          creditType: getCartCreditType() || 'full',
         },
       });
 

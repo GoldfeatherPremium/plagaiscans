@@ -38,8 +38,8 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { priceId, credits, amount, mode = "payment" } = await req.json();
-    logStep("Request body parsed", { priceId, credits, amount, mode });
+    const { priceId, credits, amount, mode = "payment", creditType = "full" } = await req.json();
+    logStep("Request body parsed", { priceId, credits, amount, mode, creditType });
 
     if (!priceId && !amount) throw new Error("Price ID or amount is required");
     if (!credits) throw new Error("Credits amount is required");
@@ -63,12 +63,13 @@ serve(async (req) => {
       lineItems = [{ price: priceId, quantity: 1 }];
     } else {
       // Dynamic pricing using price_data
+      const creditLabel = creditType === "similarity_only" ? "Similarity" : "Full Scan";
       lineItems = [{
         price_data: {
           currency: 'usd',
           product_data: {
-            name: `${credits} Credits`,
-            description: `Purchase of ${credits} document check credits`,
+            name: `${credits} ${creditLabel} Credits`,
+            description: `Purchase of ${credits} ${creditLabel.toLowerCase()} credits`,
           },
           unit_amount: amount, // amount in cents
         },
@@ -86,6 +87,7 @@ serve(async (req) => {
       metadata: {
         user_id: user.id,
         credits: credits?.toString() || "0",
+        credit_type: creditType,
       },
     };
 

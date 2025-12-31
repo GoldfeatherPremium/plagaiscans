@@ -12,6 +12,7 @@ export interface Document {
   file_name: string;
   file_path: string;
   status: DocumentStatus;
+  scan_type: 'full' | 'similarity_only';
   assigned_staff_id: string | null;
   assigned_at: string | null;
   similarity_percentage: number | null;

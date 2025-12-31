@@ -97,6 +97,7 @@ serve(async (req) => {
           // Get metadata from session
           const credits = parseInt(session.metadata?.credits || "0", 10);
           const userId = session.metadata?.user_id;
+          const creditType = session.metadata?.credit_type || "full"; // full or similarity_only
           const amountTotal = (session.amount_total || 0) / 100; // Convert from cents
 
           if (!userId || !credits) {
@@ -118,10 +119,11 @@ serve(async (req) => {
             throw idemError;
           }
 
-          // Get current balance
+          // Get current balance based on credit type
+          const balanceField = creditType === "similarity_only" ? "similarity_credit_balance" : "credit_balance";
           const { data: profile, error: profileError } = await supabaseAdmin
             .from("profiles")
-            .select("credit_balance, email")
+            .select(`${balanceField}, email`)
             .eq("id", userId)
             .single();
 
@@ -130,13 +132,13 @@ serve(async (req) => {
             throw profileError;
           }
 
-          const currentBalance = profile?.credit_balance || 0;
+          const currentBalance = (profile as any)?.[balanceField] || 0;
           const newBalance = currentBalance + credits;
 
-          // Update credit balance
+          // Update credit balance based on type
           const { error: updateError } = await supabaseAdmin
             .from("profiles")
-            .update({ credit_balance: newBalance })
+            .update({ [balanceField]: newBalance })
             .eq("id", userId);
 
           if (updateError) {
@@ -144,14 +146,15 @@ serve(async (req) => {
             throw updateError;
           }
 
-          // Log the transaction
+          // Log the transaction with credit type
           await supabaseAdmin.from("credit_transactions").insert({
             user_id: userId,
             amount: credits,
             balance_before: currentBalance,
             balance_after: newBalance,
             transaction_type: "purchase",
-            description: `Stripe webhook - Session: ${session.id.slice(-8)}`,
+            credit_type: creditType,
+            description: `Stripe webhook - ${creditType === "similarity_only" ? "Similarity" : "Full"} Credits - Session: ${session.id.slice(-8)}`,
           });
 
           // Get receipt URL if available
@@ -255,10 +258,11 @@ serve(async (req) => {
           }
 
           // Create notification
+          const creditTypeLabel = creditType === "similarity_only" ? "Similarity" : "Full Scan";
           await supabaseAdmin.from("user_notifications").insert({
             user_id: userId,
             title: "Payment Successful! 🎉",
-            message: `Your payment was successful! ${credits} credits have been added to your account.`,
+            message: `Your payment was successful! ${credits} ${creditTypeLabel} credits have been added to your account.`,
           });
 
           // Send push notification
