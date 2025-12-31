@@ -3,10 +3,11 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, Clock, User, CreditCard, Trash2, Calendar, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Search, Loader2, Clock, User, CreditCard, Trash2, Calendar, AlertTriangle, CheckCircle, XCircle, CalendarPlus, Mail } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -17,7 +18,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { format, isPast, differenceInDays } from 'date-fns';
+import { format, isPast, differenceInDays, addDays } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +30,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 interface CreditValidity {
   id: string;
@@ -50,6 +62,10 @@ export default function AdminCreditValidity() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired' | 'expiring_soon'>('all');
   const [creditTypeFilter, setCreditTypeFilter] = useState<'all' | 'full' | 'similarity_only'>('all');
+  const [extendDialogOpen, setExtendDialogOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<CreditValidity | null>(null);
+  const [newExpiryDate, setNewExpiryDate] = useState<Date | undefined>();
+  const [sendingEmails, setSendingEmails] = useState(false);
 
   const { data: creditValidities = [], isLoading } = useQuery({
     queryKey: ['admin-credit-validity'],
@@ -131,6 +147,56 @@ export default function AdminCreditValidity() {
     }
   };
 
+  const handleExtendExpiry = async () => {
+    if (!selectedRecord || !newExpiryDate) return;
+
+    const { error } = await supabase
+      .from('credit_validity')
+      .update({ 
+        expires_at: newExpiryDate.toISOString(),
+        expired: false 
+      })
+      .eq('id', selectedRecord.id);
+
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to extend expiry', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: `Expiry extended to ${format(newExpiryDate, 'PPP')}` });
+      queryClient.invalidateQueries({ queryKey: ['admin-credit-validity'] });
+      setExtendDialogOpen(false);
+      setSelectedRecord(null);
+      setNewExpiryDate(undefined);
+    }
+  };
+
+  const handleSendExpiryEmails = async () => {
+    setSendingEmails(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-credit-expiry-email');
+      
+      if (error) throw error;
+      
+      toast({ 
+        title: 'Success', 
+        description: `Sent ${data?.sent || 0} expiry reminder emails` 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: 'Error', 
+        description: error.message || 'Failed to send emails', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setSendingEmails(false);
+    }
+  };
+
+  const openExtendDialog = (cv: CreditValidity) => {
+    setSelectedRecord(cv);
+    setNewExpiryDate(addDays(new Date(cv.expires_at), 30));
+    setExtendDialogOpen(true);
+  };
+
   const getStatusBadge = (cv: CreditValidity) => {
     const expiresAt = new Date(cv.expires_at);
     const isExpired = cv.expired || isPast(expiresAt);
@@ -156,10 +222,16 @@ export default function AdminCreditValidity() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-display font-bold">Credit Validity Management</h1>
           <p className="text-muted-foreground mt-1">View and manage credit expiration records</p>
         </div>
+        <Button onClick={handleSendExpiryEmails} disabled={sendingEmails}>
+          {sendingEmails ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
+          Send Expiry Reminders
+        </Button>
+      </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -323,13 +395,33 @@ export default function AdminCreditValidity() {
                           <TableCell>
                             <div className="flex items-center justify-center gap-2">
                               {!isExpired && cv.remaining_credits > 0 && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openExtendDialog(cv)}
+                                  >
+                                    <CalendarPlus className="h-4 w-4 mr-1" />
+                                    Extend
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleMarkExpired(cv.id)}
+                                  >
+                                    <XCircle className="h-4 w-4 mr-1" />
+                                    Expire
+                                  </Button>
+                                </>
+                              )}
+                              {isExpired && cv.remaining_credits > 0 && (
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleMarkExpired(cv.id)}
+                                  onClick={() => openExtendDialog(cv)}
                                 >
-                                  <XCircle className="h-4 w-4 mr-1" />
-                                  Expire
+                                  <CalendarPlus className="h-4 w-4 mr-1" />
+                                  Reactivate
                                 </Button>
                               )}
                               <AlertDialog>
@@ -368,6 +460,65 @@ export default function AdminCreditValidity() {
         <p className="text-xs text-muted-foreground">
           Showing {filteredValidities.length} of {creditValidities.length} records
         </p>
+
+        {/* Extend Expiry Dialog */}
+        <Dialog open={extendDialogOpen} onOpenChange={setExtendDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Extend Credit Expiry</DialogTitle>
+              <DialogDescription>
+                Set a new expiration date for {selectedRecord?.user_name || selectedRecord?.user_email}'s {selectedRecord?.remaining_credits} credits.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Current Expiry</Label>
+                <p className="text-sm text-muted-foreground">
+                  {selectedRecord && format(new Date(selectedRecord.expires_at), 'PPP')}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>New Expiry Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !newExpiryDate && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {newExpiryDate ? format(newExpiryDate, 'PPP') : 'Select date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={newExpiryDate}
+                      onSelect={setNewExpiryDate}
+                      disabled={(date) => date < new Date()}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                    <div className="p-2 border-t flex gap-1">
+                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setNewExpiryDate(addDays(new Date(), 30))}>+30d</Button>
+                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setNewExpiryDate(addDays(new Date(), 60))}>+60d</Button>
+                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setNewExpiryDate(addDays(new Date(), 90))}>+90d</Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setExtendDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleExtendExpiry} disabled={!newExpiryDate}>
+                <CalendarPlus className="h-4 w-4 mr-2" />
+                Extend Expiry
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

@@ -13,6 +13,7 @@ interface CreditValidity {
   expires_at: string;
   created_at: string;
   expired: boolean;
+  credit_type: string;
 }
 
 export const CreditExpirationCard: React.FC = () => {
@@ -33,12 +34,33 @@ export const CreditExpirationCard: React.FC = () => {
         .order('expires_at', { ascending: true });
 
       if (data) {
-        setValidityRecords(data as CreditValidity[]);
+        // Filter out already expired ones
+        const activeRecords = data.filter(v => !isPast(new Date(v.expires_at)));
+        setValidityRecords(activeRecords as CreditValidity[]);
       }
       setLoading(false);
     };
 
     fetchValidity();
+
+    // Real-time subscription
+    const channel = supabase
+      .channel('credit-validity-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'credit_validity',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => fetchValidity()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   if (loading || validityRecords.length === 0) {
@@ -79,7 +101,7 @@ export const CreditExpirationCard: React.FC = () => {
 
         {/* Individual Records */}
         <div className="space-y-2">
-          {validityRecords.slice(0, 3).map((record) => {
+          {validityRecords.slice(0, 5).map((record) => {
             const days = differenceInDays(new Date(record.expires_at), new Date());
             const isUrgent = days <= 3;
             const isWarning = days <= 7;
@@ -101,6 +123,12 @@ export const CreditExpirationCard: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge 
+                    variant={record.credit_type === 'full' ? 'default' : 'secondary'}
+                    className="text-xs"
+                  >
+                    {record.credit_type === 'full' ? 'Full' : 'Similarity'}
+                  </Badge>
+                  <Badge 
                     variant={isUrgent ? 'destructive' : isWarning ? 'outline' : 'secondary'}
                     className={isWarning && !isUrgent ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : ''}
                   >
@@ -115,9 +143,9 @@ export const CreditExpirationCard: React.FC = () => {
           })}
         </div>
 
-        {validityRecords.length > 3 && (
+        {validityRecords.length > 5 && (
           <p className="text-xs text-muted-foreground text-center">
-            +{validityRecords.length - 3} more expiring batches
+            +{validityRecords.length - 5} more expiring batches
           </p>
         )}
       </CardContent>
