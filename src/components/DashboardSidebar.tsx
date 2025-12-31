@@ -42,6 +42,7 @@ import {
   AlertTriangle,
   RotateCcw,
   Crown,
+  CalendarClock,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -326,6 +327,7 @@ export const DashboardSidebar: React.FC = () => {
       icon: UserCog,
       links: [
         { to: '/dashboard/users', icon: Users, label: 'Users' },
+        { to: '/dashboard/credit-validity', icon: CalendarClock, label: 'Credit Expiry' },
         { to: '/dashboard/staff-work', icon: ClipboardList, label: 'Staff Work' },
         { to: '/dashboard/staff-permissions', icon: Shield, label: 'Permissions' },
         { to: '/dashboard/blocked-users', icon: ShieldBan, label: 'Blocked' },
