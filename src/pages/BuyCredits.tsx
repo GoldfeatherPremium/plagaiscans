@@ -248,16 +248,14 @@ export default function BuyCredits() {
 
         {/* Credit Type Selector */}
         <Tabs value={creditTypeTab} onValueChange={(v) => setCreditTypeTab(v as CreditType)} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="full" className="gap-2">
-              <Sparkles className="h-4 w-4" />
-              Full Scan Credits
-              <Badge variant="outline" className="ml-1 text-xs">Similarity + AI</Badge>
+          <TabsList className="grid w-full grid-cols-2 h-auto">
+            <TabsTrigger value="full" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-2 sm:px-4 text-xs sm:text-sm">
+              <Sparkles className="h-4 w-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">Full Scan Credits</span>
             </TabsTrigger>
-            <TabsTrigger value="similarity_only" className="gap-2">
-              <FileText className="h-4 w-4" />
-              Similarity Credits
-              <Badge variant="outline" className="ml-1 text-xs">Similarity Only</Badge>
+            <TabsTrigger value="similarity_only" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-2 sm:px-4 text-xs sm:text-sm">
+              <FileText className="h-4 w-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">Similarity Only</span>
             </TabsTrigger>
           </TabsList>
         </Tabs>
