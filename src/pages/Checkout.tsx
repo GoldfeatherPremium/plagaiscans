@@ -676,7 +676,7 @@ export default function Checkout() {
                   </div>
                 )}
 
-                {/* Dodo Payments */}
+                {/* Card Payment / Google Pay / Apple Pay */}
                 {dodoEnabled && (
                   <div className="border rounded-lg p-4 hover:border-primary transition-colors">
                     <div className="flex items-start gap-4">
@@ -686,10 +686,10 @@ export default function Checkout() {
                       <div className="flex-1 space-y-3">
                         <div>
                           <h3 className="font-semibold flex items-center gap-2">
-                            Dodo Payments
+                            Card / Google Pay / Apple Pay
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            Pay securely with cards and other payment methods
+                            Pay securely with cards, Google Pay, or Apple Pay
                             {fees.dodo > 0 && <span className="text-amber-600"> (+{fees.dodo}% fee)</span>}
                           </p>
                         </div>
@@ -706,7 +706,7 @@ export default function Checkout() {
                           ) : (
                             <>
                               <CreditCard className="h-4 w-4 mr-2" />
-                              Pay ${calculateTotalWithFee('dodo')} with Dodo
+                              Pay ${calculateTotalWithFee('dodo')} with Card
                             </>
                           )}
                         </Button>
