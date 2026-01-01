@@ -8,7 +8,8 @@ import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   CreditCard, CheckCircle, Loader2, ShoppingCart, Plus, Minus, Trash2, 
-  Sparkles, Zap, Star, RefreshCw, Clock, Calendar, Crown, ArrowRight, FileText
+  Sparkles, Zap, Star, RefreshCw, Clock, Calendar, Crown, ArrowRight, FileText,
+  ScanSearch, Bot
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
@@ -163,6 +164,26 @@ export default function BuyCredits() {
     subscription: packages.filter(p => p.package_type === 'subscription' && (p.credit_type || 'full') === creditTypeTab).length,
     time_limited: packages.filter(p => p.package_type === 'time_limited' && (p.credit_type || 'full') === creditTypeTab).length,
   });
+
+  // Helper to get credit type styling and icon
+  const getCreditTypeConfig = (creditType: CreditType) => {
+    if (creditType === 'similarity_only') {
+      return {
+        icon: ScanSearch,
+        bgColor: 'bg-blue-500/10',
+        textColor: 'text-blue-600',
+        accentColor: 'text-blue-500',
+        label: 'Similarity Only',
+      };
+    }
+    return {
+      icon: Sparkles,
+      bgColor: 'bg-primary/10',
+      textColor: 'text-primary',
+      accentColor: 'text-secondary',
+      label: 'Full Scan',
+    };
+  };
 
   const counts = getPackageCounts();
 
@@ -321,6 +342,8 @@ export default function BuyCredits() {
               {getPackagesByType('one_time').map((plan, index) => {
                 const cartItem = cart.find(item => item.package.id === plan.id);
                 const isPopular = index === getPackagesByType('one_time').length - 1;
+                const creditConfig = getCreditTypeConfig((plan.credit_type || 'full') as CreditType);
+                const CreditIcon = creditConfig.icon;
                 
                 return (
                   <Card 
@@ -346,16 +369,20 @@ export default function BuyCredits() {
                     )}
                     
                     <CardHeader className="text-center pb-2">
-                      <div className={`mx-auto h-12 w-12 rounded-xl flex items-center justify-center mb-2 ${isPopular ? 'bg-primary text-primary-foreground' : 'bg-muted text-primary'}`}>
-                        {index === 0 ? <Zap className="h-5 w-5" /> : isPopular ? <Star className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
+                      <div className={`mx-auto h-12 w-12 rounded-xl flex items-center justify-center mb-2 ${isPopular ? 'bg-primary text-primary-foreground' : creditConfig.bgColor + ' ' + creditConfig.textColor}`}>
+                        {isPopular ? <Star className="h-5 w-5" /> : <CreditIcon className="h-5 w-5" />}
                       </div>
+                      {/* Credit type badge */}
+                      <Badge variant="outline" className={`mx-auto mb-2 text-xs ${creditConfig.textColor}`}>
+                        {creditConfig.label}
+                      </Badge>
                       <CardTitle className="text-lg">{plan.name || `${plan.credits} Credits`}</CardTitle>
                       <CardDescription>{plan.description || `${plan.credits} document checks`}</CardDescription>
                     </CardHeader>
                     
                     <CardContent className="space-y-4">
                       <div className="text-center">
-                        <p className="text-4xl font-bold text-primary">${plan.price}</p>
+                        <p className={`text-4xl font-bold ${creditConfig.textColor}`}>${plan.price}</p>
                         <p className="text-sm text-muted-foreground mt-1">
                           ${(plan.price / plan.credits).toFixed(2)} per credit
                         </p>
@@ -365,22 +392,37 @@ export default function BuyCredits() {
                         {plan.features && plan.features.length > 0 ? (
                           plan.features.map((feature, i) => (
                             <li key={i} className="flex items-center gap-2">
-                              <CheckCircle className="h-4 w-4 text-secondary flex-shrink-0" />
+                              <CheckCircle className={`h-4 w-4 ${creditConfig.accentColor} flex-shrink-0`} />
                               <span>{feature}</span>
                             </li>
                           ))
-                        ) : (
+                        ) : creditTypeTab === 'similarity_only' ? (
                           <>
                             <li className="flex items-center gap-2">
-                              <CheckCircle className="h-4 w-4 text-secondary flex-shrink-0" />
+                              <CheckCircle className={`h-4 w-4 ${creditConfig.accentColor} flex-shrink-0`} />
                               <span>Similarity Detection</span>
                             </li>
                             <li className="flex items-center gap-2">
-                              <CheckCircle className="h-4 w-4 text-secondary flex-shrink-0" />
+                              <CheckCircle className={`h-4 w-4 ${creditConfig.accentColor} flex-shrink-0`} />
+                              <span>Fast Processing</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle className={`h-4 w-4 ${creditConfig.accentColor} flex-shrink-0`} />
+                              <span>Credits Never Expire</span>
+                            </li>
+                          </>
+                        ) : (
+                          <>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle className={`h-4 w-4 ${creditConfig.accentColor} flex-shrink-0`} />
+                              <span>Similarity Detection</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle className={`h-4 w-4 ${creditConfig.accentColor} flex-shrink-0`} />
                               <span>AI Content Detection</span>
                             </li>
                             <li className="flex items-center gap-2">
-                              <CheckCircle className="h-4 w-4 text-secondary flex-shrink-0" />
+                              <CheckCircle className={`h-4 w-4 ${creditConfig.accentColor} flex-shrink-0`} />
                               <span>Credits Never Expire</span>
                             </li>
                           </>
@@ -413,6 +455,8 @@ export default function BuyCredits() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {getPackagesByType('subscription').map((plan, index) => {
                 const isPopular = index === Math.floor(getPackagesByType('subscription').length / 2);
+                const creditConfig = getCreditTypeConfig((plan.credit_type || 'full') as CreditType);
+                const CreditIcon = creditConfig.icon;
                 
                 return (
                   <Card 
@@ -435,8 +479,12 @@ export default function BuyCredits() {
                     
                     <CardHeader className="text-center pb-2">
                       <div className="mx-auto h-12 w-12 rounded-xl bg-green-500/10 flex items-center justify-center mb-2">
-                        <Crown className="h-5 w-5 text-green-600" />
+                        <CreditIcon className="h-5 w-5 text-green-600" />
                       </div>
+                      {/* Credit type badge */}
+                      <Badge variant="outline" className={`mx-auto mb-2 text-xs ${creditConfig.textColor}`}>
+                        {creditConfig.label}
+                      </Badge>
                       <CardTitle className="text-lg">{plan.name || `${plan.credits} Credits/mo`}</CardTitle>
                       <CardDescription>{plan.description || 'Monthly subscription'}</CardDescription>
                     </CardHeader>
@@ -508,27 +556,35 @@ export default function BuyCredits() {
               <span>Limited time offers • Credits expire after validity period</span>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {getPackagesByType('time_limited').map((plan) => (
-                <Card 
-                  key={plan.id} 
-                  className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-2 border-orange-500/50 bg-gradient-to-br from-orange-500/5 via-transparent to-amber-500/5"
-                >
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500" />
-                  
-                  <div className="absolute top-0 right-0">
-                    <Badge className="rounded-none rounded-bl-lg bg-orange-500 text-white gap-1">
-                      <Clock className="h-3 w-3" />
-                      {plan.validity_days} days
-                    </Badge>
-                  </div>
-                  
-                  <CardHeader className="text-center pb-2 pt-8">
-                    <div className="mx-auto h-12 w-12 rounded-xl bg-orange-500/10 flex items-center justify-center mb-2">
-                      <Clock className="h-5 w-5 text-orange-600" />
+              {getPackagesByType('time_limited').map((plan) => {
+                const creditConfig = getCreditTypeConfig((plan.credit_type || 'full') as CreditType);
+                const CreditIcon = creditConfig.icon;
+                
+                return (
+                  <Card 
+                    key={plan.id} 
+                    className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-2 border-orange-500/50 bg-gradient-to-br from-orange-500/5 via-transparent to-amber-500/5"
+                  >
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500" />
+                    
+                    <div className="absolute top-0 right-0">
+                      <Badge className="rounded-none rounded-bl-lg bg-orange-500 text-white gap-1">
+                        <Clock className="h-3 w-3" />
+                        {plan.validity_days} days
+                      </Badge>
                     </div>
-                    <CardTitle className="text-lg">{plan.name || `${plan.credits} Credits`}</CardTitle>
-                    <CardDescription>{plan.description || 'Limited time offer'}</CardDescription>
-                  </CardHeader>
+                    
+                    <CardHeader className="text-center pb-2 pt-8">
+                      <div className="mx-auto h-12 w-12 rounded-xl bg-orange-500/10 flex items-center justify-center mb-2">
+                        <CreditIcon className="h-5 w-5 text-orange-600" />
+                      </div>
+                      {/* Credit type badge */}
+                      <Badge variant="outline" className={`mx-auto mb-2 text-xs ${creditConfig.textColor}`}>
+                        {creditConfig.label}
+                      </Badge>
+                      <CardTitle className="text-lg">{plan.name || `${plan.credits} Credits`}</CardTitle>
+                      <CardDescription>{plan.description || 'Limited time offer'}</CardDescription>
+                    </CardHeader>
                   
                   <CardContent className="space-y-4">
                     <div className="text-center">
@@ -587,7 +643,8 @@ export default function BuyCredits() {
                     </Button>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
