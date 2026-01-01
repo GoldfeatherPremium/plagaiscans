@@ -140,8 +140,8 @@ const SimilarityQueue: React.FC = () => {
   };
 
   const handleUploadReport = async () => {
-    if (!selectedDoc || !similarityReport || !similarityPercentage) {
-      toast({ title: 'Error', description: 'Please fill in all required fields', variant: 'destructive' });
+    if (!selectedDoc || !similarityReport) {
+      toast({ title: 'Error', description: 'Please upload a similarity report', variant: 'destructive' });
       return;
     }
 
@@ -151,7 +151,7 @@ const SimilarityQueue: React.FC = () => {
       await uploadSimilarityReport(
         selectedDoc.id,
         similarityReport,
-        parseFloat(similarityPercentage),
+        similarityPercentage ? parseFloat(similarityPercentage) : null,
         remarks
       );
 
@@ -565,7 +565,7 @@ const SimilarityQueue: React.FC = () => {
                                     </div>
 
                                     <div>
-                                      <Label>Similarity Percentage (%)</Label>
+                                      <Label>Similarity Percentage (%) - Optional</Label>
                                       <Input
                                         type="number"
                                         min="0"
@@ -591,7 +591,7 @@ const SimilarityQueue: React.FC = () => {
                                     <Button
                                       className="w-full"
                                       onClick={handleUploadReport}
-                                      disabled={uploading || !similarityReport || !similarityPercentage}
+                                      disabled={uploading || !similarityReport}
                                     >
                                       {uploading ? (
                                         <>
