@@ -205,6 +205,60 @@ export const useSimilarityDocuments = () => {
     await fetchDocuments();
   };
 
+  const deleteSimilarityDocument = async (
+    documentId: string,
+    filePath: string,
+    similarityReportPath?: string | null
+  ): Promise<void> => {
+    if (!user) throw new Error('Not authenticated');
+
+    try {
+      // Delete tag assignments first (foreign key constraint)
+      await supabase
+        .from('document_tag_assignments')
+        .delete()
+        .eq('document_id', documentId);
+
+      // Delete original file from storage
+      const { error: fileError } = await supabase.storage
+        .from('documents')
+        .remove([filePath]);
+
+      if (fileError) {
+        console.error('Error deleting original file:', fileError);
+      }
+
+      // Delete similarity report if exists
+      if (similarityReportPath) {
+        const { error: reportError } = await supabase.storage
+          .from('reports')
+          .remove([similarityReportPath]);
+
+        if (reportError) {
+          console.error('Error deleting similarity report:', reportError);
+        }
+      }
+
+      // Delete document record
+      const { error: deleteError } = await supabase
+        .from('documents')
+        .delete()
+        .eq('id', documentId);
+
+      if (deleteError) throw deleteError;
+
+      toast({
+        title: 'Document deleted',
+        description: 'Document has been deleted successfully',
+      });
+
+      await fetchDocuments();
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
@@ -238,5 +292,6 @@ export const useSimilarityDocuments = () => {
     fetchDocuments,
     uploadSimilarityDocument,
     uploadSimilarityReport,
+    deleteSimilarityDocument,
   };
 };
