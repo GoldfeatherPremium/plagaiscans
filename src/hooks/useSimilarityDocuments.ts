@@ -163,7 +163,7 @@ export const useSimilarityDocuments = () => {
   const uploadSimilarityReport = async (
     documentId: string,
     similarityReport: File,
-    similarityPercentage: number,
+    similarityPercentage: number | null,
     remarks?: string
   ): Promise<void> => {
     if (!user) throw new Error('Not authenticated');
