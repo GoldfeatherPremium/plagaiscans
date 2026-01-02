@@ -687,6 +687,7 @@ export default function Checkout() {
                         <div>
                           <h3 className="font-semibold flex items-center gap-2">
                             Card / Google Pay / Apple Pay
+                            <Badge variant="secondary" className="text-xs">${calculateTotalWithFee('dodo').toFixed(2)}</Badge>
                           </h3>
                           <p className="text-sm text-muted-foreground">
                             Pay securely with cards, Google Pay, or Apple Pay
