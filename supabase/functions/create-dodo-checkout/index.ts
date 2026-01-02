@@ -15,9 +15,10 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const dodoApiKey = Deno.env.get('DODO_PAYMENTS_API_KEY');
-    const dodoProductId = Deno.env.get('DODO_CREDITS_PRODUCT_ID');
+    const dodoDefaultProductId = Deno.env.get('DODO_CREDITS_PRODUCT_ID');
+    const dodo30CreditsProductId = Deno.env.get('DODO_30_CREDITS_PRODUCT_ID');
 
-    if (!dodoApiKey || !dodoProductId) {
+    if (!dodoApiKey || !dodoDefaultProductId) {
       console.error('DODO_PAYMENTS_API_KEY or DODO_CREDITS_PRODUCT_ID not configured');
       return new Response(
         JSON.stringify({ error: 'Dodo Payments not configured' }),
@@ -76,6 +77,13 @@ Deno.serve(async (req) => {
     // Use test.dodopayments.com for test mode, live.dodopayments.com for production
     const dodoBaseUrl = 'https://live.dodopayments.com';
     
+    // Use specific product ID for 30 credits, otherwise use default
+    const dodoProductId = credits === 30 && dodo30CreditsProductId 
+      ? dodo30CreditsProductId 
+      : dodoDefaultProductId;
+
+    console.log('Using Dodo product ID:', dodoProductId, 'for', credits, 'credits');
+
     const dodoResponse = await fetch(`${dodoBaseUrl}/checkouts`, {
       method: 'POST',
        headers: {
