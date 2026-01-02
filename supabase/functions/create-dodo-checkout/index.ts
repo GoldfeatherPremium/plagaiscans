@@ -16,6 +16,7 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const dodoApiKey = Deno.env.get('DODO_PAYMENTS_API_KEY');
     const dodoDefaultProductId = Deno.env.get('DODO_CREDITS_PRODUCT_ID');
+    const dodo10CreditsProductId = Deno.env.get('DODO_10_CREDITS_PRODUCT_ID');
     const dodo30CreditsProductId = Deno.env.get('DODO_30_CREDITS_PRODUCT_ID');
 
     if (!dodoApiKey || !dodoDefaultProductId) {
@@ -77,10 +78,13 @@ Deno.serve(async (req) => {
     // Use test.dodopayments.com for test mode, live.dodopayments.com for production
     const dodoBaseUrl = 'https://live.dodopayments.com';
     
-    // Use specific product ID for 30 credits, otherwise use default
-    const dodoProductId = credits === 30 && dodo30CreditsProductId 
-      ? dodo30CreditsProductId 
-      : dodoDefaultProductId;
+    // Use specific product ID based on credit amount
+    let dodoProductId = dodoDefaultProductId;
+    if (credits === 10 && dodo10CreditsProductId) {
+      dodoProductId = dodo10CreditsProductId;
+    } else if (credits === 30 && dodo30CreditsProductId) {
+      dodoProductId = dodo30CreditsProductId;
+    }
 
     console.log('Using Dodo product ID:', dodoProductId, 'for', credits, 'credits');
 
