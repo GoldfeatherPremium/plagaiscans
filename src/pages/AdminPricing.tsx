@@ -424,14 +424,25 @@ export default function AdminPricing() {
                         />
                       </div>
                     </div>
-                    <div>
-                      <Label>Stripe Product ID</Label>
-                      <Input
-                        value={formData.stripe_product_id}
-                        onChange={(e) => setFormData(prev => ({ ...prev, stripe_product_id: e.target.value }))}
-                        placeholder="prod_..."
-                        className="mt-1"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Stripe Product ID</Label>
+                        <Input
+                          value={formData.stripe_product_id}
+                          onChange={(e) => setFormData(prev => ({ ...prev, stripe_product_id: e.target.value }))}
+                          placeholder="prod_..."
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label>Dodo Product ID</Label>
+                        <Input
+                          value={formData.dodo_product_id}
+                          onChange={(e) => setFormData(prev => ({ ...prev, dodo_product_id: e.target.value }))}
+                          placeholder="pdt_..."
+                          className="mt-1"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
