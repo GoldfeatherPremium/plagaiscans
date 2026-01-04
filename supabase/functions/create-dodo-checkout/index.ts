@@ -16,11 +16,9 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const dodoApiKey = Deno.env.get('DODO_PAYMENTS_API_KEY');
     const dodoDefaultProductId = Deno.env.get('DODO_CREDITS_PRODUCT_ID');
-    const dodo10CreditsProductId = Deno.env.get('DODO_10_CREDITS_PRODUCT_ID');
-    const dodo30CreditsProductId = Deno.env.get('DODO_30_CREDITS_PRODUCT_ID');
 
-    if (!dodoApiKey || !dodoDefaultProductId) {
-      console.error('DODO_PAYMENTS_API_KEY or DODO_CREDITS_PRODUCT_ID not configured');
+    if (!dodoApiKey) {
+      console.error('DODO_PAYMENTS_API_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'Dodo Payments not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -69,7 +67,7 @@ Deno.serve(async (req) => {
     const amountUsd = amount / 100; // Convert from cents
     const orderId = `dodo_${Date.now()}_${user.id.slice(0, 8)}`;
 
-    console.log('Creating Dodo payment:', { userId: user.id, credits, amountUsd, orderId });
+    console.log('Creating Dodo payment:', { userId: user.id, credits, amountUsd, orderId, creditType });
 
     // Get origin for return URL
     const origin = req.headers.get('origin') || 'https://plagaiscans.com';
@@ -78,15 +76,35 @@ Deno.serve(async (req) => {
     // Use test.dodopayments.com for test mode, live.dodopayments.com for production
     const dodoBaseUrl = 'https://live.dodopayments.com';
     
-    // Use specific product ID based on credit amount
+    // Try to get dodo_product_id from pricing_packages table based on credits and credit_type
     let dodoProductId = dodoDefaultProductId;
-    if (credits === 10 && dodo10CreditsProductId) {
-      dodoProductId = dodo10CreditsProductId;
-    } else if (credits === 30 && dodo30CreditsProductId) {
-      dodoProductId = dodo30CreditsProductId;
+    
+    const { data: packageData, error: packageError } = await supabase
+      .from('pricing_packages')
+      .select('dodo_product_id')
+      .eq('credits', credits)
+      .eq('credit_type', creditType)
+      .eq('is_active', true)
+      .not('dodo_product_id', 'is', null)
+      .limit(1)
+      .single();
+
+    if (packageError) {
+      console.log('No matching package found in database, using default product ID:', packageError.message);
+    } else if (packageData?.dodo_product_id) {
+      dodoProductId = packageData.dodo_product_id;
+      console.log('Found dodo_product_id from pricing_packages:', dodoProductId);
     }
 
-    console.log('Using Dodo product ID:', dodoProductId, 'for', credits, 'credits');
+    if (!dodoProductId) {
+      console.error('No Dodo product ID available');
+      return new Response(
+        JSON.stringify({ error: 'Dodo product not configured for this package' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Using Dodo product ID:', dodoProductId, 'for', credits, 'credits, type:', creditType);
 
     const dodoResponse = await fetch(`${dodoBaseUrl}/checkouts`, {
       method: 'POST',
