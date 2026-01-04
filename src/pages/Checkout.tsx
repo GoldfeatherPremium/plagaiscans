@@ -418,11 +418,20 @@ export default function Checkout() {
       const totalCredits = getCartCredits();
       const totalAmount = Math.round(calculateTotalWithFee('dodo') * 100);
 
+      // Build cart items for the checkout
+      const cartItems = cart.map(item => ({
+        packageId: item.package.id,
+        credits: item.package.credits,
+        quantity: item.quantity,
+        creditType: item.package.credit_type || 'full',
+      }));
+
       const response = await supabase.functions.invoke('create-dodo-checkout', {
         body: {
           credits: totalCredits,
           amount: totalAmount,
           creditType: getCartCreditType() || 'full',
+          cartItems,
         },
       });
 

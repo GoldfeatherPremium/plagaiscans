@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { credits, amount, creditType = 'full' } = await req.json();
+    const { credits, amount, creditType = 'full', cartItems } = await req.json();
 
     if (!credits || !amount) {
       return new Response(
@@ -67,63 +67,114 @@ Deno.serve(async (req) => {
     const amountUsd = amount / 100; // Convert from cents
     const orderId = `dodo_${Date.now()}_${user.id.slice(0, 8)}`;
 
-    console.log('Creating Dodo payment:', { userId: user.id, credits, amountUsd, orderId, creditType });
+    console.log('Creating Dodo payment:', { userId: user.id, credits, amountUsd, orderId, creditType, cartItems });
 
     // Get origin for return URL
     const origin = req.headers.get('origin') || 'https://plagaiscans.com';
 
     // Create Dodo checkout session
-    // Use test.dodopayments.com for test mode, live.dodopayments.com for production
     const dodoBaseUrl = 'https://live.dodopayments.com';
     
-    // Try to get dodo_product_id from pricing_packages table based on credits and credit_type
-    let dodoProductId = dodoDefaultProductId;
+    // Build product_cart from cart items
+    const productCart: { product_id: string; quantity: number }[] = [];
     
-    const { data: packageData, error: packageError } = await supabase
-      .from('pricing_packages')
-      .select('dodo_product_id')
-      .eq('credits', credits)
-      .eq('credit_type', creditType)
-      .eq('is_active', true)
-      .not('dodo_product_id', 'is', null)
-      .limit(1)
-      .single();
+    if (cartItems && Array.isArray(cartItems) && cartItems.length > 0) {
+      // For each cart item, look up the dodo_product_id from the pricing_packages table
+      for (const item of cartItems) {
+        const { data: packageData, error: packageError } = await supabase
+          .from('pricing_packages')
+          .select('dodo_product_id')
+          .eq('id', item.packageId)
+          .eq('is_active', true)
+          .single();
 
-    if (packageError) {
-      console.log('No matching package found in database, using default product ID:', packageError.message);
-    } else if (packageData?.dodo_product_id) {
-      dodoProductId = packageData.dodo_product_id;
-      console.log('Found dodo_product_id from pricing_packages:', dodoProductId);
+        if (packageError || !packageData?.dodo_product_id) {
+          // Try to find by credits and credit_type as fallback
+          const { data: fallbackData } = await supabase
+            .from('pricing_packages')
+            .select('dodo_product_id')
+            .eq('credits', item.credits)
+            .eq('credit_type', item.creditType || 'full')
+            .eq('is_active', true)
+            .not('dodo_product_id', 'is', null)
+            .limit(1)
+            .single();
+
+          if (fallbackData?.dodo_product_id) {
+            productCart.push({
+              product_id: fallbackData.dodo_product_id,
+              quantity: item.quantity || 1,
+            });
+            console.log(`Found dodo_product_id for ${item.credits} credits via fallback:`, fallbackData.dodo_product_id);
+          } else if (dodoDefaultProductId) {
+            // Use default product ID as last resort
+            productCart.push({
+              product_id: dodoDefaultProductId,
+              quantity: item.quantity || 1,
+            });
+            console.log(`Using default product ID for ${item.credits} credits:`, dodoDefaultProductId);
+          } else {
+            console.error(`No Dodo product ID found for package ${item.packageId} with ${item.credits} credits`);
+            return new Response(
+              JSON.stringify({ error: `Dodo product not configured for ${item.credits} credits package` }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        } else {
+          productCart.push({
+            product_id: packageData.dodo_product_id,
+            quantity: item.quantity || 1,
+          });
+          console.log(`Found dodo_product_id for package ${item.packageId}:`, packageData.dodo_product_id);
+        }
+      }
+    } else {
+      // Legacy support: single item checkout
+      let dodoProductId = dodoDefaultProductId;
+      
+      const { data: packageData } = await supabase
+        .from('pricing_packages')
+        .select('dodo_product_id')
+        .eq('credits', credits)
+        .eq('credit_type', creditType)
+        .eq('is_active', true)
+        .not('dodo_product_id', 'is', null)
+        .limit(1)
+        .single();
+
+      if (packageData?.dodo_product_id) {
+        dodoProductId = packageData.dodo_product_id;
+      }
+
+      if (!dodoProductId) {
+        console.error('No Dodo product ID available');
+        return new Response(
+          JSON.stringify({ error: 'Dodo product not configured for this package' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      productCart.push({
+        product_id: dodoProductId,
+        quantity: 1,
+      });
     }
 
-    if (!dodoProductId) {
-      console.error('No Dodo product ID available');
-      return new Response(
-        JSON.stringify({ error: 'Dodo product not configured for this package' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Using Dodo product ID:', dodoProductId, 'for', credits, 'credits, type:', creditType);
+    console.log('Product cart for Dodo:', productCart);
 
     const dodoResponse = await fetch(`${dodoBaseUrl}/checkouts`, {
       method: 'POST',
-       headers: {
-         'Authorization': `Bearer ${dodoApiKey}`,
-         'Content-Type': 'application/json',
-         'Accept': 'application/json',
-       },
+      headers: {
+        'Authorization': `Bearer ${dodoApiKey}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
       body: JSON.stringify({
         customer: {
           email: profile?.email || user.email,
           name: profile?.full_name || 'Customer',
         },
-        product_cart: [
-          {
-            product_id: dodoProductId,
-            quantity: 1,
-          },
-        ],
+        product_cart: productCart,
         return_url: `${origin}/dashboard/payment-success?provider=dodo&payment_id=${orderId}`,
         metadata: {
           user_id: user.id,
