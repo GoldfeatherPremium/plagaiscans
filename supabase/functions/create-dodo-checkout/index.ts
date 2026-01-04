@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
         product_cart: [
           {
             product_id: dodoProductId,
-            quantity: credits,
+            quantity: 1,
           },
         ],
         return_url: `${origin}/dashboard/payment-success?provider=dodo&payment_id=${orderId}`,
