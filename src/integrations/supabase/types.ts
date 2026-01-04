@@ -1231,6 +1231,7 @@ export type Database = {
           credit_type: string
           credits: number
           description: string | null
+          dodo_product_id: string | null
           features: string[] | null
           id: string
           is_active: boolean
@@ -1248,6 +1249,7 @@ export type Database = {
           credit_type?: string
           credits: number
           description?: string | null
+          dodo_product_id?: string | null
           features?: string[] | null
           id?: string
           is_active?: boolean
@@ -1265,6 +1267,7 @@ export type Database = {
           credit_type?: string
           credits?: number
           description?: string | null
+          dodo_product_id?: string | null
           features?: string[] | null
           id?: string
           is_active?: boolean
