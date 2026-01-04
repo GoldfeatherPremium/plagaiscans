@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.dodo-webhook]
 verify_jwt = false
+
+[functions.expire-credits]
+verify_jwt = false
