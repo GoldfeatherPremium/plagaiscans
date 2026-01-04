@@ -468,6 +468,15 @@ export default function AdminPricing() {
                         Credits will expire after this many days from purchase
                       </p>
                     </div>
+                    <div>
+                      <Label>Dodo Product ID (Optional)</Label>
+                      <Input
+                        value={formData.dodo_product_id}
+                        onChange={(e) => setFormData(prev => ({ ...prev, dodo_product_id: e.target.value }))}
+                        placeholder="pdt_..."
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
                 )}
 
