@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -201,8 +201,10 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isMaintenanceMode, loading } = useMaintenanceMode();
 
+  // IMPORTANT: don't block initial paint on slow networks.
+  // If maintenance is enabled, we'll swap to the Maintenance page as soon as the check completes.
   if (loading) {
-    return <PageLoader />;
+    return <>{children}</>;
   }
 
   // Show maintenance page for public routes during maintenance
@@ -337,10 +339,12 @@ const App = () => (
               <DocumentCompletionNotifier />
             </Suspense>
             <AppRoutes />
-            <Suspense fallback={null}>
-              <InstallPromptBanner />
-              <SmartInstallPopup />
-            </Suspense>
+            <DeferredNonCritical>
+              <Suspense fallback={null}>
+                <InstallPromptBanner />
+                <SmartInstallPopup />
+              </Suspense>
+            </DeferredNonCritical>
           </CartProvider>
         </AuthProvider>
       </BrowserRouter>
@@ -349,3 +353,47 @@ const App = () => (
 );
 
 export default App;
+
+function DeferredNonCritical({
+  children,
+  delayMs = 1500,
+}: {
+  children: React.ReactNode;
+  delayMs?: number;
+}) {
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = () => {
+      if (!cancelled) setEnabled(true);
+    };
+
+    // Prefer idle time; fallback to a short delay.
+    const ric = (window as any).requestIdleCallback as
+      | undefined
+      | ((cb: () => void, opts?: { timeout: number }) => number);
+
+    if (typeof ric === "function") {
+      const id = ric(run, { timeout: delayMs });
+      return () => {
+        cancelled = true;
+        try {
+          (window as any).cancelIdleCallback?.(id);
+        } catch {
+          // ignore
+        }
+      };
+    }
+
+    const t = window.setTimeout(run, delayMs);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [delayMs]);
+
+  if (!enabled) return null;
+  return <>{children}</>;
+}
