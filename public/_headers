@@ -1,0 +1,27 @@
+# Cache static assets with content hashes for 1 year (immutable)
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Cache images and fonts for 1 year
+/*.png
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.ico
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.woff
+  Cache-Control: public, max-age=31536000, immutable
+
+# HTML files should not be cached aggressively
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Service worker should not be cached
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
