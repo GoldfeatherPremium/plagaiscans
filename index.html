@@ -16,8 +16,13 @@
     <!-- Preconnect to external origins for faster loading -->
     <link rel="preconnect" href="https://fyssbzgmhnolazjfwafm.supabase.co" crossorigin />
     <link rel="dns-prefetch" href="https://fyssbzgmhnolazjfwafm.supabase.co" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Async font loading to improve FCP -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" /></noscript>
     
     <!-- Critical inline CSS for faster FCP -->
     <style>
