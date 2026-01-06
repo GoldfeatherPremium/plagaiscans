@@ -1,101 +1,150 @@
-import React, { useState, useCallback } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2, X, Archive } from 'lucide-react';
+import { useState, useCallback, useRef } from 'react';
+import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { DashboardLayout } from '@/components/DashboardLayout';
-import { SEO } from '@/components/SEO';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { SEO } from '@/components/SEO';
+import { 
+  Upload, 
+  FileText, 
+  X, 
+  CheckCircle2, 
+  AlertCircle, 
+  Clock, 
+  Archive,
+  Loader2,
+  FileCheck,
+  FileWarning
+} from 'lucide-react';
 import JSZip from 'jszip';
 
-interface FileStatus {
+interface ReportFile {
   file: File;
-  status: 'pending' | 'uploading' | 'success' | 'error' | 'mapped' | 'unmatched';
-  message?: string;
-  percentage?: number;
-}
-
-interface ProcessResult {
   fileName: string;
-  status: 'mapped' | 'unmatched' | 'error';
-  documentId?: string;
-  percentage?: number;
+  status: 'pending' | 'uploading' | 'uploaded' | 'error';
+  filePath?: string;
   error?: string;
 }
 
-const AdminSimilarityBulkUpload: React.FC = () => {
-  const [files, setFiles] = useState<FileStatus[]>([]);
+interface MappingResult {
+  documentId: string;
+  fileName: string;
+  percentage: number | null;
+  success: boolean;
+  message?: string;
+}
+
+interface ProcessingResult {
+  success: boolean;
+  mapped: MappingResult[];
+  unmatched: { fileName: string; normalizedFilename: string; filePath: string; reason: string }[];
+  completedDocuments: string[];
+  stats: {
+    totalReports: number;
+    mappedCount: number;
+    unmatchedCount: number;
+    completedCount: number;
+  };
+}
+
+/**
+ * Normalize filename for display:
+ * - Remove extension
+ * - Remove trailing (number) patterns
+ * - Lowercase and trim
+ */
+function normalizeFilename(filename: string): string {
+  let result = filename.toLowerCase();
+  result = result.replace(/\.[^.]+$/, '');
+  result = result.replace(/\s*\(\d+\)$/, '');
+  return result.trim();
+}
+
+export default function AdminSimilarityBulkUpload() {
+  const [files, setFiles] = useState<ReportFile[]>([]);
+  const [dragActive, setDragActive] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [summary, setSummary] = useState<{
-    total: number;
-    mapped: number;
-    unmatched: number;
-    completed: number;
-  } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  }, []);
 
   const extractZipFiles = async (zipFile: File): Promise<File[]> => {
     const zip = new JSZip();
     const contents = await zip.loadAsync(zipFile);
-    const extractedFiles: File[] = [];
+    const pdfFiles: File[] = [];
 
-    for (const [filename, zipEntry] of Object.entries(contents.files)) {
-      if (!zipEntry.dir && filename.toLowerCase().endsWith('.pdf')) {
-        const blob = await zipEntry.async('blob');
-        const file = new File([blob], filename.split('/').pop() || filename, {
-          type: 'application/pdf',
-        });
-        extractedFiles.push(file);
+    for (const [filename, file] of Object.entries(contents.files)) {
+      if (!file.dir && filename.toLowerCase().endsWith('.pdf')) {
+        const blob = await file.async('blob');
+        const extractedFile = new File([blob], filename.split('/').pop() || filename, { type: 'application/pdf' });
+        pdfFiles.push(extractedFile);
       }
     }
 
-    return extractedFiles;
+    return pdfFiles;
   };
 
-  const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
+  const processFiles = async (incomingFiles: FileList | File[]) => {
+    const newFiles: ReportFile[] = [];
+
+    for (const file of Array.from(incomingFiles)) {
+      if (file.type === 'application/zip' || file.name.toLowerCase().endsWith('.zip')) {
+        try {
+          const extractedFiles = await extractZipFiles(file);
+          for (const extractedFile of extractedFiles) {
+            newFiles.push({
+              file: extractedFile,
+              fileName: extractedFile.name,
+              status: 'pending',
+            });
+          }
+          toast.success(`Extracted ${extractedFiles.length} PDF files from ${file.name}`);
+        } catch (error) {
+          console.error('Error extracting ZIP:', error);
+          toast.error(`Failed to extract ${file.name}`);
+        }
+      } else if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        newFiles.push({
+          file,
+          fileName: file.name,
+          status: 'pending',
+        });
+      } else {
+        toast.error(`Unsupported file type: ${file.name}`);
+      }
+    }
+
+    setFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    await processDroppedFiles(droppedFiles);
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await processFiles(e.dataTransfer.files);
+    }
   }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files);
-      await processDroppedFiles(selectedFiles);
+    if (e.target.files && e.target.files.length > 0) {
+      await processFiles(e.target.files);
     }
-  };
-
-  const processDroppedFiles = async (droppedFiles: File[]) => {
-    const allFiles: File[] = [];
-
-    for (const file of droppedFiles) {
-      if (file.name.toLowerCase().endsWith('.zip')) {
-        try {
-          const extracted = await extractZipFiles(file);
-          allFiles.push(...extracted);
-          toast({
-            title: 'ZIP Extracted',
-            description: `Extracted ${extracted.length} PDF file(s) from ${file.name}`,
-          });
-        } catch (error) {
-          toast({
-            title: 'ZIP Error',
-            description: `Failed to extract ${file.name}`,
-            variant: 'destructive',
-          });
-        }
-      } else if (file.name.toLowerCase().endsWith('.pdf')) {
-        allFiles.push(file);
-      }
-    }
-
-    setFiles(prev => [
-      ...prev,
-      ...allFiles.map(file => ({ file, status: 'pending' as const })),
-    ]);
-    setSummary(null);
   };
 
   const removeFile = (index: number) => {
@@ -104,118 +153,124 @@ const AdminSimilarityBulkUpload: React.FC = () => {
 
   const clearAll = () => {
     setFiles([]);
-    setSummary(null);
-    setProgress(0);
+    setProcessingResult(null);
+    setUploadProgress(0);
   };
 
-  const processFiles = async () => {
+  const uploadAndProcess = async () => {
     if (files.length === 0) {
-      toast({
-        title: 'No Files',
-        description: 'Please add PDF files to upload',
-        variant: 'destructive',
-      });
+      toast.error('No files to process');
       return;
     }
 
     setProcessing(true);
-    setProgress(0);
-    setSummary(null);
-
-    // Update all files to uploading status
-    setFiles(prev => prev.map(f => ({ ...f, status: 'uploading' as const })));
+    setUploadProgress(0);
+    setProcessingResult(null);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast({ title: 'Error', description: 'Not authenticated', variant: 'destructive' });
+        toast.error('Please log in to upload reports');
+        setProcessing(false);
         return;
       }
 
-      const formData = new FormData();
-      files.forEach(({ file }) => {
-        formData.append('files', file);
-      });
+      const uploadedReports: { fileName: string; filePath: string }[] = [];
+      const totalFiles = files.length;
 
-      const response = await supabase.functions.invoke('process-similarity-bulk-reports', {
-        body: formData,
-      });
+      // Upload each file to storage
+      for (let i = 0; i < files.length; i++) {
+        const reportFile = files[i];
+        setFiles(prev => prev.map((f, idx) => 
+          idx === i ? { ...f, status: 'uploading' } : f
+        ));
 
-      if (response.error) {
-        throw new Error(response.error.message);
+        const timestamp = Date.now();
+        const sanitizedName = reportFile.fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const filePath = `similarity-bulk-reports/${timestamp}_${sanitizedName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('reports')
+          .upload(filePath, reportFile.file);
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          setFiles(prev => prev.map((f, idx) => 
+            idx === i ? { ...f, status: 'error', error: uploadError.message } : f
+          ));
+          continue;
+        }
+
+        setFiles(prev => prev.map((f, idx) => 
+          idx === i ? { ...f, status: 'uploaded', filePath } : f
+        ));
+
+        uploadedReports.push({
+          fileName: reportFile.fileName,
+          filePath,
+        });
+
+        setUploadProgress(Math.round(((i + 1) / totalFiles) * 50));
       }
 
-      const { results, summary: resultSummary } = response.data as {
-        results: ProcessResult[];
-        summary: { total: number; mapped: number; unmatched: number; completed: number };
-      };
+      if (uploadedReports.length === 0) {
+        toast.error('No files were uploaded successfully');
+        setProcessing(false);
+        return;
+      }
 
-      // Update file statuses based on results
-      setFiles(prev => prev.map(fileStatus => {
-        const result = results.find(r => r.fileName === fileStatus.file.name);
-        if (result) {
-          return {
-            ...fileStatus,
-            status: result.status === 'error' ? 'error' : result.status,
-            message: result.error || (result.status === 'mapped' 
-              ? `Mapped${result.percentage !== undefined ? ` (${result.percentage}%)` : ''}`
-              : 'No matching document'),
-            percentage: result.percentage,
-          };
-        }
-        return fileStatus;
-      }));
-
-      setSummary(resultSummary);
-      setProgress(100);
-
-      toast({
-        title: 'Processing Complete',
-        description: `${resultSummary.mapped} mapped, ${resultSummary.unmatched} unmatched`,
+      // Call edge function for PDF analysis and auto-mapping
+      setUploadProgress(60);
+      
+      const { data, error } = await supabase.functions.invoke('process-similarity-bulk-reports', {
+        body: { reports: uploadedReports },
       });
+
+      if (error) {
+        console.error('Processing error:', error);
+        toast.error('Failed to process reports: ' + error.message);
+        setProcessing(false);
+        return;
+      }
+
+      setUploadProgress(100);
+      setProcessingResult(data as ProcessingResult);
+
+      const stats = data.stats;
+      if (stats.completedCount > 0) {
+        toast.success(`Successfully completed ${stats.completedCount} documents!`);
+      }
+      if (stats.mappedCount > 0 && stats.completedCount === 0) {
+        toast.success(`Mapped ${stats.mappedCount} reports`);
+      }
+      if (stats.unmatchedCount > 0) {
+        toast.warning(`${stats.unmatchedCount} reports could not be matched`);
+      }
+
     } catch (error) {
-      console.error('Processing error:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to process files',
-        variant: 'destructive',
-      });
-      setFiles(prev => prev.map(f => ({ ...f, status: 'error' as const })));
+      console.error('Error:', error);
+      toast.error('An error occurred during processing');
     } finally {
       setProcessing(false);
     }
   };
 
-  const getStatusBadge = (status: FileStatus['status']) => {
-    switch (status) {
-      case 'pending':
-        return <Badge variant="secondary">Pending</Badge>;
-      case 'uploading':
-        return <Badge variant="outline" className="animate-pulse">Uploading...</Badge>;
-      case 'success':
-      case 'mapped':
-        return <Badge className="bg-green-500">Mapped</Badge>;
-      case 'unmatched':
-        return <Badge variant="destructive">Unmatched</Badge>;
-      case 'error':
-        return <Badge variant="destructive">Error</Badge>;
-    }
-  };
-
   const pendingCount = files.filter(f => f.status === 'pending').length;
+  const uploadedCount = files.filter(f => f.status === 'uploaded').length;
+  const errorCount = files.filter(f => f.status === 'error').length;
 
   return (
     <DashboardLayout>
       <SEO
         title="Bulk Similarity Report Upload"
-        description="Upload multiple similarity reports at once"
+        description="Upload multiple similarity reports at once for the similarity queue"
       />
-
+      
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Bulk Similarity Report Upload</h1>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Bulk Similarity Report Upload</h1>
           <p className="text-muted-foreground">
-            Upload multiple similarity reports for the similarity queue. Reports will auto-match to documents by filename.
+            Upload PDF reports for similarity-only documents. Reports are auto-matched by filename and analyzed for percentage.
           </p>
         </div>
 
@@ -224,148 +279,255 @@ const AdminSimilarityBulkUpload: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
-              Upload Reports
+              Upload Similarity Reports
             </CardTitle>
             <CardDescription>
-              Drag & drop PDF files or ZIP archives containing similarity reports
+              Drag and drop PDF files or ZIP archives. Each PDF's page 2 is analyzed to extract similarity percentage.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div
+              className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                dragActive 
+                  ? 'border-primary bg-primary/5' 
+                  : 'border-muted-foreground/25 hover:border-primary/50'
+              }`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
               onDrop={handleDrop}
-              onDragOver={(e) => e.preventDefault()}
-              className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
             >
               <input
+                ref={fileInputRef}
                 type="file"
-                id="file-upload"
-                className="hidden"
                 multiple
                 accept=".pdf,.zip"
+                className="hidden"
                 onChange={handleFileSelect}
               />
-              <label htmlFor="file-upload" className="cursor-pointer">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="flex gap-2">
-                    <FileText className="h-8 w-8 text-muted-foreground" />
-                    <Archive className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <p className="font-medium">Drop PDF files or ZIP archives here</p>
-                  <p className="text-sm text-muted-foreground">or click to browse</p>
+              
+              <div className="flex flex-col items-center gap-3">
+                <div className="p-4 bg-muted rounded-full">
+                  <Archive className="h-8 w-8 text-muted-foreground" />
                 </div>
-              </label>
+                <div>
+                  <p className="font-medium">Drop PDF files or ZIP archives here</p>
+                  <p className="text-sm text-muted-foreground">
+                    or click to browse
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={processing}
+                >
+                  Select Files
+                </Button>
+              </div>
             </div>
 
+            {/* File List */}
             {files.length > 0 && (
-              <div className="mt-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{files.length} file(s) selected</span>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={clearAll} disabled={processing}>
-                      Clear All
-                    </Button>
-                    <Button onClick={processFiles} disabled={processing || pendingCount === 0}>
-                      {processing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Process {pendingCount} File(s)
-                        </>
-                      )}
-                    </Button>
-                  </div>
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium">
+                    Files ({files.length})
+                    {uploadedCount > 0 && (
+                      <span className="text-muted-foreground ml-2">
+                        • {uploadedCount} uploaded
+                      </span>
+                    )}
+                    {errorCount > 0 && (
+                      <span className="text-destructive ml-2">
+                        • {errorCount} failed
+                      </span>
+                    )}
+                  </h4>
+                  <Button variant="ghost" size="sm" onClick={clearAll} disabled={processing}>
+                    Clear All
+                  </Button>
                 </div>
+                
+                <ScrollArea className="h-[200px] border rounded-lg">
+                  <div className="p-3 space-y-2">
+                    {files.map((file, index) => (
+                      <div 
+                        key={index}
+                        className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{file.fileName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Key: {normalizeFilename(file.fileName)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {file.status === 'pending' && (
+                            <Badge variant="secondary">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Pending
+                            </Badge>
+                          )}
+                          {file.status === 'uploading' && (
+                            <Badge variant="secondary">
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              Uploading
+                            </Badge>
+                          )}
+                          {file.status === 'uploaded' && (
+                            <Badge variant="default" className="bg-green-600">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Uploaded
+                            </Badge>
+                          )}
+                          {file.status === 'error' && (
+                            <Badge variant="destructive">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Error
+                            </Badge>
+                          )}
+                          {!processing && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => removeFile(index)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
 
+                {/* Progress */}
                 {processing && (
-                  <Progress value={progress} className="h-2" />
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Processing...</span>
+                      <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
+                    </div>
+                    <Progress value={uploadProgress} />
+                  </div>
                 )}
 
-                <div className="max-h-64 overflow-y-auto space-y-2">
-                  {files.map((fileStatus, index) => (
-                    <div
-                      key={`${fileStatus.file.name}-${index}`}
-                      className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
-                    >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <FileText className="h-4 w-4 shrink-0" />
-                        <span className="truncate text-sm">{fileStatus.file.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {fileStatus.message && (
-                          <span className="text-xs text-muted-foreground max-w-32 truncate">
-                            {fileStatus.message}
-                          </span>
-                        )}
-                        {getStatusBadge(fileStatus.status)}
-                        {!processing && fileStatus.status === 'pending' && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => removeFile(index)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                {/* Action Button */}
+                <div className="mt-4 flex justify-end">
+                  <Button 
+                    onClick={uploadAndProcess}
+                    disabled={processing || pendingCount === 0}
+                    size="lg"
+                  >
+                    {processing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload & Process ({pendingCount} files)
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Summary */}
-        {summary && (
+        {/* Processing Results */}
+        {processingResult && (
           <Card>
             <CardHeader>
-              <CardTitle>Processing Summary</CardTitle>
+              <CardTitle>Processing Results</CardTitle>
+              <CardDescription>
+                PDF page 2 analysis and auto-mapping summary
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-2xl font-bold">{summary.total}</div>
-                  <div className="text-sm text-muted-foreground">Total Files</div>
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <p className="text-2xl font-bold">{processingResult.stats.totalReports}</p>
+                  <p className="text-sm text-muted-foreground">Total Reports</p>
                 </div>
                 <div className="text-center p-4 bg-green-500/10 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{summary.mapped}</div>
-                  <div className="text-sm text-muted-foreground">Mapped</div>
+                  <p className="text-2xl font-bold text-green-600">{processingResult.stats.mappedCount}</p>
+                  <p className="text-sm text-muted-foreground">Mapped</p>
                 </div>
-                <div className="text-center p-4 bg-green-500/10 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{summary.completed}</div>
-                  <div className="text-sm text-muted-foreground">Completed</div>
+                <div className="text-center p-4 bg-blue-500/10 rounded-lg">
+                  <p className="text-2xl font-bold text-blue-600">{processingResult.stats.completedCount}</p>
+                  <p className="text-sm text-muted-foreground">Completed</p>
                 </div>
-                <div className="text-center p-4 bg-destructive/10 rounded-lg">
-                  <div className="text-2xl font-bold text-destructive">{summary.unmatched}</div>
-                  <div className="text-sm text-muted-foreground">Unmatched</div>
+                <div className="text-center p-4 bg-yellow-500/10 rounded-lg">
+                  <p className="text-2xl font-bold text-yellow-600">{processingResult.stats.unmatchedCount}</p>
+                  <p className="text-sm text-muted-foreground">Unmatched</p>
                 </div>
               </div>
 
-              {summary.unmatched > 0 && (
-                <div className="mt-4 p-4 bg-amber-500/10 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-amber-600">Unmatched Reports</p>
-                    <p className="text-sm text-muted-foreground">
-                      {summary.unmatched} report(s) could not be matched to documents. 
-                      Check the Unmatched Reports page to manually assign them.
-                    </p>
-                  </div>
+              {/* Mapped Reports */}
+              {processingResult.mapped.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <FileCheck className="h-4 w-4 text-green-600" />
+                    Mapped Reports ({processingResult.mapped.length})
+                  </h4>
+                  <ScrollArea className="h-[150px] border rounded-lg">
+                    <div className="p-3 space-y-2">
+                      {processingResult.mapped.map((item, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-green-500/10 rounded-lg">
+                          <span className="text-sm truncate flex-1">{item.fileName}</span>
+                          {item.percentage !== null && (
+                            <Badge variant="outline" className="ml-2">
+                              {item.percentage}%
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 </div>
               )}
 
-              {summary.completed > 0 && (
-                <div className="mt-4 p-4 bg-green-500/10 rounded-lg flex items-start gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+              {/* Unmatched Reports */}
+              {processingResult.unmatched.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <FileWarning className="h-4 w-4 text-yellow-600" />
+                    Unmatched Reports ({processingResult.unmatched.length})
+                  </h4>
+                  <ScrollArea className="h-[150px] border rounded-lg">
+                    <div className="p-3 space-y-2">
+                      {processingResult.unmatched.map((item, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-yellow-500/10 rounded-lg">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm truncate">{item.fileName}</p>
+                            <p className="text-xs text-muted-foreground">{item.reason}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Unmatched reports are stored and can be manually assigned from the Unmatched Reports page.
+                  </p>
+                </div>
+              )}
+
+              {/* Completed Documents Success Message */}
+              {processingResult.completedDocuments.length > 0 && (
+                <div className="p-4 bg-green-500/10 rounded-lg flex items-start gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
                   <div>
                     <p className="font-medium text-green-600">Documents Completed</p>
                     <p className="text-sm text-muted-foreground">
-                      {summary.completed} document(s) have been marked as completed.
+                      {processingResult.completedDocuments.length} document(s) have been marked as completed. Customers have been notified.
                     </p>
                   </div>
                 </div>
@@ -380,16 +542,15 @@ const AdminSimilarityBulkUpload: React.FC = () => {
             <CardTitle>How It Works</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>1. Upload PDF similarity reports (or ZIP files containing PDFs)</p>
-            <p>2. Reports are matched to similarity queue documents by normalized filename</p>
-            <p>3. Page 2 of each PDF is analyzed to extract similarity percentage</p>
-            <p>4. Matched documents are automatically marked as completed</p>
-            <p>5. Unmatched reports are stored for manual assignment</p>
+            <p>1. <strong>Upload:</strong> Drag & drop PDF similarity reports or ZIP archives containing PDFs</p>
+            <p>2. <strong>Storage:</strong> Files are uploaded to secure storage before processing</p>
+            <p>3. <strong>Analysis:</strong> Page 2 of each PDF is analyzed to extract similarity percentage</p>
+            <p>4. <strong>Matching:</strong> Reports are matched to similarity queue documents by normalized filename</p>
+            <p>5. <strong>Completion:</strong> Matched documents are marked complete and customers are notified</p>
+            <p>6. <strong>Unmatched:</strong> Reports without matches are stored for manual assignment</p>
           </CardContent>
         </Card>
       </div>
     </DashboardLayout>
   );
-};
-
-export default AdminSimilarityBulkUpload;
+}

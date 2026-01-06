@@ -1,50 +1,110 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getDocument } from "https://esm.sh/pdfjs-serverless";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ReportResult {
+interface ReportFile {
   fileName: string;
-  status: 'mapped' | 'unmatched' | 'error';
-  documentId?: string;
-  percentage?: number;
-  error?: string;
+  filePath: string;
 }
 
-// Normalize filename for matching
+interface MappingResult {
+  documentId: string;
+  fileName: string;
+  percentage: number | null;
+  success: boolean;
+  message?: string;
+}
+
+interface ProcessingResult {
+  success: boolean;
+  mapped: MappingResult[];
+  unmatched: { fileName: string; normalizedFilename: string; filePath: string; reason: string }[];
+  completedDocuments: string[];
+  stats: {
+    totalReports: number;
+    mappedCount: number;
+    unmatchedCount: number;
+    completedCount: number;
+  };
+}
+
+/**
+ * Normalize filename for matching:
+ * - Remove extension
+ * - Remove trailing (1), (2), etc.
+ * - Lowercase
+ * - Trim whitespace
+ */
 function normalizeFilename(filename: string): string {
   let result = filename.toLowerCase();
-  // Remove extension
   result = result.replace(/\.[^.]+$/, '');
-  // Remove trailing (1), (2), etc.
-  result = result.replace(/\s*\(\d+\)\s*$/, '');
-  // Remove extra spaces and trim
+  result = result.replace(/\s*\(\d+\)$/, '');
   result = result.replace(/\s+/g, ' ').trim();
   return result;
 }
 
-// Extract percentage from text
-function extractSimilarityPercentage(text: string): number | null {
-  // Pattern: "XX% overall similarity" or "XX % overall similarity"
-  const patterns = [
-    /(\d+(?:\.\d+)?)\s*%\s*overall\s*similarity/i,
-    /overall\s*similarity[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /similarity[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-  ];
-  
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match) {
-      return parseFloat(match[1]);
-    }
-  }
-  return null;
+/**
+ * Get document base name (just removes extension)
+ */
+function getDocumentBaseName(filename: string): string {
+  return filename.toLowerCase().replace(/\.[^.]+$/, '').trim();
 }
 
-serve(async (req) => {
+/**
+ * Extract similarity percentage from PDF page 2
+ */
+async function analyzePdfPage2(pdfBuffer: ArrayBuffer): Promise<{ percentage: number | null; textSnippet: string }> {
+  try {
+    const pdf = await getDocument({ data: new Uint8Array(pdfBuffer), useSystemFonts: true }).promise;
+    
+    // Only read page 2 (index 1)
+    if (pdf.numPages < 2) {
+      console.log('PDF has less than 2 pages, cannot analyze');
+      return { percentage: null, textSnippet: 'insufficient pages' };
+    }
+    
+    const page = await pdf.getPage(2);
+    const textContent = await page.getTextContent();
+    // deno-lint-ignore no-explicit-any
+    const text = (textContent.items as any[])
+      .map((item) => item.str || '')
+      .join(' ')
+      .toLowerCase();
+    
+    console.log('Page 2 text excerpt:', text.substring(0, 500));
+    
+    // Extract similarity percentage
+    let percentage: number | null = null;
+    
+    // Patterns to match similarity percentage
+    const patterns = [
+      /(\d+(?:\.\d+)?)\s*%\s*(?:overall\s+)?similarity/i,
+      /overall\s*similarity[:\s]*(\d+(?:\.\d+)?)\s*%/i,
+      /similarity\s*index[:\s]*(\d+(?:\.\d+)?)\s*%/i,
+      /(\d+(?:\.\d+)?)\s*%\s*matching/i,
+    ];
+    
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) {
+        percentage = parseFloat(match[1]);
+        break;
+      }
+    }
+    
+    return { percentage, textSnippet: text.substring(0, 200) };
+  } catch (error) {
+    console.error('PDF analysis error:', error);
+    return { percentage: null, textSnippet: 'error: ' + (error as Error).message };
+  }
+}
+
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -54,7 +114,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get authorization header
+    // Verify authorization
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -63,7 +123,6 @@ serve(async (req) => {
       });
     }
 
-    // Verify user and check role
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
@@ -74,220 +133,262 @@ serve(async (req) => {
       });
     }
 
-    // Check if user is admin or staff
+    // Check role
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
       .single();
 
-    if (!roleData || !['admin', 'staff'].includes(roleData.role)) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+    if (!roleData || (roleData.role !== 'admin' && roleData.role !== 'staff')) {
+      return new Response(JSON.stringify({ error: 'Forbidden - Admin/Staff only' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const formData = await req.formData();
-    const files = formData.getAll('files') as File[];
+    const { reports } = await req.json() as { reports: ReportFile[] };
 
-    if (!files || files.length === 0) {
-      return new Response(JSON.stringify({ error: 'No files provided' }), {
+    if (!reports || !Array.isArray(reports) || reports.length === 0) {
+      return new Response(JSON.stringify({ error: 'No reports provided' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const results: ReportResult[] = [];
-    let mappedCount = 0;
-    let unmatchedCount = 0;
-    let completedCount = 0;
+    console.log(`Processing ${reports.length} similarity reports with PDF analysis`);
 
-    // Fetch all queued/processing items from similarity_queue for matching
-    const { data: queueItems } = await supabase
-      .from('similarity_queue')
-      .select('id, original_filename, normalized_filename, report_path, queue_status')
-      .in('queue_status', ['queued', 'processing']);
+    // Fetch pending/in_progress documents with scan_type = 'similarity_only'
+    const { data: documents, error: docError } = await supabase
+      .from('documents')
+      .select('id, file_name, normalized_filename, user_id, similarity_report_path, status')
+      .eq('scan_type', 'similarity_only')
+      .in('status', ['pending', 'in_progress']);
 
-    interface QueueRecord {
-      id: string;
-      original_filename: string;
-      normalized_filename: string;
-      report_path: string | null;
-      queue_status: string;
+    if (docError) {
+      console.error('Error fetching documents:', docError);
+      throw new Error('Failed to fetch documents');
     }
 
-    const queueMap = new Map<string, QueueRecord>();
-    if (queueItems) {
-      for (const item of queueItems as QueueRecord[]) {
-        const normalizedKey = item.normalized_filename || normalizeFilename(item.original_filename);
-        queueMap.set(normalizedKey, item);
+    console.log(`Found ${documents?.length || 0} eligible similarity-only documents`);
+
+    // Group documents by normalized filename
+    const docsByNormalized = new Map<string, typeof documents>();
+    for (const doc of documents || []) {
+      const normalized = doc.normalized_filename || getDocumentBaseName(doc.file_name);
+      if (!docsByNormalized.has(normalized)) {
+        docsByNormalized.set(normalized, []);
       }
+      docsByNormalized.get(normalized)!.push(doc);
     }
 
-    for (const file of files) {
-      try {
-        // Only process PDF files
-        if (!file.name.toLowerCase().endsWith('.pdf')) {
-          results.push({
-            fileName: file.name,
-            status: 'error',
-            error: 'Not a PDF file',
-          });
-          continue;
-        }
+    const result: ProcessingResult = {
+      success: true,
+      mapped: [],
+      unmatched: [],
+      completedDocuments: [],
+      stats: {
+        totalReports: reports.length,
+        mappedCount: 0,
+        unmatchedCount: 0,
+        completedCount: 0,
+      },
+    };
 
-        const normalizedKey = normalizeFilename(file.name);
-        const matchedItem = queueMap.get(normalizedKey);
+    // Process each report
+    for (const report of reports) {
+      const normalizedFilename = normalizeFilename(report.fileName);
+      console.log(`Processing: ${report.fileName} -> normalized: ${normalizedFilename}`);
 
-        // Read file for percentage extraction
-        const arrayBuffer = await file.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        
-        // Try to extract text from PDF for percentage
-        let percentage: number | null = null;
-        try {
-          // Import pdfjs-serverless dynamically
-          const pdfjsModule = await import("https://esm.sh/pdfjs-serverless@0.4.1");
-          const pdfjsLib = await pdfjsModule.resolvePDFJS();
-          const pdf = await pdfjsLib.getDocument({ data: uint8Array }).promise;
-          
-          // Read ONLY page 2
-          if (pdf.numPages >= 2) {
-            const page = await pdf.getPage(2);
-            const textContent = await page.getTextContent();
-            const text = textContent.items
-              .filter((item: any) => 'str' in item)
-              .map((item: any) => item.str)
-              .join(' ');
-            
-            percentage = extractSimilarityPercentage(text);
-            console.log(`Extracted percentage from ${file.name}: ${percentage}`);
-          }
-        } catch (pdfError) {
-          console.error(`PDF parsing error for ${file.name}:`, pdfError);
-          // Continue without percentage extraction
-        }
+      // Download PDF from storage for analysis
+      const { data: pdfData, error: downloadError } = await supabase.storage
+        .from('reports')
+        .download(report.filePath);
 
-        if (matchedItem) {
-          // Upload report to storage
-          const reportPath = `similarity-queue/${matchedItem.id}/report_${Date.now()}_${file.name}`;
-          const { error: uploadError } = await supabase.storage
-            .from('reports')
-            .upload(reportPath, uint8Array, {
-              contentType: 'application/pdf',
-            });
+      let percentage: number | null = null;
+      
+      if (downloadError) {
+        console.error(`Failed to download PDF ${report.filePath}:`, downloadError);
+      } else {
+        // Analyze PDF page 2
+        const buffer = await pdfData.arrayBuffer();
+        const analysis = await analyzePdfPage2(buffer);
+        percentage = analysis.percentage;
+        console.log(`Analysis result for ${report.fileName}: percentage=${percentage}`);
+      }
 
-          if (uploadError) {
-            console.error(`Upload error for ${file.name}:`, uploadError);
-            results.push({
-              fileName: file.name,
-              status: 'error',
-              error: uploadError.message,
-            });
-            continue;
-          }
+      // Find matching documents
+      const matchingDocs = docsByNormalized.get(normalizedFilename) || [];
 
-          // Update similarity_queue item with report
-          const updateData: Record<string, any> = {
-            report_path: reportPath,
-            queue_status: 'completed',
-            processed_at: new Date().toISOString(),
-          };
-
-          if (percentage !== null) {
-            updateData.similarity_percentage = percentage;
-          }
-
-          const { error: updateError } = await supabase
-            .from('similarity_queue')
-            .update(updateData)
-            .eq('id', matchedItem.id);
-
-          if (updateError) {
-            console.error(`Update error for ${file.name}:`, updateError);
-            results.push({
-              fileName: file.name,
-              status: 'error',
-              error: updateError.message,
-            });
-            continue;
-          }
-
-          results.push({
-            fileName: file.name,
-            status: 'mapped',
-            documentId: matchedItem.id,
-            percentage: percentage ?? undefined,
-          });
-          mappedCount++;
-          completedCount++;
-
-          // Remove from map to prevent duplicate matches
-          queueMap.delete(normalizedKey);
-        } else {
-          // No match found - store as unmatched
-          const unmatchedPath = `unmatched/${Date.now()}_${file.name}`;
-          const { error: uploadError } = await supabase.storage
-            .from('reports')
-            .upload(unmatchedPath, uint8Array, {
-              contentType: 'application/pdf',
-            });
-
-          if (uploadError) {
-            console.error(`Unmatched upload error for ${file.name}:`, uploadError);
-            results.push({
-              fileName: file.name,
-              status: 'error',
-              error: uploadError.message,
-            });
-            continue;
-          }
-
-          // Insert into unmatched_reports
-          await supabase.from('unmatched_reports').insert({
-            file_name: file.name,
-            normalized_filename: normalizedKey,
-            file_path: unmatchedPath,
-            report_type: 'similarity',
-            similarity_percentage: percentage,
-            uploaded_by: user.id,
-          });
-
-          results.push({
-            fileName: file.name,
-            status: 'unmatched',
-            percentage: percentage ?? undefined,
-          });
-          unmatchedCount++;
-        }
-      } catch (fileError) {
-        console.error(`Error processing ${file.name}:`, fileError);
-        results.push({
-          fileName: file.name,
-          status: 'error',
-          error: fileError instanceof Error ? fileError.message : 'Unknown error',
+      // Case 1: No matching documents
+      if (matchingDocs.length === 0) {
+        result.unmatched.push({
+          fileName: report.fileName,
+          normalizedFilename,
+          filePath: report.filePath,
+          reason: 'No matching document found',
         });
+
+        await supabase.from('unmatched_reports').insert({
+          file_name: report.fileName,
+          normalized_filename: normalizedFilename,
+          file_path: report.filePath,
+          report_type: 'similarity',
+          similarity_percentage: percentage,
+          uploaded_by: user.id,
+        });
+        continue;
+      }
+
+      // Case 2: Multiple matching documents - ambiguous
+      if (matchingDocs.length > 1) {
+        result.unmatched.push({
+          fileName: report.fileName,
+          normalizedFilename,
+          filePath: report.filePath,
+          reason: 'Multiple matching documents - ambiguous',
+        });
+
+        await supabase.from('unmatched_reports').insert({
+          file_name: report.fileName,
+          normalized_filename: normalizedFilename,
+          file_path: report.filePath,
+          report_type: 'similarity',
+          similarity_percentage: percentage,
+          uploaded_by: user.id,
+        });
+        continue;
+      }
+
+      // Case 3: Exactly one matching document
+      const doc = matchingDocs[0];
+
+      // Check if document already has a similarity report
+      if (doc.similarity_report_path) {
+        result.unmatched.push({
+          fileName: report.fileName,
+          normalizedFilename,
+          filePath: report.filePath,
+          reason: 'Document already has a similarity report',
+        });
+
+        await supabase.from('unmatched_reports').insert({
+          file_name: report.fileName,
+          normalized_filename: normalizedFilename,
+          file_path: report.filePath,
+          report_type: 'similarity',
+          similarity_percentage: percentage,
+          uploaded_by: user.id,
+        });
+        continue;
+      }
+
+      // Update document with report - for similarity_only, adding the report completes it
+      const updateData: Record<string, unknown> = {
+        similarity_report_path: report.filePath,
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+      };
+      
+      if (percentage !== null) {
+        updateData.similarity_percentage = percentage;
+      }
+
+      const { error: updateError } = await supabase
+        .from('documents')
+        .update(updateData)
+        .eq('id', doc.id);
+
+      if (updateError) {
+        console.error(`Error updating document ${doc.id}:`, updateError);
+        result.unmatched.push({
+          fileName: report.fileName,
+          normalizedFilename,
+          filePath: report.filePath,
+          reason: 'Failed to update document: ' + updateError.message,
+        });
+        continue;
+      }
+
+      result.mapped.push({
+        documentId: doc.id,
+        fileName: report.fileName,
+        percentage,
+        success: true,
+      });
+      result.stats.mappedCount++;
+      result.completedDocuments.push(doc.id);
+      result.stats.completedCount++;
+
+      // Update local doc reference for subsequent reports
+      doc.similarity_report_path = report.filePath;
+    }
+
+    // Calculate final stats
+    result.stats.unmatchedCount = result.unmatched.length;
+
+    // Send notifications for completed documents
+    for (const docId of result.completedDocuments) {
+      const { data: completedDoc } = await supabase
+        .from('documents')
+        .select('id, file_name, user_id')
+        .eq('id', docId)
+        .single();
+
+      if (completedDoc?.user_id) {
+        // Create notification
+        await supabase.from('user_notifications').insert({
+          user_id: completedDoc.user_id,
+          title: 'Similarity Report Ready',
+          message: `Your similarity report for "${completedDoc.file_name}" is ready for download.`,
+          created_by: user.id,
+        });
+
+        // Send push notification
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              userId: completedDoc.user_id,
+              title: 'Similarity Report Ready',
+              body: `Your report for "${completedDoc.file_name}" is ready!`,
+              url: '/my-documents',
+            }),
+          });
+        } catch (e) {
+          console.error('Push notification failed:', e);
+        }
+
+        // Send completion email
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/send-completion-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              documentId: docId,
+              userId: completedDoc.user_id,
+              fileName: completedDoc.file_name,
+            }),
+          });
+        } catch (e) {
+          console.error('Completion email failed:', e);
+        }
       }
     }
 
-    console.log(`Processed ${files.length} files: ${mappedCount} mapped, ${unmatchedCount} unmatched, ${completedCount} completed`);
+    console.log(`Processing complete: ${result.stats.mappedCount} mapped, ${result.stats.unmatchedCount} unmatched, ${result.stats.completedCount} completed`);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        results,
-        summary: {
-          total: files.length,
-          mapped: mappedCount,
-          unmatched: unmatchedCount,
-          completed: completedCount,
-        },
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
   } catch (error) {
     console.error('Error in process-similarity-bulk-reports:', error);
     return new Response(
