@@ -410,19 +410,8 @@ export const useMagicLinks = () => {
         .eq('file_path', filePath)
         .eq('magic_link_id', magicLinkId);
 
-      // Decrement upload count
-      const { data: linkData } = await supabase
-        .from('magic_upload_links')
-        .select('current_uploads')
-        .eq('id', magicLinkId)
-        .single();
-
-      if (linkData && linkData.current_uploads > 0) {
-        await supabase
-          .from('magic_upload_links')
-          .update({ current_uploads: linkData.current_uploads - 1 })
-          .eq('id', magicLinkId);
-      }
+      // NOTE: We intentionally do NOT decrement upload count
+      // This prevents users from reusing credits after deleting files
 
       await fetchMagicLinks();
 
@@ -520,19 +509,8 @@ export const useMagicLinks = () => {
         });
       }
 
-      // Decrement upload count
-      const { data: linkData } = await supabase
-        .from('magic_upload_links')
-        .select('current_uploads')
-        .eq('id', magicLinkId)
-        .single();
-
-      if (linkData && linkData.current_uploads > 0) {
-        await supabase
-          .from('magic_upload_links')
-          .update({ current_uploads: linkData.current_uploads - 1 })
-          .eq('id', magicLinkId);
-      }
+      // NOTE: We intentionally do NOT decrement upload count
+      // This prevents users from reusing credits after deleting files
 
       toast({
         title: 'File deleted',
