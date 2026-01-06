@@ -486,11 +486,16 @@ export const useMagicLinks = () => {
   ): Promise<boolean> => {
     try {
       // Fetch document details BEFORE deleting for logging
-      const { data: docData } = await supabase
+      // Use maybeSingle to avoid errors if document not found
+      const { data: docData, error: fetchError } = await supabase
         .from('documents')
         .select('*')
         .eq('id', documentId)
-        .single();
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error('Error fetching document for logging:', fetchError);
+      }
 
       // Delete original file from storage
       const { error: storageError } = await supabase.storage
@@ -529,28 +534,34 @@ export const useMagicLinks = () => {
         .delete()
         .eq('id', documentId);
 
-      if (docError) throw docError;
+      if (docError) {
+        console.error('Error deleting document:', docError);
+        // Continue anyway - we still want to log the deletion attempt
+      }
 
       // Log the deletion for admin tracking (NO credit refund for guests)
-      if (docData) {
-        await supabase.from('deleted_documents_log').insert({
-          original_document_id: documentId,
-          user_id: null,
-          magic_link_id: magicLinkId,
-          file_name: docData.file_name,
-          file_path: filePath,
-          scan_type: docData.scan_type || 'similarity_only',
-          similarity_percentage: docData.similarity_percentage,
-          ai_percentage: docData.ai_percentage,
-          similarity_report_path: similarityReportPath,
-          ai_report_path: aiReportPath,
-          remarks: docData.remarks,
-          uploaded_at: docData.uploaded_at,
-          completed_at: docData.completed_at,
-          deleted_by_type: 'guest',
-          customer_email: null,
-          customer_name: null,
-        });
+      // Always log, even if docData couldn't be fetched
+      const { error: logError } = await supabase.from('deleted_documents_log').insert({
+        original_document_id: documentId,
+        user_id: null,
+        magic_link_id: magicLinkId,
+        file_name: docData?.file_name || 'Unknown file',
+        file_path: filePath,
+        scan_type: docData?.scan_type || 'full',
+        similarity_percentage: docData?.similarity_percentage,
+        ai_percentage: docData?.ai_percentage,
+        similarity_report_path: similarityReportPath,
+        ai_report_path: aiReportPath,
+        remarks: docData?.remarks,
+        uploaded_at: docData?.uploaded_at,
+        completed_at: docData?.completed_at,
+        deleted_by_type: 'guest',
+        customer_email: null,
+        customer_name: null,
+      });
+
+      if (logError) {
+        console.error('Error logging deletion:', logError);
       }
 
       // NOTE: We intentionally do NOT decrement upload count
