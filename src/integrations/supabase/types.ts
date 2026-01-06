@@ -1621,48 +1621,6 @@ export type Database = {
         }
         Relationships: []
       }
-      similarity_queue: {
-        Row: {
-          id: string
-          needs_review: boolean | null
-          normalized_filename: string
-          original_filename: string
-          processed_at: string | null
-          queue_status: Database["public"]["Enums"]["similarity_queue_status"]
-          report_path: string
-          review_reason: string | null
-          similarity_percentage: number | null
-          uploaded_at: string | null
-          uploaded_by: string | null
-        }
-        Insert: {
-          id?: string
-          needs_review?: boolean | null
-          normalized_filename: string
-          original_filename: string
-          processed_at?: string | null
-          queue_status?: Database["public"]["Enums"]["similarity_queue_status"]
-          report_path: string
-          review_reason?: string | null
-          similarity_percentage?: number | null
-          uploaded_at?: string | null
-          uploaded_by?: string | null
-        }
-        Update: {
-          id?: string
-          needs_review?: boolean | null
-          normalized_filename?: string
-          original_filename?: string
-          processed_at?: string | null
-          queue_status?: Database["public"]["Enums"]["similarity_queue_status"]
-          report_path?: string
-          review_reason?: string | null
-          similarity_percentage?: number | null
-          uploaded_at?: string | null
-          uploaded_by?: string | null
-        }
-        Relationships: []
-      }
       site_content: {
         Row: {
           content_key: string
@@ -2265,7 +2223,6 @@ export type Database = {
     Enums: {
       app_role: "admin" | "staff" | "customer"
       document_status: "pending" | "in_progress" | "completed"
-      similarity_queue_status: "queued" | "processing" | "completed" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2395,7 +2352,6 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "staff", "customer"],
       document_status: ["pending", "in_progress", "completed"],
-      similarity_queue_status: ["queued", "processing", "completed", "failed"],
     },
   },
 } as const
