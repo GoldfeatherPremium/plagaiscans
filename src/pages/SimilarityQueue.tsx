@@ -749,9 +749,13 @@ const SimilarityQueue: React.FC = () => {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant={doc.similarity_percentage && doc.similarity_percentage > 20 ? 'destructive' : 'secondary'}>
-                                {doc.similarity_percentage !== null ? `${doc.similarity_percentage}%` : 'N/A'}
-                              </Badge>
+                              {doc.similarity_percentage !== null && doc.similarity_percentage !== undefined ? (
+                                <Badge variant={doc.similarity_percentage > 20 ? 'destructive' : 'secondary'}>
+                                  {doc.similarity_percentage}%
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground">N/A</span>
+                              )}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {doc.completed_at ? formatDateTime(doc.completed_at) : '-'}

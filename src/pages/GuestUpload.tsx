@@ -573,7 +573,7 @@ export default function GuestUpload() {
                                     {file.similarity_percentage}%
                                   </Badge>
                                 ) : (
-                                  <span className="text-muted-foreground">-</span>
+                                  <span className="text-muted-foreground">N/A</span>
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
@@ -582,7 +582,7 @@ export default function GuestUpload() {
                                     {file.ai_percentage}%
                                   </Badge>
                                 ) : (
-                                  <span className="text-muted-foreground">-</span>
+                                  <span className="text-muted-foreground">N/A</span>
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
