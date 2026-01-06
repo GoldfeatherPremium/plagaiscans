@@ -410,55 +410,44 @@ export const useDocuments = () => {
   };
 
   const downloadFile = async (path: string, bucket: string = 'documents', originalFileName?: string) => {
-    const maxRetries = 3;
-    let lastError: Error | null = null;
+    try {
+      // Auto-detect bucket for guest/magic-link uploads
+      const effectiveBucket = bucket === 'documents' && path.startsWith('magic/') ? 'magic-uploads' : bucket;
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        // Auto-detect bucket for guest/magic-link uploads
-        const effectiveBucket = bucket === 'documents' && path.startsWith('magic/') ? 'magic-uploads' : bucket;
+      const { data, error } = await supabase.storage
+        .from(effectiveBucket)
+        .createSignedUrl(path, 300);
 
-        // Longer expiry (1 hour) for slow networks
-        const { data, error } = await supabase.storage
-          .from(effectiveBucket)
-          .createSignedUrl(path, 3600);
+      if (error) throw error;
 
-        if (error) throw error;
-
-        // Use direct link download for better reliability on slow networks
-        const link = document.createElement('a');
-        link.href = data.signedUrl;
-        link.download = originalFileName || path.split('/').pop() || 'download';
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        
-        // Cleanup
-        setTimeout(() => {
-          document.body.removeChild(link);
-        }, 100);
-        
-        return; // Success - exit function
-      } catch (error) {
-        lastError = error as Error;
-        console.error(`Download attempt ${attempt} failed:`, error);
-        
-        if (attempt < maxRetries) {
-          // Wait before retry (exponential backoff)
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-        }
-      }
+      // Fetch the file as blob to force download
+      const response = await fetch(data.signedUrl);
+      if (!response.ok) throw new Error('Failed to fetch file');
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Create anchor and force download
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = originalFileName || path.split('/').pop() || 'download';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      }, 100);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to download file',
+        variant: 'destructive',
+      });
     }
-    
-    // All retries failed
-    console.error('All download attempts failed:', lastError);
-    toast({
-      title: 'Download Failed',
-      description: 'Please check your internet connection and try again.',
-      variant: 'destructive',
-    });
   };
 
   const updateDocumentStatus = async (
