@@ -21,6 +21,7 @@ import {
   MessageCircle,
   Clock,
   XCircle,
+  Trash2,
 } from 'lucide-react';
 import {
   Table,
@@ -31,6 +32,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface PricingPackage {
   id: string;
@@ -42,7 +53,7 @@ export default function GuestUpload() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   
-  const { validateMagicLink, validateMagicLinkForAccess, uploadFileWithMagicLink, getFilesByToken, downloadMagicFile } = useMagicLinks();
+  const { validateMagicLink, validateMagicLinkForAccess, uploadFileWithMagicLink, getFilesByToken, downloadMagicFile, deleteGuestDocument } = useMagicLinks();
   
   const [linkData, setLinkData] = useState<MagicUploadLink | null>(null);
   const [files, setFiles] = useState<MagicUploadFile[]>([]);
@@ -61,6 +72,10 @@ export default function GuestUpload() {
 
   const [packages, setPackages] = useState<PricingPackage[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
+  
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<MagicUploadFile | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Validate token on mount
   useEffect(() => {
@@ -177,6 +192,35 @@ export default function GuestUpload() {
   const openWhatsApp = (credits: number) => {
     const message = encodeURIComponent(`Hello! I'm interested in purchasing ${credits} credits for PlagaiScans.`);
     window.open(`https://wa.me/?text=${message}`, '_blank');
+  };
+
+  const handleDeleteClick = (file: MagicUploadFile) => {
+    setFileToDelete(file);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!fileToDelete || !linkData) return;
+    
+    setIsDeleting(true);
+    const success = await deleteGuestDocument(
+      fileToDelete.id,
+      fileToDelete.file_path,
+      linkData.id,
+      fileToDelete.similarity_report_path,
+      fileToDelete.ai_report_path
+    );
+    
+    if (success) {
+      await refreshFiles();
+      // Refresh link data to update upload count
+      const data = await validateMagicLinkForAccess(token!);
+      setLinkData(data);
+    }
+    
+    setIsDeleting(false);
+    setDeleteDialogOpen(false);
+    setFileToDelete(null);
   };
 
   // Show loading state
@@ -482,6 +526,7 @@ export default function GuestUpload() {
                           <TableHead className="text-center">Similarity Report</TableHead>
                           <TableHead className="text-center">AI Report</TableHead>
                           <TableHead>Remarks</TableHead>
+                          <TableHead className="text-center">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -565,6 +610,21 @@ export default function GuestUpload() {
                                   <span className="text-sm text-muted-foreground">Processing...</span>
                                 ) : (
                                   <span className="text-sm text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {status === 'completed' ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                                    onClick={() => handleDeleteClick(file)}
+                                    title="Delete document permanently"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
                                 )}
                               </TableCell>
                             </TableRow>
@@ -728,6 +788,28 @@ export default function GuestUpload() {
           </p>
         </div>
       </footer>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Document Permanently?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{fileToDelete?.file_name}" and all associated reports. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

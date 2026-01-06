@@ -443,6 +443,85 @@ export const useMagicLinks = () => {
     }
   };
 
+  // Delete a completed document for guests (customer-facing)
+  const deleteGuestDocument = async (
+    documentId: string, 
+    filePath: string, 
+    magicLinkId: string,
+    similarityReportPath?: string | null,
+    aiReportPath?: string | null
+  ): Promise<boolean> => {
+    try {
+      // Delete original file from storage
+      const { error: storageError } = await supabase.storage
+        .from('magic-uploads')
+        .remove([filePath]);
+
+      if (storageError) {
+        console.error('Storage delete error:', storageError);
+      }
+
+      // Delete similarity report if exists
+      if (similarityReportPath) {
+        const { error: simError } = await supabase.storage
+          .from('reports')
+          .remove([similarityReportPath]);
+        if (simError) console.error('Error deleting similarity report:', simError);
+      }
+
+      // Delete AI report if exists
+      if (aiReportPath) {
+        const { error: aiError } = await supabase.storage
+          .from('reports')
+          .remove([aiReportPath]);
+        if (aiError) console.error('Error deleting AI report:', aiError);
+      }
+
+      // Delete from magic_upload_files table
+      await supabase
+        .from('magic_upload_files')
+        .delete()
+        .eq('file_path', filePath);
+
+      // Delete document record
+      const { error: docError } = await supabase
+        .from('documents')
+        .delete()
+        .eq('id', documentId);
+
+      if (docError) throw docError;
+
+      // Decrement upload count
+      const { data: linkData } = await supabase
+        .from('magic_upload_links')
+        .select('current_uploads')
+        .eq('id', magicLinkId)
+        .single();
+
+      if (linkData && linkData.current_uploads > 0) {
+        await supabase
+          .from('magic_upload_links')
+          .update({ current_uploads: linkData.current_uploads - 1 })
+          .eq('id', magicLinkId);
+      }
+
+      toast({
+        title: 'File deleted',
+        description: 'Document and reports have been permanently removed.',
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting guest document:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete file',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchMagicLinks();
   }, []);
@@ -461,5 +540,6 @@ export const useMagicLinks = () => {
     getFilesByToken,
     downloadMagicFile,
     deleteMagicFile,
+    deleteGuestDocument,
   };
 };
