@@ -10,7 +10,6 @@ interface ReportResult {
   fileName: string;
   status: 'mapped' | 'unmatched' | 'error';
   documentId?: string;
-  percentage?: number;
   error?: string;
 }
 
@@ -26,30 +25,14 @@ function normalizeFilename(filename: string): string {
   return result;
 }
 
-// Extract percentage from text
-function extractSimilarityPercentage(text: string): number | null {
-  // Pattern: "XX% overall similarity" or "XX % overall similarity"
-  const patterns = [
-    /(\d+(?:\.\d+)?)\s*%\s*overall\s*similarity/i,
-    /overall\s*similarity[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /similarity[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-  ];
-  
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match) {
-      return parseFloat(match[1]);
-    }
-  }
-  return null;
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log('Starting process-similarity-bulk-reports...');
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -57,6 +40,7 @@ serve(async (req) => {
     // Get authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.log('No auth header');
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -68,6 +52,7 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
+      console.log('Auth error:', authError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -82,21 +67,27 @@ serve(async (req) => {
       .single();
 
     if (!roleData || !['admin', 'staff'].includes(roleData.role)) {
+      console.log('Forbidden - role:', roleData?.role);
       return new Response(JSON.stringify({ error: 'Forbidden' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    console.log('User authenticated:', user.id, 'Role:', roleData.role);
+
     const formData = await req.formData();
     const files = formData.getAll('files') as File[];
 
     if (!files || files.length === 0) {
+      console.log('No files provided');
       return new Response(JSON.stringify({ error: 'No files provided' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    console.log(`Processing ${files.length} files`);
 
     const results: ReportResult[] = [];
     let mappedCount = 0;
@@ -104,11 +95,18 @@ serve(async (req) => {
     let completedCount = 0;
 
     // Fetch all similarity_only pending/in_progress documents for matching
-    const { data: documents } = await supabase
+    const { data: documents, error: docError } = await supabase
       .from('documents')
       .select('id, file_name, normalized_filename, similarity_report_path, status')
       .eq('scan_type', 'similarity_only')
       .in('status', ['pending', 'in_progress']);
+
+    if (docError) {
+      console.error('Error fetching documents:', docError);
+      throw new Error('Failed to fetch documents');
+    }
+
+    console.log(`Found ${documents?.length || 0} similarity_only documents to match against`);
 
     interface DocRecord {
       id: string;
@@ -123,13 +121,17 @@ serve(async (req) => {
       for (const doc of documents as DocRecord[]) {
         const normalizedKey = doc.normalized_filename || normalizeFilename(doc.file_name);
         docMap.set(normalizedKey, doc);
+        console.log(`Document key: "${normalizedKey}" -> ${doc.id}`);
       }
     }
 
     for (const file of files) {
       try {
+        console.log(`Processing file: ${file.name}`);
+        
         // Only process PDF files
         if (!file.name.toLowerCase().endsWith('.pdf')) {
+          console.log(`Skipping non-PDF file: ${file.name}`);
           results.push({
             fileName: file.name,
             status: 'error',
@@ -139,38 +141,17 @@ serve(async (req) => {
         }
 
         const normalizedKey = normalizeFilename(file.name);
+        console.log(`Normalized key for ${file.name}: "${normalizedKey}"`);
+        
         const matchedDoc = docMap.get(normalizedKey);
 
-        // Read file for percentage extraction
+        // Read file as bytes
         const arrayBuffer = await file.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
-        
-        // Try to extract text from PDF for percentage
-        let percentage: number | null = null;
-        try {
-          // Import pdfjs-serverless dynamically
-          const pdfjsModule = await import("https://esm.sh/pdfjs-serverless@0.4.1");
-          const pdfjsLib = await pdfjsModule.resolvePDFJS();
-          const pdf = await pdfjsLib.getDocument({ data: uint8Array }).promise;
-          
-          // Read ONLY page 2
-          if (pdf.numPages >= 2) {
-            const page = await pdf.getPage(2);
-            const textContent = await page.getTextContent();
-            const text = textContent.items
-              .filter((item: any) => 'str' in item)
-              .map((item: any) => item.str)
-              .join(' ');
-            
-            percentage = extractSimilarityPercentage(text);
-            console.log(`Extracted percentage from ${file.name}: ${percentage}`);
-          }
-        } catch (pdfError) {
-          console.error(`PDF parsing error for ${file.name}:`, pdfError);
-          // Continue without percentage extraction
-        }
 
         if (matchedDoc) {
+          console.log(`Match found for ${file.name} -> Document ${matchedDoc.id}`);
+          
           // Upload report to storage
           const reportPath = `${matchedDoc.id}/similarity_${Date.now()}_${file.name}`;
           const { error: uploadError } = await supabase.storage
@@ -189,6 +170,8 @@ serve(async (req) => {
             continue;
           }
 
+          console.log(`Uploaded report to: ${reportPath}`);
+
           // Update document with report
           const updateData: Record<string, any> = {
             similarity_report_path: reportPath,
@@ -197,10 +180,6 @@ serve(async (req) => {
             assigned_staff_id: user.id,
             assigned_at: new Date().toISOString(),
           };
-
-          if (percentage !== null) {
-            updateData.similarity_percentage = percentage;
-          }
 
           const { error: updateError } = await supabase
             .from('documents')
@@ -217,6 +196,8 @@ serve(async (req) => {
             continue;
           }
 
+          console.log(`Updated document ${matchedDoc.id} to completed`);
+
           // Log activity
           await supabase.from('activity_logs').insert({
             staff_id: user.id,
@@ -228,7 +209,6 @@ serve(async (req) => {
             fileName: file.name,
             status: 'mapped',
             documentId: matchedDoc.id,
-            percentage: percentage ?? undefined,
           });
           mappedCount++;
           completedCount++;
@@ -236,8 +216,10 @@ serve(async (req) => {
           // Remove from map to prevent duplicate matches
           docMap.delete(normalizedKey);
         } else {
+          console.log(`No match found for ${file.name} with key "${normalizedKey}"`);
+          
           // No match found - store as unmatched
-          const unmatchedPath = `unmatched/${Date.now()}_${file.name}`;
+          const unmatchedPath = `unmatched/similarity_${Date.now()}_${file.name}`;
           const { error: uploadError } = await supabase.storage
             .from('reports')
             .upload(unmatchedPath, uint8Array, {
@@ -255,19 +237,21 @@ serve(async (req) => {
           }
 
           // Insert into unmatched_reports
-          await supabase.from('unmatched_reports').insert({
+          const { error: insertError } = await supabase.from('unmatched_reports').insert({
             file_name: file.name,
             normalized_filename: normalizedKey,
             file_path: unmatchedPath,
             report_type: 'similarity',
-            similarity_percentage: percentage,
             uploaded_by: user.id,
           });
+
+          if (insertError) {
+            console.error(`Insert unmatched error for ${file.name}:`, insertError);
+          }
 
           results.push({
             fileName: file.name,
             status: 'unmatched',
-            percentage: percentage ?? undefined,
           });
           unmatchedCount++;
         }
@@ -281,7 +265,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Processed ${files.length} files: ${mappedCount} mapped, ${unmatchedCount} unmatched, ${completedCount} completed`);
+    console.log(`Completed: ${mappedCount} mapped, ${unmatchedCount} unmatched, ${completedCount} completed`);
 
     return new Response(
       JSON.stringify({
