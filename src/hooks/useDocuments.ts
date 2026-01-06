@@ -534,8 +534,8 @@ export const useDocuments = () => {
               userId: documentUserId,
               documentId: documentId,
               fileName: fileName,
-              similarityPercentage: updates?.similarity_percentage ?? 0,
-              aiPercentage: updates?.ai_percentage ?? 0,
+              similarityPercentage: updates?.similarity_percentage ?? null,
+              aiPercentage: updates?.ai_percentage ?? null,
             },
           });
           
@@ -595,8 +595,8 @@ export const useDocuments = () => {
     document: Document,
     similarityReport: File | null,
     aiReport: File | null,
-    similarityPercentage: number,
-    aiPercentage: number,
+    similarityPercentage: number | null,
+    aiPercentage: number | null,
     remarks?: string | null
   ) => {
     if (!user) return;
