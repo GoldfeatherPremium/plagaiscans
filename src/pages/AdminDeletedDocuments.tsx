@@ -51,31 +51,54 @@ export default function AdminDeletedDocuments() {
 
   const fetchDeletedLogs = async () => {
     setLoading(true);
-    
-    // Fetch deleted documents with magic link tokens
+
+    // Fetch deleted documents
     const { data, error } = await supabase
       .from('deleted_documents_log')
-      .select(`
-        *,
-        magic_upload_links:magic_link_id (
-          token
-        )
-      `)
+      .select('*')
       .order('deleted_at', { ascending: false })
       .limit(500);
 
     if (error) {
       console.error('Error fetching deleted documents:', error);
       setLogs([]);
-    } else {
-      // Transform data to include magic_link_token
-      const transformedData = (data || []).map((log: any) => ({
-        ...log,
-        magic_link_token: log.magic_upload_links?.token || null,
-      }));
-      setLogs(transformedData);
+      setLoading(false);
+      return;
     }
-    
+
+    const logsData = (data || []) as DeletedDocument[];
+
+    // Fetch magic link tokens separately (no FK relation exists for embedded select)
+    const magicLinkIds = Array.from(
+      new Set(logsData.map(l => l.magic_link_id).filter(Boolean))
+    ) as string[];
+
+    if (magicLinkIds.length === 0) {
+      setLogs(logsData);
+      setLoading(false);
+      return;
+    }
+
+    const { data: linksData, error: linksError } = await supabase
+      .from('magic_upload_links')
+      .select('id, token')
+      .in('id', magicLinkIds);
+
+    if (linksError) {
+      console.error('Error fetching magic link tokens:', linksError);
+      setLogs(logsData);
+      setLoading(false);
+      return;
+    }
+
+    const tokenById = new Map((linksData || []).map(l => [l.id, l.token]));
+
+    const transformed = logsData.map(l => ({
+      ...l,
+      magic_link_token: l.magic_link_id ? (tokenById.get(l.magic_link_id) ?? null) : null,
+    }));
+
+    setLogs(transformed);
     setLoading(false);
   };
 
