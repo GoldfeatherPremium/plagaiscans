@@ -125,64 +125,80 @@ const AdminSimilarityBulkUpload: React.FC = () => {
     // Update all files to uploading status
     setFiles(prev => prev.map(f => ({ ...f, status: 'uploading' as const })));
 
-    // Simulate progress while processing
-    const progressInterval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 90) return prev;
-        return prev + Math.random() * 15;
-      });
-    }, 500);
-
+    // Upload to storage first (client-side) to avoid edge-function memory limits
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        clearInterval(progressInterval);
         toast({ title: 'Error', description: 'Not authenticated', variant: 'destructive' });
         setProcessing(false);
         return;
       }
 
-      const formData = new FormData();
-      files.forEach(({ file }) => {
-        formData.append('files', file);
-      });
+      const userId = session.user.id;
+      const uploadPrefix = `bulk/similarity/${userId}/${Date.now()}`;
 
-      // Use fetch directly for FormData - supabase.functions.invoke doesn't handle it properly
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const response = await fetch(`${supabaseUrl}/functions/v1/process-similarity-bulk-reports`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: formData,
-      });
+      const uploaded: { fileName: string; filePath: string }[] = [];
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: response.statusText }));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+      for (let i = 0; i < files.length; i++) {
+        const { file } = files[i];
+
+        try {
+          const filePath = `${uploadPrefix}/${file.name}`;
+          const { error: uploadError } = await supabase.storage
+            .from('reports')
+            .upload(filePath, file, {
+              contentType: file.type || 'application/pdf',
+              upsert: false,
+            });
+
+          if (uploadError) throw uploadError;
+
+          uploaded.push({ fileName: file.name, filePath });
+
+          setFiles(prev => {
+            const next = [...prev];
+            if (next[i]) next[i] = { ...next[i], message: 'Uploaded' };
+            return next;
+          });
+
+          setProgress(Math.min(80, ((i + 1) / files.length) * 80));
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Upload failed';
+          setFiles(prev => {
+            const next = [...prev];
+            if (next[i]) next[i] = { ...next[i], status: 'error', message };
+            return next;
+          });
+        }
       }
 
-      const data = await response.json();
+      if (uploaded.length === 0) {
+        throw new Error('All uploads failed');
+      }
 
-      const { results, summary: resultSummary } = data as {
+      setProgress(85);
+
+      const response = await supabase.functions.invoke('process-similarity-bulk-reports', {
+        body: { files: uploaded },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const { results, summary: resultSummary } = response.data as {
         results: ProcessResult[];
         summary: { total: number; mapped: number; unmatched: number; completed: number };
       };
 
-      // Update file statuses based on results
       setFiles(prev => prev.map(fileStatus => {
         const result = results.find(r => r.fileName === fileStatus.file.name);
-        if (result) {
-          return {
-            ...fileStatus,
-            status: result.status === 'error' ? 'error' : result.status,
-            message: result.error || (result.status === 'mapped' 
-              ? `Mapped${result.percentage !== undefined ? ` (${result.percentage}%)` : ''}`
-              : 'No matching document'),
-            percentage: result.percentage,
-          };
-        }
-        return fileStatus;
+        if (!result) return fileStatus;
+        return {
+          ...fileStatus,
+          status: result.status === 'error' ? 'error' : result.status,
+          message: result.error || (result.status === 'mapped' ? 'Mapped' : 'No matching document'),
+        };
       }));
 
       setSummary(resultSummary);
@@ -199,9 +215,8 @@ const AdminSimilarityBulkUpload: React.FC = () => {
         description: error instanceof Error ? error.message : 'Failed to process files',
         variant: 'destructive',
       });
-      setFiles(prev => prev.map(f => ({ ...f, status: 'error' as const })));
+      setFiles(prev => prev.map(f => (f.status === 'error' ? f : { ...f, status: 'error' as const })));
     } finally {
-      clearInterval(progressInterval);
       setProcessing(false);
     }
   };
