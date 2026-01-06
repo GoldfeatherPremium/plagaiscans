@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePushNotifications } from './usePushNotifications';
 import { useNotificationSound } from './useNotificationSound';
 import { toast } from 'sonner';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 export const useAdminDocumentNotifications = () => {
   const { user, role } = useAuth();
@@ -11,6 +12,9 @@ export const useAdminDocumentNotifications = () => {
   const { playSound } = useNotificationSound();
   const hasRequestedPermission = useRef(false);
   const isAdminOrStaff = role === 'admin' || role === 'staff';
+  const insertChannelRef = useRef<RealtimeChannel | null>(null);
+  const updateChannelRef = useRef<RealtimeChannel | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Request permission on first use for admin/staff
   useEffect(() => {
@@ -21,6 +25,8 @@ export const useAdminDocumentNotifications = () => {
   }, [user, isAdminOrStaff, requestPermission]);
 
   const handleNewDocument = useCallback((fileName: string, customerName: string) => {
+    console.log('[AdminNotify] New document notification:', fileName, customerName);
+    
     // Play notification sound
     playSound();
 
@@ -45,6 +51,8 @@ export const useAdminDocumentNotifications = () => {
   }, [sendLocalNotification, playSound]);
 
   const handleDocumentPending = useCallback((fileName: string) => {
+    console.log('[AdminNotify] Document pending notification:', fileName);
+    
     // Play notification sound
     playSound();
 
@@ -58,65 +66,138 @@ export const useAdminDocumentNotifications = () => {
   useEffect(() => {
     if (!user || !isAdminOrStaff) return;
 
-    // Subscribe to new document uploads (INSERT events)
-    const insertChannel = supabase
-      .channel('admin-document-inserts')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'documents',
-        },
-        async (payload) => {
-          const newDoc = payload.new;
-          const fileName = newDoc?.file_name;
-          const userId = newDoc?.user_id;
-          
-          if (fileName && userId) {
-            // Get customer name from profiles
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name, email')
-              .eq('id', userId)
-              .maybeSingle();
+    const setupChannels = () => {
+      // Clean up existing channels first
+      if (insertChannelRef.current) {
+        supabase.removeChannel(insertChannelRef.current);
+      }
+      if (updateChannelRef.current) {
+        supabase.removeChannel(updateChannelRef.current);
+      }
+
+      console.log('[AdminNotify] Setting up realtime channels...');
+
+      // Subscribe to new document uploads (INSERT events)
+      const insertChannel = supabase
+        .channel('admin-document-inserts', {
+          config: {
+            broadcast: { self: true },
+            presence: { key: user.id },
+          },
+        })
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'documents',
+          },
+          async (payload) => {
+            console.log('[AdminNotify] INSERT event received:', payload);
+            const newDoc = payload.new;
+            const fileName = newDoc?.file_name;
+            const userId = newDoc?.user_id;
             
-            const customerName = profile?.full_name || profile?.email || 'Customer';
-            handleNewDocument(fileName, customerName);
-          } else if (fileName) {
-            // Magic link upload (no user_id)
-            handleNewDocument(fileName, 'Guest');
+            if (fileName && userId) {
+              // Get customer name from profiles
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('full_name, email')
+                .eq('id', userId)
+                .maybeSingle();
+              
+              const customerName = profile?.full_name || profile?.email || 'Customer';
+              handleNewDocument(fileName, customerName);
+            } else if (fileName) {
+              // Magic link upload (no user_id)
+              handleNewDocument(fileName, 'Guest');
+            }
           }
-        }
-      )
-      .subscribe();
-
-    // Subscribe to document status changes to pending
-    const updateChannel = supabase
-      .channel('admin-document-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'documents',
-        },
-        (payload) => {
-          const oldStatus = payload.old?.status;
-          const newStatus = payload.new?.status;
-          const fileName = payload.new?.file_name;
-
-          // Notify when document becomes pending (e.g., after being released)
-          if (newStatus === 'pending' && oldStatus !== 'pending' && fileName) {
-            handleDocumentPending(fileName);
+        )
+        .subscribe((status, err) => {
+          console.log('[AdminNotify] Insert channel status:', status, err || '');
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error('[AdminNotify] Insert channel error, will retry...');
+            // Schedule reconnection
+            if (reconnectTimeoutRef.current) {
+              clearTimeout(reconnectTimeoutRef.current);
+            }
+            reconnectTimeoutRef.current = setTimeout(() => {
+              console.log('[AdminNotify] Attempting to reconnect...');
+              setupChannels();
+            }, 5000);
           }
-        }
-      )
-      .subscribe();
+        });
+
+      insertChannelRef.current = insertChannel;
+
+      // Subscribe to document status changes to pending
+      const updateChannel = supabase
+        .channel('admin-document-updates', {
+          config: {
+            broadcast: { self: true },
+            presence: { key: user.id },
+          },
+        })
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'documents',
+          },
+          (payload) => {
+            console.log('[AdminNotify] UPDATE event received:', payload);
+            const oldStatus = payload.old?.status;
+            const newStatus = payload.new?.status;
+            const fileName = payload.new?.file_name;
+
+            // Notify when document becomes pending (e.g., after being released)
+            if (newStatus === 'pending' && oldStatus !== 'pending' && fileName) {
+              handleDocumentPending(fileName);
+            }
+          }
+        )
+        .subscribe((status, err) => {
+          console.log('[AdminNotify] Update channel status:', status, err || '');
+        });
+
+      updateChannelRef.current = updateChannel;
+    };
+
+    setupChannels();
+
+    // Handle visibility change - reconnect when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[AdminNotify] Tab became visible, checking channels...');
+        // Give it a moment then check if we need to reconnect
+        setTimeout(() => {
+          const insertState = insertChannelRef.current?.state;
+          const updateState = updateChannelRef.current?.state;
+          console.log('[AdminNotify] Channel states:', { insertState, updateState });
+          
+          if (insertState !== 'joined' || updateState !== 'joined') {
+            console.log('[AdminNotify] Channels not joined, reconnecting...');
+            setupChannels();
+          }
+        }, 1000);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      supabase.removeChannel(insertChannel);
-      supabase.removeChannel(updateChannel);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (insertChannelRef.current) {
+        supabase.removeChannel(insertChannelRef.current);
+      }
+      if (updateChannelRef.current) {
+        supabase.removeChannel(updateChannelRef.current);
+      }
     };
   }, [user, isAdminOrStaff, handleNewDocument, handleDocumentPending]);
 
