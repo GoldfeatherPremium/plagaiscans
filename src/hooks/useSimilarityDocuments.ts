@@ -53,38 +53,42 @@ export const useSimilarityDocuments = () => {
 
       if (error) throw error;
 
-      // Fetch profiles for each document
-      const documentsWithProfiles = await Promise.all(
-        (data || []).map(async (doc) => {
-          let profile = null;
-          let staff_profile = null;
+      const docs = data || [];
+      
+      // Collect all unique user IDs and staff IDs for batch fetch
+      const userIds = new Set<string>();
+      const staffIds = new Set<string>();
+      
+      docs.forEach(doc => {
+        if (doc.user_id) userIds.add(doc.user_id);
+        if (doc.assigned_staff_id) staffIds.add(doc.assigned_staff_id);
+      });
 
-          if (doc.user_id) {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('email, full_name')
-              .eq('id', doc.user_id)
-              .single();
-            profile = profileData;
-          }
+      // Combine all unique IDs and fetch profiles in ONE query
+      const allIds = [...new Set([...userIds, ...staffIds])];
+      
+      let profilesMap: Record<string, { email: string; full_name: string | null }> = {};
+      
+      if (allIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, email, full_name')
+          .in('id', allIds);
+        
+        if (profilesData) {
+          profilesData.forEach(p => {
+            profilesMap[p.id] = { email: p.email, full_name: p.full_name };
+          });
+        }
+      }
 
-          if (doc.assigned_staff_id) {
-            const { data: staffData } = await supabase
-              .from('profiles')
-              .select('email, full_name')
-              .eq('id', doc.assigned_staff_id)
-              .single();
-            staff_profile = staffData;
-          }
-
-          return {
-            ...doc,
-            scan_type: 'similarity_only' as const,
-            profile,
-            staff_profile,
-          };
-        })
-      );
+      // Map profiles to documents
+      const documentsWithProfiles = docs.map(doc => ({
+        ...doc,
+        scan_type: 'similarity_only' as const,
+        profile: doc.user_id ? profilesMap[doc.user_id] || null : null,
+        staff_profile: doc.assigned_staff_id ? profilesMap[doc.assigned_staff_id] || null : null,
+      }));
 
       setDocuments(documentsWithProfiles);
     } catch (error) {
