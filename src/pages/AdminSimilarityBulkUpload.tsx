@@ -139,11 +139,24 @@ const AdminSimilarityBulkUpload: React.FC = () => {
 
       const uploaded: { fileName: string; filePath: string }[] = [];
 
-      for (let i = 0; i < files.length; i++) {
+      const total = files.length;
+      let done = 0;
+      const bumpProgress = () => {
+        done += 1;
+        setProgress(Math.min(80, Math.round((done / total) * 80)));
+      };
+
+      const uploadOne = async (i: number) => {
         const { file } = files[i];
+        const filePath = `${uploadPrefix}/${file.name}`;
 
         try {
-          const filePath = `${uploadPrefix}/${file.name}`;
+          setFiles(prev => {
+            const next = [...prev];
+            if (next[i]) next[i] = { ...next[i], message: 'Uploading…' };
+            return next;
+          });
+
           const { error: uploadError } = await supabase.storage
             .from('reports')
             .upload(filePath, file, {
@@ -160,8 +173,6 @@ const AdminSimilarityBulkUpload: React.FC = () => {
             if (next[i]) next[i] = { ...next[i], message: 'Uploaded' };
             return next;
           });
-
-          setProgress(Math.min(80, ((i + 1) / files.length) * 80));
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Upload failed';
           setFiles(prev => {
@@ -169,8 +180,22 @@ const AdminSimilarityBulkUpload: React.FC = () => {
             if (next[i]) next[i] = { ...next[i], status: 'error', message };
             return next;
           });
+        } finally {
+          bumpProgress();
         }
-      }
+      };
+
+      // Upload concurrently (no per-byte progress available), but much faster than sequential
+      const concurrency = 3;
+      const queue = Array.from({ length: total }, (_, i) => i);
+      const workers = Array.from({ length: Math.min(concurrency, total) }, async () => {
+        while (queue.length) {
+          const i = queue.shift();
+          if (i === undefined) return;
+          await uploadOne(i);
+        }
+      });
+      await Promise.all(workers);
 
       if (uploaded.length === 0) {
         throw new Error('All uploads failed');
