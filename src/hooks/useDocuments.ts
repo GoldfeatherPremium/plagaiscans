@@ -686,6 +686,13 @@ export const useDocuments = () => {
 
   const deleteDocument = async (documentId: string, filePath: string, similarityReportPath?: string | null, aiReportPath?: string | null) => {
     try {
+      // 0. Fetch document details BEFORE deleting for logging
+      const { data: docData } = await supabase
+        .from('documents')
+        .select('*, profiles:user_id(email, full_name)')
+        .eq('id', documentId)
+        .single();
+
       // 1. Delete tag assignments first (foreign key constraint)
       const { error: tagError } = await supabase
         .from('document_tag_assignments')
@@ -735,7 +742,30 @@ export const useDocuments = () => {
 
       if (docDeleteError) throw docDeleteError;
 
-      // 6. Refresh documents list
+      // 6. Log the deletion for admin tracking (NO credit refund)
+      if (docData) {
+        const profileData = docData.profiles as { email?: string; full_name?: string } | null;
+        await supabase.from('deleted_documents_log').insert({
+          original_document_id: documentId,
+          user_id: docData.user_id,
+          magic_link_id: docData.magic_link_id,
+          file_name: docData.file_name,
+          file_path: filePath,
+          scan_type: docData.scan_type || 'full',
+          similarity_percentage: docData.similarity_percentage,
+          ai_percentage: docData.ai_percentage,
+          similarity_report_path: similarityReportPath,
+          ai_report_path: aiReportPath,
+          remarks: docData.remarks,
+          uploaded_at: docData.uploaded_at,
+          completed_at: docData.completed_at,
+          deleted_by_type: 'customer',
+          customer_email: profileData?.email || null,
+          customer_name: profileData?.full_name || null,
+        });
+      }
+
+      // 7. Refresh documents list
       await fetchDocuments();
 
       toast({
