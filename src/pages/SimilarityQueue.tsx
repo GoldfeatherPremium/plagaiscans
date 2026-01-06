@@ -263,9 +263,10 @@ const SimilarityQueue: React.FC = () => {
       setSimilarityReport(null);
       setSimilarityPercentage('');
       setRemarks('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading report:', error);
-      toast({ title: 'Error', description: 'Failed to upload report', variant: 'destructive' });
+      const errorMessage = error?.message || error?.error_description || 'Failed to upload report';
+      toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
     } finally {
       setUploading(false);
     }
