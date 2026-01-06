@@ -547,6 +547,69 @@ export type Database = {
         }
         Relationships: []
       }
+      deleted_documents_log: {
+        Row: {
+          ai_percentage: number | null
+          ai_report_path: string | null
+          completed_at: string | null
+          customer_email: string | null
+          customer_name: string | null
+          deleted_at: string
+          deleted_by_type: string
+          file_name: string
+          file_path: string
+          id: string
+          magic_link_id: string | null
+          original_document_id: string
+          remarks: string | null
+          scan_type: string
+          similarity_percentage: number | null
+          similarity_report_path: string | null
+          uploaded_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          ai_percentage?: number | null
+          ai_report_path?: string | null
+          completed_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          deleted_at?: string
+          deleted_by_type?: string
+          file_name: string
+          file_path: string
+          id?: string
+          magic_link_id?: string | null
+          original_document_id: string
+          remarks?: string | null
+          scan_type?: string
+          similarity_percentage?: number | null
+          similarity_report_path?: string | null
+          uploaded_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          ai_percentage?: number | null
+          ai_report_path?: string | null
+          completed_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          deleted_at?: string
+          deleted_by_type?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          magic_link_id?: string | null
+          original_document_id?: string
+          remarks?: string | null
+          scan_type?: string
+          similarity_percentage?: number | null
+          similarity_report_path?: string | null
+          uploaded_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       document_tag_assignments: {
         Row: {
           created_at: string | null
