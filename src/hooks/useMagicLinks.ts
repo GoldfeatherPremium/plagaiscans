@@ -385,6 +385,21 @@ export const useMagicLinks = () => {
 
   const deleteMagicFile = async (fileId: string, filePath: string, magicLinkId: string): Promise<boolean> => {
     try {
+      // Fetch document details BEFORE deleting for logging
+      const { data: docData } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('file_path', filePath)
+        .eq('magic_link_id', magicLinkId)
+        .maybeSingle();
+
+      // Get magic upload file info
+      const { data: fileData } = await supabase
+        .from('magic_upload_files')
+        .select('file_name')
+        .eq('id', fileId)
+        .maybeSingle();
+
       // Delete from storage
       const { error: storageError } = await supabase.storage
         .from('magic-uploads')
@@ -393,6 +408,14 @@ export const useMagicLinks = () => {
       if (storageError) {
         console.error('Storage delete error:', storageError);
         // Continue with database deletion even if storage fails
+      }
+
+      // Delete reports if they exist
+      if (docData?.similarity_report_path) {
+        await supabase.storage.from('reports').remove([docData.similarity_report_path]);
+      }
+      if (docData?.ai_report_path) {
+        await supabase.storage.from('reports').remove([docData.ai_report_path]);
       }
 
       // Delete from magic_upload_files table
@@ -409,6 +432,27 @@ export const useMagicLinks = () => {
         .delete()
         .eq('file_path', filePath)
         .eq('magic_link_id', magicLinkId);
+
+      // Log the deletion for admin tracking
+      const fileName = docData?.file_name || fileData?.file_name || 'Unknown file';
+      await supabase.from('deleted_documents_log').insert({
+        original_document_id: docData?.id || fileId,
+        user_id: null,
+        magic_link_id: magicLinkId,
+        file_name: fileName,
+        file_path: filePath,
+        scan_type: docData?.scan_type || 'full',
+        similarity_percentage: docData?.similarity_percentage,
+        ai_percentage: docData?.ai_percentage,
+        similarity_report_path: docData?.similarity_report_path,
+        ai_report_path: docData?.ai_report_path,
+        uploaded_at: docData?.uploaded_at,
+        completed_at: docData?.completed_at,
+        deleted_by_type: 'guest',
+        customer_email: null,
+        customer_name: null,
+        remarks: docData?.remarks,
+      });
 
       // NOTE: We intentionally do NOT decrement upload count
       // This prevents users from reusing credits after deleting files
