@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -8,10 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileQuestion, Search, Link2, Trash2, ExternalLink, RefreshCw, FileText, Download } from 'lucide-react';
+import { FileQuestion, Search, Link2, Trash2, RefreshCw, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 interface UnmatchedReport {
@@ -123,7 +123,7 @@ const AdminUnmatchedReports: React.FC = () => {
       }
     },
     onSuccess: () => {
-      toast({ title: 'Report assigned successfully' });
+      toast.success('Report assigned successfully');
       queryClient.invalidateQueries({ queryKey: ['unmatched-reports'] });
       queryClient.invalidateQueries({ queryKey: ['pending-documents-for-assignment'] });
       setIsAssignDialogOpen(false);
@@ -131,7 +131,7 @@ const AdminUnmatchedReports: React.FC = () => {
       setSelectedDocumentId('');
     },
     onError: (error) => {
-      toast({ title: 'Failed to assign report', description: error.message, variant: 'destructive' });
+      toast.error('Failed to assign report: ' + error.message);
     },
   });
 
@@ -157,11 +157,11 @@ const AdminUnmatchedReports: React.FC = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: 'Report deleted' });
+      toast.success('Report deleted');
       queryClient.invalidateQueries({ queryKey: ['unmatched-reports'] });
     },
     onError: (error) => {
-      toast({ title: 'Failed to delete report', description: error.message, variant: 'destructive' });
+      toast.error('Failed to delete report: ' + error.message);
     },
   });
 
@@ -176,11 +176,21 @@ const AdminUnmatchedReports: React.FC = () => {
       .createSignedUrl(report.file_path, 60);
     
     if (error) {
-      toast({ title: 'Failed to generate download link', variant: 'destructive' });
+      toast.error('Failed to generate download link');
       return;
     }
     
-    window.open(data.signedUrl, '_blank');
+    // Use blob download to preserve filename
+    const response = await fetch(data.signedUrl);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = report.file_name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   };
 
   const openAssignDialog = (report: UnmatchedReport) => {
@@ -250,7 +260,8 @@ const AdminUnmatchedReports: React.FC = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>File Name</TableHead>
-                      <TableHead>Normalized</TableHead>
+                      <TableHead>Normalized Key</TableHead>
+                      <TableHead>Type</TableHead>
                       <TableHead>Uploaded</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -264,6 +275,15 @@ const AdminUnmatchedReports: React.FC = () => {
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {report.normalized_filename}
+                        </TableCell>
+                        <TableCell>
+                          {report.report_type ? (
+                            <Badge variant={report.report_type === 'similarity' ? 'default' : 'secondary'}>
+                              {report.report_type}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Unknown</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-sm">
                           {report.uploaded_at
@@ -339,7 +359,7 @@ const AdminUnmatchedReports: React.FC = () => {
                         <div className="flex flex-col">
                           <span>{doc.file_name}</span>
                           <span className="text-xs text-muted-foreground">
-                            {doc.normalized_filename}
+                            Key: {doc.normalized_filename}
                           </span>
                         </div>
                       </SelectItem>

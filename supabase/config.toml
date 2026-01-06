@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.expire-credits]
 verify_jwt = false
+
+[functions.process-bulk-reports]
+verify_jwt = false
