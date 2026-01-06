@@ -103,26 +103,25 @@ serve(async (req) => {
     let unmatchedCount = 0;
     let completedCount = 0;
 
-    // Fetch all similarity_only pending/in_progress documents for matching
-    const { data: documents } = await supabase
-      .from('documents')
-      .select('id, file_name, normalized_filename, similarity_report_path, status')
-      .eq('scan_type', 'similarity_only')
-      .in('status', ['pending', 'in_progress']);
+    // Fetch all queued/processing items from similarity_queue for matching
+    const { data: queueItems } = await supabase
+      .from('similarity_queue')
+      .select('id, original_filename, normalized_filename, report_path, queue_status')
+      .in('queue_status', ['queued', 'processing']);
 
-    interface DocRecord {
+    interface QueueRecord {
       id: string;
-      file_name: string;
-      normalized_filename: string | null;
-      similarity_report_path: string | null;
-      status: string;
+      original_filename: string;
+      normalized_filename: string;
+      report_path: string | null;
+      queue_status: string;
     }
 
-    const docMap = new Map<string, DocRecord>();
-    if (documents) {
-      for (const doc of documents as DocRecord[]) {
-        const normalizedKey = doc.normalized_filename || normalizeFilename(doc.file_name);
-        docMap.set(normalizedKey, doc);
+    const queueMap = new Map<string, QueueRecord>();
+    if (queueItems) {
+      for (const item of queueItems as QueueRecord[]) {
+        const normalizedKey = item.normalized_filename || normalizeFilename(item.original_filename);
+        queueMap.set(normalizedKey, item);
       }
     }
 
@@ -139,7 +138,7 @@ serve(async (req) => {
         }
 
         const normalizedKey = normalizeFilename(file.name);
-        const matchedDoc = docMap.get(normalizedKey);
+        const matchedItem = queueMap.get(normalizedKey);
 
         // Read file for percentage extraction
         const arrayBuffer = await file.arrayBuffer();
@@ -170,9 +169,9 @@ serve(async (req) => {
           // Continue without percentage extraction
         }
 
-        if (matchedDoc) {
+        if (matchedItem) {
           // Upload report to storage
-          const reportPath = `${matchedDoc.id}/similarity_${Date.now()}_${file.name}`;
+          const reportPath = `similarity-queue/${matchedItem.id}/report_${Date.now()}_${file.name}`;
           const { error: uploadError } = await supabase.storage
             .from('reports')
             .upload(reportPath, uint8Array, {
@@ -189,13 +188,11 @@ serve(async (req) => {
             continue;
           }
 
-          // Update document with report
+          // Update similarity_queue item with report
           const updateData: Record<string, any> = {
-            similarity_report_path: reportPath,
-            status: 'completed',
-            completed_at: new Date().toISOString(),
-            assigned_staff_id: user.id,
-            assigned_at: new Date().toISOString(),
+            report_path: reportPath,
+            queue_status: 'completed',
+            processed_at: new Date().toISOString(),
           };
 
           if (percentage !== null) {
@@ -203,9 +200,9 @@ serve(async (req) => {
           }
 
           const { error: updateError } = await supabase
-            .from('documents')
+            .from('similarity_queue')
             .update(updateData)
-            .eq('id', matchedDoc.id);
+            .eq('id', matchedItem.id);
 
           if (updateError) {
             console.error(`Update error for ${file.name}:`, updateError);
@@ -217,24 +214,17 @@ serve(async (req) => {
             continue;
           }
 
-          // Log activity
-          await supabase.from('activity_logs').insert({
-            staff_id: user.id,
-            document_id: matchedDoc.id,
-            action: 'bulk_completed_similarity',
-          });
-
           results.push({
             fileName: file.name,
             status: 'mapped',
-            documentId: matchedDoc.id,
+            documentId: matchedItem.id,
             percentage: percentage ?? undefined,
           });
           mappedCount++;
           completedCount++;
 
           // Remove from map to prevent duplicate matches
-          docMap.delete(normalizedKey);
+          queueMap.delete(normalizedKey);
         } else {
           // No match found - store as unmatched
           const unmatchedPath = `unmatched/${Date.now()}_${file.name}`;
