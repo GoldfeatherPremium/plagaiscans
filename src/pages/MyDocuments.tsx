@@ -347,14 +347,14 @@ export default function MyDocuments() {
                             {doc.similarity_percentage !== null && doc.similarity_percentage !== undefined ? (
                               <span className="font-medium">{doc.similarity_percentage}%</span>
                             ) : (
-                              <span className="text-muted-foreground">-</span>
+                              <span className="text-muted-foreground">N/A</span>
                             )}
                           </TableCell>
                           <TableCell className="text-center">
                             {doc.ai_percentage !== null && doc.ai_percentage !== undefined ? (
                               <span className="font-medium">{doc.ai_percentage}%</span>
                             ) : (
-                              <span className="text-muted-foreground">-</span>
+                              <span className="text-muted-foreground">N/A</span>
                             )}
                           </TableCell>
                           <TableCell className="text-center">
