@@ -398,17 +398,15 @@ export default function MyDocuments() {
                           </TableCell>
                           {!isStaffOrAdmin && (
                             <TableCell className="text-center">
-                              {doc.status === 'completed' && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                                  onClick={() => handleDeleteClick(doc)}
-                                  title="Delete file permanently"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                                onClick={() => handleDeleteClick(doc)}
+                                title="Delete file permanently"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </TableCell>
                           )}
                         </TableRow>
