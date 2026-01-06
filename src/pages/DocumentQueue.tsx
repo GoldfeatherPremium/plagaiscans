@@ -9,7 +9,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
-import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare, CheckCheck } from 'lucide-react';
+import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare, CheckCheck, FolderUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -52,6 +53,7 @@ export default function DocumentQueue() {
   const { documents, loading, downloadFile, uploadReport, updateDocumentStatus, releaseDocument } = useDocuments();
   const { user, role } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -503,25 +505,36 @@ export default function DocumentQueue() {
             )}
           </div>
           
-          {/* Process All Button - Admin Only */}
-          {role === 'admin' && availableDocs.length > 0 && (
-            <Button 
-              onClick={() => setProcessAllDialogOpen(true)}
-              disabled={processingAll}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {processingAll ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <CheckCheck className="h-4 w-4 mr-2" />
-                  Process All ({availableDocs.length})
-                </>
+          {/* Admin Action Buttons */}
+          {role === 'admin' && (
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={() => navigate('/admin/bulk-upload')}
+                variant="outline"
+              >
+                <FolderUp className="h-4 w-4 mr-2" />
+                Bulk Upload
+              </Button>
+              {availableDocs.length > 0 && (
+                <Button 
+                  onClick={() => setProcessAllDialogOpen(true)}
+                  disabled={processingAll}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {processingAll ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCheck className="h-4 w-4 mr-2" />
+                      Process All ({availableDocs.length})
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+            </div>
           )}
         </div>
 
