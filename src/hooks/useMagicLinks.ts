@@ -28,6 +28,9 @@ export interface MagicUploadFile {
   similarity_report_path?: string | null;
   ai_report_path?: string | null;
   remarks?: string | null;
+  // Soft delete tracking
+  deleted_by_user?: boolean;
+  deleted_at?: string | null;
 }
 
 const generateSecureToken = (): string => {
@@ -334,6 +337,8 @@ export const useMagicLinks = () => {
           similarity_report_path: doc.similarity_report_path,
           ai_report_path: doc.ai_report_path,
           remarks: doc.remarks,
+          deleted_by_user: doc.deleted_by_user || false,
+          deleted_at: doc.deleted_at,
         }));
       }
 
@@ -476,7 +481,8 @@ export const useMagicLinks = () => {
     }
   };
 
-  // Delete a completed document for guests (customer-facing)
+  // Soft delete a completed document for guests (customer-facing)
+  // This preserves the record but marks it as deleted
   const deleteGuestDocument = async (
     documentId: string, 
     filePath: string, 
@@ -485,8 +491,7 @@ export const useMagicLinks = () => {
     aiReportPath?: string | null
   ): Promise<boolean> => {
     try {
-      // Fetch document details BEFORE deleting for logging
-      // Use maybeSingle to avoid errors if document not found
+      // Fetch document details BEFORE updating for logging
       const { data: docData, error: fetchError } = await supabase
         .from('documents')
         .select('*')
@@ -522,25 +527,32 @@ export const useMagicLinks = () => {
         if (aiError) console.error('Error deleting AI report:', aiError);
       }
 
-      // Delete from magic_upload_files table
+      // Soft delete from magic_upload_files table
       await supabase
         .from('magic_upload_files')
-        .delete()
+        .update({ 
+          deleted_by_user: true, 
+          deleted_at: new Date().toISOString() 
+        })
         .eq('file_path', filePath);
 
-      // Delete document record
+      // SOFT DELETE document record instead of hard delete
       const { error: docError } = await supabase
         .from('documents')
-        .delete()
+        .update({ 
+          deleted_by_user: true, 
+          deleted_at: new Date().toISOString(),
+          // Clear report paths since files are deleted
+          similarity_report_path: null,
+          ai_report_path: null,
+        })
         .eq('id', documentId);
 
       if (docError) {
-        console.error('Error deleting document:', docError);
-        // Continue anyway - we still want to log the deletion attempt
+        console.error('Error soft-deleting document:', docError);
       }
 
       // Log the deletion for admin tracking (NO credit refund for guests)
-      // Always log, even if docData couldn't be fetched
       const { error: logError } = await supabase.from('deleted_documents_log').insert({
         original_document_id: documentId,
         user_id: null,
@@ -569,7 +581,7 @@ export const useMagicLinks = () => {
 
       toast({
         title: 'File deleted',
-        description: 'Document and reports have been permanently removed.',
+        description: 'Document and reports have been removed. Record preserved.',
       });
 
       return true;

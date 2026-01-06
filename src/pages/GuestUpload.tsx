@@ -535,13 +535,17 @@ export default function GuestUpload() {
                         {files.map((file, index) => {
                           const { date, time } = formatDateTime(file.uploaded_at);
                           const status = file.status || 'pending';
+                          const isDeleted = file.deleted_by_user;
                           return (
-                            <TableRow key={file.id}>
+                            <TableRow 
+                              key={file.id}
+                              className={isDeleted ? 'opacity-50 bg-muted/30' : ''}
+                            >
                               <TableCell className="text-center font-medium">{index + 1}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
-                                  <FileText className="h-4 w-4 text-primary flex-shrink-0" />
-                                  <span className="font-medium truncate max-w-[200px]" title={file.file_name}>
+                                  <FileText className={`h-4 w-4 flex-shrink-0 ${isDeleted ? 'text-muted-foreground' : 'text-primary'}`} />
+                                  <span className={`font-medium truncate max-w-[200px] ${isDeleted ? 'line-through text-muted-foreground' : ''}`} title={file.file_name}>
                                     {file.file_name}
                                   </span>
                                 </div>
@@ -553,22 +557,28 @@ export default function GuestUpload() {
                                 </div>
                               </TableCell>
                               <TableCell className="text-center">
-                                <Badge
-                                  variant={
-                                    status === 'completed'
-                                      ? 'default'
-                                      : status === 'in_progress'
-                                        ? 'secondary'
-                                        : 'outline'
-                                  }
-                                >
-                                  {status === 'in_progress'
-                                    ? 'Processing'
-                                    : status.charAt(0).toUpperCase() + status.slice(1)}
-                                </Badge>
+                                {isDeleted ? (
+                                  <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
+                                    Deleted by user
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant={
+                                      status === 'completed'
+                                        ? 'default'
+                                        : status === 'in_progress'
+                                          ? 'secondary'
+                                          : 'outline'
+                                    }
+                                  >
+                                    {status === 'in_progress'
+                                      ? 'Processing'
+                                      : status.charAt(0).toUpperCase() + status.slice(1)}
+                                  </Badge>
+                                )}
                               </TableCell>
                               <TableCell className="text-center">
-                                {file.similarity_percentage !== null && file.similarity_percentage !== undefined ? (
+                                {!isDeleted && file.similarity_percentage !== null && file.similarity_percentage !== undefined ? (
                                   <Badge variant={file.similarity_percentage > 20 ? 'destructive' : file.similarity_percentage > 10 ? 'secondary' : 'default'}>
                                     {file.similarity_percentage}%
                                   </Badge>
@@ -577,7 +587,7 @@ export default function GuestUpload() {
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
-                                {file.ai_percentage !== null && file.ai_percentage !== undefined ? (
+                                {!isDeleted && file.ai_percentage !== null && file.ai_percentage !== undefined ? (
                                   <Badge variant={file.ai_percentage > 20 ? 'destructive' : file.ai_percentage > 10 ? 'secondary' : 'default'}>
                                     {file.ai_percentage}%
                                   </Badge>
@@ -586,7 +596,7 @@ export default function GuestUpload() {
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
-                                {file.similarity_report_path ? (
+                                {!isDeleted && file.similarity_report_path ? (
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -606,7 +616,7 @@ export default function GuestUpload() {
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
-                                {file.ai_report_path ? (
+                                {!isDeleted && file.ai_report_path ? (
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -622,7 +632,11 @@ export default function GuestUpload() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                {file.remarks ? (
+                                {isDeleted ? (
+                                  <span className="text-sm text-muted-foreground italic">
+                                    Deleted {file.deleted_at ? formatDateTime(file.deleted_at).date : ''}
+                                  </span>
+                                ) : file.remarks ? (
                                   <span className="text-sm text-foreground">{file.remarks}</span>
                                 ) : status === 'pending' ? (
                                   <span className="text-sm text-muted-foreground">In queue</span>
@@ -633,7 +647,7 @@ export default function GuestUpload() {
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
-                                {status === 'completed' ? (
+                                {!isDeleted && status === 'completed' ? (
                                   <Button
                                     variant="ghost"
                                     size="sm"
