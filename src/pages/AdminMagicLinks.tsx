@@ -57,6 +57,7 @@ export default function AdminMagicLinks() {
     disableMagicLink,
     deleteMagicLink,
     getMagicLinkFiles,
+    deleteMagicFile,
   } = useMagicLinks();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -65,6 +66,7 @@ export default function AdminMagicLinks() {
   const [creating, setCreating] = useState(false);
   const [viewingFiles, setViewingFiles] = useState<{ link: MagicUploadLink; files: any[] } | null>(null);
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
 
   const handleCreate = async () => {
     setCreating(true);
@@ -94,6 +96,18 @@ export default function AdminMagicLinks() {
     const files = await getMagicLinkFiles(link.id);
     setViewingFiles({ link, files });
     setLoadingFiles(false);
+  };
+
+  const handleDeleteFile = async (file: any) => {
+    if (!viewingFiles) return;
+    setDeletingFileId(file.id);
+    const success = await deleteMagicFile(file.id, file.file_path, viewingFiles.link.id);
+    if (success) {
+      // Refresh the files list
+      const updatedFiles = viewingFiles.files.filter(f => f.id !== file.id);
+      setViewingFiles({ ...viewingFiles, files: updatedFiles });
+    }
+    setDeletingFileId(null);
   };
 
   const getStatusBadge = (link: MagicUploadLink) => {
@@ -406,6 +420,40 @@ export default function AdminMagicLinks() {
                         Uploaded {formatDate(file.uploaded_at)}
                       </p>
                     </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive shrink-0"
+                          disabled={deletingFileId === file.id}
+                          title="Delete file"
+                        >
+                          {deletingFileId === file.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete File</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{file.file_name}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => handleDeleteFile(file)}
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 ))}
               </div>

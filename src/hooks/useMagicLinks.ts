@@ -383,6 +383,66 @@ export const useMagicLinks = () => {
     }
   };
 
+  const deleteMagicFile = async (fileId: string, filePath: string, magicLinkId: string): Promise<boolean> => {
+    try {
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('magic-uploads')
+        .remove([filePath]);
+
+      if (storageError) {
+        console.error('Storage delete error:', storageError);
+        // Continue with database deletion even if storage fails
+      }
+
+      // Delete from magic_upload_files table
+      const { error: fileError } = await supabase
+        .from('magic_upload_files')
+        .delete()
+        .eq('id', fileId);
+
+      if (fileError) throw fileError;
+
+      // Also delete from documents table if exists
+      await supabase
+        .from('documents')
+        .delete()
+        .eq('file_path', filePath)
+        .eq('magic_link_id', magicLinkId);
+
+      // Decrement upload count
+      const { data: linkData } = await supabase
+        .from('magic_upload_links')
+        .select('current_uploads')
+        .eq('id', magicLinkId)
+        .single();
+
+      if (linkData && linkData.current_uploads > 0) {
+        await supabase
+          .from('magic_upload_links')
+          .update({ current_uploads: linkData.current_uploads - 1 })
+          .eq('id', magicLinkId);
+      }
+
+      await fetchMagicLinks();
+
+      toast({
+        title: 'Success',
+        description: 'File deleted successfully',
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting magic file:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete file',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchMagicLinks();
   }, []);
@@ -400,5 +460,6 @@ export const useMagicLinks = () => {
     getMagicLinkFiles,
     getFilesByToken,
     downloadMagicFile,
+    deleteMagicFile,
   };
 };
