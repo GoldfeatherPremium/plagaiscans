@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2, X, Archive } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2, X, Archive, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,29 +12,73 @@ import JSZip from 'jszip';
 
 interface FileStatus {
   file: File;
-  status: 'pending' | 'uploading' | 'success' | 'error' | 'mapped' | 'unmatched';
+  status: 'pending' | 'uploading' | 'queued' | 'error';
   message?: string;
-  percentage?: number;
+  queueId?: string;
 }
 
-interface ProcessResult {
-  fileName: string;
-  status: 'mapped' | 'unmatched' | 'error';
-  documentId?: string;
-  percentage?: number;
-  error?: string;
+interface QueueSummary {
+  queued: number;
+  processing: number;
+  completed: number;
+  failed: number;
 }
 
 const AdminSimilarityBulkUpload: React.FC = () => {
   const [files, setFiles] = useState<FileStatus[]>([]);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [summary, setSummary] = useState<{
-    total: number;
-    mapped: number;
-    unmatched: number;
-    completed: number;
-  } | null>(null);
+  const [queueSummary, setQueueSummary] = useState<QueueSummary>({ queued: 0, processing: 0, completed: 0, failed: 0 });
+  const [loadingQueue, setLoadingQueue] = useState(false);
+
+  // Fetch queue summary
+  const fetchQueueSummary = async () => {
+    setLoadingQueue(true);
+    try {
+      const { data, error } = await supabase
+        .from('similarity_queue')
+        .select('queue_status');
+
+      if (error) throw error;
+
+      const summary: QueueSummary = { queued: 0, processing: 0, completed: 0, failed: 0 };
+      data?.forEach((item: { queue_status: string }) => {
+        if (item.queue_status === 'queued') summary.queued++;
+        else if (item.queue_status === 'processing') summary.processing++;
+        else if (item.queue_status === 'completed') summary.completed++;
+        else if (item.queue_status === 'failed') summary.failed++;
+      });
+      setQueueSummary(summary);
+    } catch (err) {
+      console.error('Failed to fetch queue summary:', err);
+    } finally {
+      setLoadingQueue(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchQueueSummary();
+  }, []);
+
+  // Normalize filename
+  const normalizeFilename = (filename: string): string => {
+    let result = filename.toLowerCase().trim();
+    const exts = [".pdf", ".docx", ".doc", ".txt"];
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const ext of exts) {
+        if (result.endsWith(ext)) {
+          result = result.slice(0, -ext.length);
+          changed = true;
+        }
+      }
+    }
+    result = result.replace(/\s*\(\d+\)\s*$/, "");
+    result = result.replace(/[_-]+/g, " ");
+    result = result.replace(/\s+/g, " ").trim();
+    return result;
+  };
 
   const extractZipFiles = async (zipFile: File): Promise<File[]> => {
     const zip = new JSZip();
@@ -95,7 +139,6 @@ const AdminSimilarityBulkUpload: React.FC = () => {
       ...prev,
       ...allFiles.map(file => ({ file, status: 'pending' as const })),
     ]);
-    setSummary(null);
   };
 
   const removeFile = (index: number) => {
@@ -104,7 +147,6 @@ const AdminSimilarityBulkUpload: React.FC = () => {
 
   const clearAll = () => {
     setFiles([]);
-    setSummary(null);
     setProgress(0);
   };
 
@@ -120,12 +162,7 @@ const AdminSimilarityBulkUpload: React.FC = () => {
 
     setProcessing(true);
     setProgress(0);
-    setSummary(null);
 
-    // Update all files to uploading status
-    setFiles(prev => prev.map(f => ({ ...f, status: 'uploading' as const })));
-
-    // Upload to storage first (client-side) to avoid edge-function memory limits
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -135,30 +172,25 @@ const AdminSimilarityBulkUpload: React.FC = () => {
       }
 
       const userId = session.user.id;
-      const uploadPrefix = `bulk/similarity/${userId}/${Date.now()}`;
+      const uploadPrefix = `bulk/${userId}/${Date.now()}`;
 
+      // Step 1: Upload files to storage
       const uploaded: { fileName: string; filePath: string }[] = [];
-
       const total = files.length;
       let done = 0;
-      const bumpProgress = () => {
-        done += 1;
-        setProgress(Math.min(80, Math.round((done / total) * 80)));
-      };
+
+      setFiles(prev => prev.map(f => ({ ...f, status: 'uploading' as const, message: 'Uploading...' })));
+
+      const concurrency = 3;
+      const queue = Array.from({ length: total }, (_, i) => i);
 
       const uploadOne = async (i: number) => {
         const { file } = files[i];
         const filePath = `${uploadPrefix}/${file.name}`;
 
         try {
-          setFiles(prev => {
-            const next = [...prev];
-            if (next[i]) next[i] = { ...next[i], message: 'Uploading…' };
-            return next;
-          });
-
           const { error: uploadError } = await supabase.storage
-            .from('reports')
+            .from('similarity-reports')
             .upload(filePath, file, {
               contentType: file.type || 'application/pdf',
               upsert: false,
@@ -167,7 +199,6 @@ const AdminSimilarityBulkUpload: React.FC = () => {
           if (uploadError) throw uploadError;
 
           uploaded.push({ fileName: file.name, filePath });
-
           setFiles(prev => {
             const next = [...prev];
             if (next[i]) next[i] = { ...next[i], message: 'Uploaded' };
@@ -181,13 +212,11 @@ const AdminSimilarityBulkUpload: React.FC = () => {
             return next;
           });
         } finally {
-          bumpProgress();
+          done++;
+          setProgress(Math.min(70, Math.round((done / total) * 70)));
         }
       };
 
-      // Upload concurrently (no per-byte progress available), but much faster than sequential
-      const concurrency = 3;
-      const queue = Array.from({ length: total }, (_, i) => i);
       const workers = Array.from({ length: Math.min(concurrency, total) }, async () => {
         while (queue.length) {
           const i = queue.shift();
@@ -201,38 +230,44 @@ const AdminSimilarityBulkUpload: React.FC = () => {
         throw new Error('All uploads failed');
       }
 
-      setProgress(85);
+      setProgress(75);
 
-      const response = await supabase.functions.invoke('process-similarity-bulk-reports', {
-        body: { files: uploaded },
+      // Step 2: Create queue entries via edge function
+      const response = await supabase.functions.invoke('process-similarity-bulk', {
+        body: { action: 'upload', files: uploaded },
       });
 
       if (response.error) {
         throw new Error(response.error.message);
       }
 
-      const { results, summary: resultSummary } = response.data as {
-        results: ProcessResult[];
-        summary: { total: number; mapped: number; unmatched: number; completed: number };
+      const { results, summary } = response.data as {
+        results: { fileName: string; status: string; queueId?: string; error?: string }[];
+        summary: { total: number; queued: number; errors: number };
       };
 
+      // Update file statuses
       setFiles(prev => prev.map(fileStatus => {
         const result = results.find(r => r.fileName === fileStatus.file.name);
         if (!result) return fileStatus;
         return {
           ...fileStatus,
-          status: result.status === 'error' ? 'error' : result.status,
-          message: result.error || (result.status === 'mapped' ? 'Mapped' : 'No matching document'),
+          status: result.status === 'queued' ? 'queued' : 'error',
+          message: result.error || (result.status === 'queued' ? 'Added to queue' : 'Error'),
+          queueId: result.queueId,
         };
       }));
 
-      setSummary(resultSummary);
       setProgress(100);
 
       toast({
-        title: 'Processing Complete',
-        description: `${resultSummary.mapped} mapped, ${resultSummary.unmatched} unmatched`,
+        title: 'Upload Complete',
+        description: `${summary.queued} file(s) added to queue`,
       });
+
+      // Refresh queue summary
+      await fetchQueueSummary();
+
     } catch (error) {
       console.error('Processing error:', error);
       toast({
@@ -240,9 +275,38 @@ const AdminSimilarityBulkUpload: React.FC = () => {
         description: error instanceof Error ? error.message : 'Failed to process files',
         variant: 'destructive',
       });
-      setFiles(prev => prev.map(f => (f.status === 'error' ? f : { ...f, status: 'error' as const })));
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const processQueuedItems = async () => {
+    try {
+      toast({ title: 'Processing', description: 'Starting queue processing...' });
+      
+      const response = await supabase.functions.invoke('process-similarity-bulk', {
+        body: { action: 'process', limit: 20 },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const { processed, completed, failed } = response.data;
+      
+      toast({
+        title: 'Processing Complete',
+        description: `Processed ${processed} items: ${completed} completed, ${failed} failed`,
+      });
+
+      await fetchQueueSummary();
+    } catch (error) {
+      console.error('Queue processing error:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to process queue',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -252,11 +316,8 @@ const AdminSimilarityBulkUpload: React.FC = () => {
         return <Badge variant="secondary">Pending</Badge>;
       case 'uploading':
         return <Badge variant="outline" className="animate-pulse">Uploading...</Badge>;
-      case 'success':
-      case 'mapped':
-        return <Badge className="bg-green-500">Mapped</Badge>;
-      case 'unmatched':
-        return <Badge variant="destructive">Unmatched</Badge>;
+      case 'queued':
+        return <Badge className="bg-green-500">Queued</Badge>;
       case 'error':
         return <Badge variant="destructive">Error</Badge>;
     }
@@ -268,16 +329,57 @@ const AdminSimilarityBulkUpload: React.FC = () => {
     <DashboardLayout>
       <SEO
         title="Bulk Similarity Report Upload"
-        description="Upload multiple similarity reports at once"
+        description="Upload multiple similarity reports to the queue"
       />
 
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Bulk Similarity Report Upload</h1>
+          <h1 className="text-2xl font-bold">Similarity Queue - Bulk Upload</h1>
           <p className="text-muted-foreground">
-            Upload multiple similarity reports for the similarity queue. Reports will auto-match to documents by filename.
+            Upload PDF similarity reports. Files are added to the processing queue.
           </p>
         </div>
+
+        {/* Queue Summary */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Queue Status</CardTitle>
+              <CardDescription>Current similarity queue statistics</CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={fetchQueueSummary} disabled={loadingQueue}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${loadingQueue ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              {queueSummary.queued > 0 && (
+                <Button size="sm" onClick={processQueuedItems}>
+                  Process Queue
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-amber-500/10 rounded-lg">
+                <div className="text-2xl font-bold text-amber-600">{queueSummary.queued}</div>
+                <div className="text-sm text-muted-foreground">Queued</div>
+              </div>
+              <div className="text-center p-4 bg-blue-500/10 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">{queueSummary.processing}</div>
+                <div className="text-sm text-muted-foreground">Processing</div>
+              </div>
+              <div className="text-center p-4 bg-green-500/10 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">{queueSummary.completed}</div>
+                <div className="text-sm text-muted-foreground">Completed</div>
+              </div>
+              <div className="text-center p-4 bg-destructive/10 rounded-lg">
+                <div className="text-2xl font-bold text-destructive">{queueSummary.failed}</div>
+                <div className="text-sm text-muted-foreground">Failed</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Upload Area */}
         <Card>
@@ -333,7 +435,7 @@ const AdminSimilarityBulkUpload: React.FC = () => {
                       ) : (
                         <>
                           <Upload className="mr-2 h-4 w-4" />
-                          Process {pendingCount} File(s)
+                          Upload {pendingCount} File(s)
                         </>
                       )}
                     </Button>
@@ -380,60 +482,6 @@ const AdminSimilarityBulkUpload: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Summary */}
-        {summary && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Processing Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-2xl font-bold">{summary.total}</div>
-                  <div className="text-sm text-muted-foreground">Total Files</div>
-                </div>
-                <div className="text-center p-4 bg-green-500/10 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{summary.mapped}</div>
-                  <div className="text-sm text-muted-foreground">Mapped</div>
-                </div>
-                <div className="text-center p-4 bg-green-500/10 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{summary.completed}</div>
-                  <div className="text-sm text-muted-foreground">Completed</div>
-                </div>
-                <div className="text-center p-4 bg-destructive/10 rounded-lg">
-                  <div className="text-2xl font-bold text-destructive">{summary.unmatched}</div>
-                  <div className="text-sm text-muted-foreground">Unmatched</div>
-                </div>
-              </div>
-
-              {summary.unmatched > 0 && (
-                <div className="mt-4 p-4 bg-amber-500/10 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-amber-600">Unmatched Reports</p>
-                    <p className="text-sm text-muted-foreground">
-                      {summary.unmatched} report(s) could not be matched to documents. 
-                      Check the Unmatched Reports page to manually assign them.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {summary.completed > 0 && (
-                <div className="mt-4 p-4 bg-green-500/10 rounded-lg flex items-start gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-green-600">Documents Completed</p>
-                    <p className="text-sm text-muted-foreground">
-                      {summary.completed} document(s) have been marked as completed.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
         {/* Instructions */}
         <Card>
           <CardHeader>
@@ -441,10 +489,10 @@ const AdminSimilarityBulkUpload: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>1. Upload PDF similarity reports (or ZIP files containing PDFs)</p>
-            <p>2. Reports are matched to similarity queue documents by normalized filename</p>
-            <p>3. Page 2 of each PDF is analyzed to extract similarity percentage</p>
-            <p>4. Matched documents are automatically marked as completed</p>
-            <p>5. Unmatched reports are stored for manual assignment</p>
+            <p>2. Files are stored and added to the processing queue</p>
+            <p>3. Click "Process Queue" to analyze reports and extract similarity percentages</p>
+            <p>4. Reports needing manual review are flagged automatically</p>
+            <p>5. View and manage all queue items in the Queue Management page</p>
           </CardContent>
         </Card>
       </div>
