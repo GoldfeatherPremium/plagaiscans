@@ -106,17 +106,16 @@ export default function MyDocuments() {
 
     for (let i = 0; i < selectedDocs.length; i++) {
       const doc = selectedDocs[i];
-      const baseName = doc.file_name.replace(/\.[^/.]+$/, '');
       
-      // Download similarity report if exists
+      // Download similarity report if exists (use original filename from path)
       if (doc.similarity_report_path) {
-        await downloadFile(doc.similarity_report_path, 'reports', `${baseName}_similarity.pdf`);
+        await downloadFile(doc.similarity_report_path, 'reports', doc.similarity_report_path.split('/').pop());
         await new Promise(r => setTimeout(r, 300));
       }
       
-      // Download AI report if exists
+      // Download AI report if exists (use original filename from path)
       if (doc.ai_report_path) {
-        await downloadFile(doc.ai_report_path, 'reports', `${baseName}_ai.pdf`);
+        await downloadFile(doc.ai_report_path, 'reports', doc.ai_report_path.split('/').pop());
         await new Promise(r => setTimeout(r, 300));
       }
     }
@@ -290,7 +289,6 @@ export default function MyDocuments() {
                   <TableBody>
                     {filteredDocuments.map((doc, index) => {
                       const { date, time } = formatDateTime(doc.uploaded_at);
-                      const baseName = doc.file_name.replace(/\.[^/.]+$/, '');
                       const isSelected = selectedIds.has(doc.id);
                       const canSelect = doc.status === 'completed';
 
@@ -364,7 +362,7 @@ export default function MyDocuments() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => downloadFile(doc.similarity_report_path!, 'reports', `${baseName}_similarity.pdf`)}
+                                onClick={() => downloadFile(doc.similarity_report_path!, 'reports', doc.similarity_report_path!.split('/').pop())}
                               >
                                 <Download className="h-4 w-4" />
                               </Button>
@@ -377,7 +375,7 @@ export default function MyDocuments() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => downloadFile(doc.ai_report_path!, 'reports', `${baseName}_ai.pdf`)}
+                                onClick={() => downloadFile(doc.ai_report_path!, 'reports', doc.ai_report_path!.split('/').pop())}
                               >
                                 <Download className="h-4 w-4" />
                               </Button>
