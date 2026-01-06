@@ -226,7 +226,8 @@ const SimilarityQueue: React.FC = () => {
       const response = await fetch(data.signedUrl);
       const blob = await response.blob();
       
-      const reportFileName = `Similarity_Report_${originalFileName.replace(/\.[^/.]+$/, '')}.pdf`;
+      // Use the original report filename from the path
+      const reportFileName = reportPath.split('/').pop() || `Similarity_Report_${originalFileName.replace(/\.[^/.]+$/, '')}.pdf`;
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
