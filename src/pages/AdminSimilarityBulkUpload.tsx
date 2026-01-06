@@ -129,6 +129,7 @@ const AdminSimilarityBulkUpload: React.FC = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast({ title: 'Error', description: 'Not authenticated', variant: 'destructive' });
+        setProcessing(false);
         return;
       }
 
@@ -137,15 +138,24 @@ const AdminSimilarityBulkUpload: React.FC = () => {
         formData.append('files', file);
       });
 
-      const response = await supabase.functions.invoke('process-similarity-bulk-reports', {
+      // Use fetch directly for FormData - supabase.functions.invoke doesn't handle it properly
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/process-similarity-bulk-reports`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
         body: formData,
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: response.statusText }));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
-      const { results, summary: resultSummary } = response.data as {
+      const data = await response.json();
+
+      const { results, summary: resultSummary } = data as {
         results: ProcessResult[];
         summary: { total: number; mapped: number; unmatched: number; completed: number };
       };
