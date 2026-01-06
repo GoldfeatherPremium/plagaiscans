@@ -338,8 +338,8 @@ export default function DocumentQueue() {
             doc,
             data.similarityFile,
             data.aiFile,
-            parseFloat(data.similarityPercentage) || 0,
-            parseFloat(data.aiPercentage) || 0,
+            data.similarityPercentage ? parseFloat(data.similarityPercentage) : null,
+            data.aiPercentage ? parseFloat(data.aiPercentage) : null,
             data.remarks.trim() || null
           );
         }
@@ -436,8 +436,8 @@ export default function DocumentQueue() {
       selectedDoc,
       similarityFile,
       aiFile,
-      parseFloat(similarityPercentage) || 0,
-      parseFloat(aiPercentage) || 0,
+      similarityPercentage ? parseFloat(similarityPercentage) : null,
+      aiPercentage ? parseFloat(aiPercentage) : null,
       remarks.trim() || null
     );
     setSubmitting(false);

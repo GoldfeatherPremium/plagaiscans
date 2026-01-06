@@ -72,8 +72,8 @@ export default function StaffProcessed() {
     
     setSubmitting(true);
     try {
-      const newSimilarity = parseFloat(similarityPercentage) || 0;
-      const newAi = parseFloat(aiPercentage) || 0;
+      const newSimilarity = similarityPercentage ? parseFloat(similarityPercentage) : null;
+      const newAi = aiPercentage ? parseFloat(aiPercentage) : null;
       
       // If new files are provided, upload them
       if (similarityFile || aiFile) {
