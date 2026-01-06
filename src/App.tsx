@@ -66,7 +66,6 @@ const AdminAIHelper = lazy(() => import("./pages/AdminAIHelper"));
 const AdminBulkReportUpload = lazy(() => import("./pages/AdminBulkReportUpload"));
 const AdminSimilarityBulkUpload = lazy(() => import("./pages/AdminSimilarityBulkUpload"));
 const AdminUnmatchedReports = lazy(() => import("./pages/AdminUnmatchedReports"));
-const AdminSimilarityUnmatchedReports = lazy(() => import("./pages/AdminSimilarityUnmatchedReports"));
 const AdminNeedsReview = lazy(() => import("./pages/AdminNeedsReview"));
 const ReferralProgram = lazy(() => import("./pages/ReferralProgram"));
 const AboutUs = lazy(() => import("./pages/AboutUs"));
@@ -311,7 +310,6 @@ const AppRoutes = () => (
       <Route path="/dashboard/bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminBulkReportUpload /></ProtectedRoute>} />
       <Route path="/dashboard/similarity-bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminSimilarityBulkUpload /></ProtectedRoute>} />
       <Route path="/dashboard/unmatched-reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminUnmatchedReports /></ProtectedRoute>} />
-      <Route path="/dashboard/similarity-unmatched" element={<ProtectedRoute allowedRoles={['admin']}><AdminSimilarityUnmatchedReports /></ProtectedRoute>} />
       <Route path="/dashboard/needs-review" element={<ProtectedRoute allowedRoles={['admin']}><AdminNeedsReview /></ProtectedRoute>} />
       <Route path="/dashboard/site-content" element={<ProtectedRoute allowedRoles={['admin']}><AdminSiteContent /></ProtectedRoute>} />
       <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['admin']}><AdminReferrals /></ProtectedRoute>} />
