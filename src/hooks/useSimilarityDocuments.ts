@@ -172,13 +172,22 @@ export const useSimilarityDocuments = () => {
   ): Promise<void> => {
     if (!user) throw new Error('Not authenticated');
 
+    console.log('uploadSimilarityReport called:', { documentId, fileName: similarityReport.name, similarityPercentage });
+
     // Upload similarity report
     const reportPath = `${documentId}/similarity_${Date.now()}_${similarityReport.name}`;
+    console.log('Uploading to path:', reportPath);
+    
     const { error: uploadError } = await supabase.storage
       .from('reports')
       .upload(reportPath, similarityReport);
 
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      throw new Error(`Storage upload failed: ${uploadError.message}`);
+    }
+    
+    console.log('File uploaded successfully, updating document record...');
 
     // Update document
     const { error: updateError } = await supabase
@@ -192,7 +201,12 @@ export const useSimilarityDocuments = () => {
       })
       .eq('id', documentId);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('Document update error:', updateError);
+      throw new Error(`Document update failed: ${updateError.message}`);
+    }
+
+    console.log('Document updated successfully, logging activity...');
 
     // Log activity
     await supabase.from('activity_logs').insert({
