@@ -125,9 +125,18 @@ const AdminSimilarityBulkUpload: React.FC = () => {
     // Update all files to uploading status
     setFiles(prev => prev.map(f => ({ ...f, status: 'uploading' as const })));
 
+    // Simulate progress while processing
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 90) return prev;
+        return prev + Math.random() * 15;
+      });
+    }, 500);
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
+        clearInterval(progressInterval);
         toast({ title: 'Error', description: 'Not authenticated', variant: 'destructive' });
         setProcessing(false);
         return;
@@ -192,6 +201,7 @@ const AdminSimilarityBulkUpload: React.FC = () => {
       });
       setFiles(prev => prev.map(f => ({ ...f, status: 'error' as const })));
     } finally {
+      clearInterval(progressInterval);
       setProcessing(false);
     }
   };
