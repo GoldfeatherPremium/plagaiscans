@@ -163,7 +163,7 @@ export default function DocumentQueue() {
     await updateDocumentStatus(doc.id, 'in_progress');
     
     // Auto-download the file
-    downloadFile(doc.file_path, 'documents', doc.file_name);
+    downloadFile(doc.file_path, doc.magic_link_id ? 'magic-uploads' : 'documents', doc.file_name);
     
     toast({
       title: 'Document Assigned',
@@ -271,7 +271,7 @@ export default function DocumentQueue() {
       if (i > 0) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
-      downloadFile(doc.file_path, 'documents', doc.file_name);
+      downloadFile(doc.file_path, doc.magic_link_id ? 'magic-uploads' : 'documents', doc.file_name);
     }
     
     setSelectedDocIds(new Set());
