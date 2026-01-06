@@ -707,6 +707,8 @@ export type Database = {
           assigned_at: string | null
           assigned_staff_id: string | null
           completed_at: string | null
+          deleted_at: string | null
+          deleted_by_user: boolean | null
           error_message: string | null
           file_name: string
           file_path: string
@@ -732,6 +734,8 @@ export type Database = {
           assigned_at?: string | null
           assigned_staff_id?: string | null
           completed_at?: string | null
+          deleted_at?: string | null
+          deleted_by_user?: boolean | null
           error_message?: string | null
           file_name: string
           file_path: string
@@ -757,6 +761,8 @@ export type Database = {
           assigned_at?: string | null
           assigned_staff_id?: string | null
           completed_at?: string | null
+          deleted_at?: string | null
+          deleted_by_user?: boolean | null
           error_message?: string | null
           file_name?: string
           file_path?: string
@@ -1093,6 +1099,8 @@ export type Database = {
       }
       magic_upload_files: {
         Row: {
+          deleted_at: string | null
+          deleted_by_user: boolean | null
           file_name: string
           file_path: string
           file_size: number | null
@@ -1101,6 +1109,8 @@ export type Database = {
           uploaded_at: string
         }
         Insert: {
+          deleted_at?: string | null
+          deleted_by_user?: boolean | null
           file_name: string
           file_path: string
           file_size?: number | null
@@ -1109,6 +1119,8 @@ export type Database = {
           uploaded_at?: string
         }
         Update: {
+          deleted_at?: string | null
+          deleted_by_user?: boolean | null
           file_name?: string
           file_path?: string
           file_size?: number | null
