@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, FileText, Upload, Clock, CheckCircle, User, Loader2, Download, AlertCircle, Trash2, Lock, Unlock, CheckSquare, CheckCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, FileText, Upload, Clock, CheckCircle, User, Loader2, Download, AlertCircle, Trash2, Lock, Unlock, CheckSquare, CheckCheck, FileStack } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -35,6 +36,7 @@ interface BatchReportData {
 }
 
 const SimilarityQueue: React.FC = () => {
+  const navigate = useNavigate();
   const { user, role } = useAuth();
   const { documents, loading, fetchDocuments, uploadSimilarityReport, deleteSimilarityDocument } = useSimilarityDocuments();
   
@@ -563,25 +565,36 @@ const SimilarityQueue: React.FC = () => {
             )}
           </div>
           
-          {/* Process All Button - Admin Only */}
-          {role === 'admin' && availableDocs.length > 0 && (
-            <Button 
-              onClick={() => setProcessAllDialogOpen(true)}
-              disabled={processingAll}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {processingAll ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <CheckCheck className="h-4 w-4 mr-2" />
-                  Process All ({availableDocs.length})
-                </>
+          {/* Action Buttons - Admin Only */}
+          {role === 'admin' && (
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => navigate('/dashboard/similarity-bulk-upload')}
+                variant="outline"
+              >
+                <FileStack className="h-4 w-4 mr-2" />
+                Bulk Upload
+              </Button>
+              {availableDocs.length > 0 && (
+                <Button 
+                  onClick={() => setProcessAllDialogOpen(true)}
+                  disabled={processingAll}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {processingAll ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCheck className="h-4 w-4 mr-2" />
+                      Process All ({availableDocs.length})
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+            </div>
           )}
         </div>
 
