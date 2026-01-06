@@ -96,6 +96,7 @@ const MyReceipts = lazy(() => import("./pages/MyReceipts"));
 const AdminInvoices = lazy(() => import("./pages/AdminInvoices"));
 const AdminBankStatements = lazy(() => import("./pages/AdminBankStatements"));
 const AdminCreditValidity = lazy(() => import("./pages/AdminCreditValidity"));
+const AdminDeletedDocuments = lazy(() => import("./pages/AdminDeletedDocuments"));
 const queryClient = new QueryClient();
 
 // Loading skeleton component for Suspense fallback
@@ -320,6 +321,7 @@ const AppRoutes = () => (
         <Route path="/dashboard/webhook-logs" element={<ProtectedRoute allowedRoles={['admin']}><AdminWebhookLogs /></ProtectedRoute>} />
         <Route path="/dashboard/all-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminUnifiedPayments /></ProtectedRoute>} />
         <Route path="/dashboard/credit-validity" element={<ProtectedRoute allowedRoles={['admin']}><AdminCreditValidity /></ProtectedRoute>} />
+        <Route path="/dashboard/deleted-documents" element={<ProtectedRoute allowedRoles={['admin']}><AdminDeletedDocuments /></ProtectedRoute>} />
       <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       
       <Route path="*" element={<NotFound />} />
