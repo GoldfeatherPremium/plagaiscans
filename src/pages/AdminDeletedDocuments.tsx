@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Loader2, Trash2, FileText, Users, Filter, Download, Calendar, User, Link } from 'lucide-react';
+import { Search, Loader2, Trash2, FileText, Filter, Download, User, Link, Copy, LinkIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -16,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 interface DeletedDocument {
   id: string;
@@ -40,10 +41,19 @@ interface DeletedDocument {
 }
 
 export default function AdminDeletedDocuments() {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<DeletedDocument[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: 'Copied!',
+      description: 'Magic link token copied to clipboard',
+    });
+  };
 
   useEffect(() => {
     fetchDeletedLogs();
@@ -153,6 +163,17 @@ export default function AdminDeletedDocuments() {
 
   const customerCount = logs.filter(l => l.user_id && !l.magic_link_id).length;
   const guestCount = logs.filter(l => l.magic_link_id).length;
+  
+  // Count unique magic links
+  const uniqueMagicLinks = useMemo(() => {
+    const tokenCounts = new Map<string, number>();
+    logs.forEach(l => {
+      if (l.magic_link_token) {
+        tokenCounts.set(l.magic_link_token, (tokenCounts.get(l.magic_link_token) || 0) + 1);
+      }
+    });
+    return tokenCounts;
+  }, [logs]);
 
   return (
     <DashboardLayout>
@@ -173,7 +194,7 @@ export default function AdminDeletedDocuments() {
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by file name, email, or ID..."
+              placeholder="Search by file name, email, magic link..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -193,7 +214,7 @@ export default function AdminDeletedDocuments() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
@@ -222,8 +243,19 @@ export default function AdminDeletedDocuments() {
                 <Link className="h-5 w-5 text-secondary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">By Guests (Magic Links)</p>
+                <p className="text-sm text-muted-foreground">By Guests</p>
                 <p className="text-xl font-bold">{guestCount}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                <LinkIcon className="h-5 w-5 text-orange-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Unique Links</p>
+                <p className="text-xl font-bold">{uniqueMagicLinks.size}</p>
               </div>
             </CardContent>
           </Card>
@@ -281,8 +313,22 @@ export default function AdminDeletedDocuments() {
                             {log.magic_link_id ? 'Guest' : 'Customer'}
                           </Badge>
                           {log.magic_link_token && (
-                            <div className="text-xs text-muted-foreground mt-1 font-mono">
-                              Link: {log.magic_link_token.slice(0, 8)}...
+                            <div className="flex items-center gap-1 mt-1">
+                              <span className="text-xs text-muted-foreground font-mono truncate max-w-[80px]" title={log.magic_link_token}>
+                                {log.magic_link_token.slice(0, 8)}...
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5"
+                                onClick={() => copyToClipboard(log.magic_link_token!)}
+                                title="Copy magic link token"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                              <Badge variant="outline" className="text-[10px] px-1 py-0">
+                                {uniqueMagicLinks.get(log.magic_link_token)} del
+                              </Badge>
                             </div>
                           )}
                         </TableCell>
