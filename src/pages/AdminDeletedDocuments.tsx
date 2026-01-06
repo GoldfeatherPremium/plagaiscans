@@ -36,6 +36,7 @@ interface DeletedDocument {
   deleted_by_type: string;
   customer_email: string | null;
   customer_name: string | null;
+  magic_link_token?: string | null;
 }
 
 export default function AdminDeletedDocuments() {
@@ -51,16 +52,28 @@ export default function AdminDeletedDocuments() {
   const fetchDeletedLogs = async () => {
     setLoading(true);
     
+    // Fetch deleted documents with magic link tokens
     const { data, error } = await supabase
       .from('deleted_documents_log')
-      .select('*')
+      .select(`
+        *,
+        magic_upload_links:magic_link_id (
+          token
+        )
+      `)
       .order('deleted_at', { ascending: false })
       .limit(500);
 
     if (error) {
       console.error('Error fetching deleted documents:', error);
+      setLogs([]);
     } else {
-      setLogs(data || []);
+      // Transform data to include magic_link_token
+      const transformedData = (data || []).map((log: any) => ({
+        ...log,
+        magic_link_token: log.magic_upload_links?.token || null,
+      }));
+      setLogs(transformedData);
     }
     
     setLoading(false);
@@ -81,7 +94,8 @@ export default function AdminDeletedDocuments() {
         log.file_name.toLowerCase().includes(query) ||
         log.customer_email?.toLowerCase().includes(query) ||
         log.customer_name?.toLowerCase().includes(query) ||
-        log.original_document_id.toLowerCase().includes(query)
+        log.original_document_id.toLowerCase().includes(query) ||
+        log.magic_link_token?.toLowerCase().includes(query)
       );
     }
     
@@ -90,11 +104,12 @@ export default function AdminDeletedDocuments() {
 
   const exportLogs = () => {
     const csv = [
-      ['Deleted At', 'File Name', 'User Type', 'Customer Name', 'Customer Email', 'Scan Type', 'Similarity %', 'AI %', 'Uploaded At', 'Completed At'].join(','),
+      ['Deleted At', 'File Name', 'User Type', 'Magic Link Token', 'Customer Name', 'Customer Email', 'Scan Type', 'Similarity %', 'AI %', 'Uploaded At', 'Completed At'].join(','),
       ...filteredLogs.map(log => [
         format(new Date(log.deleted_at), 'yyyy-MM-dd HH:mm:ss'),
         `"${log.file_name.replace(/"/g, '""')}"`,
         log.magic_link_id ? 'Guest' : 'Customer',
+        log.magic_link_token || '',
         log.customer_name || '',
         log.customer_email || '',
         log.scan_type,
@@ -242,6 +257,11 @@ export default function AdminDeletedDocuments() {
                           <Badge variant={log.magic_link_id ? 'secondary' : 'default'}>
                             {log.magic_link_id ? 'Guest' : 'Customer'}
                           </Badge>
+                          {log.magic_link_token && (
+                            <div className="text-xs text-muted-foreground mt-1 font-mono">
+                              Link: {log.magic_link_token.slice(0, 8)}...
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">{log.customer_name || 'Unknown'}</div>
