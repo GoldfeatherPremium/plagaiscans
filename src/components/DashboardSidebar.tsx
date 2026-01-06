@@ -43,6 +43,7 @@ import {
   RotateCcw,
   Crown,
   CalendarClock,
+  Trash2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -320,6 +321,7 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/bulk-upload', icon: FileStack, label: 'Bulk Upload' },
         { to: '/dashboard/unmatched-reports', icon: FileQuestion, label: 'Unmatched Reports' },
         { to: '/dashboard/needs-review', icon: AlertTriangle, label: 'Needs Review' },
+        { to: '/dashboard/deleted-documents', icon: Trash2, label: 'Deleted Docs' },
       ],
     },
     {
