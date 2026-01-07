@@ -509,7 +509,7 @@ export default function DocumentQueue() {
           {role === 'admin' && (
             <div className="flex items-center gap-2">
               <Button 
-                onClick={() => navigate('/admin/bulk-upload')}
+                onClick={() => navigate('/dashboard/bulk-upload')}
                 variant="outline"
               >
                 <FolderUp className="h-4 w-4 mr-2" />
