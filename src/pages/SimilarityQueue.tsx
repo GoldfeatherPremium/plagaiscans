@@ -569,7 +569,7 @@ const SimilarityQueue: React.FC = () => {
           {role === 'admin' && (
             <div className="flex gap-2">
               <Button 
-                onClick={() => navigate('/dashboard/bulk-upload')}
+                onClick={() => navigate('/dashboard/similarity-bulk-upload')}
                 variant="outline"
               >
                 <FileStack className="h-4 w-4 mr-2" />

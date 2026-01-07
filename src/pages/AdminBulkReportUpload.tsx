@@ -7,7 +7,6 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { SEO } from '@/components/SEO';
 import { 
   Upload, 
   FileText, 
@@ -33,6 +32,7 @@ interface ReportFile {
 interface MappingResult {
   documentId: string;
   fileName: string;
+  reportType: 'similarity' | 'ai';
   percentage: number | null;
   success: boolean;
   message?: string;
@@ -42,12 +42,14 @@ interface ProcessingResult {
   success: boolean;
   mapped: MappingResult[];
   unmatched: { fileName: string; normalizedFilename: string; filePath: string; reason: string }[];
+  needsReview: { documentId: string; reason: string }[];
   completedDocuments: string[];
   stats: {
     totalReports: number;
     mappedCount: number;
     unmatchedCount: number;
     completedCount: number;
+    needsReviewCount: number;
   };
 }
 
@@ -64,7 +66,7 @@ function normalizeFilename(filename: string): string {
   return result.trim();
 }
 
-export default function AdminSimilarityBulkUpload() {
+export default function AdminBulkReportUpload() {
   const [files, setFiles] = useState<ReportFile[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -187,7 +189,7 @@ export default function AdminSimilarityBulkUpload() {
 
         const timestamp = Date.now();
         const sanitizedName = reportFile.fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const filePath = `similarity-bulk-reports/${timestamp}_${sanitizedName}`;
+        const filePath = `bulk-reports/${timestamp}_${sanitizedName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('reports')
@@ -222,7 +224,7 @@ export default function AdminSimilarityBulkUpload() {
       // Call edge function for PDF analysis and auto-mapping
       setUploadProgress(60);
       
-      const { data, error } = await supabase.functions.invoke('process-similarity-bulk-reports', {
+      const { data, error } = await supabase.functions.invoke('process-bulk-reports', {
         body: { reports: uploadedReports },
       });
 
@@ -246,6 +248,9 @@ export default function AdminSimilarityBulkUpload() {
       if (stats.unmatchedCount > 0) {
         toast.warning(`${stats.unmatchedCount} reports could not be matched`);
       }
+      if (stats.needsReviewCount > 0) {
+        toast.warning(`${stats.needsReviewCount} documents need manual review`);
+      }
 
     } catch (error) {
       console.error('Error:', error);
@@ -261,16 +266,11 @@ export default function AdminSimilarityBulkUpload() {
 
   return (
     <DashboardLayout>
-      <SEO
-        title="Bulk Similarity Report Upload"
-        description="Upload multiple similarity reports at once for the similarity queue"
-      />
-      
       <div className="space-y-6">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">Bulk Similarity Report Upload</h1>
+          <h1 className="text-3xl font-bold">Bulk Report Upload</h1>
           <p className="text-muted-foreground">
-            Upload PDF reports for similarity-only documents. Reports are auto-matched by filename and analyzed for percentage.
+            Upload PDF reports or ZIP archives. Reports are auto-classified using page 2 analysis.
           </p>
         </div>
 
@@ -279,10 +279,10 @@ export default function AdminSimilarityBulkUpload() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
-              Upload Similarity Reports
+              Upload Reports
             </CardTitle>
             <CardDescription>
-              Drag and drop PDF files or ZIP archives. Each PDF's page 2 is analyzed to extract similarity percentage.
+              Drag and drop PDF files or ZIP archives. Each PDF's page 2 is analyzed to classify as Similarity or AI report.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -452,7 +452,7 @@ export default function AdminSimilarityBulkUpload() {
             </CardHeader>
             <CardContent>
               {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                 <div className="text-center p-4 bg-muted rounded-lg">
                   <p className="text-2xl font-bold">{processingResult.stats.totalReports}</p>
                   <p className="text-sm text-muted-foreground">Total Reports</p>
@@ -469,6 +469,10 @@ export default function AdminSimilarityBulkUpload() {
                   <p className="text-2xl font-bold text-yellow-600">{processingResult.stats.unmatchedCount}</p>
                   <p className="text-sm text-muted-foreground">Unmatched</p>
                 </div>
+                <div className="text-center p-4 bg-orange-500/10 rounded-lg">
+                  <p className="text-2xl font-bold text-orange-600">{processingResult.stats.needsReviewCount}</p>
+                  <p className="text-sm text-muted-foreground">Needs Review</p>
+                </div>
               </div>
 
               {/* Mapped Reports */}
@@ -481,13 +485,16 @@ export default function AdminSimilarityBulkUpload() {
                   <ScrollArea className="h-[150px] border rounded-lg">
                     <div className="p-3 space-y-2">
                       {processingResult.mapped.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-green-500/10 rounded-lg">
+                        <div key={index} className="flex items-center justify-between p-2 bg-green-500/5 rounded-lg">
                           <span className="text-sm truncate flex-1">{item.fileName}</span>
-                          {item.percentage !== null && (
-                            <Badge variant="outline" className="ml-2">
-                              {item.percentage}%
+                          <div className="flex items-center gap-2">
+                            <Badge variant={item.reportType === 'similarity' ? 'default' : 'secondary'}>
+                              {item.reportType}
                             </Badge>
-                          )}
+                            {item.percentage !== null && (
+                              <Badge variant="outline">{item.percentage}%</Badge>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -505,7 +512,7 @@ export default function AdminSimilarityBulkUpload() {
                   <ScrollArea className="h-[150px] border rounded-lg">
                     <div className="p-3 space-y-2">
                       {processingResult.unmatched.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 bg-yellow-500/10 rounded-lg">
+                        <div key={index} className="flex items-center justify-between p-2 bg-yellow-500/5 rounded-lg">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm truncate">{item.fileName}</p>
                             <p className="text-xs text-muted-foreground">{item.reason}</p>
@@ -514,42 +521,24 @@ export default function AdminSimilarityBulkUpload() {
                       ))}
                     </div>
                   </ScrollArea>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Unmatched reports are stored and can be manually assigned from the Unmatched Reports page.
+                  <p className="text-sm text-muted-foreground mt-2">
+                    View and manage unmatched reports in the Unmatched Reports page.
                   </p>
                 </div>
               )}
 
-              {/* Completed Documents Success Message */}
+              {/* Completed Documents */}
               {processingResult.completedDocuments.length > 0 && (
-                <div className="p-4 bg-green-500/10 rounded-lg flex items-start gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-green-600">Documents Completed</p>
-                    <p className="text-sm text-muted-foreground">
-                      {processingResult.completedDocuments.length} document(s) have been marked as completed. Customers have been notified.
-                    </p>
-                  </div>
+                <div className="p-4 bg-green-500/10 rounded-lg">
+                  <p className="text-sm font-medium text-green-700">
+                    ✓ {processingResult.completedDocuments.length} document(s) completed with both reports attached.
+                    Customers have been notified.
+                  </p>
                 </div>
               )}
             </CardContent>
           </Card>
         )}
-
-        {/* Instructions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>How It Works</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>1. <strong>Upload:</strong> Drag & drop PDF similarity reports or ZIP archives containing PDFs</p>
-            <p>2. <strong>Storage:</strong> Files are uploaded to secure storage before processing</p>
-            <p>3. <strong>Analysis:</strong> Page 2 of each PDF is analyzed to extract similarity percentage</p>
-            <p>4. <strong>Matching:</strong> Reports are matched to similarity queue documents by normalized filename</p>
-            <p>5. <strong>Completion:</strong> Matched documents are marked complete and customers are notified</p>
-            <p>6. <strong>Unmatched:</strong> Reports without matches are stored for manual assignment</p>
-          </CardContent>
-        </Card>
       </div>
     </DashboardLayout>
   );

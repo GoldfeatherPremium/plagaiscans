@@ -63,7 +63,9 @@ const AdminDashboardOverview = lazy(() => import("./pages/AdminDashboardOverview
 const StaffPerformance = lazy(() => import("./pages/StaffPerformance"));
 const CustomerDocumentAnalytics = lazy(() => import("./pages/CustomerDocumentAnalytics"));
 const AdminAIHelper = lazy(() => import("./pages/AdminAIHelper"));
+const AdminBulkReportUpload = lazy(() => import("./pages/AdminBulkReportUpload"));
 const AdminSimilarityBulkUpload = lazy(() => import("./pages/AdminSimilarityBulkUpload"));
+const AdminUnmatchedReports = lazy(() => import("./pages/AdminUnmatchedReports"));
 const AdminNeedsReview = lazy(() => import("./pages/AdminNeedsReview"));
 const ReferralProgram = lazy(() => import("./pages/ReferralProgram"));
 const AboutUs = lazy(() => import("./pages/AboutUs"));
@@ -306,7 +308,9 @@ const AppRoutes = () => (
       <Route path="/dashboard/overview" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboardOverview /></ProtectedRoute>} />
       <Route path="/dashboard/staff-performance" element={<ProtectedRoute allowedRoles={['admin']}><StaffPerformance /></ProtectedRoute>} />
       <Route path="/dashboard/ai-helper" element={<ProtectedRoute allowedRoles={['admin']}><AdminAIHelper /></ProtectedRoute>} />
-      <Route path="/dashboard/bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminSimilarityBulkUpload /></ProtectedRoute>} />
+      <Route path="/dashboard/bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminBulkReportUpload /></ProtectedRoute>} />
+      <Route path="/dashboard/similarity-bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminSimilarityBulkUpload /></ProtectedRoute>} />
+      <Route path="/dashboard/unmatched-reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminUnmatchedReports /></ProtectedRoute>} />
       <Route path="/dashboard/needs-review" element={<ProtectedRoute allowedRoles={['admin']}><AdminNeedsReview /></ProtectedRoute>} />
       <Route path="/dashboard/site-content" element={<ProtectedRoute allowedRoles={['admin']}><AdminSiteContent /></ProtectedRoute>} />
       <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['admin']}><AdminReferrals /></ProtectedRoute>} />
