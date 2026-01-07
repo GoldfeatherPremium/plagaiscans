@@ -18,9 +18,6 @@ verify_jwt = false
 [functions.admin-send-email]
 verify_jwt = false
 
-[functions.viva-payments]
-verify_jwt = false
-
 [functions.send-push-notification]
 verify_jwt = false
 
@@ -31,9 +28,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.ai-admin-helper]
-verify_jwt = false
-
-[functions.bulk-report-upload]
 verify_jwt = false
 
 [functions.send-customer-notification]
@@ -84,8 +78,5 @@ verify_jwt = false
 [functions.expire-credits]
 verify_jwt = false
 
-[functions.process-bulk-reports]
-verify_jwt = false
-
-[functions.process-similarity-bulk-reports]
+[functions.similarity-auto-map]
 verify_jwt = false
