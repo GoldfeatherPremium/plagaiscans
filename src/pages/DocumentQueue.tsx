@@ -9,7 +9,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
-import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare, CheckCheck, FolderUp } from 'lucide-react';
+import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
+import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare, CheckCheck, FolderUp, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -50,10 +51,11 @@ interface BatchReportData {
 }
 
 export default function DocumentQueue() {
-  const { documents, loading, downloadFile, uploadReport, updateDocumentStatus, releaseDocument } = useDocuments();
+  const { documents, loading, downloadFile, uploadReport, updateDocumentStatus, releaseDocument, fetchDocuments } = useDocuments();
   const { user, role } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const isAdmin = role === 'admin';
   
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -67,6 +69,10 @@ export default function DocumentQueue() {
   const [globalTimeout, setGlobalTimeout] = useState(30);
   const [mySettings, setMySettings] = useState<StaffSettings>({ time_limit_minutes: 30, max_concurrent_files: 1 });
   const [, setTick] = useState(0);
+  
+  // Edit dialog state (admin only)
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [documentToEdit, setDocumentToEdit] = useState<Document | null>(null);
   
   // Batch selection state
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
@@ -747,6 +753,21 @@ export default function DocumentQueue() {
                                     </Button>
                                   </>
                                 )}
+
+                                {/* Admin Edit Button */}
+                                {isAdmin && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setDocumentToEdit(doc);
+                                      setEditDialogOpen(true);
+                                    }}
+                                    title="Edit document"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -970,6 +991,15 @@ export default function DocumentQueue() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Edit Document Dialog (Admin only) */}
+        <EditCompletedDocumentDialog
+          document={documentToEdit}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onSuccess={fetchDocuments}
+          downloadFile={downloadFile}
+        />
       </div>
     </DashboardLayout>
   );
