@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,11 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileQuestion, Search, Link2, Trash2, RefreshCw, Download } from 'lucide-react';
+import { FileQuestion, Search, Link2, Trash2, RefreshCw, Download, Zap, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { DocumentSuggestions } from '@/components/DocumentSuggestions';
+import { findMatchCandidates } from '@/utils/filenameMatching';
 
 interface UnmatchedReport {
   id: string;
@@ -44,6 +46,7 @@ const AdminUnmatchedReports: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<UnmatchedReport | null>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string>('');
+  const [selectedReports, setSelectedReports] = useState<Set<string>>(new Set());
 
   // Fetch unmatched reports
   const { data: reports, isLoading: reportsLoading } = useQuery({
@@ -79,6 +82,32 @@ const AdminUnmatchedReports: React.FC = () => {
       return data as PendingDocument[];
     },
   });
+
+  // Calculate high-confidence matches for batch auto-resolve
+  const highConfidenceMatches = useMemo(() => {
+    if (!reports || !pendingDocuments) return [];
+    
+    return reports
+      .filter((r) => !r.resolved)
+      .map((report) => {
+        const candidates = findMatchCandidates(
+          report.file_name,
+          pendingDocuments.map((d) => ({
+            id: d.id,
+            file_name: d.file_name,
+            normalized_filename: d.normalized_filename,
+            status: d.status,
+          })),
+          90
+        );
+        
+        if (candidates.length === 1 && candidates[0].confidence >= 90) {
+          return { report, document: candidates[0] };
+        }
+        return null;
+      })
+      .filter(Boolean) as Array<{ report: UnmatchedReport; document: { id: string; fileName: string; normalizedFilename: string; confidence: number; matchType: string } }>;
+  }, [reports, pendingDocuments]);
 
   // Assign report to document
   const assignMutation = useMutation({
@@ -135,7 +164,61 @@ const AdminUnmatchedReports: React.FC = () => {
     },
   });
 
-  // Delete unmatched report
+  // Batch auto-resolve high-confidence matches
+  const batchResolveMutation = useMutation({
+    mutationFn: async (matches: typeof highConfidenceMatches) => {
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const match of matches) {
+        try {
+          const reportType = match.report.report_type === 'ai' ? 'ai' : 'similarity';
+          const updateField = reportType === 'similarity' ? 'similarity_report_path' : 'ai_report_path';
+          
+          // Update document
+          const { error: docError } = await supabase
+            .from('documents')
+            .update({ [updateField]: match.report.file_path })
+            .eq('id', match.document.id);
+
+          if (docError) {
+            failCount++;
+            continue;
+          }
+
+          // Mark report as resolved
+          await supabase
+            .from('unmatched_reports')
+            .update({
+              resolved: true,
+              resolved_at: new Date().toISOString(),
+              matched_document_id: match.document.id,
+              report_type: reportType,
+            })
+            .eq('id', match.report.id);
+
+          successCount++;
+        } catch {
+          failCount++;
+        }
+      }
+
+      return { successCount, failCount };
+    },
+    onSuccess: ({ successCount, failCount }) => {
+      if (successCount > 0) {
+        toast.success(`Auto-resolved ${successCount} reports`);
+      }
+      if (failCount > 0) {
+        toast.error(`Failed to resolve ${failCount} reports`);
+      }
+      queryClient.invalidateQueries({ queryKey: ['unmatched-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-documents-for-assignment'] });
+    },
+    onError: (error) => {
+      toast.error('Batch resolve failed: ' + error.message);
+    },
+  });
   const deleteMutation = useMutation({
     mutationFn: async (reportId: string) => {
       const report = reports?.find(r => r.id === reportId);
@@ -208,14 +291,47 @@ const AdminUnmatchedReports: React.FC = () => {
               Manage reports that couldn't be auto-mapped to documents
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['unmatched-reports'] })}
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex gap-2">
+            {highConfidenceMatches.length > 0 && (
+              <Button
+                onClick={() => batchResolveMutation.mutate(highConfidenceMatches)}
+                disabled={batchResolveMutation.isPending}
+              >
+                <Zap className="h-4 w-4 mr-2" />
+                Auto-Resolve ({highConfidenceMatches.length})
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['unmatched-reports'] })}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
         </div>
+
+        {/* Stats Cards */}
+        {reports && reports.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="p-4">
+              <p className="text-2xl font-bold">{reports.filter(r => !r.resolved).length}</p>
+              <p className="text-sm text-muted-foreground">Pending</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-2xl font-bold text-green-600">{highConfidenceMatches.length}</p>
+              <p className="text-sm text-muted-foreground">High Confidence</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-2xl font-bold">{reports.filter(r => r.resolved).length}</p>
+              <p className="text-sm text-muted-foreground">Resolved</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-2xl font-bold">{reports.length}</p>
+              <p className="text-sm text-muted-foreground">Total</p>
+            </Card>
+          </div>
+        )}
 
         <Card>
           <CardHeader>
@@ -347,8 +463,23 @@ const AdminUnmatchedReports: React.FC = () => {
             </DialogHeader>
 
             <div className="space-y-4">
+              {/* Suggestions */}
+              {selectedReport && pendingDocuments && (
+                <DocumentSuggestions
+                  reportFilename={selectedReport.file_name}
+                  reportNormalizedKey={selectedReport.normalized_filename}
+                  documents={pendingDocuments.map((d) => ({
+                    id: d.id,
+                    file_name: d.file_name,
+                    normalized_filename: d.normalized_filename,
+                  }))}
+                  onAssign={(docId) => setSelectedDocumentId(docId)}
+                  isLoading={assignMutation.isPending}
+                />
+              )}
+
               <div>
-                <label className="text-sm font-medium mb-2 block">Select Document</label>
+                <label className="text-sm font-medium mb-2 block">Or select manually:</label>
                 <Select value={selectedDocumentId} onValueChange={setSelectedDocumentId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Choose a document..." />
@@ -379,7 +510,8 @@ const AdminUnmatchedReports: React.FC = () => {
                     })}
                     disabled={assignMutation.isPending}
                   >
-                    Assign as Similarity Report
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Assign as Similarity
                   </Button>
                   <Button
                     className="flex-1"
@@ -391,7 +523,7 @@ const AdminUnmatchedReports: React.FC = () => {
                     })}
                     disabled={assignMutation.isPending}
                   >
-                    Assign as AI Report
+                    Assign as AI
                   </Button>
                 </div>
               )}
