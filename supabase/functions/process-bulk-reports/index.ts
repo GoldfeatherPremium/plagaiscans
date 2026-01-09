@@ -10,6 +10,7 @@ const corsHeaders = {
 interface ReportFile {
   fileName: string;
   filePath: string;
+  documentId?: string; // Optional manual assignment from preview
 }
 
 interface ReportAnalysis {
@@ -65,6 +66,102 @@ function getDocumentBaseName(filename: string): string {
 }
 
 /**
+ * Calculate Levenshtein distance between two strings
+ */
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = [];
+
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+
+  return matrix[b.length][a.length];
+}
+
+/**
+ * Calculate similarity percentage between two strings (0-100)
+ */
+function calculateSimilarity(a: string, b: string): number {
+  if (a === b) return 100;
+  if (a.length === 0 || b.length === 0) return 0;
+  
+  const distance = levenshteinDistance(a, b);
+  const maxLength = Math.max(a.length, b.length);
+  const similarity = ((maxLength - distance) / maxLength) * 100;
+  
+  return Math.round(similarity);
+}
+
+interface MatchCandidate {
+  doc: {
+    id: string;
+    file_name: string;
+    normalized_filename: string | null;
+    similarity_report_path: string | null;
+    ai_report_path: string | null;
+    user_id: string | null;
+    status: string;
+    needs_review: boolean | null;
+  };
+  confidence: number;
+  matchType: 'exact' | 'fuzzy';
+}
+
+/**
+ * Find best matching document using fuzzy matching
+ */
+function findBestMatch(
+  normalizedReport: string,
+  documents: MatchCandidate['doc'][],
+  minConfidence: number = 80
+): { bestMatch: MatchCandidate | null; suggestions: MatchCandidate[] } {
+  const candidates: MatchCandidate[] = [];
+
+  for (const doc of documents) {
+    const docNormalized = doc.normalized_filename || getDocumentBaseName(doc.file_name);
+    const similarity = calculateSimilarity(normalizedReport, docNormalized);
+
+    if (similarity >= minConfidence) {
+      candidates.push({
+        doc,
+        confidence: similarity,
+        matchType: similarity === 100 ? 'exact' : 'fuzzy',
+      });
+    }
+  }
+
+  // Sort by confidence descending
+  candidates.sort((a, b) => b.confidence - a.confidence);
+
+  // Best match is the highest confidence if unique at that level
+  const bestMatch = candidates.length > 0 ? candidates[0] : null;
+  
+  // Return top 3 suggestions for unmatched reports
+  return {
+    bestMatch,
+    suggestions: candidates.slice(0, 3),
+  };
+}
+
+/**
  * Analyze PDF page 2 to classify report type and extract percentage
  */
 async function analyzePdfPage2(pdfBuffer: ArrayBuffer): Promise<ReportAnalysis> {
@@ -87,9 +184,17 @@ async function analyzePdfPage2(pdfBuffer: ArrayBuffer): Promise<ReportAnalysis> 
     
     console.log('Page 2 text excerpt:', text.substring(0, 500));
     
-    // Classification keywords
-    const similarityKeywords = ['overall similarity', 'match groups', 'integrity overview', 'similarity index', 'matching text'];
-    const aiKeywords = ['detected as ai', 'ai writing overview', 'detection groups', 'ai-generated', 'ai writing detection'];
+    // Enhanced classification keywords
+    const similarityKeywords = [
+      'overall similarity', 'match groups', 'integrity overview', 'similarity index', 
+      'matching text', 'turnitin similarity', 'originality', 'sources overview',
+      'internet sources', 'publications', 'student papers'
+    ];
+    const aiKeywords = [
+      'detected as ai', 'ai writing overview', 'detection groups', 'ai-generated', 
+      'ai writing detection', 'ai writing', 'human writing', 'chat gpt', 'chatgpt',
+      'ai detection', 'ai content'
+    ];
     
     const isSimilarity = similarityKeywords.some(kw => text.includes(kw));
     const isAI = aiKeywords.some(kw => text.includes(kw));
@@ -99,17 +204,33 @@ async function analyzePdfPage2(pdfBuffer: ArrayBuffer): Promise<ReportAnalysis> 
     
     if (isSimilarity && !isAI) {
       reportType = 'similarity';
-      // Extract similarity percentage
-      const similarityMatch = text.match(/(\d+(?:\.\d+)?)\s*%\s*(?:overall\s+)?similarity/);
-      if (similarityMatch) {
-        percentage = parseFloat(similarityMatch[1]);
+      // Extract similarity percentage - try multiple patterns
+      const patterns = [
+        /(\d+(?:\.\d+)?)\s*%\s*(?:overall\s+)?similarity/,
+        /similarity[:\s]+(\d+(?:\.\d+)?)\s*%/,
+        /(\d+(?:\.\d+)?)\s*%\s*match/,
+      ];
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+          percentage = parseFloat(match[1]);
+          break;
+        }
       }
     } else if (isAI && !isSimilarity) {
       reportType = 'ai';
-      // Extract AI percentage
-      const aiMatch = text.match(/(\d+(?:\.\d+)?)\s*%\s*(?:detected\s+as\s+)?ai/);
-      if (aiMatch) {
-        percentage = parseFloat(aiMatch[1]);
+      // Extract AI percentage - try multiple patterns
+      const patterns = [
+        /(\d+(?:\.\d+)?)\s*%\s*(?:detected\s+as\s+)?ai/,
+        /ai[:\s]+(\d+(?:\.\d+)?)\s*%/,
+        /(\d+(?:\.\d+)?)\s*%\s*ai(?:\s+writing)?/,
+      ];
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+          percentage = parseFloat(match[1]);
+          break;
+        }
       }
     } else if (isSimilarity && isAI) {
       // Both keywords found - classify based on which appears first
@@ -254,64 +375,95 @@ serve(async (req: Request) => {
         console.log(`Analysis result for ${report.fileName}:`, analysis);
       }
 
-      // Find matching documents
-      const matchingDocs = docsByNormalized.get(normalizedFilename) || [];
-
-      // Case 1: No matching documents
-      if (matchingDocs.length === 0) {
-        result.unmatched.push({
-          fileName: report.fileName,
-          normalizedFilename,
-          filePath: report.filePath,
-          reason: 'No matching document found',
-        });
-
-        await supabase.from('unmatched_reports').insert({
-          file_name: report.fileName,
-          normalized_filename: normalizedFilename,
-          file_path: report.filePath,
-          report_type: analysis.reportType === 'unknown' ? null : analysis.reportType,
-          uploaded_by: user.id,
-        });
-        continue;
-      }
-
-      // Case 2: Multiple matching documents - ambiguous
-      if (matchingDocs.length > 1) {
-        for (const doc of matchingDocs) {
-          await supabase
-            .from('documents')
-            .update({
-              needs_review: true,
-              review_reason: `Multiple documents share normalized filename: ${normalizedFilename}`,
-            })
-            .eq('id', doc.id);
-
-          result.needsReview.push({
-            documentId: doc.id,
-            reason: 'Multiple documents with same normalized filename',
-          });
+      // Check for manual assignment first
+      let targetDoc: typeof documents[0] | null = null;
+      
+      if (report.documentId) {
+        // Manual assignment from preview - find the document directly
+        targetDoc = (documents || []).find(d => d.id === report.documentId) || null;
+        if (targetDoc) {
+          console.log(`Using manual assignment for ${report.fileName} -> ${targetDoc.file_name}`);
         }
-
-        result.unmatched.push({
-          fileName: report.fileName,
-          normalizedFilename,
-          filePath: report.filePath,
-          reason: 'Multiple matching documents - ambiguous',
-        });
-
-        await supabase.from('unmatched_reports').insert({
-          file_name: report.fileName,
-          normalized_filename: normalizedFilename,
-          file_path: report.filePath,
-          report_type: analysis.reportType === 'unknown' ? null : analysis.reportType,
-          uploaded_by: user.id,
-        });
-        continue;
       }
 
-      // Case 3: Exactly one matching document
-      const doc = matchingDocs[0];
+      // If no manual assignment, try exact match then fuzzy match
+      if (!targetDoc) {
+        // Try exact match first
+        const matchingDocs = docsByNormalized.get(normalizedFilename) || [];
+        
+        if (matchingDocs.length === 1) {
+          targetDoc = matchingDocs[0];
+        } else if (matchingDocs.length === 0) {
+          // Try fuzzy matching
+          const { bestMatch, suggestions } = findBestMatch(normalizedFilename, documents || []);
+          
+          if (bestMatch && bestMatch.confidence >= 90) {
+            // High confidence fuzzy match - auto-assign
+            targetDoc = bestMatch.doc;
+            console.log(`Fuzzy match (${bestMatch.confidence}%) for ${report.fileName} -> ${targetDoc.file_name}`);
+          } else {
+            // No good match - add to unmatched with suggestions
+            result.unmatched.push({
+              fileName: report.fileName,
+              normalizedFilename,
+              filePath: report.filePath,
+              reason: bestMatch 
+                ? `Best match ${bestMatch.doc.file_name} (${bestMatch.confidence}%) below threshold`
+                : 'No matching document found',
+            });
+
+            // Store suggestions in unmatched_reports
+            await supabase.from('unmatched_reports').insert({
+              file_name: report.fileName,
+              normalized_filename: normalizedFilename,
+              file_path: report.filePath,
+              report_type: analysis.reportType === 'unknown' ? null : analysis.reportType,
+              uploaded_by: user.id,
+              suggested_documents: suggestions.map(s => ({
+                id: s.doc.id,
+                fileName: s.doc.file_name,
+                confidence: s.confidence,
+              })),
+            });
+            continue;
+          }
+        } else {
+          // Multiple exact matches - ambiguous
+          for (const doc of matchingDocs) {
+            await supabase
+              .from('documents')
+              .update({
+                needs_review: true,
+                review_reason: `Multiple documents share normalized filename: ${normalizedFilename}`,
+              })
+              .eq('id', doc.id);
+
+            result.needsReview.push({
+              documentId: doc.id,
+              reason: 'Multiple documents with same normalized filename',
+            });
+          }
+
+          result.unmatched.push({
+            fileName: report.fileName,
+            normalizedFilename,
+            filePath: report.filePath,
+            reason: 'Multiple matching documents - ambiguous',
+          });
+
+          await supabase.from('unmatched_reports').insert({
+            file_name: report.fileName,
+            normalized_filename: normalizedFilename,
+            file_path: report.filePath,
+            report_type: analysis.reportType === 'unknown' ? null : analysis.reportType,
+            uploaded_by: user.id,
+          });
+          continue;
+        }
+      }
+
+      // We have a target document
+      const doc = targetDoc!;
 
       // Determine report type from PDF analysis or filename fallback
       let reportType = analysis.reportType;

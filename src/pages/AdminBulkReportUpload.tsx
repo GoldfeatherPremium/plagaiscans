@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import { 
   Upload, 
   FileText, 
@@ -17,9 +18,13 @@ import {
   Archive,
   Loader2,
   FileCheck,
-  FileWarning
+  FileWarning,
+  Eye,
+  Zap
 } from 'lucide-react';
 import JSZip from 'jszip';
+import { MatchPreviewDialog } from '@/components/MatchPreviewDialog';
+import { previewMatches } from '@/utils/filenameMatching';
 
 interface ReportFile {
   file: File;
@@ -72,7 +77,47 @@ export default function AdminBulkReportUpload() {
   const [processing, setProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [manualMappings, setManualMappings] = useState<Map<string, string>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch pending/in-progress documents for full scan queue
+  const { data: pendingDocuments = [], isLoading: loadingDocuments } = useQuery({
+    queryKey: ['pending-full-scan-documents'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('id, file_name, normalized_filename, status, similarity_report_path, ai_report_path')
+        .in('status', ['pending', 'in_progress'])
+        .neq('scan_type', 'similarity_only')
+        .eq('needs_review', false)
+        .is('deleted_at', null);
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Calculate match preview stats
+  const matchStats = useMemo(() => {
+    if (files.length === 0 || pendingDocuments.length === 0) {
+      return { exact: 0, partial: 0, none: 0 };
+    }
+    
+    const reportFilenames = files.map(f => f.fileName);
+    const previews = previewMatches(reportFilenames, pendingDocuments.map(doc => ({
+      id: doc.id,
+      file_name: doc.file_name,
+      normalized_filename: doc.normalized_filename,
+      status: doc.status,
+    })));
+    
+    return {
+      exact: previews.filter(p => p.status === 'exact').length,
+      partial: previews.filter(p => p.status === 'partial').length,
+      none: previews.filter(p => p.status === 'none').length,
+    };
+  }, [files, pendingDocuments]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -159,11 +204,20 @@ export default function AdminBulkReportUpload() {
     setUploadProgress(0);
   };
 
-  const uploadAndProcess = async () => {
+  const handlePreviewConfirm = (assignments: Map<string, string>) => {
+    setManualMappings(assignments);
+    setShowPreview(false);
+    // Auto-start upload after confirmation
+    uploadAndProcess(assignments);
+  };
+
+  const uploadAndProcess = async (mappingsOverride?: Map<string, string>) => {
     if (files.length === 0) {
       toast.error('No files to process');
       return;
     }
+
+    const mappings = mappingsOverride || manualMappings;
 
     setProcessing(true);
     setUploadProgress(0);
@@ -177,7 +231,7 @@ export default function AdminBulkReportUpload() {
         return;
       }
 
-      const uploadedReports: { fileName: string; filePath: string }[] = [];
+      const uploadedReports: { fileName: string; filePath: string; documentId?: string }[] = [];
       const totalFiles = files.length;
 
       // Upload each file to storage
@@ -207,9 +261,12 @@ export default function AdminBulkReportUpload() {
           idx === i ? { ...f, status: 'uploaded', filePath } : f
         ));
 
+        // Include manual mapping if available
+        const manualDocId = mappings.get(reportFile.fileName);
         uploadedReports.push({
           fileName: reportFile.fileName,
           filePath,
+          ...(manualDocId && { documentId: manualDocId }),
         });
 
         setUploadProgress(Math.round(((i + 1) / totalFiles) * 50));
@@ -416,10 +473,38 @@ export default function AdminBulkReportUpload() {
                   </div>
                 )}
 
-                {/* Action Button */}
-                <div className="mt-4 flex justify-end">
+                {/* Match Preview Stats */}
+                {files.length > 0 && pendingDocuments.length > 0 && !processing && (
+                  <div className="mt-4 grid grid-cols-3 gap-3">
+                    <div className="text-center p-3 bg-green-500/10 rounded-lg border border-green-200">
+                      <p className="text-xl font-bold text-green-600">{matchStats.exact}</p>
+                      <p className="text-xs text-muted-foreground">Exact Matches</p>
+                    </div>
+                    <div className="text-center p-3 bg-yellow-500/10 rounded-lg border border-yellow-200">
+                      <p className="text-xl font-bold text-yellow-600">{matchStats.partial}</p>
+                      <p className="text-xs text-muted-foreground">Partial Matches</p>
+                    </div>
+                    <div className="text-center p-3 bg-red-500/10 rounded-lg border border-red-200">
+                      <p className="text-xl font-bold text-red-600">{matchStats.none}</p>
+                      <p className="text-xs text-muted-foreground">No Match</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="mt-4 flex justify-end gap-3">
+                  {files.length > 0 && pendingDocuments.length > 0 && !processing && (
+                    <Button 
+                      variant="outline"
+                      onClick={() => setShowPreview(true)}
+                      disabled={loadingDocuments}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Preview Matches
+                    </Button>
+                  )}
                   <Button 
-                    onClick={uploadAndProcess}
+                    onClick={() => uploadAndProcess()}
                     disabled={processing || pendingCount === 0}
                     size="lg"
                   >
@@ -430,8 +515,8 @@ export default function AdminBulkReportUpload() {
                       </>
                     ) : (
                       <>
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload & Process ({pendingCount} files)
+                        <Zap className="h-4 w-4 mr-2" />
+                        Quick Upload ({pendingCount} files)
                       </>
                     )}
                   </Button>
@@ -440,6 +525,21 @@ export default function AdminBulkReportUpload() {
             )}
           </CardContent>
         </Card>
+
+        {/* Match Preview Dialog */}
+        <MatchPreviewDialog
+          open={showPreview}
+          onOpenChange={setShowPreview}
+          reportFilenames={files.map(f => f.fileName)}
+          documents={pendingDocuments.map(doc => ({
+            id: doc.id,
+            file_name: doc.file_name,
+            normalized_filename: doc.normalized_filename,
+            status: doc.status,
+          }))}
+          onConfirm={handlePreviewConfirm}
+          isProcessing={processing}
+        />
 
         {/* Processing Results */}
         {processingResult && (

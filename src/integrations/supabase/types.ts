@@ -2006,6 +2006,7 @@ export type Database = {
           resolved_at: string | null
           resolved_by: string | null
           similarity_percentage: number | null
+          suggested_documents: Json | null
           uploaded_at: string | null
           uploaded_by: string | null
         }
@@ -2021,6 +2022,7 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           similarity_percentage?: number | null
+          suggested_documents?: Json | null
           uploaded_at?: string | null
           uploaded_by?: string | null
         }
@@ -2036,6 +2038,7 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           similarity_percentage?: number | null
+          suggested_documents?: Json | null
           uploaded_at?: string | null
           uploaded_by?: string | null
         }
