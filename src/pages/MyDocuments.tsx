@@ -7,7 +7,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
 import { DocumentTagManager } from '@/components/DocumentTagManager';
-import { FileText, Download, Loader2, Star, StarOff, DownloadCloud, Package, Trash2 } from 'lucide-react';
+import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
+import { FileText, Download, Loader2, Star, StarOff, DownloadCloud, Package, Trash2, Pencil } from 'lucide-react';
 import { PushNotificationBanner } from '@/components/PushNotificationBanner';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -34,15 +35,18 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function MyDocuments() {
-  const { documents, loading, downloadFile, deleteDocument } = useDocuments();
+  const { documents, loading, downloadFile, deleteDocument, fetchDocuments } = useDocuments();
   const { role } = useAuth();
   const { toast } = useToast();
   const isStaffOrAdmin = role === 'staff' || role === 'admin';
+  const isAdmin = role === 'admin';
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [documentToEdit, setDocumentToEdit] = useState<Document | null>(null);
   const [filters, setFilters] = useState<DocumentFilters>({
     search: '',
     status: 'all',
@@ -283,6 +287,7 @@ export default function MyDocuments() {
                       <TableHead className="text-center">Similarity Report</TableHead>
                       <TableHead className="text-center">AI Report</TableHead>
                       <TableHead>Remarks</TableHead>
+                      {isAdmin && <TableHead className="text-center">Edit</TableHead>}
                       {!isStaffOrAdmin && <TableHead className="text-center">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
@@ -396,6 +401,22 @@ export default function MyDocuments() {
                               <span className="text-sm text-muted-foreground">-</span>
                             )}
                           </TableCell>
+                          {isAdmin && (
+                            <TableCell className="text-center">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => {
+                                  setDocumentToEdit(doc);
+                                  setEditDialogOpen(true);
+                                }}
+                                title="Edit document"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          )}
                           {!isStaffOrAdmin && (
                             <TableCell className="text-center">
                               {doc.status === 'completed' && (
@@ -463,6 +484,15 @@ export default function MyDocuments() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Edit Document Dialog */}
+        <EditCompletedDocumentDialog
+          document={documentToEdit}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onSuccess={fetchDocuments}
+          downloadFile={downloadFile}
+        />
       </div>
     </DashboardLayout>
   );

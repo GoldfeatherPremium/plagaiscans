@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, FileText, Upload, Clock, CheckCircle, User, Loader2, Download, AlertCircle, Trash2, Lock, Unlock, CheckSquare, CheckCheck, FileStack } from 'lucide-react';
+import { Search, FileText, Upload, Clock, CheckCircle, User, Loader2, Download, AlertCircle, Trash2, Lock, Unlock, CheckSquare, CheckCheck, FileStack, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,8 +15,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
+import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSimilarityDocuments, SimilarityDocument } from '@/hooks/useSimilarityDocuments';
+import { useDocuments, Document } from '@/hooks/useDocuments';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { SEO } from '@/components/SEO';
@@ -39,6 +41,8 @@ const SimilarityQueue: React.FC = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const { documents, loading, fetchDocuments, uploadSimilarityReport, deleteSimilarityDocument } = useSimilarityDocuments();
+  const { downloadFile } = useDocuments();
+  const isAdmin = role === 'admin';
   
   // Dialog states
   const [selectedDoc, setSelectedDoc] = useState<SimilarityDocument | null>(null);
@@ -52,6 +56,10 @@ const SimilarityQueue: React.FC = () => {
   const [documentToDelete, setDocumentToDelete] = useState<SimilarityDocument | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState('queue');
+  
+  // Edit dialog state (admin only)
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [documentToEdit, setDocumentToEdit] = useState<Document | null>(null);
   
   // Batch selection state
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
@@ -1001,6 +1009,22 @@ const SimilarityQueue: React.FC = () => {
                                       <Unlock className="h-4 w-4" />
                                     </Button>
                                   )}
+
+                                  {/* Admin Edit Button */}
+                                  {isAdmin && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        // Convert SimilarityDocument to Document for edit dialog
+                                        setDocumentToEdit(doc as unknown as Document);
+                                        setEditDialogOpen(true);
+                                      }}
+                                      title="Edit document"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -1224,6 +1248,15 @@ const SimilarityQueue: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Document Dialog (Admin only) */}
+      <EditCompletedDocumentDialog
+        document={documentToEdit}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSuccess={fetchDocuments}
+        downloadFile={downloadFile}
+      />
     </DashboardLayout>
   );
 };
