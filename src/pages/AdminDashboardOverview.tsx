@@ -12,8 +12,13 @@ import {
   TrendingUp,
   CheckCircle,
   AlertCircle,
-  UserCheck
+  UserCheck,
+  Coins,
+  Sparkles,
+  Link,
+  Upload
 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { 
   AreaChart, 
@@ -142,6 +147,35 @@ export default function AdminDashboardOverview() {
         avgProcessingTime = Math.round(totalMinutes / completedDocs.length);
       }
 
+      // Fetch credit statistics
+      const { data: creditData } = await supabase
+        .from('profiles')
+        .select('credit_balance, similarity_credit_balance');
+
+      const fullScanCredits = {
+        total: creditData?.reduce((sum, p) => sum + (p.credit_balance || 0), 0) || 0,
+        usersWithCredits: creditData?.filter(p => (p.credit_balance || 0) > 0).length || 0
+      };
+
+      const similarityCredits = {
+        total: creditData?.reduce((sum, p) => sum + (p.similarity_credit_balance || 0), 0) || 0,
+        usersWithCredits: creditData?.filter(p => (p.similarity_credit_balance || 0) > 0).length || 0
+      };
+
+      // Fetch magic link statistics
+      const { data: magicLinkData } = await supabase
+        .from('magic_upload_links')
+        .select('status, max_uploads, current_uploads');
+
+      const magicLinks = {
+        total: magicLinkData?.length || 0,
+        active: magicLinkData?.filter(l => l.status === 'active').length || 0,
+        totalCapacity: magicLinkData?.reduce((sum, l) => sum + (l.max_uploads || 0), 0) || 0,
+        uploadsUsed: magicLinkData?.reduce((sum, l) => sum + (l.current_uploads || 0), 0) || 0,
+        remainingCapacity: 0
+      };
+      magicLinks.remainingCapacity = magicLinks.totalCapacity - magicLinks.uploadsUsed;
+
       // Process chart data
       const chartData: { date: string; uploads: number; completed: number }[] = [];
       for (let i = 6; i >= 0; i--) {
@@ -173,7 +207,10 @@ export default function AdminDashboardOverview() {
         activeStaff: uniqueActiveStaff,
         todayRevenue,
         avgProcessingTime,
-        chartData
+        chartData,
+        fullScanCredits,
+        similarityCredits,
+        magicLinks
       };
     },
     refetchInterval: 30000 // Refresh every 30 seconds
@@ -306,6 +343,89 @@ export default function AdminDashboardOverview() {
                 <CardContent>
                   <div className="text-2xl font-bold">{formatTime(metrics?.avgProcessingTime || 0)}</div>
                   <p className="text-xs text-muted-foreground">Last 30 days average</p>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+
+        {/* Credits & Magic Links Overview */}
+        <div className={isLoading ? '' : 'content-reveal'}>
+          <h2 className="text-xl font-semibold mb-4">Credits & Magic Links</h2>
+        </div>
+        <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 ${isLoading ? '' : 'content-reveal-stagger'}`}>
+          {isLoading ? (
+            <>
+              <MetricCardSkeleton />
+              <MetricCardSkeleton />
+              <MetricCardSkeleton />
+              <MetricCardSkeleton />
+            </>
+          ) : (
+            <>
+              <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-amber-500/30 transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Full Scan Credits</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                    <Coins className="h-4 w-4 text-amber-500" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{metrics?.fullScanCredits.total}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {metrics?.fullScanCredits.usersWithCredits} / {metrics?.totalUsers} users have credits
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-purple-500/30 transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Similarity Credits</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                    <Sparkles className="h-4 w-4 text-purple-500" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{metrics?.similarityCredits.total}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {metrics?.similarityCredits.usersWithCredits} / {metrics?.totalUsers} users have credits
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Magic Links</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                    <Link className="h-4 w-4 text-primary" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{metrics?.magicLinks.active} active</div>
+                  <p className="text-xs text-muted-foreground">
+                    {metrics?.magicLinks.total} total links created
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-secondary/30 transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Link Capacity</CardTitle>
+                  <div className="h-8 w-8 rounded-lg bg-secondary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                    <Upload className="h-4 w-4 text-secondary" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {metrics?.magicLinks.uploadsUsed} / {metrics?.magicLinks.totalCapacity}
+                  </div>
+                  <Progress 
+                    value={metrics?.magicLinks.totalCapacity ? (metrics.magicLinks.uploadsUsed / metrics.magicLinks.totalCapacity) * 100 : 0} 
+                    className="h-2 mt-2"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {metrics?.magicLinks.remainingCapacity} remaining
+                  </p>
                 </CardContent>
               </Card>
             </>
