@@ -97,8 +97,6 @@ const AdminInvoices = lazy(() => import("./pages/AdminInvoices"));
 const AdminBankStatements = lazy(() => import("./pages/AdminBankStatements"));
 const AdminCreditValidity = lazy(() => import("./pages/AdminCreditValidity"));
 const AdminDeletedDocuments = lazy(() => import("./pages/AdminDeletedDocuments"));
-const AdminExtensionManager = lazy(() => import("./pages/AdminExtensionManager"));
-const ExtensionSetup = lazy(() => import("./pages/ExtensionSetup"));
 const queryClient = new QueryClient();
 
 // Loading skeleton component for Suspense fallback
@@ -324,8 +322,6 @@ const AppRoutes = () => (
         <Route path="/dashboard/all-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminUnifiedPayments /></ProtectedRoute>} />
         <Route path="/dashboard/credit-validity" element={<ProtectedRoute allowedRoles={['admin']}><AdminCreditValidity /></ProtectedRoute>} />
         <Route path="/dashboard/deleted-documents" element={<ProtectedRoute allowedRoles={['admin']}><AdminDeletedDocuments /></ProtectedRoute>} />
-        <Route path="/dashboard/extension" element={<ProtectedRoute allowedRoles={['admin']}><AdminExtensionManager /></ProtectedRoute>} />
-        <Route path="/dashboard/extension-setup" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><ExtensionSetup /></ProtectedRoute>} />
       <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       
       <Route path="*" element={<NotFound />} />
