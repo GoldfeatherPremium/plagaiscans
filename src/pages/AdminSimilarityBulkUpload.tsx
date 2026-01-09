@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { SEO } from '@/components/SEO';
+import { useQuery } from '@tanstack/react-query';
 import { 
   Upload, 
   FileText, 
@@ -18,9 +19,12 @@ import {
   Archive,
   Loader2,
   FileCheck,
-  FileWarning
+  FileWarning,
+  Eye
 } from 'lucide-react';
 import JSZip from 'jszip';
+import { MatchPreviewDialog } from '@/components/MatchPreviewDialog';
+import { normalizeFilename as normalize, previewMatches } from '@/utils/filenameMatching';
 
 interface ReportFile {
   file: File;
@@ -58,10 +62,7 @@ interface ProcessingResult {
  * - Lowercase and trim
  */
 function normalizeFilename(filename: string): string {
-  let result = filename.toLowerCase();
-  result = result.replace(/\.[^.]+$/, '');
-  result = result.replace(/\s*\(\d+\)$/, '');
-  return result.trim();
+  return normalize(filename);
 }
 
 export default function AdminSimilarityBulkUpload() {
@@ -70,7 +71,44 @@ export default function AdminSimilarityBulkUpload() {
   const [processing, setProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch pending documents for preview matching
+  const { data: pendingDocuments = [] } = useQuery({
+    queryKey: ['similarity-pending-documents'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('id, file_name, normalized_filename, status')
+        .eq('scan_type', 'similarity_only')
+        .in('status', ['pending', 'in_progress'])
+        .is('similarity_report_path', null);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Preview stats
+  const previewStats = useMemo(() => {
+    if (files.length === 0 || pendingDocuments.length === 0) {
+      return { exact: 0, partial: 0, none: 0 };
+    }
+    const previews = previewMatches(
+      files.map((f) => f.fileName),
+      pendingDocuments.map((d) => ({
+        id: d.id,
+        file_name: d.file_name,
+        normalized_filename: d.normalized_filename,
+        status: d.status,
+      }))
+    );
+    return {
+      exact: previews.filter((p) => p.status === 'exact').length,
+      partial: previews.filter((p) => p.status === 'partial').length,
+      none: previews.filter((p) => p.status === 'none').length,
+    };
+  }, [files, pendingDocuments]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -405,6 +443,33 @@ export default function AdminSimilarityBulkUpload() {
                   </div>
                 </ScrollArea>
 
+                {/* Preview Stats */}
+                {pendingDocuments.length > 0 && !processing && (
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <div>
+                        <p className="text-sm font-medium text-green-800 dark:text-green-300">{previewStats.exact}</p>
+                        <p className="text-xs text-green-600 dark:text-green-400">Exact</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 p-2 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg border border-yellow-200 dark:border-yellow-900">
+                      <AlertCircle className="h-4 w-4 text-yellow-600" />
+                      <div>
+                        <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">{previewStats.partial}</p>
+                        <p className="text-xs text-yellow-600 dark:text-yellow-400">Partial</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-900">
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                      <div>
+                        <p className="text-sm font-medium text-red-800 dark:text-red-300">{previewStats.none}</p>
+                        <p className="text-xs text-red-600 dark:text-red-400">No Match</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Progress */}
                 {processing && (
                   <div className="mt-4">
@@ -416,8 +481,16 @@ export default function AdminSimilarityBulkUpload() {
                   </div>
                 )}
 
-                {/* Action Button */}
-                <div className="mt-4 flex justify-end">
+                {/* Action Buttons */}
+                <div className="mt-4 flex justify-end gap-2">
+                  <Button 
+                    variant="outline"
+                    onClick={() => setShowPreview(true)}
+                    disabled={processing || pendingCount === 0 || pendingDocuments.length === 0}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Preview Matches
+                  </Button>
                   <Button 
                     onClick={uploadAndProcess}
                     disabled={processing || pendingCount === 0}
@@ -440,6 +513,26 @@ export default function AdminSimilarityBulkUpload() {
             )}
           </CardContent>
         </Card>
+
+        {/* Match Preview Dialog */}
+        <MatchPreviewDialog
+          open={showPreview}
+          onOpenChange={setShowPreview}
+          reportFilenames={files.map((f) => f.fileName)}
+          documents={pendingDocuments.map((d) => ({
+            id: d.id,
+            file_name: d.file_name,
+            normalized_filename: d.normalized_filename,
+            status: d.status,
+          }))}
+          onConfirm={(assignments) => {
+            setShowPreview(false);
+            // The assignments can be used for future enhancement
+            // For now, just proceed with upload
+            uploadAndProcess();
+          }}
+          isProcessing={processing}
+        />
 
         {/* Processing Results */}
         {processingResult && (
