@@ -1004,6 +1004,101 @@ export type Database = {
         }
         Relationships: []
       }
+      extension_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          document_id: string | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          status: string | null
+          token_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          document_id?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string | null
+          token_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          document_id?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string | null
+          token_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extension_logs_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extension_logs_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "extension_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extension_tokens: {
+        Row: {
+          browser_info: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          last_heartbeat_at: string | null
+          last_used_at: string | null
+          name: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          browser_info?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_heartbeat_at?: string | null
+          last_used_at?: string | null
+          name: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          browser_info?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_heartbeat_at?: string | null
+          last_used_at?: string | null
+          name?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extension_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           amount_usd: number
@@ -1993,6 +2088,48 @@ export type Database = {
         }
         Relationships: []
       }
+      turnitin_slots: {
+        Row: {
+          created_at: string | null
+          current_usage: number | null
+          id: string
+          is_active: boolean | null
+          last_reset_at: string | null
+          max_files_per_day: number | null
+          notes: string | null
+          slot_name: string
+          slot_number: number
+          slot_url: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_usage?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_reset_at?: string | null
+          max_files_per_day?: number | null
+          notes?: string | null
+          slot_name: string
+          slot_number: number
+          slot_url: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_usage?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_reset_at?: string | null
+          max_files_per_day?: number | null
+          notes?: string | null
+          slot_name?: string
+          slot_number?: number
+          slot_url?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       unmatched_reports: {
         Row: {
           ai_percentage: number | null
@@ -2325,6 +2462,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_extension_token: { Args: never; Returns: string }
       generate_transaction_id: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }

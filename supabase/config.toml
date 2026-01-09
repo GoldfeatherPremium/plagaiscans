@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.process-similarity-bulk-reports]
 verify_jwt = false
+
+[functions.extension-api]
+verify_jwt = false
