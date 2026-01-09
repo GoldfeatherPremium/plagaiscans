@@ -42,6 +42,7 @@ import {
   AlertTriangle,
   RotateCcw,
   Crown,
+  Puzzle,
   CalendarClock,
   Trash2,
 } from 'lucide-react';
@@ -304,6 +305,7 @@ export const DashboardSidebar: React.FC = () => {
     { to: '/dashboard/my-work', icon: FileText, label: 'My Processed' },
     { to: '/dashboard/stats', icon: BarChart3, label: 'My Stats' },
     { to: '/dashboard/performance', icon: Activity, label: 'Performance' },
+    { to: '/dashboard/extension-setup', icon: Puzzle, label: 'Extension Setup' },
     { to: '/dashboard/profile', icon: User, label: 'Profile' },
   ];
 
@@ -386,6 +388,7 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
         { to: '/dashboard/site-content', icon: FileText, label: 'Site Content' },
         { to: '/dashboard/ai-helper', icon: Bot, label: 'AI Helper' },
+        { to: '/dashboard/extension', icon: Puzzle, label: 'Extension Manager' },
         { to: '/dashboard/profile', icon: User, label: 'Profile' },
       ],
     },
