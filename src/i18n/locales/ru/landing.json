@@ -27,5 +27,30 @@
     "supportTeamReady": "Наша команда поддержки готова помочь вам с любыми дополнительными вопросами.",
     "contactSupport": "Связаться с поддержкой"
   },
-  "contact": { "title": "Контакты", "subtitle": "Свяжитесь с нами", "nameLabel": "Имя", "emailLabel": "Email", "messageLabel": "Сообщение", "sendButton": "Отправить", "sending": "Отправка...", "successMessage": "Сообщение отправлено!", "errorMessage": "Ошибка отправки." }
+  "contact": { "title": "Контакты", "subtitle": "Свяжитесь с нами", "nameLabel": "Имя", "emailLabel": "Email", "messageLabel": "Сообщение", "sendButton": "Отправить", "sending": "Отправка...", "successMessage": "Сообщение отправлено!", "errorMessage": "Ошибка отправки." },
+  "pricing": {
+    "title": "Простые",
+    "titleHighlight": "цены",
+    "subtitle": "Выберите план, соответствующий вашим потребностям. Без скрытых платежей.",
+    "backToHome": "Вернуться на главную",
+    "aiDetection": "Обнаружение ИИ",
+    "aiDetectionDesc": "Определите контент, созданный ИИ",
+    "similarityCheck": "Проверка сходства",
+    "similarityCheckDesc": "Сравните с миллиардами источников",
+    "perCredit": "за кредит",
+    "credits": "кредитов",
+    "popular": "Популярный",
+    "bestValue": "Лучшее предложение",
+    "getStarted": "Начать",
+    "features": "Функции",
+    "documentsPerCredit": "1 документ за кредит",
+    "detailedReports": "Подробные отчёты",
+    "sourceHighlighting": "Выделение источников",
+    "downloadableReports": "Скачиваемые отчёты",
+    "prioritySupport": "Приоритетная поддержка",
+    "faq": "Часто задаваемые вопросы",
+    "faqSubtitle": "Ответы на частые вопросы о ценах",
+    "needHelp": "Нужна помощь?",
+    "contactSupport": "Связаться с поддержкой"
+  }
 }
