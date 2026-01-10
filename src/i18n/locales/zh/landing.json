@@ -59,6 +59,18 @@
     "supportTeamReady": "我们的支持团队随时准备帮助您解答任何其他疑问。",
     "contactSupport": "联系支持"
   },
+  "pricing": {
+    "title": "简单透明的定价",
+    "subtitle": "选择适合您需求的计划。一次性购买、订阅或限时优惠。",
+    "tabs": { "creditPacks": "积分包", "subscriptions": "订阅", "limitedTime": "限时优惠" },
+    "bestValue": "最佳价值",
+    "validFor": "有效期 {{days}} 天",
+    "getStarted": "立即开始",
+    "customPlan": { "title": "自定义计划", "description": "需要更多积分？获取批量购买的个性化报价。", "fullName": "全名", "namePlaceholder": "您的姓名", "email": "电子邮件", "emailPlaceholder": "your@email.com", "phone": "电话号码", "phonePlaceholder": "+86123456789", "credits": "所需积分", "creditsPlaceholder": "例如：50", "submit": "获取报价", "note": "自定义定价最低20积分。我们将在24小时内回复。" },
+    "features": { "title": "包含内容", "fast": { "title": "快速处理", "description": "大多数文档在几分钟内处理完毕" }, "secure": { "title": "安全私密", "description": "您的文档安全处理，可随时删除" }, "noExpiry": { "title": "积分永不过期", "description": "随时使用您的积分" } },
+    "faq": { "title": "常见问题", "nonRepo": { "question": "什么是非存储库检查？", "answer": "您的文档在检查相似度时不会存储在任何永久数据库中。" }, "payment": { "question": "你们接受哪些付款方式？", "answer": "我们接受所有主要信用卡/借记卡、PayPal和部分加密货币。" }, "refund": { "question": "我可以退款吗？", "answer": "是的！我们提供14天退款保证。请参阅", "link": "退款政策" }, "processing": { "question": "处理需要多长时间？", "answer": "大多数文档在几分钟内处理完毕。" } },
+    "disclaimer": { "label": "免责声明：", "text": "本服务仅供信息和研究目的。结果基于算法分析，应作为参考工具使用。" }
+  },
   "contact": {
     "title": "联系我们",
     "subtitle": "与我们的支持团队取得联系",

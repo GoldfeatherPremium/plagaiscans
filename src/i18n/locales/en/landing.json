@@ -59,6 +59,71 @@
     "supportTeamReady": "Our support team is ready to help you with any additional inquiries.",
     "contactSupport": "Contact Support"
   },
+  "pricing": {
+    "title": "Simple, Transparent Pricing",
+    "subtitle": "Choose the plan that fits your needs. One-time purchases, subscriptions, or limited-time offers.",
+    "tabs": {
+      "creditPacks": "Credit Packs",
+      "subscriptions": "Subscriptions",
+      "limitedTime": "Limited Time"
+    },
+    "bestValue": "Best Value",
+    "validFor": "Valid for {{days}} days",
+    "getStarted": "Get Started",
+    "customPlan": {
+      "title": "Custom Plan",
+      "description": "Need more credits? Get a personalized quote for bulk purchases.",
+      "fullName": "Full Name",
+      "namePlaceholder": "Your name",
+      "email": "Email",
+      "emailPlaceholder": "your@email.com",
+      "phone": "Phone Number",
+      "phonePlaceholder": "+1234567890",
+      "credits": "Credits Needed",
+      "creditsPlaceholder": "e.g., 50",
+      "submit": "Get Quote Price",
+      "note": "Minimum 20 credits for custom pricing. We'll respond within 24 hours."
+    },
+    "features": {
+      "title": "What's Included",
+      "fast": {
+        "title": "Fast Processing",
+        "description": "Most documents processed within minutes"
+      },
+      "secure": {
+        "title": "Secure & Private",
+        "description": "Your documents are handled securely and can be deleted anytime"
+      },
+      "noExpiry": {
+        "title": "Credits Never Expire",
+        "description": "Use your credits whenever you need them"
+      }
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "nonRepo": {
+        "question": "What is a Non-Repository check?",
+        "answer": "Your documents are checked for similarity without being stored in any permanent database. This means your content remains private and won't appear in future checks."
+      },
+      "payment": {
+        "question": "What payment methods do you accept?",
+        "answer": "We accept all major credit/debit cards, PayPal, and select cryptocurrency options through our secure payment processor."
+      },
+      "refund": {
+        "question": "Can I get a refund?",
+        "answer": "Yes! We offer a 14-day money-back guarantee on all purchases. See our",
+        "link": "Refund Policy"
+      },
+      "processing": {
+        "question": "How long does processing take?",
+        "answer": "Most documents are processed within minutes. Priority processing is available with bulk credit packages."
+      }
+    },
+    "disclaimer": {
+      "label": "Disclaimer:",
+      "text": "This service is provided for informational and research purposes only. Results are based on algorithmic analysis and should be used as a reference tool. PlagaiScans does not guarantee any specific outcomes."
+    }
+  },
   "contact": {
     "title": "Contact Us",
     "subtitle": "Get in touch with our support team",

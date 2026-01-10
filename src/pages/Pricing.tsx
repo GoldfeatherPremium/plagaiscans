@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,7 @@ interface PricingPackage {
 }
 
 export default function Pricing() {
+  const { t } = useTranslation('landing');
   const [quoteForm, setQuoteForm] = useState({
     name: '',
     email: '',
@@ -137,10 +139,10 @@ export default function Pricing() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-display font-bold mb-4">
-              Simple, Transparent Pricing
+              {t('pricing.title')}
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Choose the plan that fits your needs. One-time purchases, subscriptions, or limited-time offers.
+              {t('pricing.subtitle')}
             </p>
           </div>
 
@@ -158,19 +160,19 @@ export default function Pricing() {
                       {getPackagesByType('one_time').length > 0 && (
                         <TabsTrigger value="one_time" className="gap-2">
                           <Zap className="h-4 w-4" />
-                          Credit Packs
+                          {t('pricing.tabs.creditPacks')}
                         </TabsTrigger>
                       )}
                       {getPackagesByType('subscription').length > 0 && (
                         <TabsTrigger value="subscription" className="gap-2">
                           <RefreshCw className="h-4 w-4" />
-                          Subscriptions
+                          {t('pricing.tabs.subscriptions')}
                         </TabsTrigger>
                       )}
                       {getPackagesByType('time_limited').length > 0 && (
                         <TabsTrigger value="time_limited" className="gap-2">
                           <Clock className="h-4 w-4" />
-                          Limited Time
+                          {t('pricing.tabs.limitedTime')}
                         </TabsTrigger>
                       )}
                     </TabsList>
@@ -193,7 +195,7 @@ export default function Pricing() {
                     >
                       {isPopular && (
                         <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-4 py-1 text-sm font-semibold rounded-bl-lg">
-                          Best Value
+                          {t('pricing.bestValue')}
                         </div>
                       )}
                       {isSubscription && (
@@ -227,9 +229,9 @@ export default function Pricing() {
                           }
                         </p>
                         {pkg.validity_days && (
-                          <Badge variant="outline" className="mt-2 bg-amber-500/10 text-amber-600 border-amber-500/20">
+                        <Badge variant="outline" className="mt-2 bg-amber-500/10 text-amber-600 border-amber-500/20">
                             <Clock className="h-3 w-3 mr-1" />
-                            Valid for {pkg.validity_days} days
+                            {t('pricing.validFor', { days: pkg.validity_days })}
                           </Badge>
                         )}
                       </CardHeader>
@@ -261,7 +263,7 @@ export default function Pricing() {
                         </ul>
                         <Link to="/auth" className="block">
                           <Button className="w-full" variant={isPopular ? "default" : "outline"}>
-                            Get Started
+                            {t('pricing.getStarted')}
                           </Button>
                         </Link>
                       </CardContent>
@@ -276,19 +278,19 @@ export default function Pricing() {
           <div className="max-w-3xl mx-auto mb-16">
             <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg border-dashed border-2">
               <CardHeader className="text-center pb-4">
-                <CardTitle className="text-2xl font-display">Custom Plan</CardTitle>
+                <CardTitle className="text-2xl font-display">{t('pricing.customPlan.title')}</CardTitle>
                 <p className="text-muted-foreground mt-2">
-                  Need more credits? Get a personalized quote for bulk purchases.
+                  {t('pricing.customPlan.description')}
                 </p>
               </CardHeader>
               <CardContent className="pt-4">
                 <form onSubmit={handleQuoteSubmit} className="space-y-4 max-w-md mx-auto">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Full Name *</Label>
+                      <Label htmlFor="name">{t('pricing.customPlan.fullName')} *</Label>
                       <Input
                         id="name"
-                        placeholder="Your name"
+                        placeholder={t('pricing.customPlan.namePlaceholder')}
                         value={quoteForm.name}
                         onChange={(e) => setQuoteForm(prev => ({ ...prev, name: e.target.value }))}
                         className={errors.name ? 'border-destructive' : ''}
@@ -296,11 +298,11 @@ export default function Pricing() {
                       {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email *</Label>
+                      <Label htmlFor="email">{t('pricing.customPlan.email')} *</Label>
                       <Input
                         id="email"
                         type="email"
-                        placeholder="your@email.com"
+                        placeholder={t('pricing.customPlan.emailPlaceholder')}
                         value={quoteForm.email}
                         onChange={(e) => setQuoteForm(prev => ({ ...prev, email: e.target.value }))}
                         className={errors.email ? 'border-destructive' : ''}
@@ -310,11 +312,11 @@ export default function Pricing() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number *</Label>
+                      <Label htmlFor="phone">{t('pricing.customPlan.phone')} *</Label>
                       <Input
                         id="phone"
                         type="tel"
-                        placeholder="+1234567890"
+                        placeholder={t('pricing.customPlan.phonePlaceholder')}
                         value={quoteForm.phone}
                         onChange={(e) => setQuoteForm(prev => ({ ...prev, phone: e.target.value }))}
                         className={errors.phone ? 'border-destructive' : ''}
@@ -322,11 +324,11 @@ export default function Pricing() {
                       {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="credits">Credits Needed *</Label>
+                      <Label htmlFor="credits">{t('pricing.customPlan.credits')} *</Label>
                       <Input
                         id="credits"
                         type="number"
-                        placeholder="e.g., 50"
+                        placeholder={t('pricing.customPlan.creditsPlaceholder')}
                         min="20"
                         value={quoteForm.credits}
                         onChange={(e) => setQuoteForm(prev => ({ ...prev, credits: e.target.value }))}
@@ -341,10 +343,10 @@ export default function Pricing() {
                     ) : (
                       <Send className="h-4 w-4 mr-2" />
                     )}
-                    Get Quote Price
+                    {t('pricing.customPlan.submit')}
                   </Button>
                   <p className="text-xs text-center text-muted-foreground">
-                    Minimum 20 credits for custom pricing. We'll respond within 24 hours.
+                    {t('pricing.customPlan.note')}
                   </p>
                 </form>
               </CardContent>
@@ -354,28 +356,28 @@ export default function Pricing() {
           {/* Features Section */}
           <div className="mb-16">
             <h2 className="text-2xl font-display font-bold text-center mb-8">
-              What's Included
+              {t('pricing.features.title')}
             </h2>
             <div className="grid md:grid-cols-3 gap-6">
               <Card className="text-center p-6">
                 <Zap className="h-10 w-10 text-primary mx-auto mb-4" />
-                <h3 className="font-bold mb-2">Fast Processing</h3>
+                <h3 className="font-bold mb-2">{t('pricing.features.fast.title')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Most documents processed within minutes
+                  {t('pricing.features.fast.description')}
                 </p>
               </Card>
               <Card className="text-center p-6">
                 <Shield className="h-10 w-10 text-primary mx-auto mb-4" />
-                <h3 className="font-bold mb-2">Secure & Private</h3>
+                <h3 className="font-bold mb-2">{t('pricing.features.secure.title')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Your documents are handled securely and can be deleted anytime
+                  {t('pricing.features.secure.description')}
                 </p>
               </Card>
               <Card className="text-center p-6">
                 <Clock className="h-10 w-10 text-primary mx-auto mb-4" />
-                <h3 className="font-bold mb-2">Credits Never Expire</h3>
+                <h3 className="font-bold mb-2">{t('pricing.features.noExpiry.title')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Use your credits whenever you need them
+                  {t('pricing.features.noExpiry.description')}
                 </p>
               </Card>
             </div>
@@ -384,35 +386,31 @@ export default function Pricing() {
           {/* FAQ Section */}
           <div className="mb-16">
             <h2 className="text-2xl font-display font-bold text-center mb-8">
-              Frequently Asked Questions
+              {t('pricing.faq.title')}
             </h2>
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
               <Card className="p-6">
-                <h3 className="font-bold mb-2">What is a Non-Repository check?</h3>
+                <h3 className="font-bold mb-2">{t('pricing.faq.nonRepo.question')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Your documents are checked for similarity without being stored in any permanent database. 
-                  This means your content remains private and won't appear in future checks.
+                  {t('pricing.faq.nonRepo.answer')}
                 </p>
               </Card>
               <Card className="p-6">
-                <h3 className="font-bold mb-2">What payment methods do you accept?</h3>
+                <h3 className="font-bold mb-2">{t('pricing.faq.payment.question')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  We accept all major credit/debit cards, PayPal, and select cryptocurrency options 
-                  through our secure payment processor.
+                  {t('pricing.faq.payment.answer')}
                 </p>
               </Card>
               <Card className="p-6">
-                <h3 className="font-bold mb-2">Can I get a refund?</h3>
+                <h3 className="font-bold mb-2">{t('pricing.faq.refund.question')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Yes! We offer a 14-day money-back guarantee on all purchases. 
-                  See our <Link to="/refund-policy" className="text-primary hover:underline">Refund Policy</Link> for details.
+                  {t('pricing.faq.refund.answer')} <Link to="/refund-policy" className="text-primary hover:underline">{t('pricing.faq.refund.link')}</Link>
                 </p>
               </Card>
               <Card className="p-6">
-                <h3 className="font-bold mb-2">How long does processing take?</h3>
+                <h3 className="font-bold mb-2">{t('pricing.faq.processing.question')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Most documents are processed within minutes. Priority processing is available 
-                  with bulk credit packages.
+                  {t('pricing.faq.processing.answer')}
                 </p>
               </Card>
             </div>
@@ -424,9 +422,7 @@ export default function Pricing() {
               <div className="flex items-start gap-3">
                 <Info className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-muted-foreground">
-                  <strong>Disclaimer:</strong> This service is provided for informational and research purposes only. 
-                  Results are based on algorithmic analysis and should be used as a reference tool. 
-                  PlagaiScans does not guarantee any specific outcomes.
+                  <strong>{t('pricing.disclaimer.label')}</strong> {t('pricing.disclaimer.text')}
                 </p>
               </div>
             </CardContent>
