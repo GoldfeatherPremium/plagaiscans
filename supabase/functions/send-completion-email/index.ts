@@ -351,6 +351,13 @@ const handler = async (req: Request): Promise<Response> => {
                       </a>
                     </div>
                     
+                    <div style="background-color: #fef3c7; border-radius: 8px; padding: 16px; margin-top: 20px; border-left: 4px solid #f59e0b;">
+                      <p style="margin: 0; color: #92400e; font-size: 13px; line-height: 1.5;">
+                        <strong>⚠️ Important:</strong> Please download your reports within <strong>7 days</strong>. 
+                        After this period, the files will be automatically removed from our servers for security and privacy purposes.
+                      </p>
+                    </div>
+                    
                     <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                       <p style="color: #6b7280; text-align: center; margin: 0 0 10px 0; font-size: 13px;">
                         Regards,<br>
