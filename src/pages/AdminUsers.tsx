@@ -6,11 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Loader2, User, Mail, Phone, CreditCard, Calendar, History, TrendingUp, TrendingDown, ArrowUpDown, UserPlus, Clock, Users, Settings2, Save, CalendarClock } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { format, addDays } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { Search, Loader2, User, Mail, Phone, CreditCard, Calendar, History, TrendingUp, TrendingDown, ArrowUpDown, UserPlus, Clock, Users, Settings2, Save } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -28,6 +24,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CreditManagementDialog } from '@/components/CreditManagementDialog';
 
 interface UserProfile {
   id: string;
@@ -72,15 +69,15 @@ export default function AdminUsers() {
   const { toast } = useToast();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [creditInputs, setCreditInputs] = useState<Record<string, string>>({});
-  const [similarityCreditInputs, setSimilarityCreditInputs] = useState<Record<string, string>>({});
-  const [creditExpiryDates, setCreditExpiryDates] = useState<Record<string, Date | undefined>>({});
-  const [similarityCreditExpiryDates, setSimilarityCreditExpiryDates] = useState<Record<string, Date | undefined>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Credit management dialog state
+  const [creditDialogUser, setCreditDialogUser] = useState<UserProfile | null>(null);
+  const [creditDialogOpen, setCreditDialogOpen] = useState(false);
 
   // Role assignment state
   const [selectedUserForRole, setSelectedUserForRole] = useState('');
@@ -167,85 +164,9 @@ export default function AdminUsers() {
     );
   }, [users, searchQuery]);
 
-  const updateCredits = async (userId: string, amount: number, creditType: 'full' | 'similarity_only' = 'full') => {
-    const user = users.find((u) => u.id === userId);
-    if (!user) return;
-    
-    const currentBalance = creditType === 'full' ? user.credit_balance : user.similarity_credit_balance;
-    const newBalance = currentBalance + amount;
-    
-    if (newBalance < 0) {
-      toast({ title: 'Error', description: 'Balance cannot be negative', variant: 'destructive' });
-      return;
-    }
-
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-
-    const updateField = creditType === 'full' ? 'credit_balance' : 'similarity_credit_balance';
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ [updateField]: newBalance })
-      .eq('id', userId);
-
-    if (updateError) {
-      toast({ title: 'Error', description: 'Failed to update credits', variant: 'destructive' });
-      return;
-    }
-
-    const expiryDate = creditType === 'full' 
-      ? creditExpiryDates[userId] 
-      : similarityCreditExpiryDates[userId];
-
-    const description = creditType === 'full' 
-      ? (amount > 0 ? 'Full credits added by admin' : 'Full credits deducted by admin')
-      : (amount > 0 ? 'Similarity credits added by admin' : 'Similarity credits deducted by admin');
-
-    const { data: transactionData, error: logError } = await supabase
-      .from('credit_transactions')
-      .insert({
-        user_id: userId,
-        amount: amount,
-        balance_before: currentBalance,
-        balance_after: newBalance,
-        transaction_type: amount > 0 ? 'add' : 'deduct',
-        credit_type: creditType,
-        description,
-        performed_by: currentUser?.id
-      })
-      .select('id')
-      .single();
-
-    if (logError) {
-      console.error('Failed to log transaction:', logError);
-    }
-
-    // If adding credits and expiry date is set, create credit_validity record
-    if (amount > 0 && expiryDate) {
-      const { error: validityError } = await supabase
-        .from('credit_validity')
-        .insert({
-          user_id: userId,
-          credits_amount: amount,
-          remaining_credits: amount,
-          expires_at: expiryDate.toISOString(),
-          credit_type: creditType,
-          transaction_id: transactionData?.id || null
-        });
-
-      if (validityError) {
-        console.error('Failed to create credit validity:', validityError);
-      }
-    }
-
-    toast({ 
-      title: 'Success', 
-      description: `${creditType === 'full' ? 'Full' : 'Similarity'} credits updated${expiryDate && amount > 0 ? ` (expires ${format(expiryDate, 'PPP')})` : ''}` 
-    });
-    fetchUsers();
-    setCreditInputs({ ...creditInputs, [userId]: '' });
-    setSimilarityCreditInputs({ ...similarityCreditInputs, [userId]: '' });
-    setCreditExpiryDates({ ...creditExpiryDates, [userId]: undefined });
-    setSimilarityCreditExpiryDates({ ...similarityCreditExpiryDates, [userId]: undefined });
+  const openCreditDialog = (user: UserProfile) => {
+    setCreditDialogUser(user);
+    setCreditDialogOpen(true);
   };
 
   const fetchUserHistory = async (user: UserProfile) => {
@@ -430,9 +351,7 @@ export default function AdminUsers() {
                               Similarity Credits
                             </div>
                           </TableHead>
-                          <TableHead className="text-center">History</TableHead>
-                          <TableHead className="text-center">Full Credit Actions</TableHead>
-                          <TableHead className="text-center">Similarity Credit Actions</TableHead>
+                          <TableHead className="text-center">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -466,130 +385,21 @@ export default function AdminUsers() {
                               <span className="text-lg font-bold text-blue-600">{user.similarity_credit_balance}</span>
                             </TableCell>
                             <TableCell className="text-center">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => fetchUserHistory(user)}
-                              >
-                                <History className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                            <TableCell>
                               <div className="flex items-center justify-center gap-2">
-                                <Input
-                                  type="number"
-                                  placeholder="Amount"
-                                  className="w-20 h-8 text-sm"
-                                  value={creditInputs[user.id] || ''}
-                                  onChange={(e) =>
-                                    setCreditInputs({ ...creditInputs, [user.id]: e.target.value })
-                                  }
-                                />
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className={cn(
-                                        "w-[100px] h-8 text-xs justify-start text-left font-normal",
-                                        !creditExpiryDates[user.id] && "text-muted-foreground"
-                                      )}
-                                    >
-                                      <CalendarClock className="mr-1 h-3 w-3" />
-                                      {creditExpiryDates[user.id] ? format(creditExpiryDates[user.id], "MMM d") : "Expiry"}
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <CalendarComponent
-                                      mode="single"
-                                      selected={creditExpiryDates[user.id]}
-                                      onSelect={(date) => setCreditExpiryDates({ ...creditExpiryDates, [user.id]: date })}
-                                      disabled={(date) => date < new Date()}
-                                      initialFocus
-                                      className="p-3 pointer-events-auto"
-                                    />
-                                    <div className="p-2 border-t flex gap-1">
-                                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setCreditExpiryDates({ ...creditExpiryDates, [user.id]: addDays(new Date(), 30) })}>30d</Button>
-                                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setCreditExpiryDates({ ...creditExpiryDates, [user.id]: addDays(new Date(), 60) })}>60d</Button>
-                                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setCreditExpiryDates({ ...creditExpiryDates, [user.id]: addDays(new Date(), 90) })}>90d</Button>
-                                      <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => setCreditExpiryDates({ ...creditExpiryDates, [user.id]: undefined })}>Clear</Button>
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
                                 <Button
                                   size="sm"
-                                  onClick={() => updateCredits(user.id, parseInt(creditInputs[user.id]) || 0, 'full')}
+                                  variant="ghost"
+                                  onClick={() => fetchUserHistory(user)}
+                                  title="View History"
                                 >
-                                  Add
+                                  <History className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    updateCredits(user.id, -(parseInt(creditInputs[user.id]) || 0), 'full')
-                                  }
+                                  onClick={() => openCreditDialog(user)}
                                 >
-                                  Deduct
-                                </Button>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center justify-center gap-2">
-                                <Input
-                                  type="number"
-                                  placeholder="Amount"
-                                  className="w-20 h-8 text-sm"
-                                  value={similarityCreditInputs[user.id] || ''}
-                                  onChange={(e) =>
-                                    setSimilarityCreditInputs({ ...similarityCreditInputs, [user.id]: e.target.value })
-                                  }
-                                />
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className={cn(
-                                        "w-[100px] h-8 text-xs justify-start text-left font-normal",
-                                        !similarityCreditExpiryDates[user.id] && "text-muted-foreground"
-                                      )}
-                                    >
-                                      <CalendarClock className="mr-1 h-3 w-3" />
-                                      {similarityCreditExpiryDates[user.id] ? format(similarityCreditExpiryDates[user.id], "MMM d") : "Expiry"}
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <CalendarComponent
-                                      mode="single"
-                                      selected={similarityCreditExpiryDates[user.id]}
-                                      onSelect={(date) => setSimilarityCreditExpiryDates({ ...similarityCreditExpiryDates, [user.id]: date })}
-                                      disabled={(date) => date < new Date()}
-                                      initialFocus
-                                      className="p-3 pointer-events-auto"
-                                    />
-                                    <div className="p-2 border-t flex gap-1">
-                                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setSimilarityCreditExpiryDates({ ...similarityCreditExpiryDates, [user.id]: addDays(new Date(), 30) })}>30d</Button>
-                                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setSimilarityCreditExpiryDates({ ...similarityCreditExpiryDates, [user.id]: addDays(new Date(), 60) })}>60d</Button>
-                                      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setSimilarityCreditExpiryDates({ ...similarityCreditExpiryDates, [user.id]: addDays(new Date(), 90) })}>90d</Button>
-                                      <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => setSimilarityCreditExpiryDates({ ...similarityCreditExpiryDates, [user.id]: undefined })}>Clear</Button>
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
-                                <Button
-                                  size="sm"
-                                  className="bg-blue-600 hover:bg-blue-700"
-                                  onClick={() => updateCredits(user.id, parseInt(similarityCreditInputs[user.id]) || 0, 'similarity_only')}
-                                >
-                                  Add
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    updateCredits(user.id, -(parseInt(similarityCreditInputs[user.id]) || 0), 'similarity_only')
-                                  }
-                                >
-                                  Deduct
+                                  <CreditCard className="h-4 w-4 mr-1" />
+                                  Manage Credits
                                 </Button>
                               </div>
                             </TableCell>
@@ -856,6 +666,14 @@ export default function AdminUsers() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Credit Management Dialog */}
+      <CreditManagementDialog
+        user={creditDialogUser}
+        open={creditDialogOpen}
+        onOpenChange={setCreditDialogOpen}
+        onSuccess={fetchUsers}
+      />
     </DashboardLayout>
   );
 }
