@@ -1,43 +1,46 @@
 import { Link } from "react-router-dom";
 import { Mail, FileText, CreditCard } from "lucide-react";
 import { useSiteContent } from "@/hooks/useSiteContent";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
   const { get } = useSiteContent();
+  const { t } = useTranslation('common');
 
   const footerLinks = [
     {
-      title: "Platform",
+      title: t('footer.platform'),
       links: [
-        { label: "How It Works", to: "/how-it-works" },
-        { label: "Plagiarism Checker", to: "/plagiarism-checker" },
-        { label: "Pricing", to: "/pricing" },
-        { label: "FAQ", to: "/faq" },
+        { label: t('footer.howItWorks'), to: "/how-it-works" },
+        { label: t('footer.plagiarismChecker'), to: "/plagiarism-checker" },
+        { label: t('footer.pricing'), to: "/pricing" },
+        { label: t('footer.faq'), to: "/faq" },
       ],
     },
     {
-      title: "Resources",
+      title: t('footer.resources'),
       links: [
-        { label: "Academic Integrity", to: "/academic-integrity" },
-        { label: "Similarity Report", to: "/similarity-report" },
-        { label: "AI Content Detection", to: "/ai-content-detection" },
-        { label: "Learning Center", to: "/resources" },
+        { label: t('footer.academicIntegrity'), to: "/academic-integrity" },
+        { label: t('footer.similarityReport'), to: "/similarity-report" },
+        { label: t('footer.aiContentDetection'), to: "/ai-content-detection" },
+        { label: t('footer.learningCenter'), to: "/resources" },
       ],
     },
     {
-      title: "Company",
+      title: t('footer.company'),
       links: [
-        { label: "About Us", to: "/about-us" },
-        { label: "Contact", to: "/contact" },
+        { label: t('footer.aboutUs'), to: "/about-us" },
+        { label: t('footer.contact'), to: "/contact" },
       ],
     },
     {
-      title: "Legal",
+      title: t('footer.legal'),
       links: [
-        { label: "Privacy Policy", to: "/privacy-policy" },
-        { label: "Terms of Service", to: "/terms-and-conditions" },
-        { label: "Refund Policy", to: "/refund-policy" },
+        { label: t('footer.privacyPolicy'), to: "/privacy-policy" },
+        { label: t('footer.termsOfService'), to: "/terms-and-conditions" },
+        { label: t('footer.refundPolicy'), to: "/refund-policy" },
       ],
     },
   ];
@@ -95,7 +98,7 @@ const Footer = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <CreditCard className="h-4 w-4" />
-              <span>We accept:</span>
+              <span>{t('footer.weAccept')}</span>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-3">
               {/* Visa */}
@@ -155,20 +158,22 @@ const Footer = () => {
         <div className="pt-6 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="text-center md:text-left">
             <p className="text-sm text-muted-foreground">
-              © {currentYear} {get('nav_brand', 'Plagaiscans')}. All rights reserved.
+              © {currentYear} {get('nav_brand', 'Plagaiscans')}. {t('footer.allRightsReserved')}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Trading Name: {get('nav_brand', 'Plagaiscans')} | Legal Entity: {get('footer_company_name', 'Goldfeather Prem Ltd')} ({get('footer_country', 'United Kingdom')})
+              {t('footer.tradingName')}: {get('nav_brand', 'Plagaiscans')} | {t('footer.legalEntity')}: {get('footer_company_name', 'Goldfeather Prem Ltd')} ({get('footer_country', 'United Kingdom')})
             </p>
           </div>
-          <div className="flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
-            <Link to="/pricing" className="hover:text-primary transition-colors">Pricing</Link>
+          <div className="flex flex-wrap justify-center items-center gap-4 text-xs text-muted-foreground">
+            <LanguageSwitcher />
             <span>•</span>
-            <Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy</Link>
+            <Link to="/pricing" className="hover:text-primary transition-colors">{t('footer.pricing')}</Link>
             <span>•</span>
-            <Link to="/terms-and-conditions" className="hover:text-primary transition-colors">Terms</Link>
+            <Link to="/privacy-policy" className="hover:text-primary transition-colors">{t('footer.privacy')}</Link>
             <span>•</span>
-            <Link to="/refund-policy" className="hover:text-primary transition-colors">Refunds</Link>
+            <Link to="/terms-and-conditions" className="hover:text-primary transition-colors">{t('footer.terms')}</Link>
+            <span>•</span>
+            <Link to="/refund-policy" className="hover:text-primary transition-colors">{t('footer.refunds')}</Link>
           </div>
         </div>
       </div>
