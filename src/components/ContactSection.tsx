@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
-import { useSiteContent } from "@/hooks/useSiteContent";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 
 const ContactSection = () => {
   const { toast } = useToast();
-  const { get } = useSiteContent();
+  const { t } = useTranslation('landing');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -47,14 +47,14 @@ const ContactSection = () => {
       if (error) throw error;
 
       toast({
-        title: "Message Sent!",
+        title: t('contact.successMessage'),
         description: "We'll get back to you as soon as possible.",
       });
       setFormData({ name: "", email: "", message: "" });
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
-        title: "Failed to send message",
+        title: t('contact.errorMessage'),
         description: "Please try again or contact us directly via email.",
         variant: "destructive",
       });
@@ -67,7 +67,7 @@ const ContactSection = () => {
     {
       icon: Mail,
       label: "Email",
-      value: get('contact_email', 'support@plagaiscans.com'),
+      value: "support@plagaiscans.com",
     },
     {
       icon: MessageCircle,
@@ -91,23 +91,14 @@ const ContactSection = () => {
           {/* Left Column */}
           <div>
             <span className="text-primary font-medium text-sm tracking-wider uppercase mb-4 block">
-              {get('contact_label', 'Get in Touch')}
+              {t('contact.title')}
             </span>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-6">
-              {get('contact_title', 'Ready to Check Your')}
-              <span className="gradient-text"> {get('contact_title_gradient', 'Documents?')}</span>
+              {t('contact.subtitle')}
             </h2>
-            <p className="text-lg text-muted-foreground mb-6">
-              {get('contact_subtitle', 'Join thousands of students, researchers, and educators who trust Plagaiscans for accurate plagiarism detection and AI content analysis. Check originality and protect academic integrity.')}
-            </p>
-            
-            {/* Tagline */}
-            <div className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-10">
-              {get('contact_tagline', 'Clear similarity reports you can trust.')}
-            </div>
 
             {/* Contact Info */}
-            <div className="space-y-6">
+            <div className="space-y-6 mt-10">
               {contactInfo.map((item, index) => (
                 <div key={index} className="flex items-center gap-4 group">
                   <div className="w-12 h-12 rounded-xl glass flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
@@ -134,11 +125,11 @@ const ContactSection = () => {
 
           {/* Right Column - Form */}
           <div className="glass p-8 md:p-10 rounded-2xl">
-            <h3 className="text-xl font-display font-semibold mb-6">Send us a message</h3>
+            <h3 className="text-xl font-display font-semibold mb-6">{t('contact.sendButton')}</h3>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label htmlFor="name" className="text-sm font-medium mb-2 block">
-                  Your Name
+                  {t('contact.nameLabel')}
                 </label>
                 <Input
                   id="name"
@@ -153,7 +144,7 @@ const ContactSection = () => {
 
               <div>
                 <label htmlFor="email" className="text-sm font-medium mb-2 block">
-                  Email Address
+                  {t('contact.emailLabel')}
                 </label>
                 <Input
                   id="email"
@@ -168,7 +159,7 @@ const ContactSection = () => {
 
               <div>
                 <label htmlFor="message" className="text-sm font-medium mb-2 block">
-                  Your Message
+                  {t('contact.messageLabel')}
                 </label>
                 <Textarea
                   id="message"
@@ -184,11 +175,11 @@ const ContactSection = () => {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sending...
+                    {t('contact.sending')}
                   </>
                 ) : (
                   <>
-                    Send Message
+                    {t('contact.sendButton')}
                     <Send className="w-4 h-4 ml-2 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                   </>
                 )}

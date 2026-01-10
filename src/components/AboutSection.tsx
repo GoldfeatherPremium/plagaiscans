@@ -1,37 +1,29 @@
 import { Shield, FileSearch, BookOpen, Lock } from "lucide-react";
-import { useSiteContent } from "@/hooks/useSiteContent";
+import { useTranslation } from "react-i18next";
 
 const AboutSection = () => {
-  const { get } = useSiteContent();
+  const { t } = useTranslation('landing');
 
   const features = [
     {
       icon: FileSearch,
-      titleKey: 'about_feature_1_title',
-      descKey: 'about_feature_1_desc',
-      titleFallback: 'Similarity Detection',
-      descFallback: 'View highlighted matches, similarity percentages, and matched sources to understand content overlap.',
+      titleKey: 'about.feature1Title',
+      descKey: 'about.feature1Desc',
     },
     {
       icon: BookOpen,
-      titleKey: 'about_feature_2_title',
-      descKey: 'about_feature_2_desc',
-      titleFallback: 'Citation & Reference Checks',
-      descFallback: 'Support academic compliance by reviewing citation patterns and references.',
+      titleKey: 'about.feature2Title',
+      descKey: 'about.feature2Desc',
     },
     {
       icon: Shield,
-      titleKey: 'about_feature_3_title',
-      descKey: 'about_feature_3_desc',
-      titleFallback: 'AI Content Indicators',
-      descFallback: 'Analyze text for potential AI-generated patterns to support responsible academic use.',
+      titleKey: 'about.feature3Title',
+      descKey: 'about.feature3Desc',
     },
     {
       icon: Lock,
-      titleKey: 'about_feature_4_title',
-      descKey: 'about_feature_4_desc',
-      titleFallback: 'Privacy-First Scanning',
-      descFallback: 'Uploaded documents remain private and are processed securely.',
+      titleKey: 'about.feature4Title',
+      descKey: 'about.feature4Desc',
     },
   ];
 
@@ -41,17 +33,17 @@ const AboutSection = () => {
         {/* Section Header */}
         <div className="max-w-3xl mb-16">
           <span className="text-primary font-medium text-sm tracking-wider uppercase mb-4 block">
-            {get('about_label', 'About Plagaiscans')}
+            {t('about.label')}
           </span>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-6">
-            {get('about_title', 'Academic Integrity Platform for')}
-            <span className="gradient-text"> {get('about_title_gradient', 'Originality Verification')}</span>
+            {t('about.title')}
+            <span className="gradient-text"> {t('about.titleGradient')}</span>
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            {get('about_paragraph_1', 'Plagaiscans is an academic integrity platform designed to support plagiarism detection and similarity analysis for educational and research use. Our system helps users understand content originality by highlighting overlapping text, source references, and similarity percentages in a clear and structured format.')}
+            {t('about.paragraph1')}
           </p>
           <p className="text-lg text-muted-foreground leading-relaxed mt-4">
-            {get('about_paragraph_2', 'Plagaiscans prioritizes privacy, transparency, and usability—ensuring users can verify originality with confidence.')}
+            {t('about.paragraph2')}
           </p>
         </div>
 
@@ -67,10 +59,10 @@ const AboutSection = () => {
                 <feature.icon className="w-6 h-6 text-primary" />
               </div>
               <h3 className="text-lg font-display font-semibold mb-2">
-                {get(feature.titleKey, feature.titleFallback)}
+                {t(feature.titleKey)}
               </h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                {get(feature.descKey, feature.descFallback)}
+                {t(feature.descKey)}
               </p>
             </div>
           ))}

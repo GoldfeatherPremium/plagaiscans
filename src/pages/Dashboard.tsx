@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Shimmer } from '@/components/ui/shimmer';
 import { StatCardSkeleton } from '@/components/ui/page-skeleton';
+import { useTranslation } from 'react-i18next';
 import {
   Table,
   TableBody,
@@ -38,6 +39,7 @@ export default function Dashboard() {
   const { role, profile, user, loading: authLoading } = useAuth();
   const { documents, loading: docsLoading, downloadFile } = useDocuments();
   const [pendingPayments, setPendingPayments] = useState<ManualPayment[]>([]);
+  const { t } = useTranslation('dashboard');
 
   const stats = {
     pending: documents.filter((d) => d.status === 'pending').length,
@@ -101,11 +103,11 @@ export default function Dashboard() {
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20"><Clock className="h-3 w-3 mr-1" /> Pending</Badge>;
+        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20"><Clock className="h-3 w-3 mr-1" /> {t('overview.pending')}</Badge>;
       case 'verified':
-        return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20"><CheckCircle className="h-3 w-3 mr-1" /> Verified</Badge>;
+        return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20"><CheckCircle className="h-3 w-3 mr-1" /> {t('overview.verified')}</Badge>;
       case 'rejected':
-        return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20"><XCircle className="h-3 w-3 mr-1" /> Rejected</Badge>;
+        return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20"><XCircle className="h-3 w-3 mr-1" /> {t('overview.rejected')}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -121,7 +123,7 @@ export default function Dashboard() {
   return (
     <>
       <SEO
-        title="Dashboard"
+        title={t('overview.title')}
         description="Manage your documents, track their status, and download reports from your PlagaiScans dashboard."
         noIndex={true}
       />
@@ -136,14 +138,14 @@ export default function Dashboard() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-display font-bold">
-            Welcome back, {profile?.full_name?.split(' ')[0] || 'User'}
+            {t('overview.welcome', { name: profile?.full_name?.split(' ')[0] || 'User' })}
           </h1>
           <p className="text-muted-foreground mt-1">
             {role === 'customer'
-              ? 'Manage your documents and track their status'
+              ? t('overview.customerSubtitle')
               : role === 'staff'
-              ? 'View and process assigned documents'
-              : 'Overview of platform activity'}
+              ? t('overview.staffSubtitle')
+              : t('overview.adminSubtitle')}
           </p>
         </div>
 
@@ -166,7 +168,7 @@ export default function Dashboard() {
                         <CreditCard className="h-6 w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Credit Balance</p>
+                        <p className="text-sm text-muted-foreground">{t('overview.creditBalance')}</p>
                         <p className="text-2xl font-bold">{profile?.credit_balance || 0}</p>
                       </div>
                     </div>
@@ -180,7 +182,7 @@ export default function Dashboard() {
                       <Clock className="h-6 w-6 text-accent" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Pending</p>
+                      <p className="text-sm text-muted-foreground">{t('overview.pending')}</p>
                       <p className="text-2xl font-bold">{stats.pending}</p>
                     </div>
                   </div>
@@ -193,7 +195,7 @@ export default function Dashboard() {
                       <FileText className="h-6 w-6 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">In Progress</p>
+                      <p className="text-sm text-muted-foreground">{t('overview.inProgress')}</p>
                       <p className="text-2xl font-bold">{stats.inProgress}</p>
                     </div>
                   </div>
@@ -207,7 +209,7 @@ export default function Dashboard() {
                         <CheckCircle className="h-6 w-6 text-secondary" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Completed</p>
+                        <p className="text-sm text-muted-foreground">{t('overview.completed')}</p>
                         <p className="text-2xl font-bold">{stats.completed}</p>
                       </div>
                     </div>
@@ -224,9 +226,9 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Wallet className="h-5 w-5 text-[#F0B90B]" />
-                My Payments
+                {t('overview.myPayments')}
               </CardTitle>
-              <CardDescription>Track your recent payment submissions</CardDescription>
+              <CardDescription>{t('overview.trackPayments')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -241,7 +243,7 @@ export default function Dashboard() {
                         <Wallet className="h-5 w-5 text-accent" />
                       </div>
                       <div>
-                        <p className="font-medium">{payment.credits} Credits</p>
+                        <p className="font-medium">{payment.credits} {t('overview.credits')}</p>
                         <p className="text-sm text-muted-foreground">
                           ${payment.amount_usd} • {format(new Date(payment.created_at), 'MMM dd, HH:mm')}
                         </p>
@@ -269,9 +271,9 @@ export default function Dashboard() {
                     <Upload className="h-7 w-7 text-primary-foreground" />
                   </div>
                   <div className="relative">
-                    <h3 className="font-semibold text-lg">Upload Document</h3>
+                    <h3 className="font-semibold text-lg">{t('sidebar.upload')}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Submit a new document for checking
+                      {t('overview.uploadSubtitle')}
                     </p>
                   </div>
                 </CardContent>
@@ -285,9 +287,9 @@ export default function Dashboard() {
                     <CreditCard className="h-7 w-7 text-secondary-foreground" />
                   </div>
                   <div className="relative">
-                    <h3 className="font-semibold text-lg">Buy Credits</h3>
+                    <h3 className="font-semibold text-lg">{t('sidebar.buyCredits')}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Purchase more credits via WhatsApp
+                      {t('overview.buyCreditsSubtitle')}
                     </p>
                   </div>
                 </CardContent>
@@ -300,14 +302,14 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Recent Documents</CardTitle>
+              <CardTitle>{t('overview.recentDocuments')}</CardTitle>
               <CardDescription>
-                {role === 'customer' ? 'Your latest uploads' : 'Latest document activity'}
+                {role === 'customer' ? t('overview.yourLatestUploads') : t('overview.latestActivity')}
               </CardDescription>
             </div>
             <Button variant="outline" size="sm" asChild>
               <Link to={role === 'customer' ? '/dashboard/documents' : '/dashboard/queue'}>
-                View All
+                {t('overview.viewAll')}
               </Link>
             </Button>
           </CardHeader>
@@ -315,10 +317,10 @@ export default function Dashboard() {
             {recentDocs.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground px-6">
                 <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No documents yet</p>
+                <p>{t('overview.noDocuments')}</p>
                 {role === 'customer' && (
                   <Button className="mt-4" asChild>
-                    <Link to="/dashboard/upload">Upload Your First Document</Link>
+                    <Link to="/dashboard/upload">{t('overview.uploadFirst')}</Link>
                   </Button>
                 )}
               </div>
@@ -328,12 +330,12 @@ export default function Dashboard() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12 text-center">#</TableHead>
-                      <TableHead>Document</TableHead>
-                      <TableHead>Upload Time</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-center">Similarity Report</TableHead>
-                      <TableHead className="text-center">AI Report</TableHead>
-                      <TableHead>Remarks</TableHead>
+                      <TableHead>{t('documents.document')}</TableHead>
+                      <TableHead>{t('documents.uploadTime')}</TableHead>
+                      <TableHead className="text-center">{t('documents.status')}</TableHead>
+                      <TableHead className="text-center">{t('documents.similarityReport')}</TableHead>
+                      <TableHead className="text-center">{t('documents.aiReport')}</TableHead>
+                      <TableHead>{t('documents.remarks')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -387,14 +389,12 @@ export default function Dashboard() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {doc.error_message ? (
-                              <span className="text-sm text-destructive">{doc.error_message}</span>
-                            ) : doc.status === 'pending' ? (
-                              <span className="text-sm text-muted-foreground">In queue</span>
-                            ) : doc.status === 'in_progress' ? (
-                              <span className="text-sm text-muted-foreground">Processing...</span>
+                            {doc.remarks ? (
+                              <span className="text-sm truncate max-w-[150px] block" title={doc.remarks}>
+                                {doc.remarks}
+                              </span>
                             ) : (
-                              <span className="text-sm text-muted-foreground">-</span>
+                              <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
                         </TableRow>
@@ -407,7 +407,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+      </DashboardLayout>
     </>
   );
 }
