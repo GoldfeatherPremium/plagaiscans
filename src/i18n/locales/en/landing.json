@@ -1,0 +1,58 @@
+{
+  "hero": {
+    "badge": "Trusted by 10,000+ academics & researchers",
+    "titleLine1": "Plagiarism & Similarity Check",
+    "titleLine2": "for Academic Integrity",
+    "subtitle": "Plagaiscans helps students, researchers, and educators verify originality, identify overlapping content, and understand similarity results through clear and easy-to-read reports.",
+    "ctaPrimary": "Check Document",
+    "feature1": "Detailed Similarity Reports",
+    "feature2": "AI Content Detection",
+    "feature3": "Privacy-First Scanning",
+    "stat1Value": "1B+",
+    "stat1Label": "Sources Checked",
+    "stat2Value": "99%",
+    "stat2Label": "Accuracy Rate",
+    "stat3Value": "10K+",
+    "stat3Label": "Happy Users"
+  },
+  "about": {
+    "label": "About Plagaiscans",
+    "title": "Academic Integrity Platform for",
+    "titleGradient": "Originality Verification",
+    "paragraph1": "Plagaiscans is an academic integrity platform designed to support plagiarism detection and similarity analysis for educational and research use. Our system helps users understand content originality by highlighting overlapping text, source references, and similarity percentages in a clear and structured format.",
+    "paragraph2": "Plagaiscans prioritizes privacy, transparency, and usability—ensuring users can verify originality with confidence.",
+    "feature1Title": "Similarity Detection",
+    "feature1Desc": "View highlighted matches, similarity percentages, and matched sources to understand content overlap.",
+    "feature2Title": "Citation & Reference Checks",
+    "feature2Desc": "Support academic compliance by reviewing citation patterns and references.",
+    "feature3Title": "AI Content Indicators",
+    "feature3Desc": "Analyze text for potential AI-generated patterns to support responsible academic use.",
+    "feature4Title": "Privacy-First Scanning",
+    "feature4Desc": "Uploaded documents remain private and are processed securely."
+  },
+  "services": {
+    "title": "Our Services",
+    "subtitle": "Comprehensive document analysis tools"
+  },
+  "howItWorks": {
+    "title": "How It Works",
+    "subtitle": "Get your document checked in 3 simple steps",
+    "step1Title": "Upload Document",
+    "step1Desc": "Upload your document in PDF, DOC, or DOCX format",
+    "step2Title": "Analysis",
+    "step2Desc": "Our system analyzes your document for similarity and AI content",
+    "step3Title": "Get Report",
+    "step3Desc": "Receive a detailed report with highlighted matches and sources"
+  },
+  "contact": {
+    "title": "Contact Us",
+    "subtitle": "Get in touch with our support team",
+    "nameLabel": "Your Name",
+    "emailLabel": "Your Email",
+    "messageLabel": "Your Message",
+    "sendButton": "Send Message",
+    "sending": "Sending...",
+    "successMessage": "Message sent successfully!",
+    "errorMessage": "Failed to send message. Please try again."
+  }
+}
