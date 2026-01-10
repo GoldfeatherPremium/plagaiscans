@@ -123,7 +123,7 @@ const Landing = () => {
             {/* Trust Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted rounded-full border border-border mb-8 animate-fade-in hover:border-primary/30 transition-colors duration-300">
               <Sparkles className="w-4 h-4 text-primary animate-pulse-soft" />
-              <span className="text-sm text-muted-foreground">Trusted by 10,000+ academics & researchers</span>
+              <span className="text-sm text-foreground/70">Trusted by 10,000+ academics & researchers</span>
             </div>
 
             {/* Main Heading */}
