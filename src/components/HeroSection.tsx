@@ -57,8 +57,11 @@ const HeroSection = () => {
       />
 
       <div className="relative z-10 container-width section-padding text-center">
-        {/* Main Heading - H1 with primary keyword */}
-        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-display font-bold leading-[1.1] mb-6 animate-fade-in">
+        {/* Main Heading - H1 with primary keyword - Priority for LCP */}
+        <h1 
+          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-display font-bold leading-[1.1] mb-6 animate-fade-in"
+          style={{ contentVisibility: 'auto', containIntrinsicSize: '0 120px' }}
+        >
           {get('hero_title_line1', 'Plagiarism & Similarity Check')}
           <br />
           <span className="gradient-text">{get('hero_title_line2', 'for Academic Integrity')}</span>
