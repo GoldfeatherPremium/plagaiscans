@@ -605,7 +605,7 @@ serve(async (req: Request) => {
     for (const docId of result.completedDocuments) {
       const { data: completedDoc } = await supabase
         .from('documents')
-        .select('id, file_name, user_id')
+        .select('id, file_name, user_id, magic_link_id, similarity_percentage, ai_percentage')
         .eq('id', docId)
         .single();
 
@@ -653,6 +653,29 @@ serve(async (req: Request) => {
           });
         } catch (e) {
           console.error('Completion email failed:', e);
+        }
+      }
+
+      // Send guest completion email if document has magic_link_id
+      if (completedDoc?.magic_link_id) {
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/send-guest-completion-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              documentId: docId,
+              magicLinkId: completedDoc.magic_link_id,
+              fileName: completedDoc.file_name,
+              similarityPercentage: completedDoc.similarity_percentage,
+              aiPercentage: completedDoc.ai_percentage,
+            }),
+          });
+          console.log('Guest completion email sent for document:', docId);
+        } catch (e) {
+          console.error('Guest completion email failed:', e);
         }
       }
     }
