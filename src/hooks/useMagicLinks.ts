@@ -12,6 +12,8 @@ export interface MagicUploadLink {
   created_at: string;
   created_by: string | null;
   updated_at: string;
+  guest_email?: string | null;
+  guest_name?: string | null;
 }
 
 export interface MagicUploadFile {

@@ -575,6 +575,39 @@ export const useDocuments = () => {
         }
       }
 
+      // Send guest completion email if document has a magic_link_id (guest upload)
+      if (status === 'completed') {
+        // Fetch the document to check if it has a magic_link_id
+        const { data: docData } = await supabase
+          .from('documents')
+          .select('magic_link_id')
+          .eq('id', documentId)
+          .maybeSingle();
+
+        if (docData?.magic_link_id) {
+          try {
+            console.log('Sending guest completion email for document:', documentId, 'magic_link_id:', docData.magic_link_id);
+            const { error: guestEmailError } = await supabase.functions.invoke('send-guest-completion-email', {
+              body: {
+                documentId: documentId,
+                magicLinkId: docData.magic_link_id,
+                fileName: fileName || 'Document',
+                similarityPercentage: updates?.similarity_percentage ?? null,
+                aiPercentage: updates?.ai_percentage ?? null,
+              },
+            });
+            
+            if (guestEmailError) {
+              console.error('Error sending guest completion email:', guestEmailError);
+            } else {
+              console.log('Guest completion email sent successfully');
+            }
+          } catch (guestEmailError) {
+            console.error('Exception sending guest completion email:', guestEmailError);
+          }
+        }
+      }
+
       await fetchDocuments();
 
       toast({
