@@ -220,7 +220,10 @@ serve(async (req: Request) => {
       // Find matching documents
       const matchingDocs = docsByNormalized.get(normalizedFilename) || [];
 
-      // Case 1: No matching documents
+      // Filter to only documents without a similarity report already
+      const docsWithoutReport = matchingDocs.filter(d => !d.similarity_report_path);
+
+      // Case 1: No matching documents at all
       if (matchingDocs.length === 0) {
         result.unmatched.push({
           fileName: report.fileName,
@@ -240,13 +243,13 @@ serve(async (req: Request) => {
         continue;
       }
 
-      // Case 2: Multiple matching documents - ambiguous
-      if (matchingDocs.length > 1) {
+      // Case 2: All matching documents already have reports
+      if (docsWithoutReport.length === 0) {
         result.unmatched.push({
           fileName: report.fileName,
           normalizedFilename,
           filePath: report.filePath,
-          reason: 'Multiple matching documents - ambiguous',
+          reason: 'All matching documents already have similarity reports',
         });
 
         await supabase.from('unmatched_reports').insert({
@@ -260,16 +263,13 @@ serve(async (req: Request) => {
         continue;
       }
 
-      // Case 3: Exactly one matching document
-      const doc = matchingDocs[0];
-
-      // Check if document already has a similarity report
-      if (doc.similarity_report_path) {
+      // Case 3: Multiple documents without reports - ambiguous
+      if (docsWithoutReport.length > 1) {
         result.unmatched.push({
           fileName: report.fileName,
           normalizedFilename,
           filePath: report.filePath,
-          reason: 'Document already has a similarity report',
+          reason: `Multiple matching documents without reports (${docsWithoutReport.length}) - ambiguous`,
         });
 
         await supabase.from('unmatched_reports').insert({
@@ -279,9 +279,13 @@ serve(async (req: Request) => {
           report_type: 'similarity',
           similarity_percentage: percentage,
           uploaded_by: user.id,
+          suggested_documents: docsWithoutReport.map(d => ({ id: d.id, file_name: d.file_name })),
         });
         continue;
       }
+
+      // Case 4: Exactly one matching document without a report - perfect match!
+      const doc = docsWithoutReport[0];
 
       // Update document with report - for similarity_only, adding the report completes it
       const updateData: Record<string, unknown> = {
