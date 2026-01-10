@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 
 interface ManualPayment {
   id: string;
@@ -51,6 +52,7 @@ interface StripePayment {
 }
 
 export default function PaymentHistory() {
+  const { t } = useTranslation('dashboard');
   const { user } = useAuth();
   const [manualPayments, setManualPayments] = useState<ManualPayment[]>([]);
   const [cryptoPayments, setCryptoPayments] = useState<CryptoPayment[]>([]);
@@ -235,9 +237,9 @@ export default function PaymentHistory() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-display font-bold">Payment History</h1>
+          <h1 className="text-3xl font-display font-bold">{t('payments.title')}</h1>
           <p className="text-muted-foreground mt-1">
-            Track all your payment transactions and their status
+            {t('payments.subtitle')}
           </p>
         </div>
 
