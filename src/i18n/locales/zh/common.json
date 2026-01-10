@@ -98,6 +98,12 @@
     "dark": "深色",
     "system": "系统"
   },
+  "contact": {
+    "backToHome": "返回首页"
+  },
+  "about": {
+    "backToHome": "返回首页"
+  },
   "errors": {
     "generic": "出了点问题。请重试。",
     "notFound": "页面未找到",

@@ -98,6 +98,12 @@
     "dark": "Dark",
     "system": "System"
   },
+  "contact": {
+    "backToHome": "Back to Home"
+  },
+  "about": {
+    "backToHome": "Back to Home"
+  },
   "errors": {
     "generic": "Something went wrong. Please try again.",
     "notFound": "Page not found",
