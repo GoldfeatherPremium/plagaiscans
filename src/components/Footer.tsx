@@ -73,7 +73,7 @@ const Footer = () => {
           {/* Links */}
           {footerLinks.map((column, index) => (
             <div key={index}>
-              <h4 className="font-display font-semibold mb-4">{column.title}</h4>
+              <h3 className="font-display font-semibold mb-4 text-base">{column.title}</h3>
               <ul className="space-y-3">
                 {column.links.map((link, linkIndex) => (
                   <li key={linkIndex}>
