@@ -5,8 +5,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { FileText, Shield, Zap, Globe, Mail, ArrowLeft, Lock, Users, CheckCircle } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema, generateOrganizationSchema } from '@/components/SEO';
+import { useTranslation } from 'react-i18next';
 
 export default function AboutUs() {
+  const { t } = useTranslation('common');
   const features = [
     {
       icon: FileText,
@@ -78,7 +80,7 @@ export default function AboutUs() {
           <Link to="/">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Home
+              {t('about.backToHome')}
             </Button>
           </Link>
         </div>

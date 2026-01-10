@@ -98,6 +98,12 @@
     "dark": "Dunkel",
     "system": "System"
   },
+  "contact": {
+    "backToHome": "Zurück zur Startseite"
+  },
+  "about": {
+    "backToHome": "Zurück zur Startseite"
+  },
   "errors": {
     "generic": "Ein Fehler ist aufgetreten.",
     "notFound": "Seite nicht gefunden",

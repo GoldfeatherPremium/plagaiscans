@@ -9,8 +9,10 @@ import { FileCheck, ArrowLeft, Mail, Clock, MessageSquare, Send } from 'lucide-r
 import { toast } from 'sonner';
 import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
+import { useTranslation } from 'react-i18next';
 
 export default function Contact() {
+  const { t } = useTranslation('common');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -53,7 +55,7 @@ export default function Contact() {
           <Link to="/">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Home
+              {t('contact.backToHome')}
             </Button>
           </Link>
         </div>
