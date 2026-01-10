@@ -16,10 +16,13 @@ import {
   Coins,
   Sparkles,
   Link,
-  Upload
+  Upload,
+  ArrowUp,
+  ArrowDown,
+  Minus
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, subHours } from 'date-fns';
 import { 
   AreaChart, 
   Area, 
@@ -75,6 +78,9 @@ export default function AdminDashboardOverview() {
       const today = new Date();
       const todayStart = startOfDay(today).toISOString();
       const todayEnd = endOfDay(today).toISOString();
+      const yesterday = subDays(today, 1);
+      const yesterdayStart = startOfDay(yesterday).toISOString();
+      const yesterdayEnd = endOfDay(yesterday).toISOString();
       const last7Days = subDays(today, 7).toISOString();
       const last30Days = subDays(today, 30).toISOString();
 
@@ -176,6 +182,72 @@ export default function AdminDashboardOverview() {
       };
       magicLinks.remainingCapacity = magicLinks.totalCapacity - magicLinks.uploadsUsed;
 
+      // Fetch scan type statistics
+      const { data: allDocsForStats } = await supabase
+        .from('documents')
+        .select('scan_type, status, completed_at');
+
+      const scanTypeStats = {
+        fullScan: {
+          completedToday: allDocsForStats?.filter(d => 
+            d.scan_type === 'full' && 
+            d.status === 'completed' && 
+            d.completed_at && 
+            d.completed_at >= todayStart && 
+            d.completed_at <= todayEnd
+          ).length || 0,
+          completedYesterday: allDocsForStats?.filter(d => 
+            d.scan_type === 'full' && 
+            d.status === 'completed' && 
+            d.completed_at && 
+            d.completed_at >= yesterdayStart && 
+            d.completed_at <= yesterdayEnd
+          ).length || 0,
+          completedTotal: allDocsForStats?.filter(d => 
+            d.scan_type === 'full' && 
+            d.status === 'completed'
+          ).length || 0,
+          pending: allDocsForStats?.filter(d => 
+            d.scan_type === 'full' && 
+            d.status === 'pending'
+          ).length || 0,
+          inProgress: allDocsForStats?.filter(d => 
+            d.scan_type === 'full' && 
+            d.status === 'in_progress'
+          ).length || 0,
+          total: allDocsForStats?.filter(d => d.scan_type === 'full').length || 0
+        },
+        similarityOnly: {
+          completedToday: allDocsForStats?.filter(d => 
+            d.scan_type === 'similarity_only' && 
+            d.status === 'completed' && 
+            d.completed_at && 
+            d.completed_at >= todayStart && 
+            d.completed_at <= todayEnd
+          ).length || 0,
+          completedYesterday: allDocsForStats?.filter(d => 
+            d.scan_type === 'similarity_only' && 
+            d.status === 'completed' && 
+            d.completed_at && 
+            d.completed_at >= yesterdayStart && 
+            d.completed_at <= yesterdayEnd
+          ).length || 0,
+          completedTotal: allDocsForStats?.filter(d => 
+            d.scan_type === 'similarity_only' && 
+            d.status === 'completed'
+          ).length || 0,
+          pending: allDocsForStats?.filter(d => 
+            d.scan_type === 'similarity_only' && 
+            d.status === 'pending'
+          ).length || 0,
+          inProgress: allDocsForStats?.filter(d => 
+            d.scan_type === 'similarity_only' && 
+            d.status === 'in_progress'
+          ).length || 0,
+          total: allDocsForStats?.filter(d => d.scan_type === 'similarity_only').length || 0
+        }
+      };
+
       // Process chart data
       const chartData: { date: string; uploads: number; completed: number }[] = [];
       for (let i = 6; i >= 0; i--) {
@@ -210,7 +282,8 @@ export default function AdminDashboardOverview() {
         chartData,
         fullScanCredits,
         similarityCredits,
-        magicLinks
+        magicLinks,
+        scanTypeStats
       };
     },
     refetchInterval: 30000 // Refresh every 30 seconds
@@ -343,6 +416,147 @@ export default function AdminDashboardOverview() {
                 <CardContent>
                   <div className="text-2xl font-bold">{formatTime(metrics?.avgProcessingTime || 0)}</div>
                   <p className="text-xs text-muted-foreground">Last 30 days average</p>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+
+        {/* Processing Statistics by Scan Type */}
+        <div className={isLoading ? '' : 'content-reveal'}>
+          <h2 className="text-xl font-semibold mb-4">Processing Statistics by Scan Type</h2>
+        </div>
+        <div className={`grid gap-4 md:grid-cols-2 ${isLoading ? '' : 'content-reveal-stagger'}`}>
+          {isLoading ? (
+            <>
+              <MetricCardSkeleton />
+              <MetricCardSkeleton />
+            </>
+          ) : (
+            <>
+              {/* Full Scan Stats */}
+              <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    Full Scan
+                  </CardTitle>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                    {metrics?.scanTypeStats.fullScan.total} total
+                  </span>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-primary/5 rounded-lg">
+                      <div className="text-2xl font-bold text-primary">
+                        {metrics?.scanTypeStats.fullScan.completedToday}
+                      </div>
+                      <p className="text-xs text-muted-foreground">Today</p>
+                      {metrics && (
+                        <div className="flex items-center justify-center mt-1">
+                          {metrics.scanTypeStats.fullScan.completedToday > metrics.scanTypeStats.fullScan.completedYesterday ? (
+                            <span className="text-xs text-green-500 flex items-center gap-0.5">
+                              <ArrowUp className="h-3 w-3" />
+                              vs yesterday
+                            </span>
+                          ) : metrics.scanTypeStats.fullScan.completedToday < metrics.scanTypeStats.fullScan.completedYesterday ? (
+                            <span className="text-xs text-amber-500 flex items-center gap-0.5">
+                              <ArrowDown className="h-3 w-3" />
+                              vs yesterday
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                              <Minus className="h-3 w-3" />
+                              same as yesterday
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-center p-3 bg-muted/50 rounded-lg">
+                      <div className="text-2xl font-bold">
+                        {metrics?.scanTypeStats.fullScan.completedYesterday}
+                      </div>
+                      <p className="text-xs text-muted-foreground">Yesterday</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-sm border-t pt-3">
+                    <div className="flex flex-col items-center">
+                      <span className="font-semibold text-secondary">{metrics?.scanTypeStats.fullScan.completedTotal}</span>
+                      <span className="text-xs text-muted-foreground">Completed</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="font-semibold text-amber-500">{metrics?.scanTypeStats.fullScan.pending}</span>
+                      <span className="text-xs text-muted-foreground">Pending</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="font-semibold text-primary">{metrics?.scanTypeStats.fullScan.inProgress}</span>
+                      <span className="text-xs text-muted-foreground">In Progress</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Similarity Only Stats */}
+              <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-purple-500/30 transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-purple-500" />
+                    Similarity Only
+                  </CardTitle>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                    {metrics?.scanTypeStats.similarityOnly.total} total
+                  </span>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-purple-500/5 rounded-lg">
+                      <div className="text-2xl font-bold text-purple-500">
+                        {metrics?.scanTypeStats.similarityOnly.completedToday}
+                      </div>
+                      <p className="text-xs text-muted-foreground">Today</p>
+                      {metrics && (
+                        <div className="flex items-center justify-center mt-1">
+                          {metrics.scanTypeStats.similarityOnly.completedToday > metrics.scanTypeStats.similarityOnly.completedYesterday ? (
+                            <span className="text-xs text-green-500 flex items-center gap-0.5">
+                              <ArrowUp className="h-3 w-3" />
+                              vs yesterday
+                            </span>
+                          ) : metrics.scanTypeStats.similarityOnly.completedToday < metrics.scanTypeStats.similarityOnly.completedYesterday ? (
+                            <span className="text-xs text-amber-500 flex items-center gap-0.5">
+                              <ArrowDown className="h-3 w-3" />
+                              vs yesterday
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                              <Minus className="h-3 w-3" />
+                              same as yesterday
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-center p-3 bg-muted/50 rounded-lg">
+                      <div className="text-2xl font-bold">
+                        {metrics?.scanTypeStats.similarityOnly.completedYesterday}
+                      </div>
+                      <p className="text-xs text-muted-foreground">Yesterday</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-sm border-t pt-3">
+                    <div className="flex flex-col items-center">
+                      <span className="font-semibold text-secondary">{metrics?.scanTypeStats.similarityOnly.completedTotal}</span>
+                      <span className="text-xs text-muted-foreground">Completed</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="font-semibold text-amber-500">{metrics?.scanTypeStats.similarityOnly.pending}</span>
+                      <span className="text-xs text-muted-foreground">Pending</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="font-semibold text-purple-500">{metrics?.scanTypeStats.similarityOnly.inProgress}</span>
+                      <span className="text-xs text-muted-foreground">In Progress</span>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </>
