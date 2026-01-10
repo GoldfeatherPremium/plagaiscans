@@ -1245,6 +1245,8 @@ export type Database = {
           created_by: string | null
           current_uploads: number
           expires_at: string | null
+          guest_email: string | null
+          guest_name: string | null
           id: string
           max_uploads: number
           status: string
@@ -1256,6 +1258,8 @@ export type Database = {
           created_by?: string | null
           current_uploads?: number
           expires_at?: string | null
+          guest_email?: string | null
+          guest_name?: string | null
           id?: string
           max_uploads?: number
           status?: string
@@ -1267,6 +1271,8 @@ export type Database = {
           created_by?: string | null
           current_uploads?: number
           expires_at?: string | null
+          guest_email?: string | null
+          guest_name?: string | null
           id?: string
           max_uploads?: number
           status?: string

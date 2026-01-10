@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.cleanup-old-files]
 verify_jwt = false
+
+[functions.send-guest-completion-email]
+verify_jwt = false

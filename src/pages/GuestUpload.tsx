@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useMagicLinks, MagicUploadLink, MagicUploadFile } from '@/hooks/useMagicLinks';
 import { supabase } from '@/integrations/supabase/client';
+import { GuestEmailBanner } from '@/components/GuestEmailBanner';
 import {
   Upload,
   FileText,
@@ -22,6 +23,7 @@ import {
   Clock,
   XCircle,
   Trash2,
+  Mail,
 } from 'lucide-react';
 import {
   Table,
@@ -297,6 +299,31 @@ export default function GuestUpload() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
+        {/* Guest Email Banner - Show if no email registered */}
+        {linkData && !linkData.guest_email && token && (
+          <GuestEmailBanner 
+            token={token} 
+            onEmailSaved={(email, name) => {
+              setLinkData(prev => prev ? {...prev, guest_email: email, guest_name: name} : null);
+            }}
+          />
+        )}
+
+        {/* Email Registered Confirmation */}
+        {linkData?.guest_email && (
+          <Card className="border-secondary/30 bg-secondary/5 mb-6">
+            <CardContent className="p-4 flex items-center gap-3">
+              <Mail className="h-5 w-5 text-secondary" />
+              <div className="flex-1">
+                <p className="font-medium text-secondary">Email notifications enabled</p>
+                <p className="text-sm text-muted-foreground">
+                  You'll receive an email at <strong>{linkData.guest_email}</strong> when your documents are ready
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Tabs defaultValue="upload" className="space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="upload">Upload</TabsTrigger>
