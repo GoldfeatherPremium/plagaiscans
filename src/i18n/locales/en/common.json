@@ -10,7 +10,8 @@
     "login": "Log In",
     "signup": "Sign Up",
     "dashboard": "Dashboard",
-    "logout": "Log Out"
+    "logout": "Log Out",
+    "toggleTheme": "Toggle theme"
   },
   "footer": {
     "description": "Professional document similarity and AI content detection services for academic integrity.",
@@ -21,6 +22,8 @@
     "legal": "Legal",
     "howItWorks": "How It Works",
     "plagiarismChecker": "Plagiarism Checker",
+    "pricing": "Pricing",
+    "faq": "FAQ",
     "academicIntegrity": "Academic Integrity",
     "similarityReport": "Similarity Report",
     "aiContentDetection": "AI Content Detection",

@@ -2,8 +2,11 @@ import { useState, useEffect } from "react";
 import { Menu, X, Download, Sun, Moon, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 const Navigation = () => {
+  const { t } = useTranslation('common');
   const [isOpen, setIsOpen] = useState(false);
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -33,10 +36,10 @@ const Navigation = () => {
   const toggleTheme = () => setIsDark(!isDark);
 
   const navLinks = [
-    { href: "/how-it-works", label: "How It Works", isRoute: true },
-    { href: "/faq", label: "FAQ", isRoute: true },
-    { href: "/resources", label: "Resources", isRoute: true },
-    { href: "/pricing", label: "Pricing", isRoute: true },
+    { href: "/how-it-works", label: t('nav.howItWorks'), isRoute: true },
+    { href: "/faq", label: t('nav.faq'), isRoute: true },
+    { href: "/resources", label: t('nav.resources'), isRoute: true },
+    { href: "/pricing", label: t('nav.pricing'), isRoute: true },
   ];
 
   return (
@@ -76,9 +79,10 @@ const Navigation = () => {
             <Link to="/install">
               <Button variant="outline" size="sm" className="gap-2">
                 <Download className="h-4 w-4" />
-                Install App
+                {t('nav.installApp')}
               </Button>
             </Link>
+            <LanguageSwitcher />
             <Button 
               variant="ghost" 
               size="sm" 
@@ -87,11 +91,11 @@ const Navigation = () => {
             >
               <Sun className={`h-4 w-4 absolute transition-all duration-500 ${isDark ? 'rotate-90 scale-0 opacity-0' : 'rotate-0 scale-100 opacity-100'}`} />
               <Moon className={`h-4 w-4 absolute transition-all duration-500 ${isDark ? 'rotate-0 scale-100 opacity-100' : '-rotate-90 scale-0 opacity-0'}`} />
-              <span className="sr-only">Toggle theme</span>
+              <span className="sr-only">{t('nav.toggleTheme')}</span>
             </Button>
             <Link to="/auth">
               <Button variant="hero" size="sm">
-                Get Started
+                {t('nav.getStarted')}
               </Button>
             </Link>
           </div>
@@ -145,14 +149,17 @@ const Navigation = () => {
               <Link to="/install" onClick={() => setIsOpen(false)}>
                 <Button variant="outline" className="w-full gap-2 mt-2">
                   <Download className="h-4 w-4" />
-                  Install App
+                  {t('nav.installApp')}
                 </Button>
               </Link>
               <Link to="/auth" onClick={() => setIsOpen(false)}>
                 <Button variant="hero" className="w-full mt-2">
-                  Get Started
+                  {t('nav.getStarted')}
                 </Button>
               </Link>
+              <div className="mt-4 flex justify-center">
+                <LanguageSwitcher />
+              </div>
             </div>
           </div>
         )}

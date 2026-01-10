@@ -10,7 +10,8 @@
     "login": "登录",
     "signup": "注册",
     "dashboard": "控制台",
-    "logout": "退出登录"
+    "logout": "退出登录",
+    "toggleTheme": "切换主题"
   },
   "footer": {
     "description": "专业的文档相似度和AI内容检测服务，保障学术诚信。",
@@ -21,6 +22,8 @@
     "legal": "法律",
     "howItWorks": "工作原理",
     "plagiarismChecker": "抄袭检查器",
+    "pricing": "价格",
+    "faq": "常见问题",
     "academicIntegrity": "学术诚信",
     "similarityReport": "相似度报告",
     "aiContentDetection": "AI内容检测",

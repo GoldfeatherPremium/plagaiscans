@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useSiteContent } from "@/hooks/useSiteContent";
 import { useEffect, useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 const HeroSection = () => {
   const { get, loading } = useSiteContent();
+  const { t } = useTranslation('landing');
   const [scrollY, setScrollY] = useState(0);
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -62,21 +64,21 @@ const HeroSection = () => {
           className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-display font-bold leading-[1.1] mb-6 animate-fade-in"
           style={{ contentVisibility: 'auto', containIntrinsicSize: '0 120px' }}
         >
-          {get('hero_title_line1', 'Plagiarism & Similarity Check')}
+          {t('hero.title1')}
           <br />
-          <span className="gradient-text">{get('hero_title_line2', 'for Academic Integrity')}</span>
+          <span className="gradient-text">{t('hero.title2')}</span>
         </h1>
 
         {/* Subtitle with SEO keywords */}
         <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-8 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-          {get('hero_subtitle', 'Plagaiscans helps students, researchers, and educators verify originality, identify overlapping content, and understand similarity results through clear and easy-to-read reports.')}
+          {t('hero.subtitle')}
         </p>
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 animate-fade-in" style={{ animationDelay: "0.2s" }}>
           <Link to="/auth">
             <Button variant="hero" size="xl" className="group">
-              {get('hero_cta_primary', 'Check Document')}
+              {t('hero.cta')}
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
@@ -86,7 +88,7 @@ const HeroSection = () => {
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-10 animate-fade-in hover:border-primary/30 transition-colors duration-300" style={{ animationDelay: "0.25s" }}>
           <Sparkles className="w-4 h-4 text-primary animate-pulse-soft" />
           <span className="text-sm text-muted-foreground">
-            {get('hero_badge', 'Trusted by 10,000+ academics & researchers')}
+            {t('hero.badge')}
           </span>
         </div>
 
@@ -95,15 +97,15 @@ const HeroSection = () => {
           <div className="flex md:flex-wrap md:justify-center gap-3 px-4 md:px-0 min-w-max md:min-w-0">
             <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300 whitespace-nowrap snap-center">
               <CheckCircle className="w-4 h-4 text-secondary flex-shrink-0" />
-              <span>{get('hero_feature_1', 'Detailed Similarity Reports')}</span>
+              <span>{t('hero.feature1')}</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300 whitespace-nowrap snap-center">
               <CheckCircle className="w-4 h-4 text-secondary flex-shrink-0" />
-              <span>{get('hero_feature_2', 'AI Content Detection')}</span>
+              <span>{t('hero.feature2')}</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300 whitespace-nowrap snap-center">
               <CheckCircle className="w-4 h-4 text-secondary flex-shrink-0" />
-              <span>{get('hero_feature_3', 'Privacy-First Scanning')}</span>
+              <span>{t('hero.feature3')}</span>
             </div>
           </div>
         </div>
@@ -112,21 +114,21 @@ const HeroSection = () => {
         <div className="grid grid-cols-3 gap-8 max-w-xl mx-auto animate-fade-in" style={{ animationDelay: "0.4s" }}>
           <div className="text-center group">
             <div className="text-2xl md:text-3xl font-display font-bold gradient-text transition-transform duration-300 group-hover:scale-110">
-              {get('hero_stat_1_value', '1B+')}
+              {t('hero.stat1Value')}
             </div>
-            <div className="text-sm text-muted-foreground mt-1">{get('hero_stat_1_label', 'Sources Checked')}</div>
+            <div className="text-sm text-muted-foreground mt-1">{t('hero.stat1Label')}</div>
           </div>
           <div className="text-center group">
             <div className="text-2xl md:text-3xl font-display font-bold gradient-text transition-transform duration-300 group-hover:scale-110">
-              {get('hero_stat_2_value', '99%')}
+              {t('hero.stat2Value')}
             </div>
-            <div className="text-sm text-muted-foreground mt-1">{get('hero_stat_2_label', 'Accuracy Rate')}</div>
+            <div className="text-sm text-muted-foreground mt-1">{t('hero.stat2Label')}</div>
           </div>
           <div className="text-center group">
             <div className="text-2xl md:text-3xl font-display font-bold gradient-text transition-transform duration-300 group-hover:scale-110">
-              {get('hero_stat_3_value', '10K+')}
+              {t('hero.stat3Value')}
             </div>
-            <div className="text-sm text-muted-foreground mt-1">{get('hero_stat_3_label', 'Happy Users')}</div>
+            <div className="text-sm text-muted-foreground mt-1">{t('hero.stat3Label')}</div>
           </div>
         </div>
       </div>
