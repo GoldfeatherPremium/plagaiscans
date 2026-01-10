@@ -1,8 +1,8 @@
 import { FileText, Search, BookCheck, Bot, Shield, Zap } from "lucide-react";
-import { useSiteContent } from "@/hooks/useSiteContent";
+import { useTranslation } from "react-i18next";
 
 const ServicesSection = () => {
-  const { get } = useSiteContent();
+  const { t } = useTranslation('landing');
 
   const services = [
     {
@@ -53,15 +53,11 @@ const ServicesSection = () => {
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
           <span className="text-primary font-medium text-sm tracking-wider uppercase mb-4 block">
-            {get('services_label', 'Features')}
+            {t('services.title')}
           </span>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-6">
-            {get('services_title', 'Comprehensive Document')}
-            <span className="gradient-text"> {get('services_title_gradient', 'Analysis')}</span>
+            {t('services.subtitle')}
           </h2>
-          <p className="text-lg text-muted-foreground">
-            {get('services_subtitle', 'Professional plagiarism detection and similarity checking tools for students, researchers, and universities.')}
-          </p>
         </div>
 
         {/* Services Grid */}
