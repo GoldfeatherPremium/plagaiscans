@@ -6,9 +6,9 @@ import { useDocuments, Document } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
-import { DocumentTagManager } from '@/components/DocumentTagManager';
+
 import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
-import { FileText, Download, Loader2, Star, StarOff, DownloadCloud, Package, Trash2, Pencil } from 'lucide-react';
+import { FileText, Download, Loader2, DownloadCloud, Package, Trash2, Pencil } from 'lucide-react';
 import { PushNotificationBanner } from '@/components/PushNotificationBanner';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -66,18 +66,6 @@ export default function MyDocuments() {
     };
   };
 
-  const toggleFavorite = async (doc: Document) => {
-    const newValue = !doc.is_favorite;
-    await supabase
-      .from('documents')
-      .update({ is_favorite: newValue })
-      .eq('id', doc.id);
-    
-    toast({
-      title: newValue ? 'Added to favorites' : 'Removed from favorites',
-      description: doc.file_name,
-    });
-  };
 
   const toggleSelection = (docId: string) => {
     setSelectedIds(prev => {
@@ -276,10 +264,8 @@ export default function MyDocuments() {
                           onCheckedChange={(checked) => checked ? selectAll() : clearSelection()}
                         />
                       </TableHead>
-                      <TableHead className="w-10"></TableHead>
                       <TableHead className="w-12 text-center">#</TableHead>
                       <TableHead>Document</TableHead>
-                      <TableHead>Tags</TableHead>
                       <TableHead>Upload Time</TableHead>
                       <TableHead className="text-center">Status</TableHead>
                       <TableHead className="text-center">Similarity %</TableHead>
@@ -306,20 +292,6 @@ export default function MyDocuments() {
                               onCheckedChange={() => toggleSelection(doc.id)}
                             />
                           </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0"
-                              onClick={() => toggleFavorite(doc)}
-                            >
-                              {doc.is_favorite ? (
-                                <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                              ) : (
-                                <StarOff className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </Button>
-                          </TableCell>
                           <TableCell className="text-center font-medium">{index + 1}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -335,9 +307,6 @@ export default function MyDocuments() {
                                 )}
                               </div>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <DocumentTagManager documentId={doc.id} compact />
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
