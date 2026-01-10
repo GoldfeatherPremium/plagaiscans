@@ -371,6 +371,8 @@ export default function MyDocuments() {
                               >
                                 <Download className="h-4 w-4" />
                               </Button>
+                            ) : doc.files_cleaned_at && doc.status === 'completed' ? (
+                              <span className="text-xs text-muted-foreground">Expired</span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
@@ -384,6 +386,8 @@ export default function MyDocuments() {
                               >
                                 <Download className="h-4 w-4" />
                               </Button>
+                            ) : doc.files_cleaned_at && doc.status === 'completed' ? (
+                              <span className="text-xs text-muted-foreground">Expired</span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}

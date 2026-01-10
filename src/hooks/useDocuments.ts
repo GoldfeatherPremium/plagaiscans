@@ -25,6 +25,7 @@ export interface Document {
   completed_at: string | null;
   updated_at: string;
   is_favorite?: boolean | null;
+  files_cleaned_at?: string | null;
   profiles?: {
     email: string;
     full_name: string | null;
