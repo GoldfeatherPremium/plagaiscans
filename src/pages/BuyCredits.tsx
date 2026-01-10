@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useTranslation } from 'react-i18next';
 
 type PackageType = 'one_time' | 'subscription' | 'time_limited';
 type CreditType = 'full' | 'similarity_only';
@@ -56,6 +57,7 @@ const PACKAGE_TYPE_CONFIG = {
 };
 
 export default function BuyCredits() {
+  const { t } = useTranslation('dashboard');
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { cart, addToCart, updateCartQuantity, removeFromCart, clearCart, getCartTotal, getCartCredits } = useCart();
@@ -215,10 +217,10 @@ export default function BuyCredits() {
         {/* Header */}
         <div className="text-center">
           <h1 className="text-4xl font-display font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            Buy Credits
+            {t('credits.title')}
           </h1>
           <p className="text-muted-foreground mt-2 text-lg">
-            Get credits to check your documents for similarity and AI content
+            {t('credits.subtitle')}
           </p>
         </div>
 

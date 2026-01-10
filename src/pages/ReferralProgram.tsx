@@ -17,10 +17,12 @@ import {
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { useTranslation } from 'react-i18next';
 
 const REFERRAL_BONUS = 5; // Credits given for successful referral
 
 export default function ReferralProgram() {
+  const { t } = useTranslation('dashboard');
   const { user, profile } = useAuth();
   const [referralCode, setReferralCode] = useState('');
 
@@ -111,9 +113,9 @@ export default function ReferralProgram() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-display font-bold">Referral Program</h1>
+          <h1 className="text-3xl font-display font-bold">{t('referrals.title')}</h1>
           <p className="text-muted-foreground">
-            Earn {REFERRAL_BONUS} credits for every friend who signs up and makes their first purchase!
+            {t('referrals.subtitle', { credits: REFERRAL_BONUS })}
           </p>
         </div>
 
