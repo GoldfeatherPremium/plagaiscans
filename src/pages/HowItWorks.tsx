@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileText, Upload, Search, Download, ArrowLeft, ArrowRight, CheckCircle, Shield, Clock, Play, Pause } from 'lucide-react';
@@ -105,6 +106,8 @@ function ProcessDemo() {
 }
 
 export default function HowItWorks() {
+  const { t } = useTranslation('landing');
+  
   const steps = [
     {
       number: 1,
@@ -177,7 +180,7 @@ export default function HowItWorks() {
           <Link to="/">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Home
+              {t('howItWorks.backToHome')}
             </Button>
           </Link>
         </div>
@@ -192,10 +195,10 @@ export default function HowItWorks() {
           {/* Hero Section */}
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
-              How <span className="gradient-text">Plagaiscans</span> Works
+              {t('howItWorks.title')} <span className="gradient-text">Plagaiscans</span> {t('howItWorks.titleSuffix')}
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              A simple, transparent process to verify document originality and maintain academic integrity.
+              {t('howItWorks.subtitle')}
             </p>
           </div>
 
@@ -242,7 +245,7 @@ export default function HowItWorks() {
           {/* Benefits */}
           <div className="mb-16">
             <h2 className="text-3xl font-display font-bold text-center mb-10">
-              Why Choose Plagaiscans?
+              {t('howItWorks.whyChoose')}
             </h2>
             <div className="grid md:grid-cols-3 gap-6">
               {benefits.map((benefit, index) => (
@@ -262,13 +265,13 @@ export default function HowItWorks() {
           {/* CTA */}
           <Card className="bg-primary/5 border-primary/20">
             <CardContent className="p-8 text-center">
-              <h2 className="text-2xl font-bold mb-4">Ready to Check Your Document?</h2>
+              <h2 className="text-2xl font-bold mb-4">{t('howItWorks.readyToCheck')}</h2>
               <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-                Join thousands of students, researchers, and educators who trust Plagaiscans for accurate originality verification.
+                {t('howItWorks.ctaDescription')}
               </p>
               <Link to="/auth">
                 <Button variant="hero" size="lg" className="group">
-                  Get Started Now
+                  {t('howItWorks.getStarted')}
                   <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>

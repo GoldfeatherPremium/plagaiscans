@@ -35,14 +35,29 @@
     "subtitle": "Comprehensive document analysis tools"
   },
   "howItWorks": {
-    "title": "How It Works",
-    "subtitle": "Get your document checked in 3 simple steps",
+    "title": "How",
+    "titleSuffix": "Works",
+    "subtitle": "A simple, transparent process to verify document originality and maintain academic integrity.",
+    "backToHome": "Back to Home",
+    "whyChoose": "Why Choose Plagaiscans?",
+    "readyToCheck": "Ready to Check Your Document?",
+    "ctaDescription": "Join thousands of students, researchers, and educators who trust Plagaiscans for accurate originality verification.",
+    "getStarted": "Get Started Now",
     "step1Title": "Upload Document",
     "step1Desc": "Upload your document in PDF, DOC, or DOCX format",
     "step2Title": "Analysis",
     "step2Desc": "Our system analyzes your document for similarity and AI content",
     "step3Title": "Get Report",
     "step3Desc": "Receive a detailed report with highlighted matches and sources"
+  },
+  "faq": {
+    "title": "Frequently Asked",
+    "titleHighlight": "Questions",
+    "subtitle": "Find answers to common questions about Plagaiscans and our academic integrity services.",
+    "backToHome": "Back to Home",
+    "stillHaveQuestions": "Still have questions?",
+    "supportTeamReady": "Our support team is ready to help you with any additional inquiries.",
+    "contactSupport": "Contact Support"
   },
   "contact": {
     "title": "Contact Us",

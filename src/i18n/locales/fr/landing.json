@@ -2,6 +2,30 @@
   "hero": { "badge": "Fait confiance par 10,000+ académiciens", "titleLine1": "Vérification de plagiat et similarité", "titleLine2": "pour l'intégrité académique", "subtitle": "Plagaiscans aide les étudiants et chercheurs à vérifier l'originalité.", "ctaPrimary": "Vérifier le document", "feature1": "Rapports détaillés", "feature2": "Détection IA", "feature3": "Confidentialité", "stat1Value": "1Md+", "stat1Label": "Sources vérifiées", "stat2Value": "99%", "stat2Label": "Précision", "stat3Value": "10K+", "stat3Label": "Utilisateurs" },
   "about": { "label": "À propos", "title": "Plateforme d'intégrité pour", "titleGradient": "Vérification d'originalité", "paragraph1": "Plagaiscans est une plateforme d'intégrité académique.", "paragraph2": "Confidentialité et transparence garanties.", "feature1Title": "Détection de similarité", "feature1Desc": "Voir les correspondances.", "feature2Title": "Vérification des citations", "feature2Desc": "Support de conformité.", "feature3Title": "Indicateurs IA", "feature3Desc": "Analyse des patterns IA.", "feature4Title": "Confidentialité", "feature4Desc": "Documents privés et sécurisés." },
   "services": { "title": "Nos services", "subtitle": "Outils d'analyse complets" },
-  "howItWorks": { "title": "Comment ça marche", "subtitle": "3 étapes simples", "step1Title": "Téléverser", "step1Desc": "PDF, DOC, DOCX", "step2Title": "Analyse", "step2Desc": "Notre système analyse", "step3Title": "Rapport", "step3Desc": "Rapport détaillé" },
+  "howItWorks": {
+    "title": "Comment",
+    "titleSuffix": "fonctionne",
+    "subtitle": "Un processus simple et transparent pour vérifier l'originalité des documents et maintenir l'intégrité académique.",
+    "backToHome": "Retour à l'accueil",
+    "whyChoose": "Pourquoi choisir Plagaiscans?",
+    "readyToCheck": "Prêt à vérifier votre document?",
+    "ctaDescription": "Rejoignez des milliers d'étudiants, chercheurs et éducateurs qui font confiance à Plagaiscans pour une vérification d'originalité précise.",
+    "getStarted": "Commencer maintenant",
+    "step1Title": "Téléverser", 
+    "step1Desc": "PDF, DOC, DOCX", 
+    "step2Title": "Analyse", 
+    "step2Desc": "Notre système analyse", 
+    "step3Title": "Rapport", 
+    "step3Desc": "Rapport détaillé"
+  },
+  "faq": {
+    "title": "Questions",
+    "titleHighlight": "Fréquentes",
+    "subtitle": "Trouvez des réponses aux questions courantes sur Plagaiscans et nos services d'intégrité académique.",
+    "backToHome": "Retour à l'accueil",
+    "stillHaveQuestions": "Encore des questions?",
+    "supportTeamReady": "Notre équipe de support est prête à vous aider pour toute question supplémentaire.",
+    "contactSupport": "Contacter le support"
+  },
   "contact": { "title": "Contact", "subtitle": "Contactez notre équipe", "nameLabel": "Nom", "emailLabel": "Email", "messageLabel": "Message", "sendButton": "Envoyer", "sending": "Envoi...", "successMessage": "Message envoyé!", "errorMessage": "Échec de l'envoi." }
 }
