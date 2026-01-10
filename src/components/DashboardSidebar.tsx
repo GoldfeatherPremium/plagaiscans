@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
   FileText,
@@ -100,6 +101,7 @@ const setSeenCount = (key: keyof SeenCounts, count: number) => {
 };
 
 export const DashboardSidebar: React.FC = () => {
+  const { t } = useTranslation('dashboard');
   const { role, profile, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -284,27 +286,27 @@ export const DashboardSidebar: React.FC = () => {
   }, []);
 
   const customerLinks: NavLink[] = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/dashboard/upload', icon: Upload, label: 'Upload (Full Scan)' },
-    { to: '/dashboard/upload-similarity', icon: FileCheck, label: 'Upload (Similarity)' },
-    { to: '/dashboard/documents', icon: FileText, label: 'My Documents' },
-    { to: '/dashboard/analytics', icon: PieChart, label: 'Analytics' },
-    { to: '/dashboard/credits', icon: CreditCard, label: 'Buy Credits' },
-    { to: '/dashboard/subscription', icon: Crown, label: 'Subscription' },
-    { to: '/dashboard/payments', icon: Receipt, label: 'Payment History' },
-    { to: '/dashboard/invoices', icon: FileDown, label: 'My Invoices' },
-    { to: '/dashboard/receipts', icon: Receipt, label: 'My Receipts' },
-    { to: '/dashboard/profile', icon: User, label: 'Profile' },
+    { to: '/dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard') },
+    { to: '/dashboard/upload', icon: Upload, label: t('sidebar.uploadFull') },
+    { to: '/dashboard/upload-similarity', icon: FileCheck, label: t('sidebar.uploadSimilarity') },
+    { to: '/dashboard/documents', icon: FileText, label: t('sidebar.myDocuments') },
+    { to: '/dashboard/analytics', icon: PieChart, label: t('sidebar.analytics') },
+    { to: '/dashboard/credits', icon: CreditCard, label: t('sidebar.buyCredits') },
+    { to: '/dashboard/subscription', icon: Crown, label: t('sidebar.subscription') },
+    { to: '/dashboard/payments', icon: Receipt, label: t('sidebar.paymentHistory') },
+    { to: '/dashboard/invoices', icon: FileDown, label: t('sidebar.myInvoices') },
+    { to: '/dashboard/receipts', icon: Receipt, label: t('sidebar.myReceipts') },
+    { to: '/dashboard/profile', icon: User, label: t('sidebar.profile') },
   ];
 
   const staffLinks: NavLink[] = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/dashboard/queue', icon: FileCheck, label: 'Full Scan Queue' },
-    { to: '/dashboard/queue-similarity', icon: FileText, label: 'Similarity Queue' },
-    { to: '/dashboard/my-work', icon: FileText, label: 'My Processed' },
-    { to: '/dashboard/stats', icon: BarChart3, label: 'My Stats' },
-    { to: '/dashboard/performance', icon: Activity, label: 'Performance' },
-    { to: '/dashboard/profile', icon: User, label: 'Profile' },
+    { to: '/dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard') },
+    { to: '/dashboard/queue', icon: FileCheck, label: t('sidebar.fullScanQueue') },
+    { to: '/dashboard/queue-similarity', icon: FileText, label: t('sidebar.similarityQueue') },
+    { to: '/dashboard/my-work', icon: FileText, label: t('sidebar.myProcessed') },
+    { to: '/dashboard/stats', icon: BarChart3, label: t('sidebar.myStats') },
+    { to: '/dashboard/performance', icon: Activity, label: t('sidebar.performance') },
+    { to: '/dashboard/profile', icon: User, label: t('sidebar.profile') },
   ];
 
   // Admin grouped navigation
@@ -652,11 +654,11 @@ export const DashboardSidebar: React.FC = () => {
           {role === 'customer' && profile && (
             <div className="px-4 py-3 bg-muted rounded-lg space-y-2">
               <div>
-                <p className="text-xs text-muted-foreground">Full Scan Credits</p>
+                <p className="text-xs text-muted-foreground">{t('sidebar.fullScanCredits')}</p>
                 <p className="text-xl font-bold text-primary">{profile.credit_balance}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Similarity Credits</p>
+                <p className="text-xs text-muted-foreground">{t('sidebar.similarityCredits')}</p>
                 <p className="text-xl font-bold text-secondary">{profile.similarity_credit_balance || 0}</p>
               </div>
             </div>
@@ -673,7 +675,7 @@ export const DashboardSidebar: React.FC = () => {
             onClick={signOut}
           >
             <LogOut className="h-5 w-5" />
-            Sign Out
+            {t('sidebar.signOut')}
           </Button>
         </div>
       </aside>
