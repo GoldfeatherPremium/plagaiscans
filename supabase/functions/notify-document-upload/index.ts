@@ -76,7 +76,12 @@ serve(async (req) => {
     // Process each notification by calling send-push-notification function
     for (const notification of notifications) {
       try {
-        console.log(`Sending notification for document: ${notification.file_name}`);
+        console.log(`Sending notification for document: ${notification.file_name}, scan_type: ${notification.scan_type}`);
+        
+        // Determine correct queue URL based on scan type
+        const queueUrl = notification.scan_type === 'similarity_only' 
+          ? '/dashboard/queue-similarity' 
+          : '/dashboard/queue';
         
         const response = await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
           method: 'POST',
@@ -89,8 +94,8 @@ serve(async (req) => {
             body: `${notification.customer_name} uploaded "${notification.file_name}"`,
             icon: '/pwa-icon-192.png',
             badge: '/pwa-icon-192.png',
-            url: '/document-queue',
-            data: { documentId: notification.document_id },
+            url: queueUrl,
+            data: { documentId: notification.document_id, scanType: notification.scan_type },
             targetAudience: 'staff_and_admins',
             eventType: 'document_upload',
           }),

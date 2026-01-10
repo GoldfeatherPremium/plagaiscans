@@ -24,8 +24,13 @@ export const useAdminDocumentNotifications = () => {
     }
   }, [user, isAdminOrStaff, requestPermission]);
 
-  const handleNewDocument = useCallback((fileName: string, customerName: string) => {
-    console.log('[AdminNotify] New document notification:', fileName, customerName);
+  const handleNewDocument = useCallback((fileName: string, customerName: string, scanType: string = 'full') => {
+    console.log('[AdminNotify] New document notification:', fileName, customerName, scanType);
+    
+    // Determine correct queue URL based on scan type
+    const queueUrl = scanType === 'similarity_only' 
+      ? '/dashboard/queue-similarity' 
+      : '/dashboard/queue';
     
     // Play notification sound
     playSound();
@@ -37,7 +42,7 @@ export const useAdminDocumentNotifications = () => {
       action: {
         label: 'View Queue',
         onClick: () => {
-          window.location.href = '/document-queue';
+          window.location.href = queueUrl;
         },
       },
     });
@@ -97,6 +102,7 @@ export const useAdminDocumentNotifications = () => {
             const newDoc = payload.new;
             const fileName = newDoc?.file_name;
             const userId = newDoc?.user_id;
+            const scanType = newDoc?.scan_type || 'full';
             
             if (fileName && userId) {
               // Get customer name from profiles
@@ -107,10 +113,10 @@ export const useAdminDocumentNotifications = () => {
                 .maybeSingle();
               
               const customerName = profile?.full_name || profile?.email || 'Customer';
-              handleNewDocument(fileName, customerName);
+              handleNewDocument(fileName, customerName, scanType);
             } else if (fileName) {
               // Magic link upload (no user_id)
-              handleNewDocument(fileName, 'Guest');
+              handleNewDocument(fileName, 'Guest', scanType);
             }
           }
         )
