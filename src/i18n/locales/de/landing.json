@@ -27,5 +27,30 @@
     "supportTeamReady": "Unser Support-Team ist bereit, Ihnen bei weiteren Anfragen zu helfen.",
     "contactSupport": "Support kontaktieren"
   },
-  "contact": { "title": "Kontakt", "subtitle": "Kontaktieren Sie uns", "nameLabel": "Name", "emailLabel": "E-Mail", "messageLabel": "Nachricht", "sendButton": "Senden", "sending": "Senden...", "successMessage": "Nachricht gesendet!", "errorMessage": "Fehler beim Senden." }
+  "contact": { "title": "Kontakt", "subtitle": "Kontaktieren Sie uns", "nameLabel": "Name", "emailLabel": "E-Mail", "messageLabel": "Nachricht", "sendButton": "Senden", "sending": "Senden...", "successMessage": "Nachricht gesendet!", "errorMessage": "Fehler beim Senden." },
+  "pricing": {
+    "title": "Einfache",
+    "titleHighlight": "Preise",
+    "subtitle": "Wählen Sie den Plan, der Ihren Bedürfnissen entspricht. Keine versteckten Gebühren.",
+    "backToHome": "Zurück zur Startseite",
+    "aiDetection": "KI-Erkennung",
+    "aiDetectionDesc": "Identifizieren Sie KI-generierte Inhalte",
+    "similarityCheck": "Ähnlichkeitsprüfung",
+    "similarityCheckDesc": "Vergleichen Sie mit Milliarden von Quellen",
+    "perCredit": "pro Credit",
+    "credits": "Credits",
+    "popular": "Beliebt",
+    "bestValue": "Bester Wert",
+    "getStarted": "Loslegen",
+    "features": "Funktionen",
+    "documentsPerCredit": "1 Dokument pro Credit",
+    "detailedReports": "Detaillierte Berichte",
+    "sourceHighlighting": "Quellenhervorhebung",
+    "downloadableReports": "Herunterladbare Berichte",
+    "prioritySupport": "Prioritäts-Support",
+    "faq": "Häufig gestellte Fragen",
+    "faqSubtitle": "Antworten auf häufige Preisfragen",
+    "needHelp": "Brauchen Sie Hilfe?",
+    "contactSupport": "Support kontaktieren"
+  }
 }

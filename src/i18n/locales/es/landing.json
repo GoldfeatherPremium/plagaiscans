@@ -27,5 +27,30 @@
     "supportTeamReady": "Nuestro equipo de soporte está listo para ayudarte con cualquier consulta adicional.",
     "contactSupport": "Contactar soporte"
   },
-  "contact": { "title": "Contacto", "subtitle": "Contáctenos", "nameLabel": "Nombre", "emailLabel": "Correo", "messageLabel": "Mensaje", "sendButton": "Enviar", "sending": "Enviando...", "successMessage": "Mensaje enviado!", "errorMessage": "Error al enviar." }
+  "contact": { "title": "Contacto", "subtitle": "Contáctenos", "nameLabel": "Nombre", "emailLabel": "Correo", "messageLabel": "Mensaje", "sendButton": "Enviar", "sending": "Enviando...", "successMessage": "Mensaje enviado!", "errorMessage": "Error al enviar." },
+  "pricing": {
+    "title": "Precios",
+    "titleHighlight": "Simples",
+    "subtitle": "Elige el plan que se adapte a tus necesidades. Sin cargos ocultos.",
+    "backToHome": "Volver al inicio",
+    "aiDetection": "Detección IA",
+    "aiDetectionDesc": "Identifica contenido generado por IA",
+    "similarityCheck": "Verificación de similitud",
+    "similarityCheckDesc": "Compara con miles de millones de fuentes",
+    "perCredit": "por crédito",
+    "credits": "créditos",
+    "popular": "Popular",
+    "bestValue": "Mejor valor",
+    "getStarted": "Comenzar",
+    "features": "Características",
+    "documentsPerCredit": "1 documento por crédito",
+    "detailedReports": "Informes detallados",
+    "sourceHighlighting": "Resaltado de fuentes",
+    "downloadableReports": "Informes descargables",
+    "prioritySupport": "Soporte prioritario",
+    "faq": "Preguntas frecuentes",
+    "faqSubtitle": "Respuestas a preguntas comunes sobre precios",
+    "needHelp": "¿Necesitas ayuda?",
+    "contactSupport": "Contactar soporte"
+  }
 }
