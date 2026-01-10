@@ -712,6 +712,7 @@ export type Database = {
           error_message: string | null
           file_name: string
           file_path: string
+          files_cleaned_at: string | null
           id: string
           is_favorite: boolean | null
           magic_link_id: string | null
@@ -739,6 +740,7 @@ export type Database = {
           error_message?: string | null
           file_name: string
           file_path: string
+          files_cleaned_at?: string | null
           id?: string
           is_favorite?: boolean | null
           magic_link_id?: string | null
@@ -766,6 +768,7 @@ export type Database = {
           error_message?: string | null
           file_name?: string
           file_path?: string
+          files_cleaned_at?: string | null
           id?: string
           is_favorite?: boolean | null
           magic_link_id?: string | null
