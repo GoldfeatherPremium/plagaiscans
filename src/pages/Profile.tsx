@@ -13,6 +13,7 @@ import { NotificationPreferences } from '@/components/NotificationPreferences';
 import { NotificationSoundSettings } from '@/components/NotificationSoundSettings';
 import { PushNotificationSettings } from '@/components/PushNotificationSettings';
 import { DocumentUploadNotificationToggle } from '@/components/DocumentUploadNotificationToggle';
+import { useTranslation } from 'react-i18next';
 
 const phoneSchema = z.string()
   .regex(/^\+?[0-9]{10,15}$/, 'Phone number must be 10-15 digits (can start with +)');
@@ -32,6 +33,7 @@ const profileSchema = z.object({
 });
 
 export default function Profile() {
+  const { t } = useTranslation('dashboard');
   const { profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -151,8 +153,8 @@ export default function Profile() {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="page-enter">
-          <h1 className="text-3xl font-display font-bold">Profile Settings</h1>
-          <p className="text-muted-foreground">Manage your account settings</p>
+          <h1 className="text-3xl font-display font-bold">{t('profile.title')}</h1>
+          <p className="text-muted-foreground">{t('profile.subtitle')}</p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 stagger-children">
@@ -163,9 +165,9 @@ export default function Profile() {
                 <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
                   <User className="h-4 w-4 text-primary" />
                 </div>
-                Profile Information
+                {t('profile.personalInfo')}
               </CardTitle>
-              <CardDescription>Update your personal details</CardDescription>
+              <CardDescription>{t('profile.subtitle')}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleProfileUpdate} className="space-y-4">
@@ -231,9 +233,9 @@ export default function Profile() {
                 <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center">
                   <Lock className="h-4 w-4 text-accent" />
                 </div>
-                Change Password
+                {t('profile.changePassword')}
               </CardTitle>
-              <CardDescription>Update your password</CardDescription>
+              <CardDescription>{t('profile.changePassword')}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handlePasswordChange} className="space-y-4">
