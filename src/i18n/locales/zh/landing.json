@@ -1,0 +1,58 @@
+{
+  "hero": {
+    "badge": "受到10,000+学者和研究人员的信赖",
+    "titleLine1": "抄袭与相似度检查",
+    "titleLine2": "保障学术诚信",
+    "subtitle": "Plagaiscans帮助学生、研究人员和教育工作者验证原创性，识别重叠内容，并通过清晰易读的报告理解相似度结果。",
+    "ctaPrimary": "检查文档",
+    "feature1": "详细的相似度报告",
+    "feature2": "AI内容检测",
+    "feature3": "隐私优先扫描",
+    "stat1Value": "10亿+",
+    "stat1Label": "已检查来源",
+    "stat2Value": "99%",
+    "stat2Label": "准确率",
+    "stat3Value": "1万+",
+    "stat3Label": "满意用户"
+  },
+  "about": {
+    "label": "关于Plagaiscans",
+    "title": "学术诚信平台，用于",
+    "titleGradient": "原创性验证",
+    "paragraph1": "Plagaiscans是一个学术诚信平台，旨在支持教育和研究用途的抄袭检测和相似度分析。",
+    "paragraph2": "Plagaiscans优先考虑隐私、透明度和可用性。",
+    "feature1Title": "相似度检测",
+    "feature1Desc": "查看突出显示的匹配项、相似度百分比和匹配来源，以了解内容重叠。",
+    "feature2Title": "引用和参考检查",
+    "feature2Desc": "通过审查引用模式和参考文献来支持学术合规。",
+    "feature3Title": "AI内容指标",
+    "feature3Desc": "分析文本中潜在的AI生成模式，以支持负责任的学术使用。",
+    "feature4Title": "隐私优先扫描",
+    "feature4Desc": "上传的文档保持私密，并安全处理。"
+  },
+  "services": {
+    "title": "我们的服务",
+    "subtitle": "全面的文档分析工具"
+  },
+  "howItWorks": {
+    "title": "工作原理",
+    "subtitle": "3个简单步骤完成文档检查",
+    "step1Title": "上传文档",
+    "step1Desc": "上传PDF、DOC或DOCX格式的文档",
+    "step2Title": "分析",
+    "step2Desc": "我们的系统分析您的文档的相似度和AI内容",
+    "step3Title": "获取报告",
+    "step3Desc": "收到包含突出显示的匹配项和来源的详细报告"
+  },
+  "contact": {
+    "title": "联系我们",
+    "subtitle": "与我们的支持团队取得联系",
+    "nameLabel": "您的姓名",
+    "emailLabel": "您的电子邮件",
+    "messageLabel": "您的留言",
+    "sendButton": "发送消息",
+    "sending": "发送中...",
+    "successMessage": "消息发送成功！",
+    "errorMessage": "发送消息失败。请重试。"
+  }
+}
