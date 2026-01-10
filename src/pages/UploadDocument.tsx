@@ -11,8 +11,10 @@ import { Upload, FileText, AlertCircle, CheckCircle, Info, ArrowRight, X, Bell, 
 import { Link, useNavigate } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export default function UploadDocument() {
+  const { t } = useTranslation('dashboard');
   const { profile } = useAuth();
   const { uploadDocuments } = useDocuments();
   const { 
@@ -139,9 +141,9 @@ export default function UploadDocument() {
     <DashboardLayout>
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-display font-bold">Add new submission</h1>
+          <h1 className="text-2xl font-display font-bold">{t('upload.title')}</h1>
           <p className="text-muted-foreground mt-1">
-            Please fill out the following fields to submit your document for plagiarism checking. Each field is important to ensure your document is processed accurately.
+            {t('upload.subtitle')}
           </p>
         </div>
 

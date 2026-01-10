@@ -6,6 +6,7 @@ import { useDocuments, Document } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
+import { useTranslation } from 'react-i18next';
 
 import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
 import { FileText, Download, Loader2, DownloadCloud, Package, Trash2, Pencil } from 'lucide-react';
@@ -35,6 +36,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function MyDocuments() {
+  const { t } = useTranslation('dashboard');
   const { documents, loading, downloadFile, deleteDocument, fetchDocuments } = useDocuments();
   const { role } = useAuth();
   const { toast } = useToast();
@@ -147,9 +149,9 @@ export default function MyDocuments() {
         {role === 'customer' && <PushNotificationBanner />}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-display font-bold">My Documents</h1>
+            <h1 className="text-3xl font-display font-bold">{t('documents.title')}</h1>
             <p className="text-muted-foreground mt-1">
-              View all your uploaded documents and their status
+              {t('documents.subtitle')}
             </p>
           </div>
           
