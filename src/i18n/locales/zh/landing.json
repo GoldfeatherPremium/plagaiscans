@@ -35,14 +35,29 @@
     "subtitle": "全面的文档分析工具"
   },
   "howItWorks": {
-    "title": "工作原理",
-    "subtitle": "3个简单步骤完成文档检查",
+    "title": "",
+    "titleSuffix": "工作原理",
+    "subtitle": "一个简单透明的流程，用于验证文档原创性并维护学术诚信。",
+    "backToHome": "返回首页",
+    "whyChoose": "为什么选择Plagaiscans？",
+    "readyToCheck": "准备好检查您的文档了吗？",
+    "ctaDescription": "加入成千上万信任Plagaiscans进行准确原创性验证的学生、研究人员和教育工作者。",
+    "getStarted": "立即开始",
     "step1Title": "上传文档",
     "step1Desc": "上传PDF、DOC或DOCX格式的文档",
     "step2Title": "分析",
     "step2Desc": "我们的系统分析您的文档的相似度和AI内容",
     "step3Title": "获取报告",
     "step3Desc": "收到包含突出显示的匹配项和来源的详细报告"
+  },
+  "faq": {
+    "title": "常见",
+    "titleHighlight": "问题",
+    "subtitle": "查找有关Plagaiscans和我们学术诚信服务的常见问题的答案。",
+    "backToHome": "返回首页",
+    "stillHaveQuestions": "还有问题？",
+    "supportTeamReady": "我们的支持团队随时准备帮助您解答任何其他疑问。",
+    "contactSupport": "联系支持"
   },
   "contact": {
     "title": "联系我们",

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { FileText, ArrowLeft, HelpCircle } from 'lucide-react';
 import {
@@ -96,6 +97,8 @@ const faqData = [
 ];
 
 export default function FAQ() {
+  const { t } = useTranslation('landing');
+  
   const faqSchema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -131,7 +134,7 @@ export default function FAQ() {
             <Link to="/">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Home
+                {t('faq.backToHome')}
               </Button>
             </Link>
           </div>
@@ -146,10 +149,10 @@ export default function FAQ() {
                 <HelpCircle className="h-8 w-8 text-primary" />
               </div>
               <h1 className="text-4xl md:text-5xl font-display font-bold mb-4">
-                Frequently Asked <span className="gradient-text">Questions</span>
+                {t('faq.title')} <span className="gradient-text">{t('faq.titleHighlight')}</span>
               </h1>
               <p className="text-lg text-muted-foreground">
-                Find answers to common questions about Plagaiscans and our academic integrity services.
+                {t('faq.subtitle')}
               </p>
             </div>
 
@@ -171,12 +174,12 @@ export default function FAQ() {
             </Accordion>
 
             <div className="mt-12 text-center p-8 rounded-2xl bg-muted/30 border border-border">
-              <h2 className="text-xl font-bold mb-2">Still have questions?</h2>
+              <h2 className="text-xl font-bold mb-2">{t('faq.stillHaveQuestions')}</h2>
               <p className="text-muted-foreground mb-4">
-                Our support team is ready to help you with any additional inquiries.
+                {t('faq.supportTeamReady')}
               </p>
               <Link to="/contact">
-                <Button variant="hero">Contact Support</Button>
+                <Button variant="hero">{t('faq.contactSupport')}</Button>
               </Link>
             </div>
           </div>
