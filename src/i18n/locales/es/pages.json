@@ -198,5 +198,37 @@
     "goToDashboard": "Ir al panel",
     "uploadDocument": "Subir documento",
     "tryAgain": "Intentar de nuevo"
+  },
+  "resources": {
+    "title": "Recursos y Centro de Aprendizaje",
+    "subtitle": "Artículos educativos, guías y consejos para entender la integridad académica y mejorar tu escritura.",
+    "featuredArticles": "Artículos destacados",
+    "readArticle": "Leer artículo",
+    "quickTips": "Consejos rápidos para la escritura académica",
+    "understandingSimilarity": "Entendiendo la similitud en documentos académicos",
+    "readyToCheck": "¿Listo para verificar tu documento?",
+    "readyToCheckDesc": "Aplica lo que has aprendido y verifica la originalidad de tu documento con Plagaiscans.",
+    "getStarted": "Comenzar",
+    "backToHome": "Volver al inicio"
+  },
+  "academicIntegrity": {
+    "title": "Directrices de integridad académica",
+    "subtitle": "Aprende sobre los principios y prácticas de la honestidad académica",
+    "backToHome": "Volver al inicio",
+    "whatIsTitle": "¿Qué es la integridad académica?",
+    "whatIsDesc": "La integridad académica es el compromiso con el comportamiento honesto y ético en todo trabajo académico.",
+    "principlesTitle": "Principios fundamentales",
+    "principle1Title": "Honestidad",
+    "principle1Desc": "Presenta tu trabajo e ideas con honestidad, reconociendo las contribuciones de otros.",
+    "principle2Title": "Confianza",
+    "principle2Desc": "Construye confianza a través de un comportamiento ético constante.",
+    "principle3Title": "Equidad",
+    "principle3Desc": "Trata a todos los participantes en el proceso académico de manera justa.",
+    "principle4Title": "Respeto",
+    "principle4Desc": "Respeta la propiedad intelectual y las ideas de otros.",
+    "principle5Title": "Responsabilidad",
+    "principle5Desc": "Asume la responsabilidad de tus acciones y su impacto.",
+    "principle6Title": "Valor",
+    "principle6Desc": "Actúa con valor para mantener los estándares éticos."
   }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ interface PaymentDetails {
 }
 
 const PaymentSuccess = () => {
+  const { t } = useTranslation('pages');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { refreshProfile, user, profile } = useAuth();
@@ -226,8 +228,8 @@ Visit us at: ${window.location.origin}
                     <Loader2 className="h-12 w-12 text-primary animate-spin" />
                   </div>
                 </div>
-                <CardTitle className="text-2xl">Verifying Payment</CardTitle>
-                <CardDescription>Please wait while we confirm your payment...</CardDescription>
+                <CardTitle className="text-2xl">{t('paymentSuccess.verifying')}</CardTitle>
+                <CardDescription>{t('paymentSuccess.verifyingDesc')}</CardDescription>
               </>
             )}
             
@@ -238,8 +240,8 @@ Visit us at: ${window.location.origin}
                     <CheckCircle className="h-12 w-12 text-green-600" />
                   </div>
                 </div>
-                <CardTitle className="text-2xl text-green-600">Payment Successful!</CardTitle>
-                <CardDescription>Your credits have been added to your account</CardDescription>
+                <CardTitle className="text-2xl text-green-600">{t('paymentSuccess.success')}</CardTitle>
+                <CardDescription>{t('paymentSuccess.successDesc')}</CardDescription>
               </>
             )}
             
@@ -250,7 +252,7 @@ Visit us at: ${window.location.origin}
                     <XCircle className="h-12 w-12 text-destructive" />
                   </div>
                 </div>
-                <CardTitle className="text-2xl text-destructive">Payment Failed</CardTitle>
+                <CardTitle className="text-2xl text-destructive">{t('paymentSuccess.failed')}</CardTitle>
                 <CardDescription>{errorMessage}</CardDescription>
               </>
             )}
@@ -263,7 +265,7 @@ Visit us at: ${window.location.origin}
                 <div className="text-center pb-4">
                   <div className="flex items-center justify-center gap-2 text-muted-foreground">
                     <Receipt className="h-4 w-4" />
-                    <span className="text-sm font-medium">Payment Receipt</span>
+                    <span className="text-sm font-medium">{t('paymentSuccess.receipt')}</span>
                   </div>
                 </div>
 
@@ -274,7 +276,7 @@ Visit us at: ${window.location.origin}
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Hash className="h-4 w-4" />
-                      <span>Transaction ID</span>
+                      <span>{t('paymentSuccess.transactionId')}</span>
                     </div>
                     <span className="font-mono font-medium">{paymentDetails.transactionId}</span>
                   </div>
@@ -282,7 +284,7 @@ Visit us at: ${window.location.origin}
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Calendar className="h-4 w-4" />
-                      <span>Date</span>
+                      <span>{t('paymentSuccess.date')}</span>
                     </div>
                     <span className="font-medium">
                       {format(new Date(paymentDetails.paymentDate), 'MMM dd, yyyy HH:mm')}
@@ -292,7 +294,7 @@ Visit us at: ${window.location.origin}
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <User className="h-4 w-4" />
-                      <span>Customer</span>
+                      <span>{t('paymentSuccess.customer')}</span>
                     </div>
                     <span className="font-medium">{paymentDetails.customerName}</span>
                   </div>
@@ -300,7 +302,7 @@ Visit us at: ${window.location.origin}
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <CreditCard className="h-4 w-4" />
-                      <span>Payment Method</span>
+                      <span>{t('paymentSuccess.paymentMethod')}</span>
                     </div>
                     <span className="font-medium">{paymentProvider === 'dodo' ? 'Dodo Payments' : 'Stripe'}</span>
                   </div>
@@ -313,7 +315,7 @@ Visit us at: ${window.location.origin}
                   <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
                     <div className="flex items-center gap-3">
                       <Coins className="h-5 w-5 text-green-600" />
-                      <span className="font-medium">Credits Added</span>
+                      <span className="font-medium">{t('paymentSuccess.creditsAdded')}</span>
                     </div>
                     <span className="text-2xl font-bold text-green-600">+{paymentDetails.creditsAdded}</span>
                   </div>
@@ -321,7 +323,7 @@ Visit us at: ${window.location.origin}
                   <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                     <div className="flex items-center gap-3">
                       <CreditCard className="h-5 w-5 text-muted-foreground" />
-                      <span className="font-medium">New Balance</span>
+                      <span className="font-medium">{t('paymentSuccess.newBalance')}</span>
                     </div>
                     <span className="text-2xl font-bold">{paymentDetails.newBalance}</span>
                   </div>
@@ -337,7 +339,7 @@ Visit us at: ${window.location.origin}
                     className="flex-1 gap-2"
                   >
                     <Download className="h-4 w-4" />
-                    Download
+                    {t('paymentSuccess.download')}
                   </Button>
                   <Button 
                     variant="outline" 
@@ -345,7 +347,7 @@ Visit us at: ${window.location.origin}
                     className="flex-1 gap-2"
                   >
                     <Printer className="h-4 w-4" />
-                    Print
+                    {t('paymentSuccess.print')}
                   </Button>
                 </div>
               </>
@@ -353,16 +355,16 @@ Visit us at: ${window.location.origin}
             
             <div className="flex flex-col gap-2 print:hidden">
               <Button onClick={() => navigate('/dashboard')} className="w-full">
-                Go to Dashboard
+                {t('paymentSuccess.goToDashboard')}
               </Button>
               {status === 'success' && (
                 <Button variant="outline" onClick={() => navigate('/dashboard/upload')} className="w-full">
-                  Upload Document
+                  {t('paymentSuccess.uploadDocument')}
                 </Button>
               )}
               {status === 'error' && (
                 <Button variant="outline" onClick={() => navigate('/dashboard/credits')} className="w-full">
-                  Try Again
+                  {t('paymentSuccess.tryAgain')}
                 </Button>
               )}
             </div>

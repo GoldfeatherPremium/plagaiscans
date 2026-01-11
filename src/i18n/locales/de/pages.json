@@ -198,5 +198,37 @@
     "goToDashboard": "Zum Dashboard",
     "uploadDocument": "Dokument hochladen",
     "tryAgain": "Erneut versuchen"
+  },
+  "resources": {
+    "title": "Ressourcen & Lernzentrum",
+    "subtitle": "Bildungsartikel, Leitfäden und Tipps, um akademische Integrität zu verstehen und Ihr Schreiben zu verbessern.",
+    "featuredArticles": "Ausgewählte Artikel",
+    "readArticle": "Artikel lesen",
+    "quickTips": "Schnelle Tipps für akademisches Schreiben",
+    "understandingSimilarity": "Ähnlichkeit in akademischen Dokumenten verstehen",
+    "readyToCheck": "Bereit, Ihr Dokument zu überprüfen?",
+    "readyToCheckDesc": "Wenden Sie das Gelernte an und überprüfen Sie die Originalität Ihres Dokuments mit Plagaiscans.",
+    "getStarted": "Loslegen",
+    "backToHome": "Zurück zur Startseite"
+  },
+  "academicIntegrity": {
+    "title": "Richtlinien für akademische Integrität",
+    "subtitle": "Erfahren Sie mehr über die Prinzipien und Praktiken akademischer Ehrlichkeit",
+    "backToHome": "Zurück zur Startseite",
+    "whatIsTitle": "Was ist akademische Integrität?",
+    "whatIsDesc": "Akademische Integrität ist das Engagement für ehrliches und ethisches Verhalten in allen akademischen Arbeiten.",
+    "principlesTitle": "Kernprinzipien",
+    "principle1Title": "Ehrlichkeit",
+    "principle1Desc": "Präsentieren Sie Ihre Arbeit und Ideen ehrlich und erkennen Sie die Beiträge anderer an.",
+    "principle2Title": "Vertrauen",
+    "principle2Desc": "Bauen Sie Vertrauen durch konsequentes ethisches Verhalten auf.",
+    "principle3Title": "Fairness",
+    "principle3Desc": "Behandeln Sie alle Teilnehmer am akademischen Prozess fair.",
+    "principle4Title": "Respekt",
+    "principle4Desc": "Respektieren Sie das geistige Eigentum und die Ideen anderer.",
+    "principle5Title": "Verantwortung",
+    "principle5Desc": "Übernehmen Sie Verantwortung für Ihre Handlungen und deren Auswirkungen.",
+    "principle6Title": "Mut",
+    "principle6Desc": "Handeln Sie mutig, um ethische Standards aufrechtzuerhalten."
   }
 }
