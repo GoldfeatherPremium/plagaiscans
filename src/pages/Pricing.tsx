@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const quoteSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100),
@@ -45,7 +44,7 @@ export default function Pricing() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [packages, setPackages] = useState<PricingPackage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('one_time');
+  
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -62,9 +61,6 @@ export default function Pricing() {
     };
     fetchPackages();
   }, []);
-
-  const getPackagesByType = (type: string) => 
-    packages.filter(p => p.package_type === type);
 
   const handleQuoteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,38 +148,10 @@ export default function Pricing() {
             </div>
           ) : (
             <>
-              {/* Package Type Tabs */}
-              {(getPackagesByType('one_time').length > 0 || getPackagesByType('subscription').length > 0 || getPackagesByType('time_limited').length > 0) && (
-                <div className="mb-8 max-w-3xl mx-auto">
-                  <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="grid w-full grid-cols-3">
-                      {getPackagesByType('one_time').length > 0 && (
-                        <TabsTrigger value="one_time" className="gap-2">
-                          <Zap className="h-4 w-4" />
-                          {t('pricing.tabs.creditPacks')}
-                        </TabsTrigger>
-                      )}
-                      {getPackagesByType('subscription').length > 0 && (
-                        <TabsTrigger value="subscription" className="gap-2">
-                          <RefreshCw className="h-4 w-4" />
-                          {t('pricing.tabs.subscriptions')}
-                        </TabsTrigger>
-                      )}
-                      {getPackagesByType('time_limited').length > 0 && (
-                        <TabsTrigger value="time_limited" className="gap-2">
-                          <Clock className="h-4 w-4" />
-                          {t('pricing.tabs.limitedTime')}
-                        </TabsTrigger>
-                      )}
-                    </TabsList>
-                  </Tabs>
-                </div>
-              )}
-
               {/* Pricing Cards */}
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 max-w-5xl mx-auto">
-                {getPackagesByType(activeTab).map((pkg, index) => {
-                  const isPopular = index === getPackagesByType(activeTab).length - 1;
+                {packages.map((pkg, index) => {
+                  const isPopular = index === packages.length - 1;
                   const isSubscription = pkg.package_type === 'subscription';
                   
                   return (
