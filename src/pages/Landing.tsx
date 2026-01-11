@@ -6,53 +6,55 @@ import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SEO, generateOrganizationSchema, generateServiceSchema, generateSoftwareApplicationSchema } from "@/components/SEO";
+import { useTranslation } from 'react-i18next';
 
 const Landing = () => {
   const { user } = useAuth();
+  const { t } = useTranslation('landing');
 
   const features = [
     {
       icon: FileText,
-      title: "Detailed Similarity Reports",
-      description: "View highlighted matches, similarity percentages, and matched sources to understand content overlap with existing materials",
+      title: t('features.detailedReports'),
+      description: t('features.detailedReportsDesc'),
     },
     {
       icon: Bot,
-      title: "AI Content Indicators",
-      description: "Analyze text for potential AI-generated patterns to support responsible academic use. Indicators are advisory, not definitive.",
+      title: t('features.aiIndicators'),
+      description: t('features.aiIndicatorsDesc'),
     },
     {
       icon: Clock,
-      title: "Fast Processing",
-      description: "Get your detailed analysis reports back within minutes, not hours",
+      title: t('features.fastProcessing'),
+      description: t('features.fastProcessingDesc'),
     },
     {
       icon: Shield,
-      title: "Privacy-First Architecture",
-      description: "Your documents are processed securely and never stored, reused, or shared",
+      title: t('features.privacyFirst'),
+      description: t('features.privacyFirstDesc'),
     },
   ];
 
   const steps = [
     {
       number: "1",
-      title: "Create Account",
-      description: "Sign up with your email and password",
+      title: t('steps.step1Title'),
+      description: t('steps.step1Desc'),
     },
     {
       number: "2",
-      title: "Purchase Credits",
-      description: "Buy credits to check your documents",
+      title: t('steps.step2Title'),
+      description: t('steps.step2Desc'),
     },
     {
       number: "3",
-      title: "Upload Document",
-      description: "Upload your file (1 credit per document)",
+      title: t('steps.step3Title'),
+      description: t('steps.step3Desc'),
     },
     {
       number: "4",
-      title: "Get Reports",
-      description: "Download similarity and AI indicator reports",
+      title: t('steps.step4Title'),
+      description: t('steps.step4Desc'),
     },
   ];
 
@@ -78,28 +80,28 @@ const Landing = () => {
             </div>
             <div className="flex items-center gap-6">
               <Link to="/how-it-works" className="text-muted-foreground hover:text-foreground font-medium hidden md:block transition-colors duration-200 link-underline">
-                How It Works
+                {t('nav.howItWorks')}
               </Link>
               <Link to="/faq" className="text-muted-foreground hover:text-foreground font-medium hidden md:block transition-colors duration-200 link-underline">
-                FAQ
+                {t('nav.faq')}
               </Link>
               <Link to="/pricing" className="text-muted-foreground hover:text-foreground font-medium hidden sm:block transition-colors duration-200 link-underline">
-                Pricing
+                {t('nav.pricing')}
               </Link>
               {user ? (
                 <Link to="/dashboard">
                   <Button variant="hero" className="rounded-full px-6">
-                    Dashboard
+                    {t('nav.dashboard')}
                   </Button>
                 </Link>
               ) : (
                 <>
                   <Link to="/auth" className="text-muted-foreground hover:text-foreground font-medium transition-colors duration-200">
-                    Login
+                    {t('nav.login')}
                   </Link>
                   <Link to="/auth">
                     <Button variant="hero" className="rounded-full px-6">
-                      Get Started
+                      {t('nav.getStarted')}
                     </Button>
                   </Link>
                 </>
@@ -123,37 +125,36 @@ const Landing = () => {
             {/* Trust Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted rounded-full border border-border mb-8 animate-fade-in hover:border-primary/30 transition-colors duration-300">
               <Sparkles className="w-4 h-4 text-primary animate-pulse-soft" />
-              <span className="text-sm text-foreground/70">Trusted by 10,000+ academics & researchers</span>
+              <span className="text-sm text-foreground/70">{t('hero.badge')}</span>
             </div>
 
             {/* Main Heading */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold text-foreground mb-4">
-              Plagiarism & Similarity Check
+              {t('hero.titleLine1')}
               <br />
               <span className="gradient-text">
-                for Academic Integrity
+                {t('hero.titleLine2')}
               </span>
             </h1>
 
             {/* Subtitle */}
             <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Plagaiscans helps students, researchers, and educators verify originality, 
-              identify overlapping content, and understand similarity results through clear reports.
+              {t('hero.subtitle')}
             </p>
 
             {/* Features List */}
             <div className="inline-flex flex-wrap justify-center gap-4 mb-8 stagger-children">
               <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
                 <CheckCircle className="w-4 h-4 text-secondary" />
-                <span>Detailed Similarity Reports</span>
+                <span>{t('hero.feature1')}</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
                 <CheckCircle className="w-4 h-4 text-secondary" />
-                <span>AI Content Indicators</span>
+                <span>{t('hero.feature2')}</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2 rounded-full border border-border hover:border-secondary/50 transition-all duration-300">
                 <CheckCircle className="w-4 h-4 text-secondary" />
-                <span>Privacy-First Scanning</span>
+                <span>{t('hero.feature3')}</span>
               </div>
             </div>
 
@@ -161,13 +162,13 @@ const Landing = () => {
             <div className="flex flex-wrap justify-center gap-4">
               <Link to="/auth">
                 <Button variant="hero" size="xl" className="rounded-full group">
-                  Check Document
+                  {t('hero.ctaPrimary')}
                   <ArrowRight className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:translate-x-1" />
                 </Button>
               </Link>
               <Link to="/how-it-works">
                 <Button variant="outline" size="xl" className="rounded-full">
-                  How It Works
+                  {t('hero.ctaSecondary')}
                 </Button>
               </Link>
             </div>
@@ -179,10 +180,10 @@ const Landing = () => {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl sm:text-4xl font-display font-bold text-foreground mb-4">
-                Comprehensive Document Analysis
+                {t('features.title')}
               </h2>
               <p className="text-muted-foreground text-lg">
-                Professional similarity checking tools for students, researchers, and universities
+                {t('features.subtitle')}
               </p>
             </div>
 
@@ -214,10 +215,10 @@ const Landing = () => {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl sm:text-4xl font-display font-bold text-foreground mb-4">
-                How It Works
+                {t('steps.title')}
               </h2>
               <p className="text-muted-foreground text-lg">
-                Get your document checked in four simple steps
+                {t('steps.subtitle')}
               </p>
             </div>
 
@@ -246,14 +247,14 @@ const Landing = () => {
               <Zap className="w-8 h-8 text-primary" />
             </div>
             <h2 className="text-3xl sm:text-4xl font-display font-bold text-foreground mb-4">
-              Simple, Transparent Pricing
+              {t('pricingCta.title')}
             </h2>
             <p className="text-muted-foreground text-lg mb-8">
-              Pay per document with no hidden fees. Choose from one-time packages or subscription plans.
+              {t('pricingCta.subtitle')}
             </p>
             <Link to="/pricing">
               <Button variant="hero" size="xl" className="rounded-full group">
-                View Pricing Plans
+                {t('pricingCta.button')}
                 <ArrowRight className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:translate-x-1" />
               </Button>
             </Link>
@@ -264,14 +265,14 @@ const Landing = () => {
         <section className="py-20 px-4 bg-muted/30">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl sm:text-4xl font-display font-bold text-foreground mb-4">
-              Ready to Check Your Documents?
+              {t('cta.title')}
             </h2>
             <p className="text-muted-foreground text-lg mb-8">
-              Join thousands of users who trust Plagaiscans for accurate originality verification.
+              {t('cta.subtitle')}
             </p>
             <Link to="/auth">
               <Button variant="hero" size="xl" className="rounded-full group">
-                Get Started Free
+                {t('cta.button')}
                 <ArrowRight className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:translate-x-1" />
               </Button>
             </Link>
