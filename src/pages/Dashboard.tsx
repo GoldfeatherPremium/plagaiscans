@@ -271,7 +271,7 @@ export default function Dashboard() {
                     <Upload className="h-7 w-7 text-primary-foreground" />
                   </div>
                   <div className="relative">
-                    <h3 className="font-semibold text-lg">{t('sidebar.upload')}</h3>
+                    <h3 className="font-semibold text-lg">{t('sidebar.uploadFull')}</h3>
                     <p className="text-sm text-muted-foreground">
                       {t('overview.uploadSubtitle')}
                     </p>
