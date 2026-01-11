@@ -198,5 +198,37 @@
     "goToDashboard": "前往仪表板",
     "uploadDocument": "上传文档",
     "tryAgain": "重试"
+  },
+  "resources": {
+    "title": "资源与学习中心",
+    "subtitle": "教育文章、指南和技巧，帮助您了解学术诚信并提高写作水平。",
+    "featuredArticles": "精选文章",
+    "readArticle": "阅读文章",
+    "quickTips": "学术写作快速技巧",
+    "understandingSimilarity": "理解学术文档中的相似性",
+    "readyToCheck": "准备好检查您的文档了吗？",
+    "readyToCheckDesc": "运用所学知识，使用Plagaiscans验证文档的原创性。",
+    "getStarted": "开始使用",
+    "backToHome": "返回首页"
+  },
+  "academicIntegrity": {
+    "title": "学术诚信指南",
+    "subtitle": "了解学术诚信的原则和实践",
+    "backToHome": "返回首页",
+    "whatIsTitle": "什么是学术诚信？",
+    "whatIsDesc": "学术诚信是对所有学术工作中诚实和道德行为的承诺。",
+    "principlesTitle": "核心原则",
+    "principle1Title": "诚实",
+    "principle1Desc": "如实呈现您的工作和想法，承认他人的贡献。",
+    "principle2Title": "信任",
+    "principle2Desc": "通过一贯的道德行为建立信任。",
+    "principle3Title": "公平",
+    "principle3Desc": "公平公正地对待学术过程中的所有参与者。",
+    "principle4Title": "尊重",
+    "principle4Desc": "尊重他人的知识产权和想法。",
+    "principle5Title": "责任",
+    "principle5Desc": "对您的行为及其影响负责。",
+    "principle6Title": "勇气",
+    "principle6Desc": "勇于坚持道德标准。"
   }
 }

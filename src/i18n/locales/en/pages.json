@@ -198,5 +198,37 @@
     "goToDashboard": "Go to Dashboard",
     "uploadDocument": "Upload Document",
     "tryAgain": "Try Again"
+  },
+  "resources": {
+    "title": "Resources & Learning Center",
+    "subtitle": "Educational articles, guides, and tips to help you understand academic integrity and improve your writing.",
+    "featuredArticles": "Featured Articles",
+    "readArticle": "Read article",
+    "quickTips": "Quick Tips for Academic Writing",
+    "understandingSimilarity": "Understanding Similarity in Academic Documents",
+    "readyToCheck": "Ready to Check Your Document?",
+    "readyToCheckDesc": "Apply what you've learned and verify your document's originality with Plagaiscans.",
+    "getStarted": "Get Started",
+    "backToHome": "Back to Home"
+  },
+  "academicIntegrity": {
+    "title": "Academic Integrity Guidelines",
+    "subtitle": "Learn about the principles and practices of academic honesty",
+    "backToHome": "Back to Home",
+    "whatIsTitle": "What is Academic Integrity?",
+    "whatIsDesc": "Academic integrity is the commitment to honest and ethical behavior in all academic work. It forms the foundation of meaningful learning and the credibility of academic institutions.",
+    "principlesTitle": "Core Principles",
+    "principle1Title": "Honesty",
+    "principle1Desc": "Present your own work and ideas truthfully, acknowledging the contributions of others.",
+    "principle2Title": "Trust",
+    "principle2Desc": "Build trust through consistent ethical behavior in all academic interactions.",
+    "principle3Title": "Fairness",
+    "principle3Desc": "Treat all participants in the academic process fairly and equitably.",
+    "principle4Title": "Respect",
+    "principle4Desc": "Respect the intellectual property and ideas of others.",
+    "principle5Title": "Responsibility",
+    "principle5Desc": "Take responsibility for your actions and their impact on the academic community.",
+    "principle6Title": "Courage",
+    "principle6Desc": "Act with courage to uphold ethical standards even when it's difficult."
   }
 }

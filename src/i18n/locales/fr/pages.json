@@ -198,5 +198,37 @@
     "goToDashboard": "Aller au tableau de bord",
     "uploadDocument": "Télécharger un document",
     "tryAgain": "Réessayer"
+  },
+  "resources": {
+    "title": "Ressources et Centre d'apprentissage",
+    "subtitle": "Articles éducatifs, guides et conseils pour comprendre l'intégrité académique et améliorer votre écriture.",
+    "featuredArticles": "Articles en vedette",
+    "readArticle": "Lire l'article",
+    "quickTips": "Conseils rapides pour l'écriture académique",
+    "understandingSimilarity": "Comprendre la similarité dans les documents académiques",
+    "readyToCheck": "Prêt à vérifier votre document ?",
+    "readyToCheckDesc": "Appliquez ce que vous avez appris et vérifiez l'originalité de votre document avec Plagaiscans.",
+    "getStarted": "Commencer",
+    "backToHome": "Retour à l'accueil"
+  },
+  "academicIntegrity": {
+    "title": "Directives d'intégrité académique",
+    "subtitle": "Découvrez les principes et pratiques de l'honnêteté académique",
+    "backToHome": "Retour à l'accueil",
+    "whatIsTitle": "Qu'est-ce que l'intégrité académique ?",
+    "whatIsDesc": "L'intégrité académique est l'engagement envers un comportement honnête et éthique dans tout travail académique.",
+    "principlesTitle": "Principes fondamentaux",
+    "principle1Title": "Honnêteté",
+    "principle1Desc": "Présentez votre travail et vos idées honnêtement, en reconnaissant les contributions des autres.",
+    "principle2Title": "Confiance",
+    "principle2Desc": "Construisez la confiance par un comportement éthique constant.",
+    "principle3Title": "Équité",
+    "principle3Desc": "Traitez tous les participants au processus académique de manière équitable.",
+    "principle4Title": "Respect",
+    "principle4Desc": "Respectez la propriété intellectuelle et les idées des autres.",
+    "principle5Title": "Responsabilité",
+    "principle5Desc": "Assumez la responsabilité de vos actions et de leur impact.",
+    "principle6Title": "Courage",
+    "principle6Desc": "Agissez avec courage pour maintenir les normes éthiques."
   }
 }
