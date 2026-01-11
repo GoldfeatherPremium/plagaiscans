@@ -107,6 +107,8 @@
   "errors": {
     "generic": "Une erreur s'est produite.",
     "notFound": "Page non trouvée",
+    "notFoundDesc": "La page que vous recherchez n'existe pas ou a été déplacée.",
+    "returnHome": "Retour à l'accueil",
     "unauthorized": "Accès non autorisé",
     "networkError": "Erreur réseau.",
     "validationError": "Veuillez vérifier vos entrées."

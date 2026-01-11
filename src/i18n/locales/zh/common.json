@@ -107,6 +107,8 @@
   "errors": {
     "generic": "出了点问题。请重试。",
     "notFound": "页面未找到",
+    "notFoundDesc": "您访问的页面不存在或已被移动。",
+    "returnHome": "返回首页",
     "unauthorized": "您无权访问此页面",
     "networkError": "网络错误。请检查您的连接。",
     "validationError": "请检查您的输入并重试。"
