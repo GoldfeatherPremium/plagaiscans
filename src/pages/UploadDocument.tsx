@@ -39,7 +39,20 @@ export default function UploadDocument() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const creditBalance = profile?.credit_balance || 0;
+  const similarityCreditBalance = profile?.similarity_credit_balance || 0;
   const maxFilesAllowed = creditBalance;
+
+  // Redirect users who only have similarity credits to the similarity upload page
+  React.useEffect(() => {
+    const hasFullCredits = creditBalance > 0;
+    const hasSimilarityCredits = similarityCreditBalance > 0;
+    
+    // If user has ONLY similarity credits, redirect them
+    if (!hasFullCredits && hasSimilarityCredits) {
+      toast.info('You have similarity credits only. Redirecting to similarity upload...');
+      navigate('/dashboard/upload-similarity', { replace: true });
+    }
+  }, [creditBalance, similarityCreditBalance, navigate]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
