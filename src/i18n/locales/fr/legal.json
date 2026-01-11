@@ -96,5 +96,19 @@
     "transactionId": "ID de transaction/commande",
     "reasonForRequest": "Raison de la demande",
     "reasonPlaceholder": "Veuillez expliquer votre situation en détail..."
+  },
+  "unsubscribe": {
+    "processing": "Traitement en cours...",
+    "unsubscribedTitle": "Désabonné",
+    "alreadyTitle": "Déjà désabonné",
+    "errorTitle": "Erreur",
+    "invalidLink": "Lien de désabonnement invalide. Veuillez contacter le support.",
+    "errorMessage": "Échec du traitement de votre demande. Veuillez réessayer plus tard.",
+    "alreadyUnsubscribed": "Vous êtes déjà désabonné des emails promotionnels.",
+    "successMessage": "Vous avez été désabonné avec succès des emails promotionnels.",
+    "unexpectedError": "Une erreur inattendue s'est produite.",
+    "stillReceiveTransactional": "Vous ne recevrez plus d'emails promotionnels de Plagaiscans. Vous recevrez toujours les emails transactionnels importants concernant votre compte et vos documents.",
+    "contactSupport": "Si vous continuez à rencontrer des problèmes, contactez-nous à support@plagaiscans.com",
+    "returnHome": "Retour à l'accueil"
   }
 }

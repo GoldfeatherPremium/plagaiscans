@@ -3,8 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { Download, Smartphone, CheckCircle, Share, PlusSquare, MoreVertical } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 const Install = () => {
+  const { t } = useTranslation('pages');
   const { isInstallable, isInstalled, promptInstall, isIOS, isAndroid } = usePWAInstall();
   const navigate = useNavigate();
 
@@ -23,14 +25,14 @@ const Install = () => {
             <div className="mx-auto mb-4 w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
               <CheckCircle className="w-8 h-8 text-primary" />
             </div>
-            <CardTitle className="text-2xl">App Installed!</CardTitle>
+            <CardTitle className="text-2xl">{t('install.installed')}</CardTitle>
             <CardDescription>
-              PlagaiScans is installed on your device. You can access it from your home screen.
+              {t('install.installedDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Button onClick={() => navigate('/dashboard')} className="w-full">
-              Go to Dashboard
+              {t('install.goToDashboard')}
             </Button>
           </CardContent>
         </Card>
@@ -45,40 +47,40 @@ const Install = () => {
           <div className="mx-auto mb-4 w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
             <Smartphone className="w-8 h-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Install PlagaiScans</CardTitle>
+          <CardTitle className="text-2xl">{t('install.title')}</CardTitle>
           <CardDescription>
-            Install our app for quick access and a better experience
+            {t('install.subtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {isInstallable && (
             <Button onClick={handleInstall} className="w-full" size="lg">
               <Download className="mr-2 h-5 w-5" />
-              Install App
+              {t('install.installButton')}
             </Button>
           )}
 
           {isIOS && !isInstallable && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground text-center">
-                To install on iOS:
+                {t('install.iosInstructions')}
               </p>
               <ol className="space-y-3 text-sm">
                 <li className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">1</span>
                   <span className="flex items-center gap-2">
-                    Tap the Share button <Share className="w-4 h-4 inline text-primary" />
+                    {t('install.iosStep1')} <Share className="w-4 h-4 inline text-primary" />
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">2</span>
                   <span className="flex items-center gap-2">
-                    Tap "Add to Home Screen" <PlusSquare className="w-4 h-4 inline text-primary" />
+                    {t('install.iosStep2')} <PlusSquare className="w-4 h-4 inline text-primary" />
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">3</span>
-                  <span>Tap "Add" to confirm</span>
+                  <span>{t('install.iosStep3')}</span>
                 </li>
               </ol>
             </div>
@@ -87,22 +89,22 @@ const Install = () => {
           {isAndroid && !isInstallable && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground text-center">
-                To install on Android:
+                {t('install.androidInstructions')}
               </p>
               <ol className="space-y-3 text-sm">
                 <li className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">1</span>
                   <span className="flex items-center gap-2">
-                    Tap the menu button <MoreVertical className="w-4 h-4 inline text-primary" />
+                    {t('install.androidStep1')} <MoreVertical className="w-4 h-4 inline text-primary" />
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">2</span>
-                  <span>Tap "Install app" or "Add to Home screen"</span>
+                  <span>{t('install.androidStep2')}</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">3</span>
-                  <span>Tap "Install" to confirm</span>
+                  <span>{t('install.androidStep3')}</span>
                 </li>
               </ol>
             </div>
@@ -110,34 +112,34 @@ const Install = () => {
 
           {!isIOS && !isAndroid && !isInstallable && (
             <p className="text-sm text-muted-foreground text-center">
-              The install option will appear automatically when available. You can also bookmark this page for quick access.
+              {t('install.fallbackMessage')}
             </p>
           )}
 
           <div className="pt-4 border-t">
-            <h4 className="font-medium mb-2 text-sm">Benefits of installing:</h4>
+            <h4 className="font-medium mb-2 text-sm">{t('install.benefitsTitle')}</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-primary" />
-                Quick access from your home screen
+                {t('install.benefit1')}
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-primary" />
-                Works offline for basic features
+                {t('install.benefit2')}
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-primary" />
-                Faster loading times
+                {t('install.benefit3')}
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-primary" />
-                Full-screen experience
+                {t('install.benefit4')}
               </li>
             </ul>
           </div>
 
           <Button variant="outline" onClick={() => navigate('/')} className="w-full">
-            Back to Home
+            {t('install.backToHome')}
           </Button>
         </CardContent>
       </Card>

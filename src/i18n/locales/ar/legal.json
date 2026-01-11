@@ -96,5 +96,19 @@
     "transactionId": "معرف المعاملة/الطلب",
     "reasonForRequest": "سبب الطلب",
     "reasonPlaceholder": "يرجى شرح موقفك بالتفصيل..."
+  },
+  "unsubscribe": {
+    "processing": "جارٍ المعالجة...",
+    "unsubscribedTitle": "تم إلغاء الاشتراك",
+    "alreadyTitle": "تم إلغاء الاشتراك مسبقاً",
+    "errorTitle": "خطأ",
+    "invalidLink": "رابط إلغاء الاشتراك غير صالح. يرجى الاتصال بالدعم.",
+    "errorMessage": "فشل معالجة طلبك. يرجى المحاولة مرة أخرى لاحقاً.",
+    "alreadyUnsubscribed": "لقد ألغيت اشتراكك بالفعل من رسائل البريد الترويجية.",
+    "successMessage": "تم إلغاء اشتراكك بنجاح من رسائل البريد الترويجية.",
+    "unexpectedError": "حدث خطأ غير متوقع.",
+    "stillReceiveTransactional": "لن تتلقى بعد الآن رسائل بريد ترويجية من Plagaiscans. ستظل تتلقى رسائل بريد معاملات مهمة حول حسابك ومستنداتك.",
+    "contactSupport": "إذا استمرت المشاكل، يرجى الاتصال بنا على support@plagaiscans.com",
+    "returnHome": "العودة للرئيسية"
   }
 }

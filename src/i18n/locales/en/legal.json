@@ -103,5 +103,19 @@
     "transactionId": "Transaction/Order ID",
     "reasonForRequest": "Reason for Request",
     "reasonPlaceholder": "Please explain your situation in detail..."
+  },
+  "unsubscribe": {
+    "processing": "Processing...",
+    "unsubscribedTitle": "Unsubscribed",
+    "alreadyTitle": "Already Unsubscribed",
+    "errorTitle": "Error",
+    "invalidLink": "Invalid unsubscribe link. Please contact support.",
+    "errorMessage": "Failed to process your request. Please try again later.",
+    "alreadyUnsubscribed": "You have already unsubscribed from promotional emails.",
+    "successMessage": "You have been successfully unsubscribed from promotional emails.",
+    "unexpectedError": "An unexpected error occurred.",
+    "stillReceiveTransactional": "You will no longer receive promotional emails from Plagaiscans. You will still receive important transactional emails about your account and documents.",
+    "contactSupport": "If you continue to have issues, please contact us at support@plagaiscans.com",
+    "returnHome": "Return to Home"
   }
 }

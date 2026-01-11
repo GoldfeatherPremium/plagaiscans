@@ -96,5 +96,19 @@
     "transactionId": "ID de transacción/pedido",
     "reasonForRequest": "Razón de la solicitud",
     "reasonPlaceholder": "Por favor explica tu situación en detalle..."
+  },
+  "unsubscribe": {
+    "processing": "Procesando...",
+    "unsubscribedTitle": "Dado de baja",
+    "alreadyTitle": "Ya dado de baja",
+    "errorTitle": "Error",
+    "invalidLink": "Enlace de cancelación inválido. Contacta con soporte.",
+    "errorMessage": "Error al procesar tu solicitud. Inténtalo más tarde.",
+    "alreadyUnsubscribed": "Ya te has dado de baja de los emails promocionales.",
+    "successMessage": "Te has dado de baja exitosamente de los emails promocionales.",
+    "unexpectedError": "Ocurrió un error inesperado.",
+    "stillReceiveTransactional": "Ya no recibirás emails promocionales de Plagaiscans. Seguirás recibiendo emails transaccionales importantes sobre tu cuenta y documentos.",
+    "contactSupport": "Si continúas teniendo problemas, contáctanos en support@plagaiscans.com",
+    "returnHome": "Volver al inicio"
   }
 }

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function Maintenance() {
-  const [message, setMessage] = useState('We are currently under maintenance. Please check back later.');
+  const { t } = useTranslation('pages');
+  const [message, setMessage] = useState(t('maintenance.defaultMessage'));
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export default function Maintenance() {
         </div>
         
         <div className="space-y-2">
-          <h1 className="text-3xl font-display font-bold">Under Maintenance</h1>
+          <h1 className="text-3xl font-display font-bold">{t('maintenance.title')}</h1>
           <p className="text-muted-foreground">{message}</p>
         </div>
 
@@ -61,12 +63,12 @@ export default function Maintenance() {
             className="gap-2"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            Check Status
+            {t('maintenance.checkStatus')}
           </Button>
         </div>
 
         <p className="text-xs text-muted-foreground">
-          We apologize for the inconvenience. Our team is working to restore services as quickly as possible.
+          {t('maintenance.apology')}
         </p>
       </div>
     </div>
