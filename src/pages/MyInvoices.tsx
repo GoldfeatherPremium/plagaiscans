@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,6 +32,7 @@ interface Invoice {
 }
 
 export default function MyInvoices() {
+  const { t } = useTranslation('dashboard');
   const { user } = useAuth();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,9 +153,9 @@ export default function MyInvoices() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-display font-bold">My Invoices</h1>
+          <h1 className="text-3xl font-display font-bold">{t('invoices.title')}</h1>
           <p className="text-muted-foreground mt-1">
-            View and download your payment invoices
+            {t('invoices.subtitle')}
           </p>
         </div>
 
@@ -166,7 +168,7 @@ export default function MyInvoices() {
                   <FileText className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Invoices</p>
+                  <p className="text-sm text-muted-foreground">{t('invoices.totalInvoices')}</p>
                   <p className="text-2xl font-bold">{invoices.length}</p>
                 </div>
               </div>
@@ -179,7 +181,7 @@ export default function MyInvoices() {
                   <DollarSign className="h-6 w-6 text-green-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Spent</p>
+                  <p className="text-sm text-muted-foreground">{t('invoices.totalSpent')}</p>
                   <p className="text-2xl font-bold">${totalAmount.toFixed(2)}</p>
                 </div>
               </div>
@@ -192,7 +194,7 @@ export default function MyInvoices() {
                   <CreditCard className="h-6 w-6 text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Credits</p>
+                  <p className="text-sm text-muted-foreground">{t('invoices.totalCredits')}</p>
                   <p className="text-2xl font-bold">{totalCredits}</p>
                 </div>
               </div>
@@ -203,28 +205,28 @@ export default function MyInvoices() {
         {/* Invoices Table */}
         <Card>
           <CardHeader>
-            <CardTitle>All Invoices</CardTitle>
-            <CardDescription>Your complete invoice history</CardDescription>
+            <CardTitle>{t('invoices.allInvoices')}</CardTitle>
+            <CardDescription>{t('invoices.completeHistory')}</CardDescription>
           </CardHeader>
           <CardContent>
             {invoices.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Receipt className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No invoices yet</p>
-                <p className="text-sm">Invoices will appear here after you make a purchase</p>
+                <p>{t('invoices.noInvoices')}</p>
+                <p className="text-sm">{t('invoices.noInvoicesDesc')}</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Credits</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead>{t('invoices.invoiceNumber')}</TableHead>
+                      <TableHead>{t('invoices.date')}</TableHead>
+                      <TableHead>{t('invoices.description')}</TableHead>
+                      <TableHead>{t('invoices.credits')}</TableHead>
+                      <TableHead>{t('invoices.amount')}</TableHead>
+                      <TableHead>{t('invoices.status')}</TableHead>
+                      <TableHead>{t('invoices.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

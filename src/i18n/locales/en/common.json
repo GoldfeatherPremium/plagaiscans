@@ -104,9 +104,11 @@
   "about": {
     "backToHome": "Back to Home"
   },
-  "errors": {
+  "error": {
     "generic": "Something went wrong. Please try again.",
-    "notFound": "Page not found",
+    "notFound": "Oops! Page not found",
+    "notFoundDesc": "The page you're looking for doesn't exist.",
+    "returnHome": "Return to Home",
     "unauthorized": "You are not authorized to access this page",
     "networkError": "Network error. Please check your connection.",
     "validationError": "Please check your input and try again."
