@@ -10,11 +10,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSimilarityDocuments } from '@/hooks/useSimilarityDocuments';
 import { toast } from '@/hooks/use-toast';
 import { SEO } from '@/components/SEO';
+import { useTranslation } from 'react-i18next';
 
 const UploadSimilarity: React.FC = () => {
   const navigate = useNavigate();
   const { profile, refreshProfile } = useAuth();
   const { uploadSimilarityDocument } = useSimilarityDocuments();
+  const { t } = useTranslation('dashboard');
   
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -44,8 +46,8 @@ const UploadSimilarity: React.FC = () => {
 
     if (validFiles.length !== fileArray.length) {
       toast({
-        title: 'Invalid files',
-        description: 'Only PDF, DOC, DOCX, TXT, RTF files are allowed',
+        title: t('uploadSimilarity.invalidFiles'),
+        description: t('uploadSimilarity.invalidFilesDesc'),
         variant: 'destructive',
       });
     }
@@ -57,15 +59,15 @@ const UploadSimilarity: React.FC = () => {
       );
       if (unique.length > maxFilesAllowed) {
         toast({
-          title: 'File limit reached',
-          description: `You can only upload ${maxFilesAllowed} files with your current similarity credits`,
+          title: t('uploadSimilarity.fileLimit'),
+          description: t('uploadSimilarity.fileLimitDesc', { count: maxFilesAllowed }),
           variant: 'destructive',
         });
         return unique.slice(0, maxFilesAllowed);
       }
       return unique;
     });
-  }, [maxFilesAllowed]);
+  }, [maxFilesAllowed, t]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -90,8 +92,8 @@ const UploadSimilarity: React.FC = () => {
     if (selectedFiles.length === 0) return;
     if (similarityCreditBalance < selectedFiles.length) {
       toast({
-        title: 'Insufficient similarity credits',
-        description: 'Please purchase more similarity credits to upload documents',
+        title: t('uploadSimilarity.insufficientCredits'),
+        description: t('uploadSimilarity.insufficientCreditsDesc'),
         variant: 'destructive',
       });
       return;
@@ -121,8 +123,8 @@ const UploadSimilarity: React.FC = () => {
 
     if (success > 0) {
       toast({
-        title: 'Upload complete',
-        description: `${success} document(s) uploaded for similarity check`,
+        title: t('uploadSimilarity.uploadCompleteToast'),
+        description: t('uploadSimilarity.documentsUploaded', { count: success }),
       });
     }
   };
@@ -130,14 +132,14 @@ const UploadSimilarity: React.FC = () => {
   return (
     <DashboardLayout>
       <SEO 
-        title="Upload for Similarity Check" 
-        description="Upload documents for similarity detection only"
+        title={t('uploadSimilarity.title')}
+        description={t('uploadSimilarity.subtitle')}
       />
       
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-display font-bold">Similarity Check Only</h1>
-          <p className="text-muted-foreground mt-1">Upload documents for plagiarism/similarity detection only (no AI detection)</p>
+          <h1 className="text-3xl font-display font-bold">{t('uploadSimilarity.title')}</h1>
+          <p className="text-muted-foreground mt-1">{t('uploadSimilarity.subtitle')}</p>
         </div>
 
         {/* Credit Balance */}
@@ -149,12 +151,12 @@ const UploadSimilarity: React.FC = () => {
                   <Search className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Similarity Credits</p>
+                  <p className="text-sm text-muted-foreground">{t('uploadSimilarity.similarityCredits')}</p>
                   <p className="text-2xl font-bold text-primary">{similarityCreditBalance}</p>
                 </div>
               </div>
               <Button variant="outline" onClick={() => navigate('/dashboard/credits')}>
-                Buy More Credits
+                {t('uploadSimilarity.buyMore')}
               </Button>
             </div>
           </CardContent>
@@ -167,9 +169,9 @@ const UploadSimilarity: React.FC = () => {
               <div className="flex items-center gap-3">
                 <CheckCircle className="h-5 w-5 text-green-500" />
                 <div>
-                  <p className="font-medium">Upload Complete</p>
+                  <p className="font-medium">{t('uploadSimilarity.uploadComplete')}</p>
                   <p className="text-sm text-muted-foreground">
-                    {uploadResults.success} succeeded, {uploadResults.failed} failed
+                    {uploadResults.success} {t('uploadSimilarity.succeeded')}, {uploadResults.failed} {t('uploadSimilarity.failed')}
                   </p>
                 </div>
                 <Button 
@@ -177,7 +179,7 @@ const UploadSimilarity: React.FC = () => {
                   className="ml-auto"
                   onClick={() => navigate('/dashboard/documents')}
                 >
-                  View Documents
+                  {t('uploadSimilarity.viewDocuments')}
                 </Button>
               </div>
             </CardContent>
@@ -191,11 +193,11 @@ const UploadSimilarity: React.FC = () => {
               <div className="flex items-center gap-3 text-destructive">
                 <AlertCircle className="h-5 w-5" />
                 <div>
-                  <p className="font-medium">No Similarity Credits</p>
-                  <p className="text-sm">You need similarity credits to upload documents for similarity checking</p>
+                  <p className="font-medium">{t('uploadSimilarity.noCredits')}</p>
+                  <p className="text-sm">{t('uploadSimilarity.noCreditsDesc')}</p>
                 </div>
                 <Button variant="destructive" className="ml-auto" onClick={() => navigate('/dashboard/credits')}>
-                  Buy Credits
+                  {t('uploadSimilarity.buyCredits')}
                 </Button>
               </div>
             </CardContent>
@@ -210,7 +212,7 @@ const UploadSimilarity: React.FC = () => {
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Uploading documents...
+                    {t('uploadSimilarity.uploading')}
                   </span>
                   <span>{Math.round(uploadProgress)}%</span>
                 </div>
@@ -223,9 +225,9 @@ const UploadSimilarity: React.FC = () => {
         {/* Drop Zone */}
         <Card>
           <CardHeader>
-            <CardTitle>Upload Documents</CardTitle>
+            <CardTitle>{t('uploadSimilarity.uploadDocuments')}</CardTitle>
             <CardDescription>
-              Drop files here or click to browse. Only similarity check will be performed.
+              {t('uploadSimilarity.dropDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -249,13 +251,13 @@ const UploadSimilarity: React.FC = () => {
                 disabled={similarityCreditBalance === 0}
               />
               <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-lg font-medium">Drop files here or click to upload</p>
+              <p className="text-lg font-medium">{t('uploadSimilarity.dropHere')}</p>
               <p className="text-sm text-muted-foreground mt-1">
-                PDF, DOC, DOCX, TXT, RTF • Max {maxFilesAllowed} files
+                PDF, DOC, DOCX, TXT, RTF • {t('uploadSimilarity.maxFiles', { count: maxFilesAllowed })}
               </p>
               <Badge variant="secondary" className="mt-3">
                 <Search className="h-3 w-3 mr-1" />
-                Similarity Check Only
+                {t('uploadSimilarity.similarityOnly')}
               </Badge>
             </div>
 
@@ -263,8 +265,8 @@ const UploadSimilarity: React.FC = () => {
             {selectedFiles.length > 0 && (
               <div className="mt-6 space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="font-medium">Selected Files ({selectedFiles.length})</p>
-                  <Badge variant="outline">{selectedFiles.length} credit(s) will be used</Badge>
+                  <p className="font-medium">{t('uploadSimilarity.selectedFiles')} ({selectedFiles.length})</p>
+                  <Badge variant="outline">{selectedFiles.length} {t('uploadSimilarity.creditsUsed')}</Badge>
                 </div>
                 <div className="space-y-2 max-h-[300px] overflow-y-auto">
                   {selectedFiles.map((file, index) => (
@@ -300,7 +302,7 @@ const UploadSimilarity: React.FC = () => {
         {/* Action Buttons */}
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={() => navigate('/dashboard')}>
-            Cancel
+            {t('uploadSimilarity.cancel')}
           </Button>
           <Button
             onClick={handleUpload}
@@ -309,12 +311,12 @@ const UploadSimilarity: React.FC = () => {
             {uploading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Uploading...
+                {t('uploadSimilarity.uploadingButton')}
               </>
             ) : (
               <>
                 <Upload className="h-4 w-4 mr-2" />
-                Upload for Similarity Check
+                {t('uploadSimilarity.uploadButton')}
               </>
             )}
           </Button>
@@ -326,10 +328,9 @@ const UploadSimilarity: React.FC = () => {
             <div className="flex items-start gap-3">
               <Search className="h-5 w-5 text-primary mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium">Similarity Check Only</p>
+                <p className="font-medium">{t('uploadSimilarity.infoTitle')}</p>
                 <p className="text-muted-foreground mt-1">
-                  This upload uses similarity-only credits and will only check for plagiarism/similarity.
-                  No AI content detection will be performed. Each document costs 1 similarity credit.
+                  {t('uploadSimilarity.infoDescription')}
                 </p>
               </div>
             </div>

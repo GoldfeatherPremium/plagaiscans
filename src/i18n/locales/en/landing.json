@@ -1,12 +1,21 @@
 {
+  "nav": {
+    "howItWorks": "How It Works",
+    "faq": "FAQ",
+    "pricing": "Pricing",
+    "login": "Login",
+    "getStarted": "Get Started",
+    "dashboard": "Dashboard"
+  },
   "hero": {
     "badge": "Trusted by 10,000+ academics & researchers",
     "titleLine1": "Plagiarism & Similarity Check",
     "titleLine2": "for Academic Integrity",
     "subtitle": "Plagaiscans helps students, researchers, and educators verify originality, identify overlapping content, and understand similarity results through clear and easy-to-read reports.",
     "ctaPrimary": "Check Document",
+    "ctaSecondary": "How It Works",
     "feature1": "Detailed Similarity Reports",
-    "feature2": "AI Content Detection",
+    "feature2": "AI Content Indicators",
     "feature3": "Privacy-First Scanning",
     "stat1Value": "1B+",
     "stat1Label": "Sources Checked",
@@ -14,6 +23,40 @@
     "stat2Label": "Accuracy Rate",
     "stat3Value": "10K+",
     "stat3Label": "Happy Users"
+  },
+  "features": {
+    "title": "Comprehensive Document Analysis",
+    "subtitle": "Professional similarity checking tools for students, researchers, and universities",
+    "detailedReports": "Detailed Similarity Reports",
+    "detailedReportsDesc": "View highlighted matches, similarity percentages, and matched sources to understand content overlap with existing materials",
+    "aiIndicators": "AI Content Indicators",
+    "aiIndicatorsDesc": "Analyze text for potential AI-generated patterns to support responsible academic use. Indicators are advisory, not definitive.",
+    "fastProcessing": "Fast Processing",
+    "fastProcessingDesc": "Get your detailed analysis reports back within minutes, not hours",
+    "privacyFirst": "Privacy-First Architecture",
+    "privacyFirstDesc": "Your documents are processed securely and never stored, reused, or shared"
+  },
+  "steps": {
+    "title": "How It Works",
+    "subtitle": "Get your document checked in four simple steps",
+    "step1Title": "Create Account",
+    "step1Desc": "Sign up with your email and password",
+    "step2Title": "Purchase Credits",
+    "step2Desc": "Buy credits to check your documents",
+    "step3Title": "Upload Document",
+    "step3Desc": "Upload your file (1 credit per document)",
+    "step4Title": "Get Reports",
+    "step4Desc": "Download similarity and AI indicator reports"
+  },
+  "pricingCta": {
+    "title": "Simple, Transparent Pricing",
+    "subtitle": "Pay per document with no hidden fees. Choose from one-time packages or subscription plans.",
+    "button": "View Pricing Plans"
+  },
+  "cta": {
+    "title": "Ready to Check Your Documents?",
+    "subtitle": "Join thousands of users who trust Plagaiscans for accurate originality verification.",
+    "button": "Get Started Free"
   },
   "about": {
     "label": "About Plagaiscans",
