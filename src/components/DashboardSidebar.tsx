@@ -285,19 +285,40 @@ export const DashboardSidebar: React.FC = () => {
     searchInputRef.current?.focus();
   }, []);
 
-  const customerLinks: NavLink[] = [
-    { to: '/dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard') },
-    { to: '/dashboard/upload', icon: Upload, label: t('sidebar.uploadFull') },
-    { to: '/dashboard/upload-similarity', icon: FileCheck, label: t('sidebar.uploadSimilarity') },
-    { to: '/dashboard/documents', icon: FileText, label: t('sidebar.myDocuments') },
-    { to: '/dashboard/analytics', icon: PieChart, label: t('sidebar.analytics') },
-    { to: '/dashboard/credits', icon: CreditCard, label: t('sidebar.buyCredits') },
-    { to: '/dashboard/subscription', icon: Crown, label: t('sidebar.subscription') },
-    { to: '/dashboard/payments', icon: Receipt, label: t('sidebar.paymentHistory') },
-    { to: '/dashboard/invoices', icon: FileDown, label: t('sidebar.myInvoices') },
-    { to: '/dashboard/receipts', icon: Receipt, label: t('sidebar.myReceipts') },
-    { to: '/dashboard/profile', icon: User, label: t('sidebar.profile') },
-  ];
+  // Build customerLinks dynamically based on credit balances
+  const customerLinks: NavLink[] = useMemo(() => {
+    const links: NavLink[] = [
+      { to: '/dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard') },
+    ];
+    
+    const hasFullCredits = (profile?.credit_balance || 0) > 0;
+    const hasSimilarityCredits = (profile?.similarity_credit_balance || 0) > 0;
+    const hasNoCredits = !hasFullCredits && !hasSimilarityCredits;
+    
+    // Show Full Scan upload if: has full credits OR has no credits at all (so they can see what they need)
+    if (hasFullCredits || hasNoCredits) {
+      links.push({ to: '/dashboard/upload', icon: Upload, label: t('sidebar.uploadFull') });
+    }
+    
+    // Show Similarity upload if: has similarity credits OR has no credits at all
+    if (hasSimilarityCredits || hasNoCredits) {
+      links.push({ to: '/dashboard/upload-similarity', icon: FileCheck, label: t('sidebar.uploadSimilarity') });
+    }
+    
+    // Add remaining links
+    links.push(
+      { to: '/dashboard/documents', icon: FileText, label: t('sidebar.myDocuments') },
+      { to: '/dashboard/analytics', icon: PieChart, label: t('sidebar.analytics') },
+      { to: '/dashboard/credits', icon: CreditCard, label: t('sidebar.buyCredits') },
+      { to: '/dashboard/subscription', icon: Crown, label: t('sidebar.subscription') },
+      { to: '/dashboard/payments', icon: Receipt, label: t('sidebar.paymentHistory') },
+      { to: '/dashboard/invoices', icon: FileDown, label: t('sidebar.myInvoices') },
+      { to: '/dashboard/receipts', icon: Receipt, label: t('sidebar.myReceipts') },
+      { to: '/dashboard/profile', icon: User, label: t('sidebar.profile') },
+    );
+    
+    return links;
+  }, [profile, t]);
 
   const staffLinks: NavLink[] = [
     { to: '/dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard') },

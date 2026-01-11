@@ -24,8 +24,24 @@ const UploadSimilarity: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadResults, setUploadResults] = useState<{ success: number; failed: number } | null>(null);
 
+  const creditBalance = profile?.credit_balance || 0;
   const similarityCreditBalance = profile?.similarity_credit_balance || 0;
   const maxFilesAllowed = similarityCreditBalance;
+
+  // Redirect users who only have full scan credits to the full scan upload page
+  React.useEffect(() => {
+    const hasFullCredits = creditBalance > 0;
+    const hasSimilarityCredits = similarityCreditBalance > 0;
+    
+    // If user has ONLY full scan credits, redirect them
+    if (hasFullCredits && !hasSimilarityCredits) {
+      toast({
+        title: 'Redirecting',
+        description: 'You have full scan credits only. Redirecting to full scan upload...',
+      });
+      navigate('/dashboard/upload', { replace: true });
+    }
+  }, [creditBalance, similarityCreditBalance, navigate]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
