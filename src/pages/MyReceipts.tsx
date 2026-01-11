@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,6 +32,7 @@ interface ReceiptData {
 }
 
 export default function MyReceipts() {
+  const { t } = useTranslation('dashboard');
   const { user } = useAuth();
   const [receipts, setReceipts] = useState<ReceiptData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,9 +141,9 @@ export default function MyReceipts() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-display font-bold">My Receipts</h1>
+          <h1 className="text-3xl font-display font-bold">{t('receipts.title')}</h1>
           <p className="text-muted-foreground mt-1">
-            View and download your payment receipts
+            {t('receipts.subtitle')}
           </p>
         </div>
 
@@ -154,7 +156,7 @@ export default function MyReceipts() {
                   <Receipt className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Receipts</p>
+                  <p className="text-sm text-muted-foreground">{t('receipts.totalReceipts')}</p>
                   <p className="text-2xl font-bold">{receipts.length}</p>
                 </div>
               </div>
@@ -167,7 +169,7 @@ export default function MyReceipts() {
                   <CheckCircle className="h-6 w-6 text-green-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Paid</p>
+                  <p className="text-sm text-muted-foreground">{t('receipts.totalPaid')}</p>
                   <p className="text-2xl font-bold">${totalAmount.toFixed(2)}</p>
                 </div>
               </div>
@@ -180,7 +182,7 @@ export default function MyReceipts() {
                   <CreditCard className="h-6 w-6 text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Credits</p>
+                  <p className="text-sm text-muted-foreground">{t('receipts.totalCredits')}</p>
                   <p className="text-2xl font-bold">{totalCredits}</p>
                 </div>
               </div>
@@ -191,28 +193,28 @@ export default function MyReceipts() {
         {/* Receipts Table */}
         <Card>
           <CardHeader>
-            <CardTitle>All Receipts</CardTitle>
-            <CardDescription>Your complete payment receipt history</CardDescription>
+            <CardTitle>{t('receipts.allReceipts')}</CardTitle>
+            <CardDescription>{t('receipts.completeHistory')}</CardDescription>
           </CardHeader>
           <CardContent>
             {receipts.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Receipt className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No receipts yet</p>
-                <p className="text-sm">Receipts will appear here after you make a payment</p>
+                <p>{t('receipts.noReceipts')}</p>
+                <p className="text-sm">{t('receipts.noReceiptsDesc')}</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Receipt #</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Payment Method</TableHead>
-                      <TableHead>Credits</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead>{t('receipts.receiptNumber')}</TableHead>
+                      <TableHead>{t('receipts.date')}</TableHead>
+                      <TableHead>{t('receipts.description')}</TableHead>
+                      <TableHead>{t('receipts.paymentMethod')}</TableHead>
+                      <TableHead>{t('receipts.credits')}</TableHead>
+                      <TableHead>{t('receipts.amount')}</TableHead>
+                      <TableHead>{t('receipts.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
