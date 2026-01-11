@@ -131,7 +131,7 @@ i18n
     fallbackLng: 'en',
     supportedLngs: ['en', 'ar', 'zh', 'fr', 'es', 'de', 'ru'],
     defaultNS: 'common',
-    ns: ['common', 'landing', 'auth', 'dashboard'],
+    ns: ['common', 'landing', 'auth', 'dashboard', 'pages', 'legal'],
     interpolation: {
       escapeValue: false,
     },
