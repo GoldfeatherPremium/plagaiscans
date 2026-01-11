@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +30,7 @@ const resetPasswordSchema = z.object({
 export default function ResetPassword() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation('auth');
   
   const [loading, setLoading] = useState(false);
   const [validatingToken, setValidatingToken] = useState(true);
@@ -182,7 +184,7 @@ export default function ResetPassword() {
           </div>
           <div className="flex items-center justify-center gap-2 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
-            <span>Validating reset link...</span>
+            <span>{t('resetPassword.validating', 'Validating reset link...')}</span>
           </div>
         </div>
       </div>
@@ -208,12 +210,12 @@ export default function ResetPassword() {
               <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
                 <AlertTriangle className="h-6 w-6 text-destructive" />
               </div>
-              <CardTitle>Reset Link Invalid</CardTitle>
-              <CardDescription>{tokenError}</CardDescription>
+              <CardTitle>{t('resetPassword.invalidLink', 'Reset Link Invalid')}</CardTitle>
+              <CardDescription>{t('resetPassword.invalidLinkDesc', tokenError)}</CardDescription>
             </CardHeader>
             <CardContent>
               <Button onClick={handleRequestNewLink} className="w-full">
-                Request New Reset Link
+                {t('resetPassword.requestNewLink', 'Request New Reset Link')}
               </Button>
             </CardContent>
           </Card>
@@ -241,14 +243,14 @@ export default function ResetPassword() {
               <div className="mx-auto w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mb-4">
                 <CheckCircle className="h-6 w-6 text-green-500" />
               </div>
-              <CardTitle>Password Reset Successful!</CardTitle>
+              <CardTitle>{t('resetPassword.success', 'Password Reset Successful!')}</CardTitle>
               <CardDescription>
-                Your password has been updated. You can now login with your new password.
+                {t('resetPassword.successDesc', 'Your password has been updated. You can now login with your new password.')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button onClick={handleGoToLogin} className="w-full">
-                Go to Login
+                {t('resetPassword.goToLogin', 'Go to Login')}
               </Button>
             </CardContent>
           </Card>
@@ -268,20 +270,20 @@ export default function ResetPassword() {
             </div>
             <span className="font-display font-bold text-2xl">PlagaiScans</span>
           </div>
-          <p className="text-muted-foreground">Set your new password</p>
+          <p className="text-muted-foreground">{t('resetPassword.subtitle', 'Set your new password')}</p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Reset Password</CardTitle>
+            <CardTitle>{t('resetPassword.title', 'Reset Password')}</CardTitle>
             <CardDescription>
-              Enter your new password below. Make sure it's strong and unique.
+              {t('resetPassword.description', "Enter your new password below. Make sure it's strong and unique.")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="new-password">New Password</Label>
+                <Label htmlFor="new-password">{t('resetPassword.passwordLabel', 'New Password')}</Label>
                 <div className="relative">
                   <Input
                     id="new-password"
@@ -312,7 +314,7 @@ export default function ResetPassword() {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="confirm-new-password">Confirm New Password</Label>
+                <Label htmlFor="confirm-new-password">{t('resetPassword.confirmPasswordLabel', 'Confirm New Password')}</Label>
                 <div className="relative">
                   <Input
                     id="confirm-new-password"
@@ -341,19 +343,19 @@ export default function ResetPassword() {
               </div>
               
               <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
-                <p className="font-medium mb-1">Password Requirements:</p>
+                <p className="font-medium mb-1">{t('resetPassword.requirements', 'Password Requirements:')}</p>
                 <ul className="list-disc list-inside space-y-0.5 text-xs">
-                  <li>At least 8 characters</li>
-                  <li>One uppercase letter (A-Z)</li>
-                  <li>One lowercase letter (a-z)</li>
-                  <li>One number (0-9)</li>
-                  <li>One special character (!@#$%^&*)</li>
+                  <li>{t('resetPassword.minLength', 'At least 8 characters')}</li>
+                  <li>{t('resetPassword.uppercase', 'One uppercase letter (A-Z)')}</li>
+                  <li>{t('resetPassword.lowercase', 'One lowercase letter (a-z)')}</li>
+                  <li>{t('resetPassword.number', 'One number (0-9)')}</li>
+                  <li>{t('resetPassword.special', 'One special character (!@#$%^&*)')}</li>
                 </ul>
               </div>
               
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Update Password
+                {t('resetPassword.submitButton', 'Update Password')}
               </Button>
             </form>
           </CardContent>

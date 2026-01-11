@@ -107,6 +107,8 @@
   "errors": {
     "generic": "Algo salió mal.",
     "notFound": "Página no encontrada",
+    "notFoundDesc": "La página que buscas no existe o ha sido movida.",
+    "returnHome": "Volver al inicio",
     "unauthorized": "No autorizado",
     "networkError": "Error de red.",
     "validationError": "Verifique sus datos."
