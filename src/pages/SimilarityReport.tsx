@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileText, ArrowLeft, ArrowRight, BarChart3, FileSearch, Highlighter, Link2, Percent, BookOpen } from 'lucide-react';
@@ -8,44 +9,46 @@ import { SEO, generateWebPageSchema } from '@/components/SEO';
 import { Breadcrumb } from '@/components/Breadcrumb';
 
 export default function SimilarityReport() {
+  const { t } = useTranslation('pages');
+
   const reportFeatures = [
     {
       icon: Percent,
-      title: "Overall Similarity Score",
-      description: "A clear percentage indicating the total amount of content that matches other sources, helping you understand your document's originality at a glance."
+      title: t('similarityReport.overallScore'),
+      description: t('similarityReport.overallScoreDesc')
     },
     {
       icon: Highlighter,
-      title: "Highlighted Matches",
-      description: "Text passages that match other sources are clearly highlighted, making it easy to identify areas that may need revision or additional citations."
+      title: t('similarityReport.highlightedMatches'),
+      description: t('similarityReport.highlightedMatchesDesc')
     },
     {
       icon: Link2,
-      title: "Source Attribution",
-      description: "Each match includes a link to the original source, allowing you to verify the content and add proper citations where needed."
+      title: t('similarityReport.sourceAttribution'),
+      description: t('similarityReport.sourceAttributionDesc')
     },
     {
       icon: FileSearch,
-      title: "Detailed Breakdown",
-      description: "View similarity percentages broken down by source, helping you understand which sources have the most overlap with your document."
+      title: t('similarityReport.detailedBreakdown'),
+      description: t('similarityReport.detailedBreakdownDesc')
     }
   ];
 
   const interpretationGuide = [
     {
-      range: "0-15%",
-      label: "Low Similarity",
-      description: "Generally acceptable for most academic submissions. May include common phrases and properly cited quotations."
+      range: t('similarityReport.lowSimilarityRange'),
+      label: t('similarityReport.lowSimilarity'),
+      description: t('similarityReport.lowSimilarityDesc')
     },
     {
-      range: "15-25%",
-      label: "Moderate Similarity",
-      description: "Review highlighted sections to ensure proper citations. Some revision or paraphrasing may be beneficial."
+      range: t('similarityReport.moderateSimilarityRange'),
+      label: t('similarityReport.moderateSimilarity'),
+      description: t('similarityReport.moderateSimilarityDesc')
     },
     {
-      range: "25%+",
-      label: "Higher Similarity",
-      description: "Careful review recommended. Ensure all sources are properly cited and consider paraphrasing where appropriate."
+      range: t('similarityReport.higherSimilarityRange'),
+      label: t('similarityReport.higherSimilarity'),
+      description: t('similarityReport.higherSimilarityDesc')
     }
   ];
 
@@ -78,7 +81,7 @@ export default function SimilarityReport() {
             <Link to="/">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Home
+                {t('similarityReport.backToHome')}
               </Button>
             </Link>
           </div>
@@ -87,7 +90,7 @@ export default function SimilarityReport() {
         {/* Main Content */}
         <main className="container-width px-4 py-16">
           <div className="max-w-5xl mx-auto">
-            <Breadcrumb items={[{ label: 'Similarity Report' }]} />
+            <Breadcrumb items={[{ label: t('similarityReport.title') }]} />
             
             {/* Hero Section */}
             <div className="text-center mb-16">
@@ -95,18 +98,17 @@ export default function SimilarityReport() {
                 <BarChart3 className="h-8 w-8 text-primary" />
               </div>
               <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
-                Understanding <span className="gradient-text">Similarity Reports</span>
+                {t('similarityReport.title')}
               </h1>
               <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-                Learn how to read, interpret, and use similarity reports to improve your academic writing 
-                and ensure proper attribution of sources.
+                {t('similarityReport.subtitle')}
               </p>
             </div>
 
             {/* What's in a Report */}
             <div className="mb-16">
               <h2 className="text-3xl font-display font-bold text-center mb-10">
-                What&apos;s Included in Your Report
+                {t('similarityReport.whatsIncluded')}
               </h2>
               <div className="grid md:grid-cols-2 gap-6">
                 {reportFeatures.map((feature, index) => (
@@ -130,9 +132,9 @@ export default function SimilarityReport() {
             {/* Interpretation Guide */}
             <Card className="mb-12">
               <CardContent className="p-8">
-                <h2 className="text-2xl font-bold mb-6 text-center">Interpreting Similarity Scores</h2>
+                <h2 className="text-2xl font-bold mb-6 text-center">{t('similarityReport.interpretingScores')}</h2>
                 <p className="text-center text-muted-foreground mb-8">
-                  Understanding what different similarity percentages mean for your document.
+                  {t('similarityReport.interpretingDesc')}
                 </p>
                 <div className="space-y-4">
                   {interpretationGuide.map((item, index) => (
@@ -156,19 +158,18 @@ export default function SimilarityReport() {
                 <div className="flex items-start gap-4">
                   <BookOpen className="h-8 w-8 text-primary shrink-0" />
                   <div>
-                    <h2 className="text-xl font-bold mb-2">Understanding Similarity vs. Plagiarism</h2>
+                    <h2 className="text-xl font-bold mb-2">{t('similarityReport.understandingTitle')}</h2>
                     <p className="text-muted-foreground mb-4">
-                      It&apos;s important to understand that similarity is not the same as plagiarism. Similarity reports identify 
-                      matching text, but matched content may include:
+                      {t('similarityReport.understandingDesc')}
                     </p>
                     <ul className="space-y-2 text-sm text-muted-foreground">
-                      <li>• Properly cited quotations and references</li>
-                      <li>• Common phrases and terminology in your field</li>
-                      <li>• Standard bibliographic information</li>
-                      <li>• Your own previously published work</li>
+                      <li>• {t('similarityReport.understanding1')}</li>
+                      <li>• {t('similarityReport.understanding2')}</li>
+                      <li>• {t('similarityReport.understanding3')}</li>
+                      <li>• {t('similarityReport.understanding4')}</li>
                     </ul>
                     <p className="text-muted-foreground mt-4">
-                      The report is a tool to help you review and improve your document, not a definitive judgment of academic integrity.
+                      {t('similarityReport.understandingNote')}
                     </p>
                   </div>
                 </div>
@@ -178,13 +179,13 @@ export default function SimilarityReport() {
             {/* CTA */}
             <Card className="bg-primary/5 border-primary/20">
               <CardContent className="p-8 text-center">
-                <h2 className="text-2xl font-bold mb-4">Get Your Similarity Report</h2>
+                <h2 className="text-2xl font-bold mb-4">{t('similarityReport.ctaTitle')}</h2>
                 <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-                  Upload your document and receive a detailed similarity report to help improve your academic writing.
+                  {t('similarityReport.ctaDesc')}
                 </p>
                 <Link to="/auth">
                   <Button variant="hero" size="lg" className="group">
-                    Check Your Document
+                    {t('similarityReport.ctaButton')}
                     <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>

@@ -96,5 +96,19 @@
     "transactionId": "Transaktions-/Bestell-ID",
     "reasonForRequest": "Grund der Anfrage",
     "reasonPlaceholder": "Bitte erläutern Sie Ihre Situation im Detail..."
+  },
+  "unsubscribe": {
+    "processing": "Verarbeitung...",
+    "unsubscribedTitle": "Abgemeldet",
+    "alreadyTitle": "Bereits abgemeldet",
+    "errorTitle": "Fehler",
+    "invalidLink": "Ungültiger Abmeldelink. Bitte kontaktieren Sie den Support.",
+    "errorMessage": "Verarbeitung Ihrer Anfrage fehlgeschlagen. Bitte versuchen Sie es später erneut.",
+    "alreadyUnsubscribed": "Sie haben sich bereits von Werbe-E-Mails abgemeldet.",
+    "successMessage": "Sie wurden erfolgreich von Werbe-E-Mails abgemeldet.",
+    "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten.",
+    "stillReceiveTransactional": "Sie werden keine Werbe-E-Mails mehr von Plagaiscans erhalten. Sie werden weiterhin wichtige Transaktions-E-Mails über Ihr Konto und Ihre Dokumente erhalten.",
+    "contactSupport": "Bei anhaltenden Problemen kontaktieren Sie uns unter support@plagaiscans.com",
+    "returnHome": "Zurück zur Startseite"
   }
 }

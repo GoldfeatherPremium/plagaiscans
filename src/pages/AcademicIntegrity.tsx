@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileText, ArrowLeft, ArrowRight, BookOpen, Scale, GraduationCap, Shield, Users, Lightbulb } from 'lucide-react';
@@ -7,49 +8,52 @@ import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
 
 export default function AcademicIntegrity() {
+  const { t } = useTranslation('pages');
+
   const pageSchema = generateWebPageSchema(
     'Academic Integrity Guide',
     'Learn about academic integrity principles, proper citation practices, and how plagiarism detection tools support ethical scholarship.',
     '/academic-integrity'
   );
+
   const principles = [
     {
       icon: BookOpen,
-      title: "Honest Scholarship",
-      description: "Academic integrity means producing original work and properly attributing ideas and content from other sources through accurate citations and references."
+      title: t('academicIntegrity.honestScholarship'),
+      description: t('academicIntegrity.honestScholarshipDesc')
     },
     {
       icon: Scale,
-      title: "Fair Assessment",
-      description: "Maintaining originality in academic work ensures that assessments fairly evaluate each individual's understanding, skills, and contributions."
+      title: t('academicIntegrity.fairAssessment'),
+      description: t('academicIntegrity.fairAssessmentDesc')
     },
     {
       icon: GraduationCap,
-      title: "Educational Value",
-      description: "The learning process is enhanced when students engage genuinely with materials and develop their own understanding rather than copying existing work."
+      title: t('academicIntegrity.educationalValue'),
+      description: t('academicIntegrity.educationalValueDesc')
     },
     {
       icon: Shield,
-      title: "Professional Standards",
-      description: "Academic integrity practices prepare students for professional environments where ethical conduct and original contributions are essential."
+      title: t('academicIntegrity.professionalStandards'),
+      description: t('academicIntegrity.professionalStandardsDesc')
     }
   ];
 
   const howWeHelp = [
     {
       icon: FileText,
-      title: "Clear Similarity Reports",
-      description: "Our detailed reports highlight overlapping text with source attribution, helping users identify areas that may need additional citations or paraphrasing."
+      title: t('academicIntegrity.clearReports'),
+      description: t('academicIntegrity.clearReportsDesc')
     },
     {
       icon: Users,
-      title: "Educational Approach",
-      description: "Rather than just flagging issues, we provide insights that help users understand proper attribution practices and improve their writing."
+      title: t('academicIntegrity.educationalApproach'),
+      description: t('academicIntegrity.educationalApproachDesc')
     },
     {
       icon: Lightbulb,
-      title: "Improvement Guidance",
-      description: "Our reports are designed to be actionable, showing exactly where similarities exist so users can address them effectively."
+      title: t('academicIntegrity.improvementGuidance'),
+      description: t('academicIntegrity.improvementGuidanceDesc')
     }
   ];
 
@@ -75,7 +79,7 @@ export default function AcademicIntegrity() {
           <Link to="/">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Home
+              {t('academicIntegrity.backToHome')}
             </Button>
           </Link>
         </div>
@@ -87,25 +91,25 @@ export default function AcademicIntegrity() {
           {/* Hero Section */}
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
-              Understanding <span className="gradient-text">Academic Integrity</span>
+              {t('academicIntegrity.title')}
             </h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Academic integrity is the foundation of honest scholarship. Learn how modern tools help evaluate text similarity and support ethical research writing.
+              {t('academicIntegrity.subtitle')}
             </p>
           </div>
 
           {/* What is Academic Integrity */}
           <Card className="mb-12">
             <CardContent className="p-8">
-              <h2 className="text-2xl font-bold mb-4">What is Academic Integrity?</h2>
+              <h2 className="text-2xl font-bold mb-4">{t('academicIntegrity.whatIsTitle')}</h2>
               <p className="text-muted-foreground mb-4">
-                Academic integrity refers to the ethical code and moral principles that guide scholarly work. It encompasses honesty in research, proper attribution of sources, and the authentic representation of one's own work and ideas.
+                {t('academicIntegrity.whatIsDesc1')}
               </p>
               <p className="text-muted-foreground mb-4">
-                Many academic institutions use automated systems to evaluate text similarity and originality. Modern platforms focus on clarity, transparency, and responsible use—helping students and researchers ensure their work meets academic standards before submission.
+                {t('academicIntegrity.whatIsDesc2')}
               </p>
               <p className="text-muted-foreground">
-                Understanding similarity in academic writing doesn't mean avoiding all matches. Properly cited quotes, common phrases, and referenced material are expected in scholarly work. The key is ensuring proper attribution and maintaining the author's original contribution to the discourse.
+                {t('academicIntegrity.whatIsDesc3')}
               </p>
             </CardContent>
           </Card>
@@ -113,7 +117,7 @@ export default function AcademicIntegrity() {
           {/* Core Principles */}
           <div className="mb-16">
             <h2 className="text-3xl font-display font-bold text-center mb-10">
-              Core Principles of Academic Integrity
+              {t('academicIntegrity.corePrinciplesTitle')}
             </h2>
             <div className="grid md:grid-cols-2 gap-6">
               {principles.map((principle, index) => (
@@ -137,10 +141,10 @@ export default function AcademicIntegrity() {
           {/* How We Support */}
           <div className="mb-16">
             <h2 className="text-3xl font-display font-bold text-center mb-4">
-              How Plagaiscans Supports Academic Integrity
+              {t('academicIntegrity.howWeHelpTitle')}
             </h2>
             <p className="text-center text-muted-foreground mb-10 max-w-2xl mx-auto">
-              Our platform is designed to be a helpful tool for maintaining originality, not a punitive measure.
+              {t('academicIntegrity.howWeHelpDesc')}
             </p>
             <div className="grid md:grid-cols-3 gap-6">
               {howWeHelp.map((item, index) => (
@@ -160,24 +164,24 @@ export default function AcademicIntegrity() {
           {/* Best Practices */}
           <Card className="mb-12 bg-muted/30">
             <CardContent className="p-8">
-              <h2 className="text-2xl font-bold mb-6">Best Practices for Academic Writing</h2>
+              <h2 className="text-2xl font-bold mb-6">{t('academicIntegrity.bestPracticesTitle')}</h2>
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <h3 className="font-semibold mb-3">Citation & Attribution</h3>
+                  <h3 className="font-semibold mb-3">{t('academicIntegrity.citationAttribution')}</h3>
                   <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>• Always cite direct quotes with proper formatting</li>
-                    <li>• Paraphrase ideas in your own words while citing sources</li>
-                    <li>• Use a consistent citation style (APA, MLA, Chicago, etc.)</li>
-                    <li>• Include all sources in your bibliography/references</li>
+                    <li>• {t('academicIntegrity.citation1')}</li>
+                    <li>• {t('academicIntegrity.citation2')}</li>
+                    <li>• {t('academicIntegrity.citation3')}</li>
+                    <li>• {t('academicIntegrity.citation4')}</li>
                   </ul>
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-3">Original Content</h3>
+                  <h3 className="font-semibold mb-3">{t('academicIntegrity.originalContent')}</h3>
                   <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>• Develop your own analysis and arguments</li>
-                    <li>• Use source material to support, not replace, your ideas</li>
-                    <li>• Review your work for unintentional similarity</li>
-                    <li>• Use originality checking tools before submission</li>
+                    <li>• {t('academicIntegrity.original1')}</li>
+                    <li>• {t('academicIntegrity.original2')}</li>
+                    <li>• {t('academicIntegrity.original3')}</li>
+                    <li>• {t('academicIntegrity.original4')}</li>
                   </ul>
                 </div>
               </div>
@@ -187,13 +191,13 @@ export default function AcademicIntegrity() {
           {/* CTA */}
           <Card className="bg-primary/5 border-primary/20">
             <CardContent className="p-8 text-center">
-              <h2 className="text-2xl font-bold mb-4">Check Your Document's Originality</h2>
+              <h2 className="text-2xl font-bold mb-4">{t('academicIntegrity.ctaTitle')}</h2>
               <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-                Use Plagaiscans to verify your document's originality before submission and maintain academic integrity.
+                {t('academicIntegrity.ctaDesc')}
               </p>
               <Link to="/auth">
                 <Button variant="hero" size="lg" className="group">
-                  Get Started
+                  {t('academicIntegrity.ctaButton')}
                   <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>

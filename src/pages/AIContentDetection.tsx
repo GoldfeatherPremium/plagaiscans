@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileText, ArrowLeft, ArrowRight, Bot, Brain, BarChart, Info, Shield } from 'lucide-react';
@@ -9,26 +10,28 @@ import { Breadcrumb } from '@/components/Breadcrumb';
 import { AIDisclaimer } from '@/components/AIDisclaimer';
 
 export default function AIContentDetection() {
+  const { t } = useTranslation('pages');
+
   const features = [
     {
       icon: Brain,
-      title: "Pattern Analysis",
-      description: "Our system analyzes writing patterns, sentence structures, and linguistic features that may indicate AI-assisted content generation."
+      title: t('aiContentDetection.patternAnalysis'),
+      description: t('aiContentDetection.patternAnalysisDesc')
     },
     {
       icon: BarChart,
-      title: "Probability Indicators",
-      description: "Receive probability-based indicators that suggest the likelihood of AI involvement in content creation, presented as advisory information."
+      title: t('aiContentDetection.probabilityIndicators'),
+      description: t('aiContentDetection.probabilityIndicatorsDesc')
     },
     {
       icon: Info,
-      title: "Contextual Insights",
-      description: "Understand which sections of your document may have been identified as potentially AI-generated with clear explanations."
+      title: t('aiContentDetection.contextualInsights'),
+      description: t('aiContentDetection.contextualInsightsDesc')
     },
     {
       icon: Shield,
-      title: "Privacy Protected",
-      description: "Your documents are processed securely and are not stored or used for training purposes."
+      title: t('aiContentDetection.privacyProtected'),
+      description: t('aiContentDetection.privacyProtectedDesc')
     }
   ];
 
@@ -61,7 +64,7 @@ export default function AIContentDetection() {
             <Link to="/">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Home
+                {t('aiContentDetection.backToHome')}
               </Button>
             </Link>
           </div>
@@ -70,7 +73,7 @@ export default function AIContentDetection() {
         {/* Main Content */}
         <main className="container-width px-4 py-16">
           <div className="max-w-5xl mx-auto">
-            <Breadcrumb items={[{ label: 'AI Content Detection' }]} />
+            <Breadcrumb items={[{ label: t('aiContentDetection.title') }]} />
             
             {/* Hero Section */}
             <div className="text-center mb-16">
@@ -78,11 +81,10 @@ export default function AIContentDetection() {
                 <Bot className="h-8 w-8 text-primary" />
               </div>
               <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
-                AI Content <span className="gradient-text">Detection Indicators</span>
+                {t('aiContentDetection.title')}
               </h1>
               <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-6">
-                Understand how AI content analysis works and how to interpret probability-based indicators 
-                to support academic review and writing authenticity.
+                {t('aiContentDetection.subtitle')}
               </p>
               <AIDisclaimer />
             </div>
@@ -91,10 +93,9 @@ export default function AIContentDetection() {
             {/* How It Works */}
             <Card className="mb-12">
               <CardContent className="p-8">
-                <h2 className="text-2xl font-bold mb-6 text-center">How AI Content Analysis Works</h2>
+                <h2 className="text-2xl font-bold mb-6 text-center">{t('aiContentDetection.howItWorksTitle')}</h2>
                 <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
-                  Our system uses pattern recognition to identify characteristics commonly associated with 
-                  AI-generated text, providing indicators to assist in academic evaluation.
+                  {t('aiContentDetection.howItWorksDesc')}
                 </p>
                 <div className="grid md:grid-cols-2 gap-6">
                   {features.map((feature, index) => (
@@ -115,31 +116,27 @@ export default function AIContentDetection() {
             {/* Interpreting Results */}
             <Card className="mb-12">
               <CardContent className="p-8">
-                <h2 className="text-2xl font-bold mb-6">Interpreting AI Detection Results</h2>
+                <h2 className="text-2xl font-bold mb-6">{t('aiContentDetection.interpretingTitle')}</h2>
                 <div className="space-y-6">
                   <div>
-                    <h3 className="font-semibold mb-2">What the Indicators Show</h3>
+                    <h3 className="font-semibold mb-2">{t('aiContentDetection.whatIndicatorsShow')}</h3>
                     <p className="text-muted-foreground">
-                      AI detection results are presented as probability percentages, indicating the likelihood 
-                      that content exhibits patterns associated with AI-generated text. These percentages are 
-                      not measures of certainty but rather indicators for further review.
+                      {t('aiContentDetection.whatIndicatorsShowDesc')}
                     </p>
                   </div>
                   <div>
-                    <h3 className="font-semibold mb-2">Factors That May Affect Results</h3>
+                    <h3 className="font-semibold mb-2">{t('aiContentDetection.factorsTitle')}</h3>
                     <ul className="space-y-2 text-sm text-muted-foreground">
-                      <li>• Technical or specialized vocabulary may sometimes be flagged</li>
-                      <li>• Formal academic writing styles may show higher indicators</li>
-                      <li>• Heavily edited or polished text may affect results</li>
-                      <li>• Non-native English writing patterns may influence detection</li>
+                      <li>• {t('aiContentDetection.factor1')}</li>
+                      <li>• {t('aiContentDetection.factor2')}</li>
+                      <li>• {t('aiContentDetection.factor3')}</li>
+                      <li>• {t('aiContentDetection.factor4')}</li>
                     </ul>
                   </div>
                   <div>
-                    <h3 className="font-semibold mb-2">Recommended Approach</h3>
+                    <h3 className="font-semibold mb-2">{t('aiContentDetection.recommendedApproach')}</h3>
                     <p className="text-muted-foreground">
-                      Use AI detection indicators as one part of a comprehensive review process. 
-                      Consider the context, consult with instructors or advisors, and apply human judgment 
-                      when evaluating academic work.
+                      {t('aiContentDetection.recommendedApproachDesc')}
                     </p>
                   </div>
                 </div>
@@ -149,24 +146,24 @@ export default function AIContentDetection() {
             {/* Best Practices */}
             <Card className="mb-12 bg-muted/30">
               <CardContent className="p-8">
-                <h2 className="text-2xl font-bold mb-6">Best Practices for Academic Writing</h2>
+                <h2 className="text-2xl font-bold mb-6">{t('aiContentDetection.bestPracticesTitle')}</h2>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <h3 className="font-semibold mb-3">For Students & Researchers</h3>
+                    <h3 className="font-semibold mb-3">{t('aiContentDetection.forStudents')}</h3>
                     <ul className="space-y-2 text-sm text-muted-foreground">
-                      <li>• Develop your own voice and writing style</li>
-                      <li>• Use AI tools responsibly and transparently</li>
-                      <li>• Always cite sources and acknowledge assistance</li>
-                      <li>• Review your institution&apos;s AI use policies</li>
+                      <li>• {t('aiContentDetection.student1')}</li>
+                      <li>• {t('aiContentDetection.student2')}</li>
+                      <li>• {t('aiContentDetection.student3')}</li>
+                      <li>• {t('aiContentDetection.student4')}</li>
                     </ul>
                   </div>
                   <div>
-                    <h3 className="font-semibold mb-3">For Educators</h3>
+                    <h3 className="font-semibold mb-3">{t('aiContentDetection.forEducators')}</h3>
                     <ul className="space-y-2 text-sm text-muted-foreground">
-                      <li>• Use detection as one tool among many</li>
-                      <li>• Communicate clear expectations about AI use</li>
-                      <li>• Focus on learning outcomes over detection</li>
-                      <li>• Consider context and individual circumstances</li>
+                      <li>• {t('aiContentDetection.educator1')}</li>
+                      <li>• {t('aiContentDetection.educator2')}</li>
+                      <li>• {t('aiContentDetection.educator3')}</li>
+                      <li>• {t('aiContentDetection.educator4')}</li>
                     </ul>
                   </div>
                 </div>
@@ -176,13 +173,13 @@ export default function AIContentDetection() {
             {/* CTA */}
             <Card className="bg-primary/5 border-primary/20">
               <CardContent className="p-8 text-center">
-                <h2 className="text-2xl font-bold mb-4">Analyze Your Document</h2>
+                <h2 className="text-2xl font-bold mb-4">{t('aiContentDetection.ctaTitle')}</h2>
                 <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-                  Get AI content indicators along with similarity analysis to support academic integrity in your writing.
+                  {t('aiContentDetection.ctaDesc')}
                 </p>
                 <Link to="/auth">
                   <Button variant="hero" size="lg" className="group">
-                    Get Started
+                    {t('aiContentDetection.ctaButton')}
                     <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>

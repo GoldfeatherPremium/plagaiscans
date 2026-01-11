@@ -96,5 +96,19 @@
     "transactionId": "ID транзакции/заказа",
     "reasonForRequest": "Причина запроса",
     "reasonPlaceholder": "Пожалуйста, подробно опишите вашу ситуацию..."
+  },
+  "unsubscribe": {
+    "processing": "Обработка...",
+    "unsubscribedTitle": "Отписан",
+    "alreadyTitle": "Уже отписан",
+    "errorTitle": "Ошибка",
+    "invalidLink": "Недействительная ссылка для отписки. Обратитесь в поддержку.",
+    "errorMessage": "Не удалось обработать ваш запрос. Попробуйте позже.",
+    "alreadyUnsubscribed": "Вы уже отписались от рекламных писем.",
+    "successMessage": "Вы успешно отписались от рекламных писем.",
+    "unexpectedError": "Произошла непредвиденная ошибка.",
+    "stillReceiveTransactional": "Вы больше не будете получать рекламные письма от Plagaiscans. Вы по-прежнему будете получать важные транзакционные письма о вашем аккаунте и документах.",
+    "contactSupport": "Если проблемы продолжаются, свяжитесь с нами: support@plagaiscans.com",
+    "returnHome": "На главную"
   }
 }

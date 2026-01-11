@@ -96,5 +96,19 @@
     "transactionId": "交易/订单ID",
     "reasonForRequest": "请求原因",
     "reasonPlaceholder": "请详细说明您的情况..."
+  },
+  "unsubscribe": {
+    "processing": "处理中...",
+    "unsubscribedTitle": "已取消订阅",
+    "alreadyTitle": "已经取消订阅",
+    "errorTitle": "错误",
+    "invalidLink": "取消订阅链接无效。请联系支持。",
+    "errorMessage": "处理您的请求失败。请稍后再试。",
+    "alreadyUnsubscribed": "您已经取消订阅了促销邮件。",
+    "successMessage": "您已成功取消订阅促销邮件。",
+    "unexpectedError": "发生意外错误。",
+    "stillReceiveTransactional": "您将不再收到Plagaiscans的促销邮件。您仍将收到关于您的账户和文档的重要交易邮件。",
+    "contactSupport": "如果您继续遇到问题，请联系我们：support@plagaiscans.com",
+    "returnHome": "返回首页"
   }
 }
