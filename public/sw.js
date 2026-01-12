@@ -114,7 +114,7 @@ async function cacheFirstStatic(request) {
   }
 }
 
-// Push notification handling
+// Push notification handling - Enhanced for reliability and sound
 self.addEventListener('push', (event) => {
   console.log(`[SW ${SW_VERSION}] Push received`);
 
@@ -145,15 +145,19 @@ self.addEventListener('push', (event) => {
       body: data.body,
       icon: data.icon || '/pwa-icon-192.png',
       badge: data.badge || '/pwa-icon-192.png',
-      vibrate: [100, 50, 100],
+      // Enhanced vibration pattern - more aggressive for attention
+      vibrate: [200, 100, 200, 100, 200],
       data: data.data || {},
       actions: [
         { action: 'open', title: 'Open App' },
         { action: 'close', title: 'Dismiss' },
       ],
-      requireInteraction: false,
+      // Keep notification visible until user interacts
+      requireInteraction: true,
       tag: notificationTag,
       renotify: true,
+      // Explicitly request sound (supported in some browsers)
+      silent: false,
     })
   );
 });

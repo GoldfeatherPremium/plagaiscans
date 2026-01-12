@@ -4,6 +4,7 @@ import { DashboardHeader } from './DashboardHeader';
 import { WhatsAppSupportButton } from './WhatsAppSupportButton';
 import { useAdminDocumentNotifications } from '@/hooks/useAdminDocumentNotifications';
 import { useDocumentCompletionNotifications } from '@/hooks/useDocumentCompletionNotifications';
+import { usePushSubscriptionHealth } from '@/hooks/usePushSubscriptionHealth';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -15,6 +16,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   
   // Enable document completion notifications for customers
   useDocumentCompletionNotifications();
+  
+  // Monitor and maintain push subscription health
+  usePushSubscriptionHealth();
 
   return (
     <div className="min-h-screen bg-background">

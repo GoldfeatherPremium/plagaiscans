@@ -78,10 +78,16 @@ serve(async (req) => {
       try {
         console.log(`Sending notification for document: ${notification.file_name}, scan_type: ${notification.scan_type}`);
         
-        // Determine correct queue URL based on scan type
-        const queueUrl = notification.scan_type === 'similarity_only' 
+        // Determine correct queue URL and title based on scan type
+        const isSimilarityOnly = notification.scan_type === 'similarity_only';
+        const queueUrl = isSimilarityOnly 
           ? '/dashboard/queue-similarity' 
           : '/dashboard/queue';
+        
+        // Queue-specific notification title
+        const notificationTitle = isSimilarityOnly 
+          ? '📊 New Doc in Similarity Queue' 
+          : '📄 New Doc in Full Scan Queue';
         
         const response = await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
           method: 'POST',
@@ -90,7 +96,7 @@ serve(async (req) => {
             'Authorization': `Bearer ${supabaseServiceKey}`,
           },
           body: JSON.stringify({
-            title: '📄 New Document Uploaded',
+            title: notificationTitle,
             body: `${notification.customer_name} uploaded "${notification.file_name}"`,
             icon: '/pwa-icon-192.png',
             badge: '/pwa-icon-192.png',
