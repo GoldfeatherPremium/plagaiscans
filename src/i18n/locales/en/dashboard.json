@@ -82,7 +82,8 @@
     "buyCreditsSubtitle": "Get more credits to analyze documents",
     "yourLatestUploads": "Your latest uploads and their status",
     "latestActivity": "Latest activity in the queue",
-    "viewAll": "View All"
+    "viewAll": "View All",
+    "goToQueue": "Go to Queue"
   },
   "documents": {
     "title": "My Documents",

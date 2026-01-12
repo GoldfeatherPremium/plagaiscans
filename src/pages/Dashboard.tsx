@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { supabase } from '@/integrations/supabase/client';
-import { FileText, Clock, CheckCircle, CreditCard, Upload, Download, Wallet, XCircle, BarChart3 } from 'lucide-react';
+import { FileText, Clock, CheckCircle, CreditCard, Upload, Download, Wallet, XCircle, BarChart3, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -158,10 +158,20 @@ export default function Dashboard() {
 
         {/* Full Scan Queue Section */}
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            {t('overview.fullScanQueue')}
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              {t('overview.fullScanQueue')}
+            </h3>
+            {(role === 'staff' || role === 'admin') && (
+              <Button asChild variant="outline" size="sm" className="gap-2">
+                <Link to="/dashboard/queue">
+                  {t('overview.goToQueue')}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            )}
+          </div>
           <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 ${!docsLoading ? 'content-reveal-stagger' : ''}`}>
             {docsLoading ? (
               <>
@@ -235,10 +245,20 @@ export default function Dashboard() {
 
         {/* Similarity Only Queue Section */}
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-blue-500" />
-            {t('overview.similarityQueue')}
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-blue-500" />
+              {t('overview.similarityQueue')}
+            </h3>
+            {(role === 'staff' || role === 'admin') && (
+              <Button asChild variant="outline" size="sm" className="gap-2 border-blue-500/30 text-blue-600 hover:bg-blue-500/10">
+                <Link to="/dashboard/queue-similarity">
+                  {t('overview.goToQueue')}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            )}
+          </div>
           <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 ${!docsLoading ? 'content-reveal-stagger' : ''}`}>
             {docsLoading ? (
               <>

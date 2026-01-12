@@ -79,7 +79,11 @@
     "buyCreditsSubtitle": "احصل على المزيد من الأرصدة لتحليل المستندات",
     "yourLatestUploads": "أحدث الرفعات وحالتها",
     "latestActivity": "آخر نشاط في قائمة الانتظار",
-    "viewAll": "عرض الكل"
+    "viewAll": "عرض الكل",
+    "fullScanQueue": "قائمة الفحص الكامل",
+    "similarityQueue": "قائمة التشابه فقط",
+    "fullCredits": "أرصدة الفحص الكامل",
+    "goToQueue": "الذهاب للقائمة"
   },
   "upload": {
     "title": "رفع مستند",

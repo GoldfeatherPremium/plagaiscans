@@ -79,7 +79,11 @@
     "buyCreditsSubtitle": "获取更多积分来分析文档",
     "yourLatestUploads": "您最近上传的文档及状态",
     "latestActivity": "队列中的最新活动",
-    "viewAll": "查看全部"
+    "viewAll": "查看全部",
+    "fullScanQueue": "完整扫描队列",
+    "similarityQueue": "仅相似度队列",
+    "fullCredits": "完整扫描积分",
+    "goToQueue": "前往队列"
   },
   "documents": {
     "title": "我的文档",
