@@ -281,15 +281,23 @@ serve(async (req) => {
     let failureCount = 0;
     const removedSubscriptions: string[] = [];
 
-    for (const subscription of subscriptions) {
+    // Retry configuration for improved delivery
+    const MAX_RETRIES = 3;
+    const RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff
+
+    // Helper function to send push with retry logic
+    async function sendPushWithRetry(
+      sub: { id: string; endpoint: string; p256dh: string; auth: string; user_id: string },
+      attempt: number = 1
+    ): Promise<{ success: boolean; remove?: boolean }> {
       try {
         const { endpoint, headers, body: requestBody } = await buildPushHTTPRequest({
           privateJWK,
           subscription: {
-            endpoint: subscription.endpoint,
+            endpoint: sub.endpoint,
             keys: {
-              p256dh: subscription.p256dh,
-              auth: subscription.auth,
+              p256dh: sub.p256dh,
+              auth: sub.auth,
             },
           },
           message: {
@@ -309,23 +317,49 @@ serve(async (req) => {
         });
 
         if (res.ok || res.status === 201) {
-          successCount++;
-          continue;
+          return { success: true };
         }
 
-        // If expired / gone, remove subscription
+        // Subscription expired/gone - mark for removal
         if (res.status === 410 || res.status === 404) {
-          console.log(`Removing invalid subscription ${subscription.id} (status ${res.status})`);
-          await supabase.from("push_subscriptions").delete().eq("id", subscription.id);
-          removedSubscriptions.push(subscription.id);
+          return { success: false, remove: true };
+        }
+
+        // Server error (5xx) - retry with backoff
+        if (res.status >= 500 && attempt < MAX_RETRIES) {
+          console.log(`Retrying push to ${sub.id} (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt - 1]));
+          return sendPushWithRetry(sub, attempt + 1);
         }
 
         const errText = await res.text().catch(() => "");
-        console.error(`Failed to send push to subscription ${subscription.id}: status=${res.status} body=${errText}`);
-        failureCount++;
+        console.error(`Failed to send push to ${sub.id}: status=${res.status} body=${errText}`);
+        return { success: false };
       } catch (err) {
-        console.error(`Error sending push to subscription ${subscription.id}:`, err);
+        // Network error - retry
+        if (attempt < MAX_RETRIES) {
+          console.log(`Network error, retrying push to ${sub.id} (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt - 1]));
+          return sendPushWithRetry(sub, attempt + 1);
+        }
+        console.error(`Error sending push to ${sub.id} after ${MAX_RETRIES} attempts:`, err);
+        return { success: false };
+      }
+    }
+
+    for (const subscription of subscriptions) {
+      const result = await sendPushWithRetry(subscription);
+      
+      if (result.success) {
+        successCount++;
+      } else {
         failureCount++;
+        
+        if (result.remove) {
+          console.log(`Removing invalid subscription ${subscription.id}`);
+          await supabase.from("push_subscriptions").delete().eq("id", subscription.id);
+          removedSubscriptions.push(subscription.id);
+        }
       }
     }
 

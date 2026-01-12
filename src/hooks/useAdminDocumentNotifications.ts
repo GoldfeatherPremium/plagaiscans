@@ -27,16 +27,22 @@ export const useAdminDocumentNotifications = () => {
   const handleNewDocument = useCallback((fileName: string, customerName: string, scanType: string = 'full') => {
     console.log('[AdminNotify] New document notification:', fileName, customerName, scanType);
     
-    // Determine correct queue URL based on scan type
-    const queueUrl = scanType === 'similarity_only' 
+    // Determine correct queue URL and title based on scan type
+    const isSimilarityOnly = scanType === 'similarity_only';
+    const queueUrl = isSimilarityOnly 
       ? '/dashboard/queue-similarity' 
       : '/dashboard/queue';
+    
+    // Queue-specific notification title
+    const notificationTitle = isSimilarityOnly 
+      ? '📊 New Doc in Similarity Queue' 
+      : '📄 New Doc in Full Scan Queue';
     
     // Play notification sound
     playSound();
 
     // Show toast notification
-    toast.info('📄 New Document Uploaded', {
+    toast.info(notificationTitle, {
       description: `${customerName} uploaded "${fileName}"`,
       duration: 8000,
       action: {
@@ -48,10 +54,10 @@ export const useAdminDocumentNotifications = () => {
     });
 
     // Send browser local notification
-    sendLocalNotification('📄 New Document Uploaded', {
+    sendLocalNotification(notificationTitle, {
       body: `${customerName} uploaded "${fileName}"`,
       tag: `doc-upload-${Date.now()}`,
-      requireInteraction: false,
+      requireInteraction: true,
     });
   }, [sendLocalNotification, playSound]);
 
