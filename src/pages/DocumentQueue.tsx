@@ -695,7 +695,7 @@ export default function DocumentQueue() {
                               )}
                             </TableCell>
                             <TableCell>
-                              <div className="flex items-center justify-center gap-2 flex-wrap">
+                              <div className="flex items-center justify-center gap-1">
                                 {doc.status === 'pending' && !isAssignedToMe && (
                                   <Button 
                                     size="sm" 
