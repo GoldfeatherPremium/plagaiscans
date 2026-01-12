@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { supabase } from '@/integrations/supabase/client';
-import { FileText, Clock, CheckCircle, CreditCard, Upload, Download, Wallet, XCircle } from 'lucide-react';
+import { FileText, Clock, CheckCircle, CreditCard, Upload, Download, Wallet, XCircle, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -41,11 +41,18 @@ export default function Dashboard() {
   const [pendingPayments, setPendingPayments] = useState<ManualPayment[]>([]);
   const { t } = useTranslation('dashboard');
 
-  const stats = {
-    pending: documents.filter((d) => d.status === 'pending').length,
-    inProgress: documents.filter((d) => d.status === 'in_progress').length,
-    completed: documents.filter((d) => d.status === 'completed').length,
-    total: documents.length,
+  // Full Scan Queue Stats (all documents except similarity_only)
+  const fullScanStats = {
+    pending: documents.filter((d) => d.status === 'pending' && d.scan_type !== 'similarity_only').length,
+    inProgress: documents.filter((d) => d.status === 'in_progress' && d.scan_type !== 'similarity_only').length,
+    completed: documents.filter((d) => d.status === 'completed' && d.scan_type !== 'similarity_only').length,
+  };
+
+  // Similarity Only Queue Stats
+  const similarityStats = {
+    pending: documents.filter((d) => d.status === 'pending' && d.scan_type === 'similarity_only').length,
+    inProgress: documents.filter((d) => d.status === 'in_progress' && d.scan_type === 'similarity_only').length,
+    completed: documents.filter((d) => d.status === 'completed' && d.scan_type === 'similarity_only').length,
   };
 
   const recentDocs = documents.slice(0, 5);
@@ -149,75 +156,158 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Stats Grid */}
-        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 ${!docsLoading ? 'content-reveal-stagger' : ''}`}>
-          {docsLoading ? (
-            <>
-              {role === 'customer' && <StatCardSkeleton />}
-              <StatCardSkeleton />
-              <StatCardSkeleton />
-              {role !== 'staff' && <StatCardSkeleton />}
-            </>
-          ) : (
-            <>
-              {role === 'customer' && (
+        {/* Full Scan Queue Section */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            {t('overview.fullScanQueue')}
+          </h3>
+          <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 ${!docsLoading ? 'content-reveal-stagger' : ''}`}>
+            {docsLoading ? (
+              <>
+                {role === 'customer' && <StatCardSkeleton />}
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                {role !== 'staff' && <StatCardSkeleton />}
+              </>
+            ) : (
+              <>
+                {role === 'customer' && (
+                  <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/20">
+                          <CreditCard className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">{t('overview.fullCredits')}</p>
+                          <p className="text-2xl font-bold">{profile?.credit_balance || 0}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-yellow-500/30 transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-lg bg-yellow-500/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-yellow-500/20">
+                        <Clock className="h-6 w-6 text-yellow-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">{t('overview.pending')}</p>
+                        <p className="text-2xl font-bold">{fullScanStats.pending}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
                 <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
                       <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/20">
-                        <CreditCard className="h-6 w-6 text-primary" />
+                        <FileText className="h-6 w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">{t('overview.creditBalance')}</p>
-                        <p className="text-2xl font-bold">{profile?.credit_balance || 0}</p>
+                        <p className="text-sm text-muted-foreground">{t('overview.inProgress')}</p>
+                        <p className="text-2xl font-bold">{fullScanStats.inProgress}</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              )}
-              <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-accent/30 transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-lg bg-accent/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-accent/20">
-                      <Clock className="h-6 w-6 text-accent" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">{t('overview.pending')}</p>
-                      <p className="text-2xl font-bold">{stats.pending}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/20">
-                      <FileText className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">{t('overview.inProgress')}</p>
-                      <p className="text-2xl font-bold">{stats.inProgress}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              {role !== 'staff' && (
-                <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-secondary/30 transition-all duration-300">
+                {role !== 'staff' && (
+                  <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-green-500/30 transition-all duration-300">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-green-500/20">
+                          <CheckCircle className="h-6 w-6 text-green-500" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">{t('overview.completed')}</p>
+                          <p className="text-2xl font-bold">{fullScanStats.completed}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Similarity Only Queue Section */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-blue-500" />
+            {t('overview.similarityQueue')}
+          </h3>
+          <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 ${!docsLoading ? 'content-reveal-stagger' : ''}`}>
+            {docsLoading ? (
+              <>
+                {role === 'customer' && <StatCardSkeleton />}
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                {role !== 'staff' && <StatCardSkeleton />}
+              </>
+            ) : (
+              <>
+                {role === 'customer' && (
+                  <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-blue-500/30 transition-all duration-300">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-500/20">
+                          <CreditCard className="h-6 w-6 text-blue-500" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">{t('overview.similarityCredits')}</p>
+                          <p className="text-2xl font-bold">{profile?.similarity_credit_balance || 0}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-yellow-500/30 transition-all duration-300">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-lg bg-secondary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-secondary/20">
-                        <CheckCircle className="h-6 w-6 text-secondary" />
+                      <div className="h-12 w-12 rounded-lg bg-yellow-500/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-yellow-500/20">
+                        <Clock className="h-6 w-6 text-yellow-500" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">{t('overview.completed')}</p>
-                        <p className="text-2xl font-bold">{stats.completed}</p>
+                        <p className="text-sm text-muted-foreground">{t('overview.pending')}</p>
+                        <p className="text-2xl font-bold">{similarityStats.pending}</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              )}
-            </>
-          )}
+                <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-blue-500/30 transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-500/20">
+                        <BarChart3 className="h-6 w-6 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">{t('overview.inProgress')}</p>
+                        <p className="text-2xl font-bold">{similarityStats.inProgress}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                {role !== 'staff' && (
+                  <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-green-500/30 transition-all duration-300">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-green-500/20">
+                          <CheckCircle className="h-6 w-6 text-green-500" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">{t('overview.completed')}</p>
+                          <p className="text-2xl font-bold">{similarityStats.completed}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Pending Payments - Customer Only */}
