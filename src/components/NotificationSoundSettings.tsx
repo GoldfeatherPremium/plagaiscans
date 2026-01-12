@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Play } from 'lucide-react';
+import { Volume2, VolumeX, Play, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useNotificationSound, NOTIFICATION_SOUNDS, NotificationSoundType } from '@/hooks/useNotificationSound';
 
 export const NotificationSoundSettings: React.FC = () => {
@@ -19,9 +20,11 @@ export const NotificationSoundSettings: React.FC = () => {
     isEnabled,
     soundType,
     volume,
+    loudMode,
     toggleSound,
     setSoundType,
     setVolume,
+    setLoudMode,
     testSound,
   } = useNotificationSound();
 
@@ -58,6 +61,24 @@ export const NotificationSoundSettings: React.FC = () => {
 
         {isEnabled && (
           <>
+            {/* Loud Mode Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/50 border border-accent">
+              <div className="space-y-0.5">
+                <Label htmlFor="loud-mode" className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-yellow-500" />
+                  Loud Mode
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Boost volume significantly for noisy environments
+                </p>
+              </div>
+              <Switch
+                id="loud-mode"
+                checked={loudMode}
+                onCheckedChange={setLoudMode}
+              />
+            </div>
+
             {/* Sound Type Selection */}
             <div className="space-y-2">
               <Label htmlFor="sound-type">Sound Type</Label>
@@ -124,6 +145,16 @@ export const NotificationSoundSettings: React.FC = () => {
                 ))}
               </div>
             </div>
+
+            {/* Silent Mode Warning */}
+            <Alert>
+              <Volume2 className="h-4 w-4" />
+              <AlertTitle>Device Silent Mode</AlertTitle>
+              <AlertDescription>
+                Web browsers cannot play sounds when your device is in silent/vibrate mode. 
+                To receive notification sounds, please disable silent mode on your device.
+              </AlertDescription>
+            </Alert>
           </>
         )}
       </CardContent>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Bell, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,8 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Settings2, Sparkles, Megaphone } from 'lucide-react';
 
@@ -54,44 +54,21 @@ const categoryColors: Record<NotificationCategory, string> = {
   updates: 'text-green-500',
 };
 
-// Better notification sound - a pleasant chime
-const NOTIFICATION_SOUND_BASE64 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYZNYXz2AAAAAAAAAAAAAAAAAAAAAAD/+9DEAAAGtAFptAAAJTITq/c0wAkAAAANIAAAAAEJGJEIhCEIf/LEIQhCEIT//+UIT/KE85znOc5znOc5znOc+c5znOc5znOc5znOc5znOc5znOc5z3EhYWFhYWFhYWFhYX//uxCEIQhCEIQh/5QhCEIQhD/ygAAADSAMYxjGMYxjGHVdV1XVQAAAAD/+9DEDYPQAAGkAAAAIAAANIAAAAT/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////';
-
 export const NotificationBell: React.FC = () => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
   const [isRinging, setIsRinging] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('notificationSound') !== 'disabled';
-    }
-    return true;
-  });
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const { sendLocalNotification, requestPermission, subscribe, isSubscribed } = usePushNotifications();
+  
+  // Use the shared notification sound hook
+  const { isEnabled: soundEnabled, playSound, toggleSound: toggleSoundHook } = useNotificationSound();
+  const { sendLocalNotification, requestPermission } = usePushNotifications();
 
-  // Initialize audio element
-  useEffect(() => {
-    audioRef.current = new Audio(NOTIFICATION_SOUND_BASE64);
-    audioRef.current.volume = 0.5;
-    
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, []);
-
-  // Toggle sound
+  // Toggle sound with toast feedback
   const toggleSound = () => {
-    const newState = !soundEnabled;
-    setSoundEnabled(newState);
-    localStorage.setItem('notificationSound', newState ? 'enabled' : 'disabled');
-    
-    if (newState) {
+    toggleSoundHook();
+    if (!soundEnabled) {
       requestPermission();
       toast.success('Notification sound enabled');
     } else {
@@ -99,24 +76,12 @@ export const NotificationBell: React.FC = () => {
     }
   };
 
-  // Play notification sound
-  const playNotificationSound = useCallback(() => {
-    if (!soundEnabled) return;
-    
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch((err) => {
-        console.log('Could not play notification sound:', err);
-      });
-    }
-  }, [soundEnabled]);
-
-  // Trigger bell animation
+  // Trigger bell animation and play sound
   const triggerBellRing = useCallback(() => {
     setIsRinging(true);
-    playNotificationSound();
+    playSound();
     setTimeout(() => setIsRinging(false), 500);
-  }, [playNotificationSound]);
+  }, [playSound]);
 
   useEffect(() => {
     if (!user) return;
