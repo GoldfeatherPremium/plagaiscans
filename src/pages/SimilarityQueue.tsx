@@ -963,7 +963,7 @@ const SimilarityQueue: React.FC = () => {
                                 )}
                               </TableCell>
                               <TableCell>
-                                <div className="flex items-center justify-center gap-2 flex-wrap">
+                                <div className="flex items-center justify-center gap-1">
                                   <Button
                                     variant="ghost"
                                     size="sm"
