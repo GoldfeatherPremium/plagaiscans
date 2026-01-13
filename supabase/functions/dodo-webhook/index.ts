@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
       }
 
       // Send user notification
-      const creditTypeLabel = creditType === 'similarity_only' ? 'Similarity' : 'Full Scan';
+      const creditTypeLabel = creditType === 'similarity_only' ? 'Similarity' : 'AI Scan';
       await supabase.from('user_notifications').insert({
         user_id: userId,
         title: '✅ Payment Successful',

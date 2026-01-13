@@ -1,7 +1,7 @@
 {
   "sidebar": {
     "dashboard": "لوحة التحكم",
-    "uploadFull": "رفع (فحص كامل)",
+    "uploadFull": "رفع (فحص AI)",
     "uploadSimilarity": "رفع (التشابه)",
     "myDocuments": "مستنداتي",
     "analytics": "التحليلات",
@@ -11,12 +11,12 @@
     "myInvoices": "فواتيري",
     "myReceipts": "إيصالاتي",
     "profile": "الملف الشخصي",
-    "fullScanQueue": "قائمة الفحص الكامل",
+    "fullScanQueue": "قائمة فحص AI",
     "similarityQueue": "قائمة التشابه",
     "myProcessed": "معالجتي",
     "myStats": "إحصائياتي",
     "performance": "الأداء",
-    "fullScanCredits": "أرصدة الفحص الكامل",
+    "fullScanCredits": "أرصدة فحص AI",
     "similarityCredits": "أرصدة التشابه",
     "signOut": "تسجيل الخروج",
     "overview": "نظرة عامة",
@@ -80,9 +80,9 @@
     "yourLatestUploads": "أحدث الرفعات وحالتها",
     "latestActivity": "آخر نشاط في قائمة الانتظار",
     "viewAll": "عرض الكل",
-    "fullScanQueue": "قائمة الفحص الكامل",
+    "fullScanQueue": "قائمة فحص AI",
     "similarityQueue": "قائمة التشابه فقط",
-    "fullCredits": "أرصدة الفحص الكامل",
+    "fullCredits": "أرصدة فحص AI",
     "goToQueue": "الذهاب للقائمة"
   },
   "upload": {

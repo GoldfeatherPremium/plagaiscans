@@ -337,7 +337,7 @@ export const DashboardSidebar: React.FC = () => {
       icon: FolderOpen,
       badgeKey: 'documents',
       links: [
-        { to: '/dashboard/queue', icon: FileCheck, label: 'Full Scan Queue', badgeKey: 'pendingDocuments' },
+        { to: '/dashboard/queue', icon: FileCheck, label: 'AI Scan Queue', badgeKey: 'pendingDocuments' },
         { to: '/dashboard/queue-similarity', icon: FileText, label: 'Similarity Queue' },
         { to: '/dashboard/documents', icon: FileText, label: 'All Documents' },
         { to: '/dashboard/magic-links', icon: Upload, label: 'Magic Links' },

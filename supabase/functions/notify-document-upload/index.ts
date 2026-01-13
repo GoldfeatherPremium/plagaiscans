@@ -84,10 +84,9 @@ serve(async (req) => {
           ? '/dashboard/queue-similarity' 
           : '/dashboard/queue';
         
-        // Queue-specific notification title
         const notificationTitle = isSimilarityOnly 
           ? '📊 New Doc in Similarity Queue' 
-          : '📄 New Doc in Full Scan Queue';
+          : '📄 New Doc in AI Scan Queue';
         
         const response = await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
           method: 'POST',

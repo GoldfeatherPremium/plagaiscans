@@ -63,7 +63,7 @@ serve(async (req) => {
       lineItems = [{ price: priceId, quantity: 1 }];
     } else {
       // Dynamic pricing using price_data
-      const creditLabel = creditType === "similarity_only" ? "Similarity" : "Full Scan";
+      const creditLabel = creditType === "similarity_only" ? "Similarity" : "AI Scan";
       lineItems = [{
         price_data: {
           currency: 'usd',

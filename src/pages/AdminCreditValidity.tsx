@@ -309,7 +309,7 @@ export default function AdminCreditValidity() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="full">Full Scan</SelectItem>
+              <SelectItem value="full">AI Scan</SelectItem>
               <SelectItem value="similarity_only">Similarity Only</SelectItem>
             </SelectContent>
           </Select>
@@ -364,7 +364,7 @@ export default function AdminCreditValidity() {
                           </TableCell>
                           <TableCell>
                             <Badge variant={cv.credit_type === 'full' ? 'default' : 'secondary'}>
-                              {cv.credit_type === 'full' ? 'Full Scan' : 'Similarity'}
+                              {cv.credit_type === 'full' ? 'AI Scan' : 'Similarity'}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-center font-medium">{cv.credits_amount}</TableCell>
