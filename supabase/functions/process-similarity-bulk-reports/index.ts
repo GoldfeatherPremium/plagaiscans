@@ -35,24 +35,22 @@ interface ProcessingResult {
 
 /**
  * Normalize filename for matching:
- * - Remove extension
+ * - Remove ALL extensions (handles .docx.pdf, .doc.pdf, etc.)
  * - Remove trailing (1), (2), etc.
  * - Lowercase
+ * - Normalize multiple spaces to single space
  * - Trim whitespace
  */
 function normalizeFilename(filename: string): string {
   let result = filename.toLowerCase();
-  result = result.replace(/\.[^.]+$/, '');
+  // Remove common extensions - run twice for double extensions like .docx.pdf
+  result = result.replace(/\.(pdf|docx?|xlsx?|pptx?|txt|rtf)$/gi, '');
+  result = result.replace(/\.(pdf|docx?|xlsx?|pptx?|txt|rtf)$/gi, '');
+  // Remove trailing (1), (2), etc.
   result = result.replace(/\s*\(\d+\)$/, '');
+  // Normalize multiple spaces to single space
   result = result.replace(/\s+/g, ' ').trim();
   return result;
-}
-
-/**
- * Get document base name (just removes extension)
- */
-function getDocumentBaseName(filename: string): string {
-  return filename.toLowerCase().replace(/\.[^.]+$/, '').trim();
 }
 
 /**
@@ -211,15 +209,29 @@ serve(async (req: Request) => {
 
     console.log(`Found ${documents?.length || 0} eligible similarity-only documents`);
 
-    // Group documents by normalized filename
-    const docsByNormalized = new Map<string, typeof documents>();
+    // Group documents by normalized filename - create two maps for fallback matching
+    const docsByStoredNormalized = new Map<string, typeof documents>();
+    const docsByFreshNormalized = new Map<string, typeof documents>();
+    
     for (const doc of documents || []) {
-      const normalized = doc.normalized_filename || getDocumentBaseName(doc.file_name);
-      if (!docsByNormalized.has(normalized)) {
-        docsByNormalized.set(normalized, []);
+      // Map 1: Use stored normalized_filename (may have issues from original upload)
+      const stored = doc.normalized_filename || '';
+      if (stored && !docsByStoredNormalized.has(stored)) {
+        docsByStoredNormalized.set(stored, []);
       }
-      docsByNormalized.get(normalized)!.push(doc);
+      if (stored) {
+        docsByStoredNormalized.get(stored)!.push(doc);
+      }
+      
+      // Map 2: Fresh normalize the file_name (more reliable)
+      const fresh = normalizeFilename(doc.file_name);
+      if (!docsByFreshNormalized.has(fresh)) {
+        docsByFreshNormalized.set(fresh, []);
+      }
+      docsByFreshNormalized.get(fresh)!.push(doc);
     }
+    
+    console.log('Document maps created - stored:', docsByStoredNormalized.size, 'fresh:', docsByFreshNormalized.size);
 
     const result: ProcessingResult = {
       success: true,
@@ -256,8 +268,20 @@ serve(async (req: Request) => {
         console.log(`Analysis result for ${report.fileName}: percentage=${percentage}, source=${analysis.source}`);
       }
 
-      // Find matching documents
-      const matchingDocs = docsByNormalized.get(normalizedFilename) || [];
+      // Find matching documents - try stored normalized first, then fresh normalized as fallback
+      let matchingDocs = docsByStoredNormalized.get(normalizedFilename) || [];
+      let matchMethod = 'stored';
+      
+      if (matchingDocs.length === 0) {
+        // Fallback: try fresh normalization matching
+        matchingDocs = docsByFreshNormalized.get(normalizedFilename) || [];
+        if (matchingDocs.length > 0) {
+          matchMethod = 'fresh';
+          console.log(`Matched via fresh normalization for: ${report.fileName}`);
+        }
+      }
+      
+      console.log(`Matching result: ${matchingDocs.length} docs found via ${matchMethod} normalization`);
 
       // Filter to only documents without a similarity report already
       const docsWithoutReport = matchingDocs.filter(d => !d.similarity_report_path);
