@@ -1,7 +1,7 @@
 {
   "sidebar": {
     "dashboard": "仪表板",
-    "uploadFull": "上传（完整扫描）",
+    "uploadFull": "上传（AI扫描）",
     "uploadSimilarity": "上传（相似度）",
     "myDocuments": "我的文档",
     "analytics": "分析",
@@ -11,12 +11,12 @@
     "myInvoices": "我的发票",
     "myReceipts": "我的收据",
     "profile": "个人资料",
-    "fullScanQueue": "完整扫描队列",
+    "fullScanQueue": "AI扫描队列",
     "similarityQueue": "相似度队列",
     "myProcessed": "我处理的",
     "myStats": "我的统计",
     "performance": "绩效",
-    "fullScanCredits": "完整扫描积分",
+    "fullScanCredits": "AI扫描积分",
     "similarityCredits": "相似度积分",
     "signOut": "退出登录",
     "overview": "概览",
@@ -80,9 +80,9 @@
     "yourLatestUploads": "您最近上传的文档及状态",
     "latestActivity": "队列中的最新活动",
     "viewAll": "查看全部",
-    "fullScanQueue": "完整扫描队列",
+    "fullScanQueue": "AI扫描队列",
     "similarityQueue": "仅相似度队列",
-    "fullCredits": "完整扫描积分",
+    "fullCredits": "AI扫描积分",
     "goToQueue": "前往队列"
   },
   "documents": {

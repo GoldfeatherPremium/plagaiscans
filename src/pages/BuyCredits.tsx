@@ -87,7 +87,7 @@ export default function BuyCredits() {
 
   const handleAddToCart = (plan: PricingPackage) => {
     addToCart({ id: plan.id, credits: plan.credits, price: plan.price, credit_type: plan.credit_type });
-    const creditLabel = plan.credit_type === 'similarity_only' ? 'Similarity' : 'Full Scan';
+    const creditLabel = plan.credit_type === 'similarity_only' ? 'Similarity' : 'AI Scan';
     toast.success(`Added ${plan.credits} ${creditLabel} credits to cart`);
   };
 
@@ -183,7 +183,7 @@ export default function BuyCredits() {
       bgColor: 'bg-primary/10',
       textColor: 'text-primary',
       accentColor: 'text-secondary',
-      label: 'Full Scan',
+      label: 'AI Scan',
     };
   };
 
@@ -234,7 +234,7 @@ export default function BuyCredits() {
                     <CreditCard className="h-7 w-7" />
                   </div>
                   <div>
-                    <p className="text-primary-foreground/80 text-xs font-medium">Full Scan Credits</p>
+                    <p className="text-primary-foreground/80 text-xs font-medium">AI Scan Credits</p>
                     <p className="text-3xl font-bold">{profile?.credit_balance || 0}</p>
                   </div>
                 </div>
@@ -274,7 +274,7 @@ export default function BuyCredits() {
           <TabsList className="grid w-full grid-cols-2 h-auto">
             <TabsTrigger value="full" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-2 sm:px-4 text-xs sm:text-sm">
               <Sparkles className="h-4 w-4 flex-shrink-0" />
-              <span className="whitespace-nowrap">Full Scan Credits</span>
+              <span className="whitespace-nowrap">AI Scan Credits</span>
             </TabsTrigger>
             <TabsTrigger value="similarity_only" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-2 sm:px-4 text-xs sm:text-sm">
               <FileText className="h-4 w-4 flex-shrink-0" />

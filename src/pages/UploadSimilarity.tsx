@@ -33,11 +33,11 @@ const UploadSimilarity: React.FC = () => {
     const hasFullCredits = creditBalance > 0;
     const hasSimilarityCredits = similarityCreditBalance > 0;
     
-    // If user has ONLY full scan credits, redirect them
+    // If user has ONLY AI scan credits, redirect them
     if (hasFullCredits && !hasSimilarityCredits) {
       toast({
         title: 'Redirecting',
-        description: 'You have full scan credits only. Redirecting to full scan upload...',
+        description: 'You have AI scan credits only. Redirecting to AI scan upload...',
       });
       navigate('/dashboard/upload', { replace: true });
     }

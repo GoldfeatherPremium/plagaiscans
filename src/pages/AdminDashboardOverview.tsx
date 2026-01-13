@@ -434,12 +434,12 @@ export default function AdminDashboardOverview() {
             </>
           ) : (
             <>
-              {/* Full Scan Stats */}
+              {/* AI Scan Stats */}
               <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
                     <FileText className="h-5 w-5 text-primary" />
-                    Full Scan
+                    AI Scan
                   </CardTitle>
                   <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
                     {metrics?.scanTypeStats.fullScan.total} total

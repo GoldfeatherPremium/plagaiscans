@@ -49,7 +49,7 @@ interface PricingPackage {
 
 const CREDIT_TYPE_CONFIG = {
   full: {
-    label: 'Full Scan',
+    label: 'AI Scan',
     description: 'Similarity + AI Detection',
     color: 'bg-primary',
   },
