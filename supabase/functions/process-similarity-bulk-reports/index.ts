@@ -56,51 +56,90 @@ function getDocumentBaseName(filename: string): string {
 }
 
 /**
- * Extract similarity percentage from PDF page 2
+ * Extract similarity percentage from PDF
+ * Priority: 1) Page 2, 2) Last 20 pages for "ORIGINALITY REPORT" section
  */
-async function analyzePdfPage2(pdfBuffer: ArrayBuffer): Promise<{ percentage: number | null; textSnippet: string }> {
+async function analyzePdfForSimilarity(pdfBuffer: ArrayBuffer): Promise<{ 
+  percentage: number | null; 
+  textSnippet: string;
+  source: 'page2' | 'originality_report' | 'none';
+}> {
   try {
     const pdf = await getDocument({ data: new Uint8Array(pdfBuffer), useSystemFonts: true }).promise;
     
-    // Only read page 2 (index 1)
-    if (pdf.numPages < 2) {
-      console.log('PDF has less than 2 pages, cannot analyze');
-      return { percentage: null, textSnippet: 'insufficient pages' };
-    }
-    
-    const page = await pdf.getPage(2);
-    const textContent = await page.getTextContent();
-    // deno-lint-ignore no-explicit-any
-    const text = (textContent.items as any[])
-      .map((item) => item.str || '')
-      .join(' ')
-      .toLowerCase();
-    
-    console.log('Page 2 text excerpt:', text.substring(0, 500));
-    
-    // Extract similarity percentage
-    let percentage: number | null = null;
-    
-    // Patterns to match similarity percentage
-    const patterns = [
+    // Patterns to match similarity percentage on page 2
+    const page2Patterns = [
       /(\d+(?:\.\d+)?)\s*%\s*(?:overall\s+)?similarity/i,
       /overall\s*similarity[:\s]*(\d+(?:\.\d+)?)\s*%/i,
       /similarity\s*index[:\s]*(\d+(?:\.\d+)?)\s*%/i,
       /(\d+(?:\.\d+)?)\s*%\s*matching/i,
     ];
     
-    for (const pattern of patterns) {
-      const match = text.match(pattern);
-      if (match) {
-        percentage = parseFloat(match[1]);
-        break;
+    // Step 1: Try page 2 first (most common location)
+    if (pdf.numPages >= 2) {
+      const page = await pdf.getPage(2);
+      const textContent = await page.getTextContent();
+      // deno-lint-ignore no-explicit-any
+      const text = (textContent.items as any[])
+        .map((item) => item.str || '')
+        .join(' ');
+      
+      console.log('Page 2 text excerpt:', text.substring(0, 500));
+      
+      for (const pattern of page2Patterns) {
+        const match = text.match(pattern);
+        if (match) {
+          console.log(`Found similarity on page 2: ${match[1]}%`);
+          return { 
+            percentage: parseFloat(match[1]), 
+            textSnippet: text.substring(0, 200), 
+            source: 'page2' 
+          };
+        }
       }
     }
     
-    return { percentage, textSnippet: text.substring(0, 200) };
+    // Step 2: Scan last 20 pages for "ORIGINALITY REPORT" section
+    const lastPageStart = Math.max(1, pdf.numPages - 19); // Last 20 pages
+    console.log(`Scanning pages ${lastPageStart} to ${pdf.numPages} for ORIGINALITY REPORT`);
+    
+    // Patterns for ORIGINALITY REPORT section
+    const origPatterns = [
+      /(\d+(?:\.\d+)?)\s*%?\s*similarity\s*index/i,
+      /similarity\s*index\s*[:\s]*(\d+(?:\.\d+)?)\s*%/i,
+    ];
+    
+    for (let pageNum = pdf.numPages; pageNum >= lastPageStart; pageNum--) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      // deno-lint-ignore no-explicit-any
+      const text = (textContent.items as any[])
+        .map((item) => item.str || '')
+        .join(' ');
+      
+      // Check for ORIGINALITY REPORT section
+      const lowerText = text.toLowerCase();
+      if (lowerText.includes('originality report') || lowerText.includes('similarity index')) {
+        for (const pattern of origPatterns) {
+          const match = text.match(pattern);
+          if (match) {
+            console.log(`Found similarity on page ${pageNum} (ORIGINALITY REPORT): ${match[1]}%`);
+            return { 
+              percentage: parseFloat(match[1]), 
+              textSnippet: text.substring(0, 200), 
+              source: 'originality_report' 
+            };
+          }
+        }
+      }
+    }
+    
+    // Step 3: No percentage found
+    console.log('No similarity percentage found in PDF');
+    return { percentage: null, textSnippet: 'no percentage found', source: 'none' };
   } catch (error) {
     console.error('PDF analysis error:', error);
-    return { percentage: null, textSnippet: 'error: ' + (error as Error).message };
+    return { percentage: null, textSnippet: 'error: ' + (error as Error).message, source: 'none' };
   }
 }
 
@@ -210,11 +249,11 @@ serve(async (req: Request) => {
       if (downloadError) {
         console.error(`Failed to download PDF ${report.filePath}:`, downloadError);
       } else {
-        // Analyze PDF page 2
+      // Analyze PDF for similarity percentage
         const buffer = await pdfData.arrayBuffer();
-        const analysis = await analyzePdfPage2(buffer);
+        const analysis = await analyzePdfForSimilarity(buffer);
         percentage = analysis.percentage;
-        console.log(`Analysis result for ${report.fileName}: percentage=${percentage}`);
+        console.log(`Analysis result for ${report.fileName}: percentage=${percentage}, source=${analysis.source}`);
       }
 
       // Find matching documents
