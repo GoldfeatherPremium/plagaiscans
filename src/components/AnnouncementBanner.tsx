@@ -8,25 +8,36 @@ interface Announcement {
   title: string;
   message: string;
   type: 'info' | 'warning' | 'success' | 'error';
+  show_on_guest_pages?: boolean;
 }
 
-export const AnnouncementBanner: React.FC = () => {
+interface AnnouncementBannerProps {
+  isGuestPage?: boolean;
+}
+
+export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({ isGuestPage = false }) => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchAnnouncements();
-  }, []);
+  }, [isGuestPage]);
 
   const fetchAnnouncements = async () => {
     const now = new Date().toISOString();
-    const { data } = await supabase
+    let query = supabase
       .from('announcements')
-      .select('id, title, message, type')
+      .select('id, title, message, type, show_on_guest_pages')
       .eq('is_active', true)
       .lte('show_from', now)
-      .or(`show_until.is.null,show_until.gte.${now}`)
-      .order('created_at', { ascending: false });
+      .or(`show_until.is.null,show_until.gte.${now}`);
+    
+    // If on guest page, only show announcements marked for guest pages
+    if (isGuestPage) {
+      query = query.eq('show_on_guest_pages', true);
+    }
+    
+    const { data } = await query.order('created_at', { ascending: false });
 
     if (data) {
       // Load dismissed from session storage

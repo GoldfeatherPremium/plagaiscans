@@ -161,6 +161,7 @@ export type Database = {
           is_active: boolean
           message: string
           show_from: string | null
+          show_on_guest_pages: boolean | null
           show_until: string | null
           title: string
           type: string
@@ -172,6 +173,7 @@ export type Database = {
           is_active?: boolean
           message: string
           show_from?: string | null
+          show_on_guest_pages?: boolean | null
           show_until?: string | null
           title: string
           type?: string
@@ -183,6 +185,7 @@ export type Database = {
           is_active?: boolean
           message?: string
           show_from?: string | null
+          show_on_guest_pages?: boolean | null
           show_until?: string | null
           title?: string
           type?: string

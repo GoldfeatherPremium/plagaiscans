@@ -39,6 +39,7 @@ interface Announcement {
   is_active: boolean;
   show_from: string;
   show_until: string | null;
+  show_on_guest_pages: boolean;
   created_at: string;
 }
 
@@ -54,6 +55,7 @@ export default function AdminAnnouncements() {
     message: '',
     type: 'info' as Announcement['type'],
     show_until: '',
+    show_on_guest_pages: false,
   });
 
   useEffect(() => {
@@ -86,6 +88,7 @@ export default function AdminAnnouncements() {
       message: newAnnouncement.message.trim(),
       type: newAnnouncement.type,
       show_until: newAnnouncement.show_until || null,
+      show_on_guest_pages: newAnnouncement.show_on_guest_pages,
       created_by: user?.id,
     });
 
@@ -96,7 +99,7 @@ export default function AdminAnnouncements() {
     } else {
       toast({ title: 'Success', description: 'Announcement created' });
       setDialogOpen(false);
-      setNewAnnouncement({ title: '', message: '', type: 'info', show_until: '' });
+      setNewAnnouncement({ title: '', message: '', type: 'info', show_until: '', show_on_guest_pages: false });
       fetchAnnouncements();
     }
   };
@@ -202,6 +205,17 @@ export default function AdminAnnouncements() {
                     />
                   </div>
                 </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="show-on-guest" className="cursor-pointer">Show on guest upload pages</Label>
+                    <p className="text-xs text-muted-foreground">Display this announcement to guests using magic links</p>
+                  </div>
+                  <Switch
+                    id="show-on-guest"
+                    checked={newAnnouncement.show_on_guest_pages}
+                    onCheckedChange={(v) => setNewAnnouncement({ ...newAnnouncement, show_on_guest_pages: v })}
+                  />
+                </div>
                 <Button onClick={createAnnouncement} disabled={saving} className="w-full">
                   {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Megaphone className="h-4 w-4 mr-2" />}
                   Publish Announcement
@@ -283,6 +297,9 @@ export default function AdminAnnouncements() {
                       <Badge variant={announcement.is_active ? 'default' : 'secondary'}>
                         {announcement.is_active ? 'Active' : 'Hidden'}
                       </Badge>
+                      {announcement.show_on_guest_pages && (
+                        <Badge variant="outline" className="text-xs">Guest Pages</Badge>
+                      )}
                       <Switch
                         checked={announcement.is_active}
                         onCheckedChange={() => toggleActive(announcement.id, announcement.is_active)}
