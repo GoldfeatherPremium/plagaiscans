@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useMagicLinks, MagicUploadLink, MagicUploadFile } from '@/hooks/useMagicLinks';
 import { supabase } from '@/integrations/supabase/client';
 import { GuestEmailBanner } from '@/components/GuestEmailBanner';
+import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import {
   Upload,
   FileText,
@@ -299,6 +300,9 @@ export default function GuestUpload() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
+        {/* Announcements for guests */}
+        <AnnouncementBanner isGuestPage />
+
         {/* Guest Email Banner - Show if no email registered */}
         {linkData && !linkData.guest_email && token && (
           <GuestEmailBanner 
