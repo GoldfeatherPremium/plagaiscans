@@ -363,6 +363,28 @@ export default function GuestUpload() {
                 </CardContent>
               </Card>
 
+              {/* Link Expiry Info */}
+              {linkData?.expires_at && (
+                <Card className="border-amber-500/50 bg-amber-500/5">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+                      <Clock className="h-6 w-6 text-amber-500" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">Link Expires</p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatDateTime(linkData.expires_at).date} at {formatDateTime(linkData.expires_at).time}
+                      </p>
+                    </div>
+                    {new Date(linkData.expires_at).getTime() - Date.now() < 24 * 60 * 60 * 1000 && (
+                      <Badge variant="outline" className="border-amber-500 text-amber-500">
+                        Expiring Soon
+                      </Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Upload Limit Reached */}
               {!canUpload && (
                 <Card className="border-destructive bg-destructive/5">
