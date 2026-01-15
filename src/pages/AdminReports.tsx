@@ -50,7 +50,8 @@ export default function AdminReports() {
       .select('*')
       .gte('created_at', start)
       .lte('created_at', end + 'T23:59:59')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50000);
 
     const { data: roles } = await supabase.from('user_roles').select('*');
 
@@ -81,7 +82,8 @@ export default function AdminReports() {
       .select('*')
       .gte('uploaded_at', start)
       .lte('uploaded_at', end + 'T23:59:59')
-      .order('uploaded_at', { ascending: false });
+      .order('uploaded_at', { ascending: false })
+      .limit(50000);
 
     if (!docs) return '';
 
@@ -123,7 +125,8 @@ export default function AdminReports() {
       .select('*')
       .gte('created_at', start)
       .lte('created_at', end + 'T23:59:59')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50000);
 
     if (!transactions) return '';
 
@@ -161,7 +164,8 @@ export default function AdminReports() {
       .select('*')
       .gte('created_at', start)
       .lte('created_at', end + 'T23:59:59')
-      .eq('action', 'Changed status to completed');
+      .eq('action', 'Changed status to completed')
+      .limit(50000);
 
     if (!logs) return '';
 

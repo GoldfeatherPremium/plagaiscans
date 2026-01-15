@@ -26,7 +26,8 @@ serve(async (req) => {
       .from('crypto_payments')
       .select('id, created_at, user_id, amount_usd')
       .eq('status', 'waiting')
-      .lt('created_at', oneHourAgo);
+      .lt('created_at', oneHourAgo)
+      .limit(1000);
 
     if (fetchError) {
       console.error('Error fetching expired payments:', fetchError);

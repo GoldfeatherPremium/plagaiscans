@@ -60,7 +60,8 @@ export default function AdminSupportTickets() {
     const { data, error } = await supabase
       .from('support_tickets')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(10000);
 
     if (!error && data) {
       // Get user profiles
