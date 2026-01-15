@@ -96,7 +96,8 @@ export default function AdminUsers() {
     const { data: profiles, error } = await supabase
       .from('profiles')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(10000);
     
     if (!error && profiles) {
       // Fetch roles for all users

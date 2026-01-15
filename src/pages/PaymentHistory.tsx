@@ -68,17 +68,20 @@ export default function PaymentHistory() {
           .from('manual_payments')
           .select('*')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
+          .limit(5000),
         supabase
           .from('crypto_payments')
           .select('*')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
+          .limit(5000),
         supabase
           .from('stripe_payments')
           .select('id, session_id, amount_usd, credits, status, receipt_url, created_at, completed_at')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
+          .limit(5000),
       ]);
 
       if (manualRes.data) setManualPayments(manualRes.data);
