@@ -93,5 +93,14 @@ verify_jwt = false
 [functions.cleanup-old-files]
 verify_jwt = false
 
+[functions.create-paypal-checkout]
+verify_jwt = false
+
+[functions.paypal-webhook]
+verify_jwt = false
+
+[functions.verify-paypal-payment]
+verify_jwt = false
+
 [functions.send-guest-completion-email]
 verify_jwt = false

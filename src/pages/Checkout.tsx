@@ -52,16 +52,18 @@ export default function Checkout() {
   const [vivaEnabled, setVivaEnabled] = useState(false);
   const [stripeEnabled, setStripeEnabled] = useState(false);
   const [dodoEnabled, setDodoEnabled] = useState(false);
+  const [paypalEnabled, setPaypalEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
   
   // Payment fees
-  const [fees, setFees] = useState<{ whatsapp: number; usdt: number; binance: number; viva: number; stripe: number; dodo: number }>({
+  const [fees, setFees] = useState<{ whatsapp: number; usdt: number; binance: number; viva: number; stripe: number; dodo: number; paypal: number }>({
     whatsapp: 0,
     usdt: 0,
     binance: 0,
     viva: 0,
     stripe: 0,
     dodo: 0,
+    paypal: 0,
   });
   
   // Payment processing states
@@ -82,11 +84,11 @@ export default function Checkout() {
   // Stripe payment state
   const [creatingStripePayment, setCreatingStripePayment] = useState(false);
 
-  // Dodo payment state
   const [creatingDodoPayment, setCreatingDodoPayment] = useState(false);
+  const [creatingPaypalPayment, setCreatingPaypalPayment] = useState(false);
 
   // Calculate total with fee and promo discount
-  const calculateTotalWithFee = (method: 'whatsapp' | 'usdt' | 'binance' | 'viva' | 'stripe' | 'dodo') => {
+  const calculateTotalWithFee = (method: 'whatsapp' | 'usdt' | 'binance' | 'viva' | 'stripe' | 'dodo' | 'paypal') => {
     const baseTotal = getCartTotal();
     const discountedTotal = calculateDiscountedTotal(baseTotal);
     const feePercent = fees[method] || 0;
@@ -104,9 +106,9 @@ export default function Checkout() {
         .from('settings')
         .select('key, value')
         .in('key', [
-          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled',
+          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled', 'payment_paypal_enabled',
           'binance_pay_id',
-          'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe', 'fee_dodo'
+          'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe', 'fee_dodo', 'fee_paypal'
         ]);
 
       if (settings) {
@@ -116,6 +118,7 @@ export default function Checkout() {
         const viva = settings.find(s => s.key === 'payment_viva_enabled');
         const stripe = settings.find(s => s.key === 'payment_stripe_enabled');
         const dodo = settings.find(s => s.key === 'payment_dodo_enabled');
+        const paypal = settings.find(s => s.key === 'payment_paypal_enabled');
         const binanceId = settings.find(s => s.key === 'binance_pay_id');
         
         // Get fees
@@ -125,6 +128,7 @@ export default function Checkout() {
         const feeViva = settings.find(s => s.key === 'fee_viva');
         const feeStripe = settings.find(s => s.key === 'fee_stripe');
         const feeDodo = settings.find(s => s.key === 'fee_dodo');
+        const feePaypal = settings.find(s => s.key === 'fee_paypal');
         
         setWhatsappEnabled(whatsapp?.value !== 'false');
         setUsdtEnabled(usdt?.value !== 'false');
@@ -132,6 +136,7 @@ export default function Checkout() {
         setVivaEnabled(viva?.value === 'true');
         setStripeEnabled(stripe?.value === 'true');
         setDodoEnabled(dodo?.value === 'true');
+        setPaypalEnabled(paypal?.value === 'true');
         if (binanceId) setBinancePayId(binanceId.value);
         
         setFees({
@@ -141,6 +146,7 @@ export default function Checkout() {
           viva: parseFloat(feeViva?.value || '0') || 0,
           stripe: parseFloat(feeStripe?.value || '0') || 0,
           dodo: parseFloat(feeDodo?.value || '0') || 0,
+          paypal: parseFloat(feePaypal?.value || '0') || 0,
         });
       }
       setLoading(false);
@@ -455,6 +461,45 @@ export default function Checkout() {
     }
   };
 
+  const createPaypalPayment = async () => {
+    if (!user || cart.length === 0) {
+      toast.error('Please login and add items to cart');
+      return;
+    }
+
+    setCreatingPaypalPayment(true);
+    try {
+      const totalCredits = getCartCredits();
+      const totalAmount = Math.round(calculateTotalWithFee('paypal') * 100);
+
+      const response = await supabase.functions.invoke('create-paypal-checkout', {
+        body: {
+          credits: totalCredits,
+          amount: totalAmount,
+          creditType: getCartCreditType() || 'full',
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const data = response.data;
+      if (!data.approvalUrl) {
+        throw new Error(data.error || 'Failed to create PayPal checkout');
+      }
+
+      toast.success('Redirecting to PayPal...');
+      clearCart();
+      window.location.href = data.approvalUrl;
+    } catch (error: any) {
+      console.error('PayPal payment error:', error);
+      toast.error(error.message || 'Failed to create PayPal payment');
+    } finally {
+      setCreatingPaypalPayment(false);
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -717,6 +762,46 @@ export default function Checkout() {
                             <>
                               <CreditCard className="h-4 w-4 mr-2" />
                               Pay ${calculateTotalWithFee('dodo')} with Card
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* PayPal Payment */}
+                {paypalEnabled && (
+                  <div className="border rounded-lg p-4 hover:border-primary transition-colors border-[#003087]/30 bg-[#003087]/5">
+                    <div className="flex items-start gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-[#003087]/10 flex items-center justify-center flex-shrink-0">
+                        <Wallet className="h-6 w-6 text-[#003087]" />
+                      </div>
+                      <div className="flex-1 space-y-3">
+                        <div>
+                          <h3 className="font-semibold flex items-center gap-2">
+                            PayPal
+                            <Badge variant="secondary" className="text-xs">${calculateTotalWithFee('paypal').toFixed(2)}</Badge>
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            PayPal, Venmo, Pay Later
+                            {fees.paypal > 0 && <span className="text-amber-600"> (+{fees.paypal}% fee)</span>}
+                          </p>
+                        </div>
+                        <Button 
+                          className="w-full bg-[#003087] hover:bg-[#002060]"
+                          onClick={createPaypalPayment}
+                          disabled={creatingPaypalPayment}
+                        >
+                          {creatingPaypalPayment ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <Wallet className="h-4 w-4 mr-2" />
+                              Pay with PayPal
                             </>
                           )}
                         </Button>
