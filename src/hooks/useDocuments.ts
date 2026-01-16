@@ -54,7 +54,7 @@ export const useDocuments = () => {
       let query = supabase.from('documents').select('*');
 
       if (role === 'customer') {
-        query = query.eq('user_id', user.id).eq('deleted_by_user', false);
+        query = query.eq('user_id', user.id);
       }
 
       const { data, error } = await query.order('uploaded_at', { ascending: false });
@@ -768,16 +768,10 @@ export const useDocuments = () => {
         }
       }
 
-      // 5. Soft delete the document record (mark as deleted, don't actually delete)
+      // 5. Delete the document record from database
       const { error: docDeleteError } = await supabase
         .from('documents')
-        .update({
-          deleted_by_user: true,
-          deleted_at: new Date().toISOString(),
-          // Clear report paths since files are deleted from storage
-          similarity_report_path: null,
-          ai_report_path: null,
-        })
+        .delete()
         .eq('id', documentId);
 
       if (docDeleteError) throw docDeleteError;
@@ -810,7 +804,7 @@ export const useDocuments = () => {
 
       toast({
         title: 'File deleted successfully',
-        description: 'The document has been removed from your view.',
+        description: 'The document and all associated reports have been permanently removed.',
       });
 
       return { success: true };

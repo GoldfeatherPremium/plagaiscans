@@ -182,12 +182,10 @@ export default function AdminDashboardOverview() {
       };
       magicLinks.remainingCapacity = magicLinks.totalCapacity - magicLinks.uploadsUsed;
 
-      // Fetch scan type statistics - use high limit and filter out deleted docs
+      // Fetch scan type statistics
       const { data: allDocsForStats } = await supabase
         .from('documents')
-        .select('scan_type, status, completed_at')
-        .or('deleted_by_user.is.null,deleted_by_user.eq.false')
-        .limit(50000);
+        .select('scan_type, status, completed_at');
 
       const scanTypeStats = {
         fullScan: {
