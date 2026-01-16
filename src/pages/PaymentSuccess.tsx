@@ -161,7 +161,61 @@ const PaymentSuccess = () => {
       }
     };
 
-    if (provider === 'dodo') {
+    const verifyPaypalPayment = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setStatus('error');
+          setErrorMessage("Not authenticated");
+          return;
+        }
+
+        // Get the PayPal token from URL (PayPal uses 'token' param for order ID)
+        const paypalToken = searchParams.get('token');
+        if (!paypalToken) {
+          setStatus('error');
+          setErrorMessage("No PayPal order found");
+          return;
+        }
+
+        const { data, error } = await supabase.functions.invoke('verify-paypal-payment', {
+          body: { orderId: paypalToken },
+        });
+
+        if (error) {
+          console.error('PayPal verification error:', error);
+          setStatus('error');
+          setErrorMessage(error.message || "Failed to verify PayPal payment");
+          return;
+        }
+
+        if (data.success) {
+          setPaymentDetails({
+            creditsAdded: data.creditsAdded,
+            newBalance: data.newBalance,
+            transactionId: paypalToken.slice(-12).toUpperCase(),
+            paymentDate: new Date().toISOString(),
+            customerEmail: user?.email || '',
+            customerName: profile?.full_name || 'Customer',
+            amountPaid: data.amountPaid,
+          });
+          setStatus('success');
+          await refreshProfile();
+        } else {
+          setStatus('error');
+          setErrorMessage(data.message || "Payment verification failed");
+        }
+      } catch (err) {
+        console.error('Error verifying PayPal payment:', err);
+        setStatus('error');
+        setErrorMessage("An unexpected error occurred");
+      }
+    };
+
+    if (provider === 'paypal' || searchParams.get('token')) {
+      setPaymentProvider('paypal');
+      verifyPaypalPayment();
+    } else if (provider === 'dodo') {
       setPaymentProvider('dodo');
       verifyDodoPayment();
     } else if (sessionId) {
@@ -304,7 +358,7 @@ Visit us at: ${window.location.origin}
                       <CreditCard className="h-4 w-4" />
                       <span>{t('paymentSuccess.paymentMethod')}</span>
                     </div>
-                    <span className="font-medium">{paymentProvider === 'dodo' ? 'Dodo Payments' : 'Stripe'}</span>
+                    <span className="font-medium">{paymentProvider === 'dodo' ? 'Dodo Payments' : paymentProvider === 'paypal' ? 'PayPal' : 'Stripe'}</span>
                   </div>
                 </div>
 

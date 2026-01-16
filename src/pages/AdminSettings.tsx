@@ -25,6 +25,7 @@ export default function AdminSettings() {
   const [vivaEnabled, setVivaEnabled] = useState(false);
   const [stripeEnabled, setStripeEnabled] = useState(false);
   const [dodoEnabled, setDodoEnabled] = useState(false);
+  const [paypalEnabled, setPaypalEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
   const [savingBinance, setSavingBinance] = useState(false);
   
@@ -39,7 +40,15 @@ export default function AdminSettings() {
   const [vivaFee, setVivaFee] = useState('0');
   const [stripeFee, setStripeFee] = useState('0');
   const [dodoFee, setDodoFee] = useState('0');
+  const [paypalFee, setPaypalFee] = useState('0');
   const [savingFees, setSavingFees] = useState(false);
+  
+  // PayPal settings
+  const [paypalClientId, setPaypalClientId] = useState('');
+  const [paypalClientSecret, setPaypalClientSecret] = useState('');
+  const [paypalEnvironment, setPaypalEnvironment] = useState('live');
+  const [savingPaypal, setSavingPaypal] = useState(false);
+  const [showPaypalSecret, setShowPaypalSecret] = useState(false);
   
   // Push notification settings
   const [vapidPublicKey, setVapidPublicKey] = useState('');
@@ -78,6 +87,7 @@ export default function AdminSettings() {
       'payment_viva_enabled',
       'payment_stripe_enabled',
       'payment_dodo_enabled',
+      'payment_paypal_enabled',
       'binance_pay_id',
       'viva_source_code',
       'fee_whatsapp',
@@ -86,6 +96,7 @@ export default function AdminSettings() {
       'fee_viva',
       'fee_stripe',
       'fee_dodo',
+      'fee_paypal',
       'vapid_public_key',
       'maintenance_mode_enabled',
       'maintenance_message',
@@ -93,7 +104,10 @@ export default function AdminSettings() {
       'pending_notification_minutes',
       'google_client_id',
       'google_client_secret',
-      'google_oauth_enabled'
+      'google_oauth_enabled',
+      'paypal_client_id',
+      'paypal_client_secret',
+      'paypal_environment'
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
@@ -104,6 +118,7 @@ export default function AdminSettings() {
       const vivaPayment = data.find(s => s.key === 'payment_viva_enabled');
       const stripePayment = data.find(s => s.key === 'payment_stripe_enabled');
       const dodoPayment = data.find(s => s.key === 'payment_dodo_enabled');
+      const paypalPayment = data.find(s => s.key === 'payment_paypal_enabled');
       const binanceId = data.find(s => s.key === 'binance_pay_id');
       const vivaSource = data.find(s => s.key === 'viva_source_code');
       const feeWhatsapp = data.find(s => s.key === 'fee_whatsapp');
@@ -112,6 +127,7 @@ export default function AdminSettings() {
       const feeViva = data.find(s => s.key === 'fee_viva');
       const feeStripe = data.find(s => s.key === 'fee_stripe');
       const feeDodo = data.find(s => s.key === 'fee_dodo');
+      const feePaypal = data.find(s => s.key === 'fee_paypal');
       
       if (whatsapp) setWhatsappNumber(whatsapp.value);
       if (timeout) setProcessingTimeout(timeout.value);
@@ -121,6 +137,7 @@ export default function AdminSettings() {
       setVivaEnabled(vivaPayment?.value === 'true');
       setStripeEnabled(stripePayment?.value === 'true');
       setDodoEnabled(dodoPayment?.value === 'true');
+      setPaypalEnabled(paypalPayment?.value === 'true');
       if (binanceId) setBinancePayId(binanceId.value);
       if (vivaSource) setVivaSourceCode(vivaSource.value);
       if (feeWhatsapp) setWhatsappFee(feeWhatsapp.value);
@@ -129,6 +146,15 @@ export default function AdminSettings() {
       if (feeViva) setVivaFee(feeViva.value);
       if (feeStripe) setStripeFee(feeStripe.value);
       if (feeDodo) setDodoFee(feeDodo.value);
+      if (feePaypal) setPaypalFee(feePaypal.value);
+      
+      // PayPal credentials
+      const paypalClientIdSetting = data.find(s => s.key === 'paypal_client_id');
+      const paypalClientSecretSetting = data.find(s => s.key === 'paypal_client_secret');
+      const paypalEnvironmentSetting = data.find(s => s.key === 'paypal_environment');
+      if (paypalClientIdSetting) setPaypalClientId(paypalClientIdSetting.value);
+      if (paypalClientSecretSetting) setPaypalClientSecret(paypalClientSecretSetting.value);
+      if (paypalEnvironmentSetting) setPaypalEnvironment(paypalEnvironmentSetting.value);
       
       const vapidKey = data.find(s => s.key === 'vapid_public_key');
       if (vapidKey) setVapidPublicKey(vapidKey.value);
@@ -202,9 +228,13 @@ export default function AdminSettings() {
       .from('settings')
       .upsert({ key: 'payment_dodo_enabled', value: dodoEnabled.toString() }, { onConflict: 'key' });
     
+    const { error: error7 } = await supabase
+      .from('settings')
+      .upsert({ key: 'payment_paypal_enabled', value: paypalEnabled.toString() }, { onConflict: 'key' });
+    
     setSavingPaymentMethods(false);
     
-    if (error1 || error2 || error3 || error4 || error5 || error6) {
+    if (error1 || error2 || error3 || error4 || error5 || error6 || error7) {
       toast({ title: 'Error', description: 'Failed to save payment settings', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Payment methods updated' });
@@ -253,6 +283,7 @@ export default function AdminSettings() {
       supabase.from('settings').upsert({ key: 'fee_viva', value: vivaFee }, { onConflict: 'key' }),
       supabase.from('settings').upsert({ key: 'fee_stripe', value: stripeFee }, { onConflict: 'key' }),
       supabase.from('settings').upsert({ key: 'fee_dodo', value: dodoFee }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'fee_paypal', value: paypalFee }, { onConflict: 'key' }),
     ];
     
     const results = await Promise.all(updates);
@@ -397,6 +428,27 @@ export default function AdminSettings() {
       toast({ title: 'Error', description: 'Failed to save Google OAuth settings', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Google OAuth settings updated' });
+    }
+  };
+
+  const savePaypalSettings = async () => {
+    setSavingPaypal(true);
+    
+    const updates = [
+      supabase.from('settings').upsert({ key: 'paypal_client_id', value: paypalClientId }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'paypal_client_secret', value: paypalClientSecret }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'paypal_environment', value: paypalEnvironment }, { onConflict: 'key' }),
+    ];
+    
+    const results = await Promise.all(updates);
+    const hasError = results.some(r => r.error);
+    
+    setSavingPaypal(false);
+    
+    if (hasError) {
+      toast({ title: 'Error', description: 'Failed to save PayPal settings', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: 'PayPal settings updated' });
     }
   };
 
@@ -577,6 +629,21 @@ export default function AdminSettings() {
                 onCheckedChange={setDodoEnabled}
               />
             </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg border-[#003087]/30 bg-[#003087]/5">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-[#003087]/10 flex items-center justify-center">
+                  <Wallet className="h-5 w-5 text-[#003087]" />
+                </div>
+                <div>
+                  <p className="font-medium">PayPal</p>
+                  <p className="text-sm text-muted-foreground">PayPal, Venmo, Pay Later</p>
+                </div>
+              </div>
+              <Switch
+                checked={paypalEnabled}
+                onCheckedChange={setPaypalEnabled}
+              />
+            </div>
             <Button onClick={savePaymentMethods} disabled={savingPaymentMethods}>
               {savingPaymentMethods ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Payment Settings
@@ -692,11 +759,117 @@ export default function AdminSettings() {
                   onChange={(e) => setDodoFee(e.target.value)}
                 />
               </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-[#003087]" />
+                  PayPal Fee (%)
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.1"
+                  placeholder="0"
+                  value={paypalFee}
+                  onChange={(e) => setPaypalFee(e.target.value)}
+                />
+              </div>
             </div>
             
             <Button onClick={savePaymentFees} disabled={savingFees}>
               {savingFees ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Payment Fees
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* PayPal Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-[#003087]" />
+              PayPal Configuration
+            </CardTitle>
+            <CardDescription>Configure your PayPal REST API credentials</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="paypalClientId">Client ID</Label>
+              <Input
+                id="paypalClientId"
+                placeholder="Enter your PayPal Client ID"
+                value={paypalClientId}
+                onChange={(e) => setPaypalClientId(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                From your PayPal Developer Dashboard REST API app
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="paypalClientSecret">Client Secret</Label>
+              <div className="relative">
+                <Input
+                  id="paypalClientSecret"
+                  type={showPaypalSecret ? "text" : "password"}
+                  placeholder="Enter your PayPal Client Secret"
+                  value={paypalClientSecret}
+                  onChange={(e) => setPaypalClientSecret(e.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
+                  onClick={() => setShowPaypalSecret(!showPaypalSecret)}
+                >
+                  {showPaypalSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="paypalEnvironment">Environment</Label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paypalEnvironment"
+                    value="sandbox"
+                    checked={paypalEnvironment === 'sandbox'}
+                    onChange={(e) => setPaypalEnvironment(e.target.value)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Sandbox (Testing)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paypalEnvironment"
+                    value="live"
+                    checked={paypalEnvironment === 'live'}
+                    onChange={(e) => setPaypalEnvironment(e.target.value)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Live (Production)</span>
+                </label>
+              </div>
+            </div>
+            
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Webhook URL:</strong> Configure this webhook in your PayPal Developer Dashboard:
+                <code className="block mt-1 text-xs bg-muted px-2 py-1 rounded break-all">
+                  https://fyssbzgmhnolazjfwafm.supabase.co/functions/v1/paypal-webhook
+                </code>
+                <span className="block mt-1">Subscribe to: CHECKOUT.ORDER.APPROVED, PAYMENT.CAPTURE.COMPLETED</span>
+              </AlertDescription>
+            </Alert>
+            
+            <Button onClick={savePaypalSettings} disabled={savingPaypal}>
+              {savingPaypal ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save PayPal Settings
             </Button>
           </CardContent>
         </Card>
