@@ -29,7 +29,8 @@ export default function StaffStats() {
       .from('activity_logs')
       .select('*')
       .eq('staff_id', user.id)
-      .eq('action', 'Changed status to completed');
+      .eq('action', 'Changed status to completed')
+      .limit(50000);
 
     const allLogs = logs || [];
     setTotalProcessed(allLogs.length);

@@ -67,7 +67,7 @@ export default function AdminDeletedDocuments() {
       .from('deleted_documents_log')
       .select('*')
       .order('deleted_at', { ascending: false })
-      .limit(500);
+      .limit(50000);
 
     if (error) {
       console.error('Error fetching deleted documents:', error);

@@ -65,7 +65,7 @@ export default function AdminEmailDeliveryLogs() {
         .from('transactional_email_logs')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(50000);
 
       if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);

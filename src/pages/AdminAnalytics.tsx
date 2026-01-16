@@ -34,7 +34,7 @@ export default function AdminAnalytics() {
     setTotalUsers(userCount || 0);
 
     // Fetch documents
-    const { data: docs } = await supabase.from('documents').select('*');
+    const { data: docs } = await supabase.from('documents').select('*').limit(50000);
     const allDocs = docs || [];
     setTotalDocs(allDocs.length);
     setPendingDocs(allDocs.filter((d) => d.status === 'pending').length);
@@ -71,7 +71,8 @@ export default function AdminAnalytics() {
     const { data: activityLogs } = await supabase
       .from('activity_logs')
       .select('staff_id')
-      .eq('action', 'Changed status to completed');
+      .eq('action', 'Changed status to completed')
+      .limit(50000);
 
     if (activityLogs) {
       const staffCounts: Record<string, number> = {};

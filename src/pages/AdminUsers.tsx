@@ -96,13 +96,15 @@ export default function AdminUsers() {
     const { data: profiles, error } = await supabase
       .from('profiles')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50000);
     
     if (!error && profiles) {
       // Fetch roles for all users
       const { data: roles } = await supabase
         .from('user_roles')
-        .select('user_id, role');
+        .select('user_id, role')
+        .limit(50000);
       
       const roleMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
       
