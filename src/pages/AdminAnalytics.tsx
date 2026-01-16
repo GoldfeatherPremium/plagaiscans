@@ -33,8 +33,12 @@ export default function AdminAnalytics() {
     const { count: userCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
     setTotalUsers(userCount || 0);
 
-    // Fetch documents
-    const { data: docs } = await supabase.from('documents').select('*').limit(50000);
+    // Fetch documents (exclude soft-deleted documents)
+    const { data: docs } = await supabase
+      .from('documents')
+      .select('*')
+      .is('deleted_at', null)
+      .limit(50000);
     const allDocs = docs || [];
     setTotalDocs(allDocs.length);
     setPendingDocs(allDocs.filter((d) => d.status === 'pending').length);
