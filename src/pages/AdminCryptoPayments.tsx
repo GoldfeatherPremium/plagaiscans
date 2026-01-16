@@ -43,8 +43,7 @@ export default function AdminCryptoPayments() {
     const { data: paymentsData, error } = await supabase
       .from('crypto_payments')
       .select('*')
-      .order('created_at', { ascending: false })
-      .limit(10000);
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching payments:', error);

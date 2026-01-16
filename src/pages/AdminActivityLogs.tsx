@@ -53,7 +53,7 @@ export default function AdminActivityLogs() {
         document_id
       `)
       .order('created_at', { ascending: false })
-      .limit(50000);
+      .limit(200);
 
     if (docLogs) {
       const staffIds = [...new Set(docLogs.map(d => d.staff_id))];
@@ -81,7 +81,7 @@ export default function AdminActivityLogs() {
       .from('credit_transactions')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(50000);
+      .limit(200);
 
     if (creditLogs) {
       const userIds = [...new Set(creditLogs.map(c => c.user_id))];

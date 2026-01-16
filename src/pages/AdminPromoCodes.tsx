@@ -74,8 +74,7 @@ export default function AdminPromoCodes() {
     const { data, error } = await supabase
       .from('promo_codes')
       .select('*')
-      .order('created_at', { ascending: false })
-      .limit(5000);
+      .order('created_at', { ascending: false });
 
     if (!error && data) {
       setPromoCodes(data);

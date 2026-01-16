@@ -69,16 +69,12 @@ export default function AdminSystemHealth() {
       .from('profiles')
       .select('*', { count: 'exact', head: true });
 
-    // Fetch documents - use high limit and filter out deleted
-    const { data: docs } = await supabase
-      .from('documents')
-      .select('*')
-      .or('deleted_by_user.is.null,deleted_by_user.eq.false')
-      .limit(50000);
+    // Fetch documents
+    const { data: docs } = await supabase.from('documents').select('*');
     const allDocs = docs || [];
 
     // Fetch total credits in system
-    const { data: profiles } = await supabase.from('profiles').select('credit_balance').limit(10000);
+    const { data: profiles } = await supabase.from('profiles').select('credit_balance');
     const totalCredits = profiles?.reduce((sum, p) => sum + (p.credit_balance || 0), 0) || 0;
 
     // Fetch active staff count

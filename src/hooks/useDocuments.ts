@@ -57,7 +57,7 @@ export const useDocuments = () => {
         query = query.eq('user_id', user.id).eq('deleted_by_user', false);
       }
 
-      const { data, error } = await query.order('uploaded_at', { ascending: false }).limit(50000);
+      const { data, error } = await query.order('uploaded_at', { ascending: false });
 
       if (error) throw error;
 
