@@ -1409,6 +1409,96 @@ export type Database = {
         }
         Relationships: []
       }
+      paypal_payments: {
+        Row: {
+          amount_usd: number
+          completed_at: string | null
+          created_at: string | null
+          credit_type: string | null
+          credits: number
+          customer_email: string | null
+          id: string
+          metadata: Json | null
+          order_id: string
+          payer_email: string | null
+          payer_id: string | null
+          payment_id: string | null
+          receipt_url: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_usd: number
+          completed_at?: string | null
+          created_at?: string | null
+          credit_type?: string | null
+          credits: number
+          customer_email?: string | null
+          id?: string
+          metadata?: Json | null
+          order_id: string
+          payer_email?: string | null
+          payer_id?: string | null
+          payment_id?: string | null
+          receipt_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_usd?: number
+          completed_at?: string | null
+          created_at?: string | null
+          credit_type?: string | null
+          credits?: number
+          customer_email?: string | null
+          id?: string
+          metadata?: Json | null
+          order_id?: string
+          payer_email?: string | null
+          payer_id?: string | null
+          payment_id?: string | null
+          receipt_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      paypal_webhook_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          event_id: string
+          event_type: string
+          id: string
+          payload: Json | null
+          processed: boolean | null
+          processed_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          event_id: string
+          event_type: string
+          id?: string
+          payload?: Json | null
+          processed?: boolean | null
+          processed_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          event_id?: string
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          processed?: boolean | null
+          processed_at?: string | null
+        }
+        Relationships: []
+      }
       pricing_packages: {
         Row: {
           billing_interval: string | null
