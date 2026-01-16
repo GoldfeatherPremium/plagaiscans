@@ -18,6 +18,8 @@ export default function AdminAnalytics() {
   const [totalDocs, setTotalDocs] = useState(0);
   const [pendingDocs, setPendingDocs] = useState(0);
   const [completedDocs, setCompletedDocs] = useState(0);
+  const [completedFullDocs, setCompletedFullDocs] = useState(0);
+  const [completedSimilarityDocs, setCompletedSimilarityDocs] = useState(0);
   const [dailyStats, setDailyStats] = useState<{ date: string; count: number }[]>([]);
   const [weeklyStats, setWeeklyStats] = useState<{ week: string; count: number }[]>([]);
   const [staffPerformance, setStaffPerformance] = useState<StaffStats[]>([]);
@@ -42,7 +44,14 @@ export default function AdminAnalytics() {
     const allDocs = docs || [];
     setTotalDocs(allDocs.length);
     setPendingDocs(allDocs.filter((d) => d.status === 'pending').length);
-    setCompletedDocs(allDocs.filter((d) => d.status === 'completed').length);
+
+    const completedAll = allDocs.filter((d) => d.status === 'completed');
+    const completedFull = completedAll.filter((d) => d.scan_type === 'full');
+    const completedSimilarity = completedAll.filter((d) => d.scan_type === 'similarity_only');
+
+    setCompletedDocs(completedAll.length);
+    setCompletedFullDocs(completedFull.length);
+    setCompletedSimilarityDocs(completedSimilarity.length);
 
     // Calculate daily stats (last 7 days)
     const last7Days: { date: string; count: number }[] = [];
@@ -171,8 +180,11 @@ export default function AdminAnalytics() {
                 <CheckCircle className="h-6 w-6 text-secondary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Completed</p>
-                <p className="text-2xl font-bold">{completedDocs}</p>
+                <p className="text-sm text-muted-foreground">Completed AI Scans</p>
+                <p className="text-2xl font-bold">{completedFullDocs}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  All completed: {completedDocs} • Similarity: {completedSimilarityDocs}
+                </p>
               </div>
             </CardContent>
           </Card>
