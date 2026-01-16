@@ -51,53 +51,83 @@ export const useDocuments = () => {
 
     setLoading(true);
     try {
-      let query = supabase.from('documents').select('*');
+      // Paginated fetching to bypass 1000 row limit
+      const PAGE_SIZE = 1000;
+      const MAX_DOCS = 100000;
+      let allDocs: any[] = [];
+      let offset = 0;
+      let hasMore = true;
 
-      if (role === 'customer') {
-        query = query.eq('user_id', user.id);
+      while (hasMore && allDocs.length < MAX_DOCS) {
+        let query = supabase.from('documents').select('*');
+
+        if (role === 'customer') {
+          query = query.eq('user_id', user.id);
+        }
+
+        const { data, error } = await query
+          .order('uploaded_at', { ascending: false })
+          .range(offset, offset + PAGE_SIZE - 1);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          hasMore = false;
+        } else {
+          allDocs = [...allDocs, ...data];
+          offset += PAGE_SIZE;
+          // If we got fewer than PAGE_SIZE, we've reached the end
+          if (data.length < PAGE_SIZE) {
+            hasMore = false;
+          }
+        }
       }
 
-      const { data, error } = await query.order('uploaded_at', { ascending: false }).limit(50000);
-
-      if (error) throw error;
-
       // Fetch staff profiles for assigned documents
-      const staffIds = [...new Set((data || []).filter(d => d.assigned_staff_id).map(d => d.assigned_staff_id))];
+      const staffIds = [...new Set(allDocs.filter(d => d.assigned_staff_id).map(d => d.assigned_staff_id))];
       let staffProfiles: Record<string, { email: string; full_name: string | null }> = {};
       
       if (staffIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, email, full_name')
-          .in('id', staffIds);
-        
-        if (profiles) {
-          staffProfiles = profiles.reduce((acc, p) => {
-            acc[p.id] = { email: p.email, full_name: p.full_name };
-            return acc;
-          }, {} as Record<string, { email: string; full_name: string | null }>);
+        // Batch fetch profiles in chunks of 500 to avoid query limits
+        const PROFILE_BATCH_SIZE = 500;
+        for (let i = 0; i < staffIds.length; i += PROFILE_BATCH_SIZE) {
+          const batch = staffIds.slice(i, i + PROFILE_BATCH_SIZE);
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, email, full_name')
+            .in('id', batch);
+          
+          if (profiles) {
+            profiles.forEach(p => {
+              staffProfiles[p.id] = { email: p.email, full_name: p.full_name };
+            });
+          }
         }
       }
 
       // Fetch customer profiles (document owners) - filter out null user_ids
-      const customerIds = [...new Set((data || []).filter(d => d.user_id).map(d => d.user_id as string))];
+      const customerIds = [...new Set(allDocs.filter(d => d.user_id).map(d => d.user_id as string))];
       let customerProfiles: Record<string, { email: string; full_name: string | null }> = {};
       
       if (customerIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, email, full_name')
-          .in('id', customerIds);
-        
-        if (profiles) {
-          customerProfiles = profiles.reduce((acc, p) => {
-            acc[p.id] = { email: p.email, full_name: p.full_name };
-            return acc;
-          }, {} as Record<string, { email: string; full_name: string | null }>);
+        // Batch fetch profiles in chunks of 500 to avoid query limits
+        const PROFILE_BATCH_SIZE = 500;
+        for (let i = 0; i < customerIds.length; i += PROFILE_BATCH_SIZE) {
+          const batch = customerIds.slice(i, i + PROFILE_BATCH_SIZE);
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, email, full_name')
+            .in('id', batch);
+          
+          if (profiles) {
+            profiles.forEach(p => {
+              customerProfiles[p.id] = { email: p.email, full_name: p.full_name };
+            });
+          }
         }
       }
 
-      const docsWithProfiles = (data || []).map(doc => ({
+      const docsWithProfiles = allDocs.map(doc => ({
         ...doc,
         staff_profile: doc.assigned_staff_id ? staffProfiles[doc.assigned_staff_id] : undefined,
         customer_profile: doc.user_id ? customerProfiles[doc.user_id] : undefined

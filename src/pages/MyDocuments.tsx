@@ -9,7 +9,7 @@ import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/compo
 import { useTranslation } from 'react-i18next';
 
 import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
-import { FileText, Download, Loader2, DownloadCloud, Package, Trash2, Pencil } from 'lucide-react';
+import { FileText, Download, Loader2, DownloadCloud, Package, Trash2, Pencil, ChevronDown } from 'lucide-react';
 import { PushNotificationBanner } from '@/components/PushNotificationBanner';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -55,10 +55,32 @@ export default function MyDocuments() {
     dateFrom: undefined,
     dateTo: undefined
   });
+  
+  // Load more state - show 200 initially, load 200 more each click
+  const INITIAL_LOAD = 200;
+  const LOAD_MORE_COUNT = 200;
+  const [visibleCount, setVisibleCount] = useState(INITIAL_LOAD);
 
-  const filteredDocuments = useMemo(() => {
+  const allFilteredDocuments = useMemo(() => {
     return filterDocuments(documents, filters);
   }, [documents, filters]);
+  
+  // Reset visible count when filters change
+  React.useEffect(() => {
+    setVisibleCount(INITIAL_LOAD);
+  }, [filters]);
+  
+  // Slice to show only visible documents
+  const filteredDocuments = useMemo(() => {
+    return allFilteredDocuments.slice(0, visibleCount);
+  }, [allFilteredDocuments, visibleCount]);
+  
+  const hasMoreToLoad = visibleCount < allFilteredDocuments.length;
+  const remainingCount = allFilteredDocuments.length - visibleCount;
+  
+  const handleLoadMore = () => {
+    setVisibleCount(prev => prev + LOAD_MORE_COUNT);
+  };
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -82,7 +104,8 @@ export default function MyDocuments() {
   };
 
   const selectAll = () => {
-    const completedDocs = filteredDocuments.filter(d => d.status === 'completed');
+    // Select all completed docs from the FULL filtered list (not just visible)
+    const completedDocs = allFilteredDocuments.filter(d => d.status === 'completed');
     setSelectedIds(new Set(completedDocs.map(d => d.id)));
   };
 
@@ -139,8 +162,10 @@ export default function MyDocuments() {
     setDocumentToDelete(null);
   };
 
-  const completedCount = filteredDocuments.filter(d => d.status === 'completed').length;
-  const selectedCompletedCount = filteredDocuments.filter(d => selectedIds.has(d.id) && d.status === 'completed').length;
+  // Use full filtered list for counts
+  const allCompletedCount = allFilteredDocuments.filter(d => d.status === 'completed').length;
+  const selectedCompletedCount = allFilteredDocuments.filter(d => selectedIds.has(d.id) && d.status === 'completed').length;
+  const visibleCompletedCount = filteredDocuments.filter(d => d.status === 'completed').length;
 
   return (
     <DashboardLayout>
@@ -151,21 +176,21 @@ export default function MyDocuments() {
           <div>
             <h1 className="text-3xl font-display font-bold">{t('documents.title')}</h1>
             <p className="text-muted-foreground mt-1">
-              {t('documents.subtitle')}
+              {t('documents.subtitle')} ({allFilteredDocuments.length} total)
             </p>
           </div>
           
           {/* Bulk actions */}
-          {completedCount > 0 && (
+          {allCompletedCount > 0 && (
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={selectAll}
-                disabled={selectedIds.size === completedCount}
+                disabled={selectedIds.size === allCompletedCount}
               >
                 <Package className="h-4 w-4 mr-1" />
-                Select All ({completedCount})
+                Select All ({allCompletedCount})
               </Button>
               {selectedIds.size > 0 && (
                 <>
@@ -262,7 +287,7 @@ export default function MyDocuments() {
                     <TableRow>
                       <TableHead className="w-10">
                         <Checkbox
-                          checked={selectedIds.size === completedCount && completedCount > 0}
+                          checked={selectedIds.size === allCompletedCount && allCompletedCount > 0}
                           onCheckedChange={(checked) => checked ? selectAll() : clearSelection()}
                         />
                       </TableHead>
@@ -415,6 +440,20 @@ export default function MyDocuments() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Load More Button */}
+        {hasMoreToLoad && !loading && (
+          <div className="flex justify-center pt-4">
+            <Button
+              variant="outline"
+              onClick={handleLoadMore}
+              className="gap-2"
+            >
+              <ChevronDown className="h-4 w-4" />
+              Load More ({Math.min(remainingCount, LOAD_MORE_COUNT)} of {remainingCount} remaining)
+            </Button>
+          </div>
         )}
 
         {/* Delete Confirmation Dialog */}
