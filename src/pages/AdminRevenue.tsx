@@ -75,7 +75,8 @@ export default function AdminRevenue() {
     const { data: transactions } = await supabase
       .from('credit_transactions')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50000);
 
     if (!transactions) {
       setLoading(false);

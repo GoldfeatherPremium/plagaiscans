@@ -76,7 +76,8 @@ export default function AdminStaffWork() {
       .from('activity_logs')
       .select('*')
       .eq('action', 'Changed status to completed')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50000);
 
     if (selectedStaff !== 'all') {
       logsQuery = logsQuery.eq('staff_id', selectedStaff);
@@ -93,7 +94,8 @@ export default function AdminStaffWork() {
       const { data: docs } = await supabase
         .from('documents')
         .select('id, file_name, completed_at')
-        .in('id', docIds);
+        .in('id', docIds)
+        .limit(50000);
 
       docs?.forEach((d) => {
         documents[d.id] = d;

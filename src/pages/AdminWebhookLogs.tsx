@@ -36,7 +36,7 @@ const AdminWebhookLogs: React.FC = () => {
         .from('stripe_webhook_logs')
         .select('*')
         .order('received_at', { ascending: false })
-        .limit(200);
+        .limit(50000);
 
       if (error) throw error;
       return data as WebhookLog[];

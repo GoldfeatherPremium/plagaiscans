@@ -41,7 +41,8 @@ export default function CustomerDocumentAnalytics() {
         .from('documents')
         .select('*')
         .eq('user_id', user.id)
-        .order('uploaded_at', { ascending: false });
+        .order('uploaded_at', { ascending: false })
+        .limit(50000);
 
       if (!documents) return null;
 

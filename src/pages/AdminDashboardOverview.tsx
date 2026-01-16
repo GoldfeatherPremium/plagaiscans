@@ -185,7 +185,8 @@ export default function AdminDashboardOverview() {
       // Fetch scan type statistics
       const { data: allDocsForStats } = await supabase
         .from('documents')
-        .select('scan_type, status, completed_at');
+        .select('scan_type, status, completed_at')
+        .limit(50000);
 
       const scanTypeStats = {
         fullScan: {

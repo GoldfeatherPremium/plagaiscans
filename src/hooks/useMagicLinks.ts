@@ -57,7 +57,8 @@ export const useMagicLinks = () => {
       const { data, error } = await supabase
         .from('magic_upload_links')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50000);
 
       if (error) throw error;
       setMagicLinks(data || []);

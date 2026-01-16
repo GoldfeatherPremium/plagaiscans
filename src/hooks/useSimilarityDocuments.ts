@@ -42,7 +42,8 @@ export const useSimilarityDocuments = () => {
         .from('documents')
         .select('*')
         .eq('scan_type', 'similarity_only')
-        .order('uploaded_at', { ascending: false });
+        .order('uploaded_at', { ascending: false })
+        .limit(50000);
 
       // Filter based on role
       if (role === 'customer') {
