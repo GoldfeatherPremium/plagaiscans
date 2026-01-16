@@ -50,27 +50,56 @@ export const useDocuments = () => {
     if (!user) return;
 
     setLoading(true);
+
+    // NOTE: The backend caps single responses to ~1000 rows.
+    // To support large histories (e.g. 100k documents), we page using .range().
+    const PAGE_SIZE = 1000;
+    const MAX_ROWS = role === 'customer' ? 100000 : 50000;
+
     try {
-      let query = supabase.from('documents').select('*');
+      let baseQuery = supabase
+        .from('documents')
+        .select('*')
+        .is('deleted_at', null);
 
       if (role === 'customer') {
-        query = query.eq('user_id', user.id);
+        baseQuery = baseQuery.eq('user_id', user.id);
       }
 
-      const { data, error } = await query.order('uploaded_at', { ascending: false }).limit(50000);
+      const all: any[] = [];
+      for (let from = 0; from < MAX_ROWS; from += PAGE_SIZE) {
+        const to = Math.min(from + PAGE_SIZE - 1, MAX_ROWS - 1);
 
-      if (error) throw error;
+        const { data, error } = await baseQuery
+          .order('uploaded_at', { ascending: false })
+          .range(from, to);
+
+        if (error) throw error;
+        const chunk = data || [];
+        all.push(...chunk);
+
+        // No more rows.
+        if (chunk.length < PAGE_SIZE) break;
+      }
+
+      // For customers, we don't need to join in staff/customer profile lookups.
+      if (role === 'customer') {
+        setDocuments(all as Document[]);
+        return;
+      }
 
       // Fetch staff profiles for assigned documents
-      const staffIds = [...new Set((data || []).filter(d => d.assigned_staff_id).map(d => d.assigned_staff_id))];
+      const staffIds = [
+        ...new Set(all.filter((d) => d.assigned_staff_id).map((d) => d.assigned_staff_id)),
+      ] as string[];
       let staffProfiles: Record<string, { email: string; full_name: string | null }> = {};
-      
+
       if (staffIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, email, full_name')
           .in('id', staffIds);
-        
+
         if (profiles) {
           staffProfiles = profiles.reduce((acc, p) => {
             acc[p.id] = { email: p.email, full_name: p.full_name };
@@ -79,16 +108,18 @@ export const useDocuments = () => {
         }
       }
 
-      // Fetch customer profiles (document owners) - filter out null user_ids
-      const customerIds = [...new Set((data || []).filter(d => d.user_id).map(d => d.user_id as string))];
+      // Fetch customer profiles (document owners)
+      const customerIds = [...new Set(all.filter((d) => d.user_id).map((d) => d.user_id as string))];
       let customerProfiles: Record<string, { email: string; full_name: string | null }> = {};
-      
-      if (customerIds.length > 0) {
+
+      // Guard: very large IN lists can fail. For staff/admin views, we cap to 1000 ids.
+      const safeCustomerIds = customerIds.slice(0, 1000);
+      if (safeCustomerIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, email, full_name')
-          .in('id', customerIds);
-        
+          .in('id', safeCustomerIds);
+
         if (profiles) {
           customerProfiles = profiles.reduce((acc, p) => {
             acc[p.id] = { email: p.email, full_name: p.full_name };
@@ -97,10 +128,10 @@ export const useDocuments = () => {
         }
       }
 
-      const docsWithProfiles = (data || []).map(doc => ({
+      const docsWithProfiles = all.map((doc) => ({
         ...doc,
         staff_profile: doc.assigned_staff_id ? staffProfiles[doc.assigned_staff_id] : undefined,
-        customer_profile: doc.user_id ? customerProfiles[doc.user_id] : undefined
+        customer_profile: doc.user_id ? customerProfiles[doc.user_id] : undefined,
       }));
 
       setDocuments(docsWithProfiles as Document[]);
