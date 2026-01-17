@@ -97,6 +97,7 @@ const AdminInvoices = lazy(() => import("./pages/AdminInvoices"));
 const AdminBankStatements = lazy(() => import("./pages/AdminBankStatements"));
 const AdminCreditValidity = lazy(() => import("./pages/AdminCreditValidity"));
 const AdminDeletedDocuments = lazy(() => import("./pages/AdminDeletedDocuments"));
+const AdminVivaPayments = lazy(() => import("./pages/AdminVivaPayments"));
 const queryClient = new QueryClient();
 
 // Loading skeleton component for Suspense fallback
@@ -322,6 +323,7 @@ const AppRoutes = () => (
         <Route path="/dashboard/all-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminUnifiedPayments /></ProtectedRoute>} />
         <Route path="/dashboard/credit-validity" element={<ProtectedRoute allowedRoles={['admin']}><AdminCreditValidity /></ProtectedRoute>} />
         <Route path="/dashboard/deleted-documents" element={<ProtectedRoute allowedRoles={['admin']}><AdminDeletedDocuments /></ProtectedRoute>} />
+        <Route path="/dashboard/viva-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminVivaPayments /></ProtectedRoute>} />
       <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       
       <Route path="*" element={<NotFound />} />
