@@ -21,12 +21,6 @@ verify_jwt = false
 [functions.viva-payments]
 verify_jwt = false
 
-[functions.viva-webhook]
-verify_jwt = false
-
-[functions.verify-viva-payment]
-verify_jwt = false
-
 [functions.send-push-notification]
 verify_jwt = false
 

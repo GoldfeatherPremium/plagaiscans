@@ -212,64 +212,7 @@ const PaymentSuccess = () => {
       }
     };
 
-    const verifyVivaPayment = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          setStatus('error');
-          setErrorMessage("Not authenticated");
-          return;
-        }
-
-        // Viva.com returns 's' (orderCode) and 't' (transactionId) as URL params
-        const orderCode = searchParams.get('s');
-        const transactionId = searchParams.get('t');
-        
-        if (!orderCode) {
-          setStatus('error');
-          setErrorMessage("No Viva.com order found");
-          return;
-        }
-
-        const { data, error } = await supabase.functions.invoke('verify-viva-payment', {
-          body: { orderCode, transactionId },
-        });
-
-        if (error) {
-          console.error('Viva verification error:', error);
-          setStatus('error');
-          setErrorMessage(error.message || "Failed to verify Viva.com payment");
-          return;
-        }
-
-        if (data.success) {
-          setPaymentDetails({
-            creditsAdded: data.creditsAdded,
-            newBalance: data.newBalance,
-            transactionId: orderCode.slice(-12).toUpperCase(),
-            paymentDate: new Date().toISOString(),
-            customerEmail: user?.email || '',
-            customerName: profile?.full_name || 'Customer',
-            amountPaid: data.amountPaid,
-          });
-          setStatus('success');
-          await refreshProfile();
-        } else {
-          setStatus('error');
-          setErrorMessage(data.error || "Payment verification failed");
-        }
-      } catch (err) {
-        console.error('Error verifying Viva payment:', err);
-        setStatus('error');
-        setErrorMessage("An unexpected error occurred");
-      }
-    };
-
-    // Detect Viva.com payment (has 's' param for orderCode)
-    if (provider === 'viva' || searchParams.get('s')) {
-      setPaymentProvider('viva');
-      verifyVivaPayment();
-    } else if (provider === 'paypal' || searchParams.get('token')) {
+    if (provider === 'paypal' || searchParams.get('token')) {
       setPaymentProvider('paypal');
       verifyPaypalPayment();
     } else if (provider === 'dodo') {
@@ -282,7 +225,7 @@ const PaymentSuccess = () => {
       setStatus('error');
       setErrorMessage("No payment session found");
     }
-  }, [sessionId, provider, paymentId, paymentStatus, refreshProfile, user, profile, searchParams]);
+  }, [sessionId, provider, paymentId, paymentStatus, refreshProfile, user, profile]);
 
   const handlePrint = () => {
     window.print();
@@ -308,7 +251,7 @@ Payment Details:
 Credits Purchased: ${paymentDetails.creditsAdded}
 New Credit Balance: ${paymentDetails.newBalance}
 
-Payment Method: ${paymentProvider === 'viva' ? 'Viva.com' : paymentProvider === 'dodo' ? 'Dodo Payments' : paymentProvider === 'paypal' ? 'PayPal' : 'Stripe'}
+Payment Method: ${paymentProvider === 'dodo' ? 'Dodo Payments' : 'Stripe'}
 Status: Completed
 
 Thank you for your purchase!
@@ -415,7 +358,7 @@ Visit us at: ${window.location.origin}
                       <CreditCard className="h-4 w-4" />
                       <span>{t('paymentSuccess.paymentMethod')}</span>
                     </div>
-                    <span className="font-medium">{paymentProvider === 'viva' ? 'Viva.com' : paymentProvider === 'dodo' ? 'Dodo Payments' : paymentProvider === 'paypal' ? 'PayPal' : 'Stripe'}</span>
+                    <span className="font-medium">{paymentProvider === 'dodo' ? 'Dodo Payments' : paymentProvider === 'paypal' ? 'PayPal' : 'Stripe'}</span>
                   </div>
                 </div>
 
