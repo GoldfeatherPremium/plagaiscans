@@ -59,7 +59,6 @@ async function createVivaOrder(
 
   const orderData = {
     amount: amountCents,
-    currencyCode: 840, // ISO 4217 code for USD
     customerTrns: merchantTrns,
     customer: {
       email: customerEmail,

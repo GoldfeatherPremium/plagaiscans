@@ -820,11 +820,11 @@ export default function Checkout() {
                       <div className="flex-1 space-y-3">
                         <div>
                           <h3 className="font-semibold flex items-center gap-2">
-                            Card Payment, Google Pay, Apple Pay, Samsung Pay
+                            Card Payment (Viva.com)
                             <Badge variant="secondary" className="text-xs">Recommended</Badge>
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            Pay securely with Visa, Mastercard, Google Pay, Apple Pay, Samsung Pay
+                            Pay securely with Visa, Mastercard, or other debit/credit cards
                             {fees.viva > 0 && <span className="text-amber-600"> (+{fees.viva}% fee)</span>}
                           </p>
                         </div>
