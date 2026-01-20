@@ -3,6 +3,7 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDocuments, Document } from '@/hooks/useDocuments';
+import { useStaffScanTypes } from '@/hooks/useStaffScanTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { FileText, Clock, CheckCircle, CreditCard, Upload, Download, Wallet, XCircle, BarChart3, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ interface ManualPayment {
 export default function Dashboard() {
   const { role, profile, user, loading: authLoading } = useAuth();
   const { documents, loading: docsLoading, downloadFile } = useDocuments();
+  const { canAccessAI, canAccessSimilarity } = useStaffScanTypes();
   const [pendingPayments, setPendingPayments] = useState<ManualPayment[]>([]);
   const { t } = useTranslation('dashboard');
 
@@ -156,7 +158,8 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Full Scan Queue Section */}
+        {/* Full Scan Queue Section - Show for customers, admins, or staff with AI access */}
+        {(role === 'customer' || role === 'admin' || (role === 'staff' && canAccessAI)) && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -242,8 +245,10 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+        )}
 
-        {/* Similarity Only Queue Section */}
+        {/* Similarity Only Queue Section - Show for customers, admins, or staff with similarity access */}
+        {(role === 'customer' || role === 'admin' || (role === 'staff' && canAccessSimilarity)) && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -329,6 +334,7 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+        )}
 
         {/* Pending Payments - Customer Only */}
         {role === 'customer' && pendingPayments.length > 0 && (
@@ -516,7 +522,7 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
-      </div>
+        </div>
       </DashboardLayout>
     </>
   );

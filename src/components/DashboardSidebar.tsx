@@ -47,6 +47,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStaffScanTypes } from '@/hooks/useStaffScanTypes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -320,15 +321,37 @@ export const DashboardSidebar: React.FC = () => {
     return links;
   }, [profile, t]);
 
-  const staffLinks: NavLink[] = [
-    { to: '/dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard') },
-    { to: '/dashboard/queue', icon: FileCheck, label: t('sidebar.fullScanQueue') },
-    { to: '/dashboard/queue-similarity', icon: FileText, label: t('sidebar.similarityQueue') },
-    { to: '/dashboard/my-work', icon: FileText, label: t('sidebar.myProcessed') },
-    { to: '/dashboard/stats', icon: BarChart3, label: t('sidebar.myStats') },
-    { to: '/dashboard/performance', icon: Activity, label: t('sidebar.performance') },
-    { to: '/dashboard/profile', icon: User, label: t('sidebar.profile') },
-  ];
+  // Staff scan type access
+  const { canAccessAI, canAccessSimilarity } = useStaffScanTypes();
+
+  const staffLinks: NavLink[] = useMemo(() => {
+    const links: NavLink[] = [
+      { to: '/dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard') },
+    ];
+    
+    if (canAccessAI) {
+      links.push(
+        { to: '/dashboard/queue', icon: FileCheck, label: t('sidebar.fullScanQueue') },
+        { to: '/dashboard/bulk-upload', icon: FileStack, label: 'Bulk Upload (AI)' }
+      );
+    }
+    
+    if (canAccessSimilarity) {
+      links.push(
+        { to: '/dashboard/queue-similarity', icon: FileText, label: t('sidebar.similarityQueue') },
+        { to: '/dashboard/similarity-bulk-upload', icon: FileStack, label: 'Bulk Upload (Sim)' }
+      );
+    }
+    
+    links.push(
+      { to: '/dashboard/my-work', icon: FileText, label: t('sidebar.myProcessed') },
+      { to: '/dashboard/stats', icon: BarChart3, label: t('sidebar.myStats') },
+      { to: '/dashboard/performance', icon: Activity, label: t('sidebar.performance') },
+      { to: '/dashboard/profile', icon: User, label: t('sidebar.profile') }
+    );
+    
+    return links;
+  }, [t, canAccessAI, canAccessSimilarity]);
 
   // Admin grouped navigation
   const adminGroups: NavGroup[] = [

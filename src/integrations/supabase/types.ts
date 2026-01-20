@@ -2000,6 +2000,7 @@ export type Database = {
       }
       staff_settings: {
         Row: {
+          assigned_scan_types: string[] | null
           created_at: string | null
           id: string
           max_concurrent_files: number
@@ -2008,6 +2009,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          assigned_scan_types?: string[] | null
           created_at?: string | null
           id?: string
           max_concurrent_files?: number
@@ -2016,6 +2018,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          assigned_scan_types?: string[] | null
           created_at?: string | null
           id?: string
           max_concurrent_files?: number
@@ -2559,6 +2562,102 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      viva_payments: {
+        Row: {
+          amount_cents: number
+          amount_usd: number
+          completed_at: string | null
+          created_at: string
+          credit_type: string | null
+          credits: number
+          customer_email: string | null
+          id: string
+          merchant_trns: string | null
+          order_code: string
+          source_code: string | null
+          status: string
+          transaction_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          amount_usd: number
+          completed_at?: string | null
+          created_at?: string
+          credit_type?: string | null
+          credits: number
+          customer_email?: string | null
+          id?: string
+          merchant_trns?: string | null
+          order_code: string
+          source_code?: string | null
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          amount_usd?: number
+          completed_at?: string | null
+          created_at?: string
+          credit_type?: string | null
+          credits?: number
+          customer_email?: string | null
+          id?: string
+          merchant_trns?: string | null
+          order_code?: string
+          source_code?: string | null
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      viva_webhook_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_id: string
+          event_type: string | null
+          event_type_id: number | null
+          id: string
+          order_code: string | null
+          payload: Json | null
+          processed: boolean | null
+          processed_at: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_id: string
+          event_type?: string | null
+          event_type_id?: number | null
+          id?: string
+          order_code?: string | null
+          payload?: Json | null
+          processed?: boolean | null
+          processed_at?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_id?: string
+          event_type?: string | null
+          event_type_id?: number | null
+          id?: string
+          order_code?: string | null
+          payload?: Json | null
+          processed?: boolean | null
+          processed_at?: string | null
+          transaction_id?: string | null
         }
         Relationships: []
       }

@@ -8,6 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
+import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { 
   Upload, 
   FileText, 
@@ -20,7 +22,8 @@ import {
   FileCheck,
   FileWarning,
   Eye,
-  Zap
+  Zap,
+  ShieldX
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { MatchPreviewDialog } from '@/components/MatchPreviewDialog';
@@ -72,6 +75,8 @@ function normalizeFilename(filename: string): string {
 }
 
 export default function AdminBulkReportUpload() {
+  const { role } = useAuth();
+  const { permissions, loading: permissionsLoading } = useStaffPermissions();
   const [files, setFiles] = useState<ReportFile[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -321,11 +326,28 @@ export default function AdminBulkReportUpload() {
   const uploadedCount = files.filter(f => f.status === 'uploaded').length;
   const errorCount = files.filter(f => f.status === 'error').length;
 
+  // Check if staff has permission
+  if (role === 'staff' && !permissionsLoading && !permissions.can_batch_process) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center py-16">
+          <ShieldX className="h-16 w-16 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+          <p className="text-muted-foreground text-center max-w-md">
+            You don't have permission to access bulk upload. Please contact an administrator.
+          </p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">Bulk Report Upload</h1>
+          <h1 className="text-3xl font-bold">
+            {role === 'admin' ? 'Bulk Report Upload' : 'AI Reports Bulk Upload'}
+          </h1>
           <p className="text-muted-foreground">
             Upload PDF reports or ZIP archives. Reports are auto-classified using page 2 analysis.
           </p>
