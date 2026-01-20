@@ -63,6 +63,7 @@ interface StaffMember {
   full_name: string | null;
   time_limit_minutes: number;
   max_concurrent_files: number;
+  assigned_scan_types: string[];
 }
 
 export default function AdminUsers() {
@@ -138,7 +139,7 @@ export default function AdminUsers() {
 
     const { data: settings } = await supabase
       .from('staff_settings')
-      .select('*')
+      .select('user_id, time_limit_minutes, max_concurrent_files, assigned_scan_types')
       .in('user_id', staffIds);
 
     const merged: StaffMember[] = (profiles || []).map(profile => {
@@ -149,6 +150,7 @@ export default function AdminUsers() {
         full_name: profile.full_name,
         time_limit_minutes: setting?.time_limit_minutes ?? 30,
         max_concurrent_files: setting?.max_concurrent_files ?? 1,
+        assigned_scan_types: setting?.assigned_scan_types ?? ['full', 'similarity_only'],
       };
     });
 
@@ -229,6 +231,20 @@ export default function AdminUsers() {
     ));
   };
 
+  const toggleStaffScanType = (staffId: string, scanType: string) => {
+    setStaffMembers(prev => prev.map(s => {
+      if (s.id !== staffId) return s;
+      const currentTypes = s.assigned_scan_types || ['full', 'similarity_only'];
+      const hasType = currentTypes.includes(scanType);
+      // Ensure at least one type is selected
+      if (hasType && currentTypes.length === 1) return s;
+      const newTypes = hasType 
+        ? currentTypes.filter(t => t !== scanType)
+        : [...currentTypes, scanType];
+      return { ...s, assigned_scan_types: newTypes };
+    }));
+  };
+
   const saveStaffSettings = async (staff: StaffMember) => {
     setSavingStaffId(staff.id);
     
@@ -238,6 +254,7 @@ export default function AdminUsers() {
         user_id: staff.id,
         time_limit_minutes: staff.time_limit_minutes,
         max_concurrent_files: staff.max_concurrent_files,
+        assigned_scan_types: staff.assigned_scan_types,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
 
@@ -495,6 +512,7 @@ export default function AdminUsers() {
                             </div>
                           </TableHead>
                           <TableHead className="w-36">Max Files</TableHead>
+                          <TableHead>Assigned Queues</TableHead>
                           <TableHead className="w-24 text-center">Action</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -526,6 +544,32 @@ export default function AdminUsers() {
                                 onChange={(e) => updateStaffLimit(staff.id, 'max_concurrent_files', parseInt(e.target.value) || 1)}
                                 className="w-24"
                               />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-2">
+                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={staff.assigned_scan_types?.includes('full')}
+                                    onChange={() => toggleStaffScanType(staff.id, 'full')}
+                                    className="h-4 w-4 rounded border-input"
+                                  />
+                                  <span className="flex items-center gap-1">
+                                    <Badge variant="default" className="text-xs">AI Scan</Badge>
+                                  </span>
+                                </label>
+                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={staff.assigned_scan_types?.includes('similarity_only')}
+                                    onChange={() => toggleStaffScanType(staff.id, 'similarity_only')}
+                                    className="h-4 w-4 rounded border-input"
+                                  />
+                                  <span className="flex items-center gap-1">
+                                    <Badge variant="secondary" className="text-xs">Similarity</Badge>
+                                  </span>
+                                </label>
+                              </div>
                             </TableCell>
                             <TableCell className="text-center">
                               <Button 
