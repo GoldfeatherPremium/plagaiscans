@@ -306,7 +306,7 @@ const AppRoutes = () => (
       <Route path="/dashboard/emails" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmails /></ProtectedRoute>} />
       <Route path="/dashboard/email-logs" element={<ProtectedRoute allowedRoles={['admin']}><AdminEmailDeliveryLogs /></ProtectedRoute>} />
       <Route path="/dashboard/overview" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboardOverview /></ProtectedRoute>} />
-      <Route path="/dashboard/staff-performance" element={<ProtectedRoute allowedRoles={['admin']}><StaffPerformance /></ProtectedRoute>} />
+      <Route path="/dashboard/performance" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><StaffPerformance /></ProtectedRoute>} />
       <Route path="/dashboard/ai-helper" element={<ProtectedRoute allowedRoles={['admin']}><AdminAIHelper /></ProtectedRoute>} />
       <Route path="/dashboard/bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminBulkReportUpload /></ProtectedRoute>} />
       <Route path="/dashboard/similarity-bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminSimilarityBulkUpload /></ProtectedRoute>} />
