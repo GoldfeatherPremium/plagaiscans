@@ -6,10 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
 import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
+import { BulkUploadPanel } from '@/components/BulkUploadPanel';
+import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare, CheckCheck, FolderUp, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
@@ -56,6 +59,9 @@ export default function DocumentQueue() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const isAdmin = role === 'admin';
+  const { permissions } = useStaffPermissions();
+  const [activeTab, setActiveTab] = useState('queue');
+  const canAccessBulkUpload = role === 'admin' || permissions.can_batch_process;
   
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -491,6 +497,247 @@ export default function DocumentQueue() {
     await releaseDocument(doc.id);
   };
 
+  const renderQueueContent = () => (
+    <>
+      {/* Search Filters */}
+      <DocumentSearchFilters 
+        filters={filters} 
+        onFiltersChange={setFilters}
+        showStatusFilter={role === 'admin'}
+      />
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : availableDocs.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">No pending documents</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Batch Action Buttons */}
+          {selectedDocIds.size > 0 && (
+            <div className="flex items-center gap-2 flex-wrap bg-muted/50 p-3 rounded-lg">
+              <span className="text-sm font-medium">{selectedDocIds.size} selected</span>
+              <Button size="sm" variant="outline" onClick={clearSelection}>
+                Clear
+              </Button>
+              <Button size="sm" onClick={handleBatchPick}>
+                <CheckSquare className="h-4 w-4 mr-1" />
+                Batch Pick
+              </Button>
+              <Button size="sm" variant="secondary" onClick={handleBatchDownload}>
+                <Download className="h-4 w-4 mr-1" />
+                Batch Download
+              </Button>
+              <Button size="sm" variant="default" onClick={handleOpenBatchUpload}>
+                <Upload className="h-4 w-4 mr-1" />
+                Batch Upload Reports
+              </Button>
+            </div>
+          )}
+          
+          {/* Quick Select Buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-muted-foreground">Quick Select:</span>
+            <Button size="sm" variant="ghost" onClick={selectAllPending}>
+              All Pending
+            </Button>
+            <Button size="sm" variant="ghost" onClick={selectAllMyInProgress}>
+              My In-Progress
+            </Button>
+            {selectedDocIds.size > 0 && (
+              <Button size="sm" variant="ghost" onClick={clearSelection}>
+                Clear All
+              </Button>
+            )}
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10 text-center">
+                        <Checkbox 
+                          checked={selectedDocIds.size === availableDocs.length && availableDocs.length > 0}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedDocIds(new Set(availableDocs.map(d => d.id)));
+                            } else {
+                              setSelectedDocIds(new Set());
+                            }
+                          }}
+                        />
+                      </TableHead>
+                      <TableHead className="w-12 text-center">#</TableHead>
+                      <TableHead>Document</TableHead>
+                      <TableHead>Upload Time</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-center">Processing By</TableHead>
+                      <TableHead className="text-center">Time Elapsed</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {availableDocs.map((doc, index) => {
+                      const isAssignedToMe = doc.assigned_staff_id === user?.id;
+                      const { date, time } = formatDateTime(doc.uploaded_at);
+                      const elapsedInfo = getElapsedTime(doc.assigned_at);
+                      const overdue = isOverdue(doc.assigned_at);
+                      const isSelected = selectedDocIds.has(doc.id);
+
+                      return (
+                        <TableRow key={doc.id} className={`${isSelected ? 'bg-primary/10' : ''} ${isAssignedToMe ? 'bg-primary/5' : ''} ${overdue ? 'bg-destructive/5' : ''}`}>
+                          <TableCell className="text-center">
+                            <Checkbox 
+                              checked={isSelected}
+                              onCheckedChange={() => toggleDocSelection(doc.id)}
+                            />
+                          </TableCell>
+                          <TableCell className="text-center font-medium">
+                            {index + 1}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                              <div className="flex flex-col">
+                                <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
+                                  {doc.file_name}
+                                </span>
+                                <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={doc.customer_profile?.email}>
+                                  {doc.customer_profile?.full_name || doc.customer_profile?.email || (doc.magic_link_id ? 'Guest' : '-')}
+                                </span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <div>{date}</div>
+                              <div className="text-muted-foreground">{time}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <StatusBadge status={doc.status} />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {isAssignedToMe ? (
+                              <span className="text-xs text-primary font-medium">You</span>
+                            ) : doc.staff_profile ? (
+                              <span className="text-xs text-muted-foreground" title={doc.staff_profile.email}>
+                                {doc.staff_profile.full_name || doc.staff_profile.email}
+                              </span>
+                            ) : doc.assigned_staff_id ? (
+                              <span className="text-xs text-muted-foreground">Staff</span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {elapsedInfo ? (
+                              <div className={`flex items-center justify-center gap-1 text-xs ${overdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                                <Clock className="h-3 w-3" />
+                                {elapsedInfo.display}
+                                {overdue && <span className="text-destructive">(overdue)</span>}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-center gap-1">
+                              {doc.status === 'pending' && !isAssignedToMe && (
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => handlePickDocument(doc)}
+                                  disabled={!canPickMore}
+                                >
+                                  Pick
+                                </Button>
+                              )}
+                              
+                              {isAssignedToMe && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      downloadFile(
+                                        doc.file_path,
+                                        doc.magic_link_id ? 'magic-uploads' : 'documents',
+                                        doc.file_name
+                                      )
+                                    }
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                  <Button size="sm" onClick={() => handleOpenDialog(doc)}>
+                                    <Upload className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+
+                              {role === 'admin' && !isAssignedToMe && doc.status === 'in_progress' && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      downloadFile(
+                                        doc.file_path,
+                                        doc.magic_link_id ? 'magic-uploads' : 'documents',
+                                        doc.file_name
+                                      )
+                                    }
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="text-amber-600 border-amber-600/30"
+                                    onClick={() => handleReleaseDocument(doc)}
+                                    title="Release document (make available to other staff)"
+                                  >
+                                    <Unlock className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+
+                              {/* Admin Edit Button */}
+                              {isAdmin && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setDocumentToEdit(doc);
+                                    setEditDialogOpen(true);
+                                  }}
+                                  title="Edit document"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </>
+  );
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -514,13 +761,6 @@ export default function DocumentQueue() {
           {/* Admin Action Buttons */}
           {role === 'admin' && (
             <div className="flex items-center gap-2">
-              <Button 
-                onClick={() => navigate('/dashboard/bulk-upload')}
-                variant="outline"
-              >
-                <FolderUp className="h-4 w-4 mr-2" />
-                Bulk Upload
-              </Button>
               {availableDocs.length > 0 && (
                 <Button 
                   onClick={() => setProcessAllDialogOpen(true)}
@@ -544,241 +784,26 @@ export default function DocumentQueue() {
           )}
         </div>
 
-        {/* Search Filters */}
-        <DocumentSearchFilters 
-          filters={filters} 
-          onFiltersChange={setFilters}
-          showStatusFilter={role === 'admin'}
-        />
-
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : availableDocs.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">No pending documents</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            {/* Batch Action Buttons */}
-            {selectedDocIds.size > 0 && (
-              <div className="flex items-center gap-2 flex-wrap bg-muted/50 p-3 rounded-lg">
-                <span className="text-sm font-medium">{selectedDocIds.size} selected</span>
-                <Button size="sm" variant="outline" onClick={clearSelection}>
-                  Clear
-                </Button>
-                <Button size="sm" onClick={handleBatchPick}>
-                  <CheckSquare className="h-4 w-4 mr-1" />
-                  Batch Pick
-                </Button>
-                <Button size="sm" variant="secondary" onClick={handleBatchDownload}>
-                  <Download className="h-4 w-4 mr-1" />
-                  Batch Download
-                </Button>
-                <Button size="sm" variant="default" onClick={handleOpenBatchUpload}>
-                  <Upload className="h-4 w-4 mr-1" />
-                  Batch Upload Reports
-                </Button>
-              </div>
-            )}
+        {/* Tabs for Queue and Bulk Upload */}
+        {canAccessBulkUpload ? (
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+              <TabsTrigger value="queue">Queue</TabsTrigger>
+              <TabsTrigger value="bulk-upload">Bulk Upload</TabsTrigger>
+            </TabsList>
             
-            {/* Quick Select Buttons */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-muted-foreground">Quick Select:</span>
-              <Button size="sm" variant="ghost" onClick={selectAllPending}>
-                All Pending
-              </Button>
-              <Button size="sm" variant="ghost" onClick={selectAllMyInProgress}>
-                My In-Progress
-              </Button>
-              {selectedDocIds.size > 0 && (
-                <Button size="sm" variant="ghost" onClick={clearSelection}>
-                  Clear All
-                </Button>
-              )}
-            </div>
-
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-10 text-center">
-                          <Checkbox 
-                            checked={selectedDocIds.size === availableDocs.length && availableDocs.length > 0}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedDocIds(new Set(availableDocs.map(d => d.id)));
-                              } else {
-                                setSelectedDocIds(new Set());
-                              }
-                            }}
-                          />
-                        </TableHead>
-                        <TableHead className="w-12 text-center">#</TableHead>
-                        <TableHead>Document</TableHead>
-                        <TableHead>Upload Time</TableHead>
-                        <TableHead className="text-center">Status</TableHead>
-                        <TableHead className="text-center">Processing By</TableHead>
-                        <TableHead className="text-center">Time Elapsed</TableHead>
-                        <TableHead className="text-center">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {availableDocs.map((doc, index) => {
-                        const isAssignedToMe = doc.assigned_staff_id === user?.id;
-                        const { date, time } = formatDateTime(doc.uploaded_at);
-                        const elapsedInfo = getElapsedTime(doc.assigned_at);
-                        const overdue = isOverdue(doc.assigned_at);
-                        const isSelected = selectedDocIds.has(doc.id);
-
-                        return (
-                          <TableRow key={doc.id} className={`${isSelected ? 'bg-primary/10' : ''} ${isAssignedToMe ? 'bg-primary/5' : ''} ${overdue ? 'bg-destructive/5' : ''}`}>
-                            <TableCell className="text-center">
-                              <Checkbox 
-                                checked={isSelected}
-                                onCheckedChange={() => toggleDocSelection(doc.id)}
-                              />
-                            </TableCell>
-                            <TableCell className="text-center font-medium">
-                              {index + 1}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-primary flex-shrink-0" />
-                                <div className="flex flex-col">
-                                  <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
-                                    {doc.file_name}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={doc.customer_profile?.email}>
-                                    {doc.customer_profile?.full_name || doc.customer_profile?.email || (doc.magic_link_id ? 'Guest' : '-')}
-                                  </span>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-sm">
-                                <div>{date}</div>
-                                <div className="text-muted-foreground">{time}</div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <StatusBadge status={doc.status} />
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {isAssignedToMe ? (
-                                <span className="text-xs text-primary font-medium">You</span>
-                              ) : doc.staff_profile ? (
-                                <span className="text-xs text-muted-foreground" title={doc.staff_profile.email}>
-                                  {doc.staff_profile.full_name || doc.staff_profile.email}
-                                </span>
-                              ) : doc.assigned_staff_id ? (
-                                <span className="text-xs text-muted-foreground">Staff</span>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {elapsedInfo ? (
-                                <div className={`flex items-center justify-center gap-1 text-xs ${overdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                                  <Clock className="h-3 w-3" />
-                                  {elapsedInfo.display}
-                                  {overdue && <span className="text-destructive">(overdue)</span>}
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center justify-center gap-1">
-                                {doc.status === 'pending' && !isAssignedToMe && (
-                                  <Button 
-                                    size="sm" 
-                                    onClick={() => handlePickDocument(doc)}
-                                    disabled={!canPickMore}
-                                  >
-                                    Pick
-                                  </Button>
-                                )}
-                                
-                                {isAssignedToMe && (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        downloadFile(
-                                          doc.file_path,
-                                          doc.magic_link_id ? 'magic-uploads' : 'documents',
-                                          doc.file_name
-                                        )
-                                      }
-                                    >
-                                      <Download className="h-4 w-4" />
-                                    </Button>
-                                    <Button size="sm" onClick={() => handleOpenDialog(doc)}>
-                                      <Upload className="h-4 w-4" />
-                                    </Button>
-                                  </>
-                                )}
-
-                                {role === 'admin' && !isAssignedToMe && doc.status === 'in_progress' && (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        downloadFile(
-                                          doc.file_path,
-                                          doc.magic_link_id ? 'magic-uploads' : 'documents',
-                                          doc.file_name
-                                        )
-                                      }
-                                    >
-                                      <Download className="h-4 w-4" />
-                                    </Button>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      className="text-amber-600 border-amber-600/30"
-                                      onClick={() => handleReleaseDocument(doc)}
-                                      title="Release document (make available to other staff)"
-                                    >
-                                      <Unlock className="h-4 w-4" />
-                                    </Button>
-                                  </>
-                                )}
-
-                                {/* Admin Edit Button */}
-                                {isAdmin && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      setDocumentToEdit(doc);
-                                      setEditDialogOpen(true);
-                                    }}
-                                    title="Edit document"
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </>
+            <TabsContent value="queue" className="mt-4 space-y-4">
+              {renderQueueContent()}
+            </TabsContent>
+            
+            <TabsContent value="bulk-upload" className="mt-4">
+              <BulkUploadPanel scanType="full" compact />
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <div className="space-y-4">
+            {renderQueueContent()}
+          </div>
         )}
 
         <Dialog open={dialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
