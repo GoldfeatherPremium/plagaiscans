@@ -24,27 +24,28 @@ export default function StaffStats() {
     if (!user) return;
     setLoading(true);
 
-    // Fetch activity logs for this staff
-    const { data: logs } = await supabase
-      .from('activity_logs')
-      .select('*')
-      .eq('staff_id', user.id)
-      .eq('action', 'Changed status to completed')
-      .limit(50000);
+    // Fetch completed documents assigned to this staff
+    const { data: completedDocs } = await supabase
+      .from('documents')
+      .select('id, completed_at, scan_type')
+      .eq('assigned_staff_id', user.id)
+      .eq('status', 'completed')
+      .neq('deleted_by_user', true)
+      .order('completed_at', { ascending: false });
 
-    const allLogs = logs || [];
-    setTotalProcessed(allLogs.length);
+    const allDocs = completedDocs || [];
+    setTotalProcessed(allDocs.length);
 
     // Today's count
     const today = new Date().toISOString().split('T')[0];
-    const todayLogs = allLogs.filter((log) => log.created_at.startsWith(today));
-    setTodayCount(todayLogs.length);
+    const todayDocs = allDocs.filter((doc) => doc.completed_at?.startsWith(today));
+    setTodayCount(todayDocs.length);
 
     // This week's count
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
-    const weekLogs = allLogs.filter((log) => new Date(log.created_at) >= weekAgo);
-    setWeekCount(weekLogs.length);
+    const weekDocs = allDocs.filter((doc) => doc.completed_at && new Date(doc.completed_at) >= weekAgo);
+    setWeekCount(weekDocs.length);
 
     // Daily stats (last 7 days)
     const last7Days: { date: string; count: number }[] = [];
@@ -52,7 +53,7 @@ export default function StaffStats() {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      const count = allLogs.filter((log) => log.created_at.startsWith(dateStr)).length;
+      const count = allDocs.filter((doc) => doc.completed_at?.startsWith(dateStr)).length;
       last7Days.push({ date: date.toLocaleDateString('en-US', { weekday: 'short' }), count });
     }
     setDailyStats(last7Days);
@@ -64,9 +65,10 @@ export default function StaffStats() {
       weekStart.setDate(weekStart.getDate() - (i + 1) * 7);
       const weekEnd = new Date();
       weekEnd.setDate(weekEnd.getDate() - i * 7);
-      const count = allLogs.filter((log) => {
-        const logDate = new Date(log.created_at);
-        return logDate >= weekStart && logDate < weekEnd;
+      const count = allDocs.filter((doc) => {
+        if (!doc.completed_at) return false;
+        const docDate = new Date(doc.completed_at);
+        return docDate >= weekStart && docDate < weekEnd;
       }).length;
       last4Weeks.push({ week: `Week ${4 - i}`, count });
     }
