@@ -57,7 +57,18 @@ export default function Dashboard() {
     completed: documents.filter((d) => d.status === 'completed' && d.scan_type === 'similarity_only').length,
   };
 
-  const recentDocs = documents.slice(0, 5);
+  // Filter recent documents based on staff scan type assignments
+  // Staff only see documents from queues they have access to
+  const filteredDocuments = role === 'staff' 
+    ? documents.filter(doc => {
+        const isSimilarityOnly = doc.scan_type === 'similarity_only';
+        if (isSimilarityOnly && !canAccessSimilarity) return false;
+        if (!isSimilarityOnly && !canAccessAI) return false;
+        return true;
+      })
+    : documents;
+
+  const recentDocs = filteredDocuments.slice(0, 5);
 
   // Fetch pending payments for customers
   useEffect(() => {

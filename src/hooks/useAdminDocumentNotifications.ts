@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePushNotifications } from './usePushNotifications';
@@ -15,6 +15,40 @@ export const useAdminDocumentNotifications = () => {
   const insertChannelRef = useRef<RealtimeChannel | null>(null);
   const updateChannelRef = useRef<RealtimeChannel | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Track staff's assigned scan types for filtering notifications
+  const [assignedScanTypes, setAssignedScanTypes] = useState<string[]>(['full', 'similarity_only']);
+  
+  // Fetch staff scan type assignments
+  useEffect(() => {
+    const fetchScanTypes = async () => {
+      // Admins get all notifications
+      if (role === 'admin') {
+        setAssignedScanTypes(['full', 'similarity_only']);
+        return;
+      }
+      
+      // Staff get filtered notifications based on assigned scan types
+      if (role === 'staff' && user) {
+        const { data, error } = await supabase
+          .from('staff_settings')
+          .select('assigned_scan_types')
+          .eq('user_id', user.id)
+          .single();
+
+        if (!error && data?.assigned_scan_types) {
+          setAssignedScanTypes(data.assigned_scan_types);
+        } else {
+          // Default to both if no settings exist
+          setAssignedScanTypes(['full', 'similarity_only']);
+        }
+      }
+    };
+
+    if (role) {
+      fetchScanTypes();
+    }
+  }, [user, role]);
 
   // Request permission on first use for admin/staff
   useEffect(() => {
@@ -109,6 +143,18 @@ export const useAdminDocumentNotifications = () => {
             const fileName = newDoc?.file_name;
             const userId = newDoc?.user_id;
             const scanType = newDoc?.scan_type || 'full';
+            
+            // Filter notifications based on assigned scan types for staff
+            // 'full' scan type should be included if staff has 'full' access
+            // 'similarity_only' scan type should be included if staff has 'similarity_only' access
+            const shouldNotify = role === 'admin' || 
+              (scanType === 'similarity_only' && assignedScanTypes.includes('similarity_only')) ||
+              (scanType !== 'similarity_only' && assignedScanTypes.includes('full'));
+            
+            if (!shouldNotify) {
+              console.log('[AdminNotify] Skipping notification - scan type not in assigned types:', { scanType, assignedScanTypes });
+              return;
+            }
             
             if (fileName && userId) {
               // Get customer name from profiles
@@ -211,7 +257,7 @@ export const useAdminDocumentNotifications = () => {
         supabase.removeChannel(updateChannelRef.current);
       }
     };
-  }, [user, isAdminOrStaff, handleNewDocument, handleDocumentPending]);
+  }, [user, isAdminOrStaff, handleNewDocument, handleDocumentPending, role, assignedScanTypes]);
 
   return {
     isAdminOrStaff,
