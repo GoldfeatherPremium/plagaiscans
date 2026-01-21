@@ -182,71 +182,83 @@ export default function AdminDashboardOverview() {
       };
       magicLinks.remainingCapacity = magicLinks.totalCapacity - magicLinks.uploadsUsed;
 
-      // Fetch scan type statistics (exclude soft-deleted documents)
-      const { data: allDocsForStats } = await supabase
-        .from('documents')
-        .select('scan_type, status, completed_at, deleted_at')
-        .is('deleted_at', null)
-        .limit(50000);
+      // Fetch scan type statistics using server-side counts (exclude soft-deleted documents)
+      // AI Scan (full) stats
+      const [
+        { count: fullCompletedToday },
+        { count: fullCompletedYesterday },
+        { count: fullCompletedTotal },
+        { count: fullPending },
+        { count: fullInProgress },
+        { count: fullTotal },
+        // Similarity stats
+        { count: simCompletedToday },
+        { count: simCompletedYesterday },
+        { count: simCompletedTotal },
+        { count: simPending },
+        { count: simInProgress },
+        { count: simTotal }
+      ] = await Promise.all([
+        // AI Scan counts
+        supabase.from('documents').select('*', { count: 'exact', head: true })
+          .eq('scan_type', 'full').eq('status', 'completed')
+          .is('deleted_at', null).neq('deleted_by_user', true)
+          .gte('completed_at', todayStart).lte('completed_at', todayEnd),
+        supabase.from('documents').select('*', { count: 'exact', head: true })
+          .eq('scan_type', 'full').eq('status', 'completed')
+          .is('deleted_at', null).neq('deleted_by_user', true)
+          .gte('completed_at', yesterdayStart).lte('completed_at', yesterdayEnd),
+        supabase.from('documents').select('*', { count: 'exact', head: true })
+          .eq('scan_type', 'full').eq('status', 'completed')
+          .is('deleted_at', null).neq('deleted_by_user', true),
+        supabase.from('documents').select('*', { count: 'exact', head: true })
+          .eq('scan_type', 'full').eq('status', 'pending')
+          .is('deleted_at', null).neq('deleted_by_user', true),
+        supabase.from('documents').select('*', { count: 'exact', head: true })
+          .eq('scan_type', 'full').eq('status', 'in_progress')
+          .is('deleted_at', null).neq('deleted_by_user', true),
+        supabase.from('documents').select('*', { count: 'exact', head: true })
+          .eq('scan_type', 'full')
+          .is('deleted_at', null).neq('deleted_by_user', true),
+        // Similarity counts
+        supabase.from('documents').select('*', { count: 'exact', head: true })
+          .eq('scan_type', 'similarity_only').eq('status', 'completed')
+          .is('deleted_at', null).neq('deleted_by_user', true)
+          .gte('completed_at', todayStart).lte('completed_at', todayEnd),
+        supabase.from('documents').select('*', { count: 'exact', head: true })
+          .eq('scan_type', 'similarity_only').eq('status', 'completed')
+          .is('deleted_at', null).neq('deleted_by_user', true)
+          .gte('completed_at', yesterdayStart).lte('completed_at', yesterdayEnd),
+        supabase.from('documents').select('*', { count: 'exact', head: true })
+          .eq('scan_type', 'similarity_only').eq('status', 'completed')
+          .is('deleted_at', null).neq('deleted_by_user', true),
+        supabase.from('documents').select('*', { count: 'exact', head: true })
+          .eq('scan_type', 'similarity_only').eq('status', 'pending')
+          .is('deleted_at', null).neq('deleted_by_user', true),
+        supabase.from('documents').select('*', { count: 'exact', head: true })
+          .eq('scan_type', 'similarity_only').eq('status', 'in_progress')
+          .is('deleted_at', null).neq('deleted_by_user', true),
+        supabase.from('documents').select('*', { count: 'exact', head: true })
+          .eq('scan_type', 'similarity_only')
+          .is('deleted_at', null).neq('deleted_by_user', true)
+      ]);
 
       const scanTypeStats = {
         fullScan: {
-          completedToday: allDocsForStats?.filter(d => 
-            d.scan_type === 'full' && 
-            d.status === 'completed' && 
-            d.completed_at && 
-            d.completed_at >= todayStart && 
-            d.completed_at <= todayEnd
-          ).length || 0,
-          completedYesterday: allDocsForStats?.filter(d => 
-            d.scan_type === 'full' && 
-            d.status === 'completed' && 
-            d.completed_at && 
-            d.completed_at >= yesterdayStart && 
-            d.completed_at <= yesterdayEnd
-          ).length || 0,
-          completedTotal: allDocsForStats?.filter(d => 
-            d.scan_type === 'full' && 
-            d.status === 'completed'
-          ).length || 0,
-          pending: allDocsForStats?.filter(d => 
-            d.scan_type === 'full' && 
-            d.status === 'pending'
-          ).length || 0,
-          inProgress: allDocsForStats?.filter(d => 
-            d.scan_type === 'full' && 
-            d.status === 'in_progress'
-          ).length || 0,
-          total: allDocsForStats?.filter(d => d.scan_type === 'full').length || 0
+          completedToday: fullCompletedToday || 0,
+          completedYesterday: fullCompletedYesterday || 0,
+          completedTotal: fullCompletedTotal || 0,
+          pending: fullPending || 0,
+          inProgress: fullInProgress || 0,
+          total: fullTotal || 0
         },
         similarityOnly: {
-          completedToday: allDocsForStats?.filter(d => 
-            d.scan_type === 'similarity_only' && 
-            d.status === 'completed' && 
-            d.completed_at && 
-            d.completed_at >= todayStart && 
-            d.completed_at <= todayEnd
-          ).length || 0,
-          completedYesterday: allDocsForStats?.filter(d => 
-            d.scan_type === 'similarity_only' && 
-            d.status === 'completed' && 
-            d.completed_at && 
-            d.completed_at >= yesterdayStart && 
-            d.completed_at <= yesterdayEnd
-          ).length || 0,
-          completedTotal: allDocsForStats?.filter(d => 
-            d.scan_type === 'similarity_only' && 
-            d.status === 'completed'
-          ).length || 0,
-          pending: allDocsForStats?.filter(d => 
-            d.scan_type === 'similarity_only' && 
-            d.status === 'pending'
-          ).length || 0,
-          inProgress: allDocsForStats?.filter(d => 
-            d.scan_type === 'similarity_only' && 
-            d.status === 'in_progress'
-          ).length || 0,
-          total: allDocsForStats?.filter(d => d.scan_type === 'similarity_only').length || 0
+          completedToday: simCompletedToday || 0,
+          completedYesterday: simCompletedYesterday || 0,
+          completedTotal: simCompletedTotal || 0,
+          pending: simPending || 0,
+          inProgress: simInProgress || 0,
+          total: simTotal || 0
         }
       };
 
