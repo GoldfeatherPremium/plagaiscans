@@ -71,42 +71,28 @@ export default function AdminStaffWork() {
       setStaffMembers(staffProfiles || []);
     }
 
-    // Fetch activity logs for completed documents
-    let logsQuery = supabase
-      .from('activity_logs')
-      .select('*')
-      .eq('action', 'Changed status to completed')
-      .order('created_at', { ascending: false })
+    // Fetch completed documents directly - this is reliable for all completion methods including bulk uploads
+    let docsQuery = supabase
+      .from('documents')
+      .select('id, file_name, completed_at, assigned_staff_id, scan_type')
+      .eq('status', 'completed')
+      .not('completed_at', 'is', null)
+      .order('completed_at', { ascending: false })
       .limit(50000);
 
     if (selectedStaff !== 'all') {
-      logsQuery = logsQuery.eq('staff_id', selectedStaff);
+      docsQuery = docsQuery.eq('assigned_staff_id', selectedStaff);
     }
 
-    const { data: logs } = await logsQuery;
-    const activityLogs = logs || [];
+    const { data: completedDocs } = await docsQuery;
+    const allDocs = completedDocs || [];
 
-    // Fetch document details for the logs
-    const docIds = [...new Set(activityLogs.map((l) => l.document_id))];
-    let documents: Record<string, any> = {};
-
-    if (docIds.length > 0) {
-      const { data: docs } = await supabase
-        .from('documents')
-        .select('id, file_name, completed_at')
-        .in('id', docIds)
-        .limit(50000);
-
-      docs?.forEach((d) => {
-        documents[d.id] = d;
-      });
-    }
-
-    // Get staff names map
+    // Get staff names map for staff who processed documents
+    const staffIdsFromDocs = [...new Set(allDocs.map((d) => d.assigned_staff_id).filter(Boolean))];
     const { data: allStaffProfiles } = await supabase
       .from('profiles')
       .select('id, full_name, email')
-      .in('id', [...new Set(activityLogs.map((l) => l.staff_id))]);
+      .in('id', staffIdsFromDocs.length > 0 ? staffIdsFromDocs : ['none']);
 
     const staffMap: Record<string, string> = {};
     allStaffProfiles?.forEach((p) => {
@@ -114,45 +100,47 @@ export default function AdminStaffWork() {
     });
 
     // Build processed documents list
-    const processed: ProcessedDocument[] = activityLogs.map((log) => ({
-      id: log.document_id,
-      file_name: documents[log.document_id]?.file_name || 'Unknown',
-      completed_at: log.created_at,
-      staff_id: log.staff_id,
-      staff_name: staffMap[log.staff_id] || 'Unknown',
+    const processed: ProcessedDocument[] = allDocs.map((doc) => ({
+      id: doc.id,
+      file_name: doc.file_name || 'Unknown',
+      completed_at: doc.completed_at || '',
+      staff_id: doc.assigned_staff_id || '',
+      staff_name: staffMap[doc.assigned_staff_id || ''] || 'Unknown',
     }));
 
     setProcessedDocs(processed);
 
     // Calculate today's count
     const today = new Date().toISOString().split('T')[0];
-    const todayDocs = processed.filter((d) => d.completed_at.startsWith(today));
+    const todayDocs = processed.filter((d) => d.completed_at?.startsWith(today));
     setTodayCount(todayDocs.length);
 
     // Calculate this week's count
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - weekStart.getDay());
     weekStart.setHours(0, 0, 0, 0);
-    const weekDocs = processed.filter((d) => new Date(d.completed_at) >= weekStart);
+    const weekDocs = processed.filter((d) => d.completed_at && new Date(d.completed_at) >= weekStart);
     setWeekCount(weekDocs.length);
 
-    // Calculate daily stats (last 7 days)
+    // Calculate daily stats (last 7 days) using completed_at from documents
     const last7Days: DailyStats[] = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      const dayLogs = activityLogs.filter((l) => l.created_at.startsWith(dateStr));
+      const dayDocs = allDocs.filter((d) => d.completed_at?.startsWith(dateStr));
       
       const staffBreakdown: Record<string, number> = {};
-      dayLogs.forEach((l) => {
-        staffBreakdown[l.staff_id] = (staffBreakdown[l.staff_id] || 0) + 1;
+      dayDocs.forEach((d) => {
+        if (d.assigned_staff_id) {
+          staffBreakdown[d.assigned_staff_id] = (staffBreakdown[d.assigned_staff_id] || 0) + 1;
+        }
       });
 
       last7Days.push({
         date: dateStr,
         displayDate: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-        count: dayLogs.length,
+        count: dayDocs.length,
         staffBreakdown,
       });
     }
@@ -161,13 +149,14 @@ export default function AdminStaffWork() {
     // Calculate weekly stats (last 4 weeks)
     const last4Weeks: { week: string; count: number }[] = [];
     for (let i = 3; i >= 0; i--) {
-      const weekStart = new Date();
-      weekStart.setDate(weekStart.getDate() - (i + 1) * 7);
+      const weekStartDate = new Date();
+      weekStartDate.setDate(weekStartDate.getDate() - (i + 1) * 7);
       const weekEnd = new Date();
       weekEnd.setDate(weekEnd.getDate() - i * 7);
-      const count = activityLogs.filter((l) => {
-        const logDate = new Date(l.created_at);
-        return logDate >= weekStart && logDate < weekEnd;
+      const count = allDocs.filter((d) => {
+        if (!d.completed_at) return false;
+        const docDate = new Date(d.completed_at);
+        return docDate >= weekStartDate && docDate < weekEnd;
       }).length;
       last4Weeks.push({ week: `Week ${4 - i}`, count });
     }
