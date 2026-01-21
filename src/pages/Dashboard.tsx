@@ -39,7 +39,7 @@ interface ManualPayment {
 export default function Dashboard() {
   const { role, profile, user, loading: authLoading } = useAuth();
   const { documents, loading: docsLoading, downloadFile } = useDocuments();
-  const { canAccessAI, canAccessSimilarity } = useStaffScanTypes();
+  const { canAccessAI, canAccessSimilarity, loading: scanTypesLoading } = useStaffScanTypes();
   const [pendingPayments, setPendingPayments] = useState<ManualPayment[]>([]);
   const { t } = useTranslation('dashboard');
 
@@ -59,14 +59,18 @@ export default function Dashboard() {
 
   // Filter recent documents based on staff scan type assignments
   // Staff only see documents from queues they have access to
-  const filteredDocuments = role === 'staff' 
-    ? documents.filter(doc => {
-        const isSimilarityOnly = doc.scan_type === 'similarity_only';
-        if (isSimilarityOnly && !canAccessSimilarity) return false;
-        if (!isSimilarityOnly && !canAccessAI) return false;
-        return true;
-      })
-    : documents;
+  // Wait for scan types to load before filtering for staff
+  const filteredDocuments = React.useMemo(() => {
+    if (role !== 'staff') return documents;
+    if (scanTypesLoading) return []; // Don't show anything while loading scan type permissions
+    
+    return documents.filter(doc => {
+      const isSimilarityOnly = doc.scan_type === 'similarity_only';
+      if (isSimilarityOnly && !canAccessSimilarity) return false;
+      if (!isSimilarityOnly && !canAccessAI) return false;
+      return true;
+    });
+  }, [role, documents, scanTypesLoading, canAccessAI, canAccessSimilarity]);
 
   const recentDocs = filteredDocuments.slice(0, 5);
 
