@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shimmer } from '@/components/ui/shimmer';
@@ -22,7 +22,7 @@ import {
   Minus
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { format, subDays, startOfDay, endOfDay, subHours } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, differenceInDays } from 'date-fns';
 import { 
   AreaChart, 
   Area, 
@@ -34,6 +34,7 @@ import {
   BarChart,
   Bar
 } from 'recharts';
+import { PeriodSelector, DateRangeValue, getDateRangeForPeriod } from '@/components/PeriodSelector';
 
 // Skeleton components for admin dashboard
 const MetricCardSkeleton = () => (
@@ -71,16 +72,23 @@ const ChartSkeleton = () => (
 );
 
 export default function AdminDashboardOverview() {
+  const [period, setPeriod] = useState<DateRangeValue>(getDateRangeForPeriod('today'));
+  
   // Fetch dashboard metrics
   const { data: metrics, isLoading } = useQuery({
-    queryKey: ['admin-dashboard-metrics'],
+    queryKey: ['admin-dashboard-metrics', period.start.toISOString(), period.end.toISOString()],
     queryFn: async () => {
       const today = new Date();
-      const todayStart = startOfDay(today).toISOString();
-      const todayEnd = endOfDay(today).toISOString();
-      const yesterday = subDays(today, 1);
-      const yesterdayStart = startOfDay(yesterday).toISOString();
-      const yesterdayEnd = endOfDay(yesterday).toISOString();
+      const periodStart = period.start.toISOString();
+      const periodEnd = period.end.toISOString();
+      
+      // Calculate previous period for comparison
+      const periodDays = differenceInDays(period.end, period.start) + 1;
+      const prevPeriodEnd = subDays(period.start, 1);
+      const prevPeriodStart = subDays(prevPeriodEnd, periodDays - 1);
+      const prevPeriodStartISO = startOfDay(prevPeriodStart).toISOString();
+      const prevPeriodEndISO = endOfDay(prevPeriodEnd).toISOString();
+      
       const last7Days = subDays(today, 7).toISOString();
       const last30Days = subDays(today, 30).toISOString();
 
@@ -96,13 +104,25 @@ export default function AdminDashboardOverview() {
         .select('*', { count: 'exact', head: true })
         .eq('status', 'in_progress');
 
-      // Completed today
-      const { count: completedToday } = await supabase
+      // Completed in selected period
+      const { count: completedInPeriod } = await supabase
         .from('documents')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'completed')
-        .gte('completed_at', todayStart)
-        .lte('completed_at', todayEnd);
+        .is('deleted_at', null)
+        .neq('deleted_by_user', true)
+        .gte('completed_at', periodStart)
+        .lte('completed_at', periodEnd);
+      
+      // Completed in previous period (for comparison)
+      const { count: completedPrevPeriod } = await supabase
+        .from('documents')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'completed')
+        .is('deleted_at', null)
+        .neq('deleted_by_user', true)
+        .gte('completed_at', prevPeriodStartISO)
+        .lte('completed_at', prevPeriodEndISO);
 
       // Total users
       const { count: totalUsers } = await supabase
@@ -119,15 +139,25 @@ export default function AdminDashboardOverview() {
       
       const uniqueActiveStaff = new Set(activeStaff?.map(d => d.assigned_staff_id)).size;
 
-      // Today's revenue from credit transactions
-      const { data: todayTransactions } = await supabase
+      // Revenue in selected period
+      const { data: periodTransactions } = await supabase
         .from('credit_transactions')
         .select('amount')
         .eq('transaction_type', 'purchase')
-        .gte('created_at', todayStart)
-        .lte('created_at', todayEnd);
+        .gte('created_at', periodStart)
+        .lte('created_at', periodEnd);
       
-      const todayRevenue = todayTransactions?.reduce((sum, t) => sum + Math.abs(t.amount), 0) || 0;
+      const periodRevenue = periodTransactions?.reduce((sum, t) => sum + Math.abs(t.amount), 0) || 0;
+      
+      // Revenue in previous period (for comparison)
+      const { data: prevPeriodTransactions } = await supabase
+        .from('credit_transactions')
+        .select('amount')
+        .eq('transaction_type', 'purchase')
+        .gte('created_at', prevPeriodStartISO)
+        .lte('created_at', prevPeriodEndISO);
+      
+      const prevPeriodRevenue = prevPeriodTransactions?.reduce((sum, t) => sum + Math.abs(t.amount), 0) || 0;
 
       // Documents per day (last 7 days)
       const { data: recentDocs } = await supabase
@@ -185,15 +215,15 @@ export default function AdminDashboardOverview() {
       // Fetch scan type statistics using server-side counts (exclude soft-deleted documents)
       // AI Scan (full) stats
       const [
-        { count: fullCompletedToday },
-        { count: fullCompletedYesterday },
+        { count: fullCompletedInPeriod },
+        { count: fullCompletedPrevPeriod },
         { count: fullCompletedTotal },
         { count: fullPending },
         { count: fullInProgress },
         { count: fullTotal },
         // Similarity stats
-        { count: simCompletedToday },
-        { count: simCompletedYesterday },
+        { count: simCompletedInPeriod },
+        { count: simCompletedPrevPeriod },
         { count: simCompletedTotal },
         { count: simPending },
         { count: simInProgress },
@@ -203,11 +233,11 @@ export default function AdminDashboardOverview() {
         supabase.from('documents').select('*', { count: 'exact', head: true })
           .eq('scan_type', 'full').eq('status', 'completed')
           .is('deleted_at', null).neq('deleted_by_user', true)
-          .gte('completed_at', todayStart).lte('completed_at', todayEnd),
+          .gte('completed_at', periodStart).lte('completed_at', periodEnd),
         supabase.from('documents').select('*', { count: 'exact', head: true })
           .eq('scan_type', 'full').eq('status', 'completed')
           .is('deleted_at', null).neq('deleted_by_user', true)
-          .gte('completed_at', yesterdayStart).lte('completed_at', yesterdayEnd),
+          .gte('completed_at', prevPeriodStartISO).lte('completed_at', prevPeriodEndISO),
         supabase.from('documents').select('*', { count: 'exact', head: true })
           .eq('scan_type', 'full').eq('status', 'completed')
           .is('deleted_at', null).neq('deleted_by_user', true),
@@ -224,11 +254,11 @@ export default function AdminDashboardOverview() {
         supabase.from('documents').select('*', { count: 'exact', head: true })
           .eq('scan_type', 'similarity_only').eq('status', 'completed')
           .is('deleted_at', null).neq('deleted_by_user', true)
-          .gte('completed_at', todayStart).lte('completed_at', todayEnd),
+          .gte('completed_at', periodStart).lte('completed_at', periodEnd),
         supabase.from('documents').select('*', { count: 'exact', head: true })
           .eq('scan_type', 'similarity_only').eq('status', 'completed')
           .is('deleted_at', null).neq('deleted_by_user', true)
-          .gte('completed_at', yesterdayStart).lte('completed_at', yesterdayEnd),
+          .gte('completed_at', prevPeriodStartISO).lte('completed_at', prevPeriodEndISO),
         supabase.from('documents').select('*', { count: 'exact', head: true })
           .eq('scan_type', 'similarity_only').eq('status', 'completed')
           .is('deleted_at', null).neq('deleted_by_user', true),
@@ -245,16 +275,16 @@ export default function AdminDashboardOverview() {
 
       const scanTypeStats = {
         fullScan: {
-          completedToday: fullCompletedToday || 0,
-          completedYesterday: fullCompletedYesterday || 0,
+          completedInPeriod: fullCompletedInPeriod || 0,
+          completedPrevPeriod: fullCompletedPrevPeriod || 0,
           completedTotal: fullCompletedTotal || 0,
           pending: fullPending || 0,
           inProgress: fullInProgress || 0,
           total: fullTotal || 0
         },
         similarityOnly: {
-          completedToday: simCompletedToday || 0,
-          completedYesterday: simCompletedYesterday || 0,
+          completedInPeriod: simCompletedInPeriod || 0,
+          completedPrevPeriod: simCompletedPrevPeriod || 0,
           completedTotal: simCompletedTotal || 0,
           pending: simPending || 0,
           inProgress: simInProgress || 0,
@@ -288,10 +318,12 @@ export default function AdminDashboardOverview() {
       return {
         pendingCount: pendingCount || 0,
         inProgressCount: inProgressCount || 0,
-        completedToday: completedToday || 0,
+        completedInPeriod: completedInPeriod || 0,
+        completedPrevPeriod: completedPrevPeriod || 0,
         totalUsers: totalUsers || 0,
         activeStaff: uniqueActiveStaff,
-        todayRevenue,
+        periodRevenue,
+        prevPeriodRevenue,
         avgProcessingTime,
         chartData,
         fullScanCredits,
@@ -313,9 +345,12 @@ export default function AdminDashboardOverview() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className={isLoading ? '' : 'content-reveal'}>
-          <h1 className="text-3xl font-display font-bold">Dashboard Overview</h1>
-          <p className="text-muted-foreground">Real-time insights into your platform</p>
+        <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${isLoading ? '' : 'content-reveal'}`}>
+          <div>
+            <h1 className="text-3xl font-display font-bold">Dashboard Overview</h1>
+            <p className="text-muted-foreground">Real-time insights into your platform</p>
+          </div>
+          <PeriodSelector value={period} onChange={setPeriod} />
         </div>
 
         {/* Key Metrics Grid */}
@@ -357,27 +392,55 @@ export default function AdminDashboardOverview() {
 
               <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-secondary/30 transition-all duration-300">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
+                  <CardTitle className="text-sm font-medium">Completed ({period.label})</CardTitle>
                   <div className="h-8 w-8 rounded-lg bg-secondary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
                     <CheckCircle className="h-4 w-4 text-secondary" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{metrics?.completedToday}</div>
-                  <p className="text-xs text-muted-foreground">Documents finished</p>
+                  <div className="text-2xl font-bold">{metrics?.completedInPeriod}</div>
+                  <div className="flex items-center gap-1 mt-1">
+                    {metrics && metrics.completedInPeriod > metrics.completedPrevPeriod ? (
+                      <span className="text-xs text-green-500 flex items-center gap-0.5">
+                        <ArrowUp className="h-3 w-3" />
+                        vs prev period ({metrics.completedPrevPeriod})
+                      </span>
+                    ) : metrics && metrics.completedInPeriod < metrics.completedPrevPeriod ? (
+                      <span className="text-xs text-amber-500 flex items-center gap-0.5">
+                        <ArrowDown className="h-3 w-3" />
+                        vs prev period ({metrics.completedPrevPeriod})
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">same as prev period</span>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 
               <Card className="group hover:-translate-y-1 hover:shadow-lg hover:border-primary/30 transition-all duration-300">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Today's Revenue</CardTitle>
+                  <CardTitle className="text-sm font-medium">Revenue ({period.label})</CardTitle>
                   <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
                     <DollarSign className="h-4 w-4 text-primary" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{metrics?.todayRevenue} Credits</div>
-                  <p className="text-xs text-muted-foreground">Credits purchased today</p>
+                  <div className="text-2xl font-bold">{metrics?.periodRevenue} Credits</div>
+                  <div className="flex items-center gap-1 mt-1">
+                    {metrics && metrics.periodRevenue > metrics.prevPeriodRevenue ? (
+                      <span className="text-xs text-green-500 flex items-center gap-0.5">
+                        <ArrowUp className="h-3 w-3" />
+                        vs prev period ({metrics.prevPeriodRevenue})
+                      </span>
+                    ) : metrics && metrics.periodRevenue < metrics.prevPeriodRevenue ? (
+                      <span className="text-xs text-amber-500 flex items-center gap-0.5">
+                        <ArrowDown className="h-3 w-3" />
+                        vs prev period ({metrics.prevPeriodRevenue})
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">same as prev period</span>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </>
@@ -438,7 +501,7 @@ export default function AdminDashboardOverview() {
 
         {/* Processing Statistics by Scan Type */}
         <div className={isLoading ? '' : 'content-reveal'}>
-          <h2 className="text-xl font-semibold mb-4">Processing Statistics by Scan Type</h2>
+          <h2 className="text-xl font-semibold mb-4">Processing Statistics by Scan Type ({period.label})</h2>
         </div>
         <div className={`grid gap-4 md:grid-cols-2 ${isLoading ? '' : 'content-reveal-stagger'}`}>
           {isLoading ? (
@@ -463,25 +526,25 @@ export default function AdminDashboardOverview() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center p-3 bg-primary/5 rounded-lg">
                       <div className="text-2xl font-bold text-primary">
-                        {metrics?.scanTypeStats.fullScan.completedToday}
+                        {metrics?.scanTypeStats.fullScan.completedInPeriod}
                       </div>
-                      <p className="text-xs text-muted-foreground">Today</p>
+                      <p className="text-xs text-muted-foreground">{period.label}</p>
                       {metrics && (
                         <div className="flex items-center justify-center mt-1">
-                          {metrics.scanTypeStats.fullScan.completedToday > metrics.scanTypeStats.fullScan.completedYesterday ? (
+                          {metrics.scanTypeStats.fullScan.completedInPeriod > metrics.scanTypeStats.fullScan.completedPrevPeriod ? (
                             <span className="text-xs text-green-500 flex items-center gap-0.5">
                               <ArrowUp className="h-3 w-3" />
-                              vs yesterday
+                              vs prev
                             </span>
-                          ) : metrics.scanTypeStats.fullScan.completedToday < metrics.scanTypeStats.fullScan.completedYesterday ? (
+                          ) : metrics.scanTypeStats.fullScan.completedInPeriod < metrics.scanTypeStats.fullScan.completedPrevPeriod ? (
                             <span className="text-xs text-amber-500 flex items-center gap-0.5">
                               <ArrowDown className="h-3 w-3" />
-                              vs yesterday
+                              vs prev
                             </span>
                           ) : (
                             <span className="text-xs text-muted-foreground flex items-center gap-0.5">
                               <Minus className="h-3 w-3" />
-                              same as yesterday
+                              same
                             </span>
                           )}
                         </div>
@@ -489,15 +552,15 @@ export default function AdminDashboardOverview() {
                     </div>
                     <div className="text-center p-3 bg-muted/50 rounded-lg">
                       <div className="text-2xl font-bold">
-                        {metrics?.scanTypeStats.fullScan.completedYesterday}
+                        {metrics?.scanTypeStats.fullScan.completedPrevPeriod}
                       </div>
-                      <p className="text-xs text-muted-foreground">Yesterday</p>
+                      <p className="text-xs text-muted-foreground">Prev Period</p>
                     </div>
                   </div>
                   <div className="flex justify-between text-sm border-t pt-3">
                     <div className="flex flex-col items-center">
                       <span className="font-semibold text-secondary">{metrics?.scanTypeStats.fullScan.completedTotal}</span>
-                      <span className="text-xs text-muted-foreground">Completed</span>
+                      <span className="text-xs text-muted-foreground">All Time</span>
                     </div>
                     <div className="flex flex-col items-center">
                       <span className="font-semibold text-amber-500">{metrics?.scanTypeStats.fullScan.pending}</span>
@@ -526,25 +589,25 @@ export default function AdminDashboardOverview() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center p-3 bg-purple-500/5 rounded-lg">
                       <div className="text-2xl font-bold text-purple-500">
-                        {metrics?.scanTypeStats.similarityOnly.completedToday}
+                        {metrics?.scanTypeStats.similarityOnly.completedInPeriod}
                       </div>
-                      <p className="text-xs text-muted-foreground">Today</p>
+                      <p className="text-xs text-muted-foreground">{period.label}</p>
                       {metrics && (
                         <div className="flex items-center justify-center mt-1">
-                          {metrics.scanTypeStats.similarityOnly.completedToday > metrics.scanTypeStats.similarityOnly.completedYesterday ? (
+                          {metrics.scanTypeStats.similarityOnly.completedInPeriod > metrics.scanTypeStats.similarityOnly.completedPrevPeriod ? (
                             <span className="text-xs text-green-500 flex items-center gap-0.5">
                               <ArrowUp className="h-3 w-3" />
-                              vs yesterday
+                              vs prev
                             </span>
-                          ) : metrics.scanTypeStats.similarityOnly.completedToday < metrics.scanTypeStats.similarityOnly.completedYesterday ? (
+                          ) : metrics.scanTypeStats.similarityOnly.completedInPeriod < metrics.scanTypeStats.similarityOnly.completedPrevPeriod ? (
                             <span className="text-xs text-amber-500 flex items-center gap-0.5">
                               <ArrowDown className="h-3 w-3" />
-                              vs yesterday
+                              vs prev
                             </span>
                           ) : (
                             <span className="text-xs text-muted-foreground flex items-center gap-0.5">
                               <Minus className="h-3 w-3" />
-                              same as yesterday
+                              same
                             </span>
                           )}
                         </div>
@@ -552,15 +615,15 @@ export default function AdminDashboardOverview() {
                     </div>
                     <div className="text-center p-3 bg-muted/50 rounded-lg">
                       <div className="text-2xl font-bold">
-                        {metrics?.scanTypeStats.similarityOnly.completedYesterday}
+                        {metrics?.scanTypeStats.similarityOnly.completedPrevPeriod}
                       </div>
-                      <p className="text-xs text-muted-foreground">Yesterday</p>
+                      <p className="text-xs text-muted-foreground">Prev Period</p>
                     </div>
                   </div>
                   <div className="flex justify-between text-sm border-t pt-3">
                     <div className="flex flex-col items-center">
                       <span className="font-semibold text-secondary">{metrics?.scanTypeStats.similarityOnly.completedTotal}</span>
-                      <span className="text-xs text-muted-foreground">Completed</span>
+                      <span className="text-xs text-muted-foreground">All Time</span>
                     </div>
                     <div className="flex flex-col items-center">
                       <span className="font-semibold text-amber-500">{metrics?.scanTypeStats.similarityOnly.pending}</span>
