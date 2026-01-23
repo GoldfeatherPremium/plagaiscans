@@ -9,6 +9,7 @@ import { useMagicLinks, MagicUploadLink, MagicUploadFile } from '@/hooks/useMagi
 import { supabase } from '@/integrations/supabase/client';
 import { GuestEmailBanner } from '@/components/GuestEmailBanner';
 import { AnnouncementBanner } from '@/components/AnnouncementBanner';
+import { WhatsAppSupportButton } from '@/components/WhatsAppSupportButton';
 import {
   Upload,
   FileText,
@@ -897,6 +898,9 @@ export default function GuestUpload() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* WhatsApp Support Button */}
+      <WhatsAppSupportButton />
     </div>
   );
 }
