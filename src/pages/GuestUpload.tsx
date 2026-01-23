@@ -51,6 +51,13 @@ interface PricingPackage {
   id: string;
   credits: number;
   price: number;
+  package_type: string;
+  billing_interval: string | null;
+  validity_days: number | null;
+  name: string | null;
+  description: string | null;
+  features: string[] | null;
+  credit_type: string;
 }
 
 export default function GuestUpload() {
@@ -769,48 +776,76 @@ export default function GuestUpload() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 gap-4">
-                {packages.map((plan) => (
-                  <Card key={plan.id} className="hover:border-primary/50 transition-colors">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="text-2xl font-bold">
-                            {plan.credits} {plan.credits === 1 ? 'Credit' : 'Credits'}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            ${(plan.price / plan.credits).toFixed(2)} per document
-                          </p>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {packages.map((plan, index) => {
+                  const isPopular = index === packages.length - 1 && packages.length > 1;
+                  
+                  return (
+                    <Card 
+                      key={plan.id} 
+                      className={`hover:border-primary/50 transition-colors relative overflow-hidden ${
+                        isPopular ? 'border-primary shadow-lg ring-2 ring-primary/20' : ''
+                      }`}
+                    >
+                      {isPopular && (
+                        <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold rounded-bl-lg">
+                          Best Value
                         </div>
-                        <p className="text-3xl font-bold text-primary">${plan.price}</p>
-                      </div>
-                      <ul className="space-y-2 mb-4 text-sm">
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-secondary" />
-                          Similarity Detection
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-secondary" />
-                          AI Content Detection
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-secondary" />
-                          Detailed PDF Reports
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-secondary" />
-                          Credits Never Expire
-                        </li>
-                      </ul>
-                      <Button
-                        className="w-full"
-                        asChild
-                      >
-                        <Link to="/auth">Sign Up to Purchase</Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                      )}
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="text-xl font-bold">
+                              {plan.name || `${plan.credits} ${plan.credits === 1 ? 'Credit' : 'Credits'}`}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              ${(plan.price / plan.credits).toFixed(2)} per document
+                            </p>
+                          </div>
+                          <p className="text-3xl font-bold text-primary">${plan.price}</p>
+                        </div>
+                        {plan.validity_days && (
+                          <Badge variant="outline" className="mb-4 bg-amber-500/10 text-amber-600 border-amber-500/20">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Valid for {plan.validity_days} days
+                          </Badge>
+                        )}
+                        <ul className="space-y-2 mb-4 text-sm">
+                          {plan.features && plan.features.length > 0 ? (
+                            plan.features.map((feature, featureIndex) => (
+                              <li key={featureIndex} className="flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4 text-secondary flex-shrink-0" />
+                                <span>{feature}</span>
+                              </li>
+                            ))
+                          ) : (
+                            <>
+                              <li className="flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4 text-secondary" />
+                                {plan.credits} document checks
+                              </li>
+                              <li className="flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4 text-secondary" />
+                                Similarity Detection
+                              </li>
+                              <li className="flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4 text-secondary" />
+                                AI Content Detection
+                              </li>
+                            </>
+                          )}
+                        </ul>
+                        <Button
+                          className="w-full"
+                          variant={isPopular ? "default" : "outline"}
+                          asChild
+                        >
+                          <Link to="/auth">Sign Up to Purchase</Link>
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
 
