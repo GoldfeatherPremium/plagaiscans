@@ -45,6 +45,7 @@ import {
   Crown,
   CalendarClock,
   Trash2,
+  Puzzle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStaffScanTypes } from '@/hooks/useStaffScanTypes';
@@ -432,6 +433,7 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/settings', icon: Settings, label: 'Settings' },
         { to: '/dashboard/site-content', icon: FileText, label: 'Site Content' },
         { to: '/dashboard/ai-helper', icon: Bot, label: 'AI Helper' },
+        { to: '/dashboard/extension-download', icon: Puzzle, label: 'Extension' },
         { to: '/dashboard/profile', icon: User, label: 'Profile' },
       ],
     },
