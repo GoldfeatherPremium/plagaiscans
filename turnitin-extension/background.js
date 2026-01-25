@@ -12,9 +12,10 @@ var isEnabled = true;
 var extensionToken = null;
 
 // Initialize alarm immediately on script load (for Kiwi Browser compatibility)
+// Note: Minimum alarm period is 1 minute in released extensions
 chrome.alarms.get('pollDocuments', function(alarm) {
   if (!alarm) {
-    chrome.alarms.create('pollDocuments', { periodInMinutes: 0.17 }); // ~10 seconds
+    chrome.alarms.create('pollDocuments', { periodInMinutes: 1 }); // 1 minute minimum
     console.log('Created pollDocuments alarm on script load');
   }
 });
@@ -29,14 +30,14 @@ chrome.runtime.onInstalled.addListener(function() {
     currentStatus: 'idle'
   });
   
-  // Set up polling alarm
-  chrome.alarms.create('pollDocuments', { periodInMinutes: 0.17 }); // ~10 seconds
+  // Set up polling alarm (minimum 1 minute in released extensions)
+  chrome.alarms.create('pollDocuments', { periodInMinutes: 1 });
 });
 
 // Also create alarm on browser startup (for Kiwi Browser)
 chrome.runtime.onStartup.addListener(function() {
   console.log('Extension started on browser startup');
-  chrome.alarms.create('pollDocuments', { periodInMinutes: 0.17 });
+  chrome.alarms.create('pollDocuments', { periodInMinutes: 1 });
 });
 
 // Handle alarm for polling
