@@ -11,7 +11,15 @@ var currentDocumentId = null;
 var isEnabled = true;
 var extensionToken = null;
 
-// Initialize extension
+// Initialize alarm immediately on script load (for Kiwi Browser compatibility)
+chrome.alarms.get('pollDocuments', function(alarm) {
+  if (!alarm) {
+    chrome.alarms.create('pollDocuments', { periodInMinutes: 0.17 }); // ~10 seconds
+    console.log('Created pollDocuments alarm on script load');
+  }
+});
+
+// Initialize extension on install
 chrome.runtime.onInstalled.addListener(function() {
   console.log('Plagaiscans Turnitin Automation installed');
   chrome.storage.local.set({ 
@@ -23,6 +31,12 @@ chrome.runtime.onInstalled.addListener(function() {
   
   // Set up polling alarm
   chrome.alarms.create('pollDocuments', { periodInMinutes: 0.17 }); // ~10 seconds
+});
+
+// Also create alarm on browser startup (for Kiwi Browser)
+chrome.runtime.onStartup.addListener(function() {
+  console.log('Extension started on browser startup');
+  chrome.alarms.create('pollDocuments', { periodInMinutes: 0.17 });
 });
 
 // Handle alarm for polling
