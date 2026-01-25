@@ -10,9 +10,11 @@ async function init() {
 async function loadSavedSettings() {
   const data = await chrome.storage.local.get([
     'turnitinCredentials',
-    'supabaseServiceKey',
+    'extensionToken',
+    'turnitinSettings',
     'pollInterval',
-    'maxRetries'
+    'maxRetries',
+    'reportWaitTime'
   ]);
   
   // Update credential status
@@ -21,13 +23,26 @@ async function loadSavedSettings() {
     credStatus.className = 'status-badge';
     credStatus.innerHTML = '<span class="dot"></span>Configured';
     document.getElementById('turnitinEmail').value = data.turnitinCredentials.email;
-    // Don't show password, just indicate it's set
     document.getElementById('turnitinPassword').placeholder = '••••••••••••••••';
   }
   
-  // Load service key (masked)
-  if (data.supabaseServiceKey) {
-    document.getElementById('serviceKey').placeholder = '••• Key saved •••';
+  // Load extension token (masked)
+  if (data.extensionToken) {
+    document.getElementById('extensionToken').placeholder = '••• Token saved •••';
+  }
+  
+  // Load Turnitin settings
+  if (data.turnitinSettings) {
+    document.getElementById('turnitinUrl').value = data.turnitinSettings.loginUrl || 'https://nrtiedu.turnitin.com/';
+    document.getElementById('folderName').value = data.turnitinSettings.folderName || 'Bio 2';
+    document.getElementById('autoLaunch').checked = data.turnitinSettings.autoLaunch !== false;
+    document.getElementById('waitForAiReport').checked = data.turnitinSettings.waitForAiReport !== false;
+  } else {
+    // Set defaults
+    document.getElementById('turnitinUrl').value = 'https://nrtiedu.turnitin.com/';
+    document.getElementById('folderName').value = 'Bio 2';
+    document.getElementById('autoLaunch').checked = true;
+    document.getElementById('waitForAiReport').checked = true;
   }
   
   // Load advanced settings
@@ -37,9 +52,18 @@ async function loadSavedSettings() {
   if (data.maxRetries) {
     document.getElementById('maxRetries').value = data.maxRetries;
   }
+  if (data.reportWaitTime) {
+    document.getElementById('reportWaitTime').value = data.reportWaitTime;
+  }
 }
 
 function setupEventListeners() {
+  // Turnitin settings form
+  document.getElementById('turnitinSettingsForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await saveTurnitinSettings();
+  });
+  
   // Turnitin credentials form
   document.getElementById('turnitinForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -60,24 +84,50 @@ function setupEventListeners() {
     showMessage('credSuccess', 'Credentials cleared');
   });
   
-  // Supabase form
-  document.getElementById('supabaseForm').addEventListener('submit', async (e) => {
+  // Token form
+  document.getElementById('tokenForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    await saveServiceKey();
+    await saveExtensionToken();
   });
   
-  // Clear key button
-  document.getElementById('clearKeyBtn').addEventListener('click', async () => {
-    await chrome.storage.local.remove(['supabaseServiceKey']);
-    document.getElementById('serviceKey').value = '';
-    document.getElementById('serviceKey').placeholder = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
-    showMessage('keySuccess', 'Service key cleared');
+  // Clear token button
+  document.getElementById('clearTokenBtn').addEventListener('click', async () => {
+    await chrome.storage.local.remove(['extensionToken']);
+    document.getElementById('extensionToken').value = '';
+    document.getElementById('extensionToken').placeholder = 'ext_xxxxxxxxxxxx...';
+    showMessage('tokenSuccess', 'Token cleared');
   });
   
   // Advanced settings
   document.getElementById('saveAdvancedBtn').addEventListener('click', async () => {
     await saveAdvancedSettings();
   });
+}
+
+async function saveTurnitinSettings() {
+  const loginUrl = document.getElementById('turnitinUrl').value.trim() || 'https://nrtiedu.turnitin.com/';
+  const folderName = document.getElementById('folderName').value.trim() || 'Bio 2';
+  const autoLaunch = document.getElementById('autoLaunch').checked;
+  const waitForAiReport = document.getElementById('waitForAiReport').checked;
+  
+  // Validate URL
+  try {
+    new URL(loginUrl);
+  } catch {
+    showError('turnitinSettingsError', 'Please enter a valid URL');
+    return;
+  }
+  
+  await chrome.storage.local.set({
+    turnitinSettings: {
+      loginUrl,
+      folderName,
+      autoLaunch,
+      waitForAiReport
+    }
+  });
+  
+  showMessage('turnitinSettingsSuccess', 'Turnitin settings saved');
 }
 
 async function saveTurnitinCredentials() {
@@ -117,53 +167,58 @@ async function saveTurnitinCredentials() {
   showMessage('credSuccess', 'Credentials saved successfully');
 }
 
-async function saveServiceKey() {
-  const key = document.getElementById('serviceKey').value.trim();
+async function saveExtensionToken() {
+  const token = document.getElementById('extensionToken').value.trim();
   
-  if (!key) {
-    showError('keyError', 'Please enter the service role key');
+  if (!token) {
+    showError('tokenError', 'Please enter your extension token');
     return;
   }
   
-  // Basic validation - check if it looks like a JWT
-  if (!key.startsWith('eyJ')) {
-    showError('keyError', 'Invalid key format. Should start with "eyJ"');
+  // Basic validation - check if it starts with ext_
+  if (!token.startsWith('ext_')) {
+    showError('tokenError', 'Invalid token format. Should start with "ext_"');
     return;
   }
   
-  // Test the connection
+  // Test the token by making a heartbeat request
   try {
-    const response = await fetch('https://fyssbzgmhnolazjfwafm.supabase.co/rest/v1/documents?limit=1', {
+    const response = await fetch('https://fyssbzgmhnolazjfwafm.supabase.co/functions/v1/extension-api', {
+      method: 'POST',
       headers: {
-        'apikey': key,
-        'Authorization': `Bearer ${key}`
-      }
+        'Content-Type': 'application/json',
+        'x-extension-token': token
+      },
+      body: JSON.stringify({ action: 'heartbeat' })
     });
     
     if (!response.ok) {
-      throw new Error('Connection failed');
+      const error = await response.json().catch(() => ({ error: 'Connection failed' }));
+      throw new Error(error.error || 'Invalid token');
     }
   } catch (error) {
-    showError('keyError', 'Failed to connect. Please check the key.');
+    showError('tokenError', error.message || 'Failed to verify token. Please check and try again.');
     return;
   }
   
-  await chrome.storage.local.set({ supabaseServiceKey: key });
+  await chrome.storage.local.set({ extensionToken: token });
   
   // Clear and update placeholder
-  document.getElementById('serviceKey').value = '';
-  document.getElementById('serviceKey').placeholder = '••• Key saved •••';
+  document.getElementById('extensionToken').value = '';
+  document.getElementById('extensionToken').placeholder = '••• Token saved •••';
   
-  showMessage('keySuccess', 'Service key saved and verified');
+  showMessage('tokenSuccess', 'Extension token saved and verified');
 }
 
 async function saveAdvancedSettings() {
   const pollInterval = parseInt(document.getElementById('pollInterval').value) || 10;
   const maxRetries = parseInt(document.getElementById('maxRetries').value) || 3;
+  const reportWaitTime = parseInt(document.getElementById('reportWaitTime').value) || 20;
   
   await chrome.storage.local.set({
-    pollInterval: Math.max(5, Math.min(60, pollInterval)), // 5-60 seconds
-    maxRetries: Math.max(1, Math.min(10, maxRetries)) // 1-10 retries
+    pollInterval: Math.max(5, Math.min(60, pollInterval)),
+    maxRetries: Math.max(1, Math.min(10, maxRetries)),
+    reportWaitTime: Math.max(5, Math.min(60, reportWaitTime))
   });
   
   showMessage('advancedSuccess', 'Settings saved');

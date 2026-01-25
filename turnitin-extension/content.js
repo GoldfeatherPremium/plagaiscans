@@ -6,6 +6,7 @@ console.log('Plagaiscans Turnitin Automation content script loaded');
 // State
 let isAutomating = false;
 let currentStep = null;
+let turnitinSettings = null;
 
 // Configuration
 const WAIT_TIMEOUT = 60000; // 60 seconds max wait
@@ -16,6 +17,15 @@ const ACTION_DELAY = 1500; // Delay between actions
 init();
 
 async function init() {
+  // Get Turnitin settings from storage
+  const data = await chrome.storage.local.get(['turnitinSettings']);
+  turnitinSettings = data.turnitinSettings || {
+    loginUrl: 'https://nrtiedu.turnitin.com/',
+    folderName: 'Bio 2',
+    autoLaunch: true,
+    waitForAiReport: true
+  };
+  
   // Check if we're being controlled by the extension
   const response = await chrome.runtime.sendMessage({ type: 'GET_CURRENT_DOCUMENT' });
   
@@ -35,16 +45,32 @@ async function detectPageAndAct() {
   const url = window.location.href;
   
   try {
-    if (url.includes('login') || url.includes('Login')) {
+    // Check for login page
+    if (url.includes('login') || url.includes('Login') || url.includes('signin') || url.includes('sign-in')) {
       await handleLoginPage();
-    } else if (url.includes('home') || url.includes('dashboard')) {
-      await handleDashboard();
-    } else if (url.includes('submission') || url.includes('upload')) {
+    } 
+    // Check for "Launch automatically" page (post-login landing)
+    else if (await shouldClickLaunchButton()) {
+      await handleLaunchAutomatically();
+    }
+    // Check for folder/class selection page
+    else if (await shouldNavigateToFolder()) {
+      await navigateToFolder(turnitinSettings.folderName);
+    }
+    // Check for submission/upload page
+    else if (url.includes('submission') || url.includes('upload') || await hasFileInput()) {
       await handleSubmissionPage();
-    } else if (url.includes('report') || url.includes('viewer')) {
+    }
+    // Check for report/viewer page
+    else if (url.includes('report') || url.includes('viewer')) {
       await handleReportPage();
-    } else {
-      // Try to detect by page content
+    }
+    // Check for dashboard/home
+    else if (url.includes('home') || url.includes('dashboard')) {
+      await handleDashboard();
+    }
+    // Try to detect by page content
+    else {
       await detectByContent();
     }
   } catch (error) {
@@ -56,6 +82,95 @@ async function detectPageAndAct() {
   }
 }
 
+async function shouldClickLaunchButton() {
+  if (!turnitinSettings.autoLaunch) return false;
+  
+  await wait(1000);
+  
+  // Look for "Launch automatically" or similar buttons
+  const launchButtons = document.querySelectorAll('button, a, [role="button"]');
+  for (const btn of launchButtons) {
+    const text = btn.textContent?.toLowerCase() || '';
+    if (text.includes('launch') && (text.includes('auto') || text.includes('originality'))) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+async function handleLaunchAutomatically() {
+  console.log('Looking for Launch Automatically button');
+  currentStep = 'launch_automatically';
+  
+  await wait(2000);
+  
+  // Find and click "Launch automatically" button
+  const buttons = document.querySelectorAll('button, a, [role="button"], .btn, .button');
+  for (const btn of buttons) {
+    const text = btn.textContent?.toLowerCase() || '';
+    if (text.includes('launch') && (text.includes('auto') || text.includes('originality'))) {
+      console.log('Found Launch button, clicking...');
+      btn.click();
+      await waitForNavigation();
+      await wait(2000);
+      await detectPageAndAct();
+      return;
+    }
+  }
+  
+  // If no launch button found, continue with detection
+  console.log('No Launch button found, continuing detection...');
+  await detectByContent();
+}
+
+async function shouldNavigateToFolder() {
+  await wait(1000);
+  
+  // Check if we're on a page with folder/class links
+  const folderLinks = document.querySelectorAll('a, button, [role="button"], .folder, .class-item, [data-testid*="folder"], [data-testid*="class"]');
+  for (const link of folderLinks) {
+    const text = link.textContent?.toLowerCase() || '';
+    if (text.includes(turnitinSettings.folderName.toLowerCase())) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+async function navigateToFolder(folderName) {
+  console.log(`Navigating to folder: ${folderName}`);
+  currentStep = 'navigate_folder';
+  
+  await wait(2000);
+  
+  // Find folder link by name (case-insensitive search)
+  const allLinks = document.querySelectorAll('a, button, [role="button"], .folder, .class-item, tr, td, .assignment');
+  for (const link of allLinks) {
+    const text = link.textContent?.trim() || '';
+    if (text.toLowerCase().includes(folderName.toLowerCase())) {
+      console.log(`Found folder "${folderName}", clicking...`);
+      
+      // Click the link or a clickable child
+      const clickable = link.querySelector('a, button') || link;
+      clickable.click();
+      
+      await waitForNavigation();
+      await wait(2000);
+      await detectPageAndAct();
+      return;
+    }
+  }
+  
+  throw new Error(`Could not find folder: ${folderName}`);
+}
+
+async function hasFileInput() {
+  await wait(500);
+  return !!document.querySelector('input[type="file"]');
+}
+
 async function detectByContent() {
   await wait(2000); // Wait for page to fully load
   
@@ -64,6 +179,18 @@ async function detectByContent() {
                     document.querySelector('input[type="password"]');
   if (loginForm) {
     await handleLoginPage();
+    return;
+  }
+  
+  // Check for "Launch automatically" button
+  if (await shouldClickLaunchButton()) {
+    await handleLaunchAutomatically();
+    return;
+  }
+  
+  // Check for folder navigation
+  if (await shouldNavigateToFolder()) {
+    await navigateToFolder(turnitinSettings.folderName);
     return;
   }
   
@@ -79,6 +206,20 @@ async function detectByContent() {
   if (fileInput) {
     await handleSubmissionPage();
     return;
+  }
+  
+  // Check for submit/upload button that might lead to upload page
+  const submitButtons = document.querySelectorAll('a, button');
+  for (const btn of submitButtons) {
+    const text = btn.textContent?.toLowerCase() || '';
+    if (text.includes('submit') || text.includes('upload') || text.includes('add submission')) {
+      console.log('Found submit/upload button, clicking...');
+      btn.click();
+      await waitForNavigation();
+      await wait(2000);
+      await detectPageAndAct();
+      return;
+    }
   }
   
   console.log('Unknown page type, waiting for navigation...');
@@ -129,7 +270,11 @@ async function handleLoginPage() {
                        document.querySelector('button:contains("Log in")') ||
                        document.querySelector('button:contains("Sign in")') ||
                        document.querySelector('.login-button') ||
-                       document.querySelector('[data-testid="login-button"]');
+                       document.querySelector('[data-testid="login-button"]') ||
+                       Array.from(document.querySelectorAll('button')).find(b => 
+                         b.textContent?.toLowerCase().includes('log in') || 
+                         b.textContent?.toLowerCase().includes('sign in')
+                       );
   
   if (submitButton) {
     submitButton.click();
@@ -137,6 +282,7 @@ async function handleLoginPage() {
     
     // Wait for page change
     await waitForNavigation();
+    await wait(3000); // Extra wait for redirect
     await detectPageAndAct();
   } else {
     throw new Error('Could not find login submit button');
@@ -148,6 +294,12 @@ async function handleDashboard() {
   currentStep = 'dashboard';
   
   await wait(2000);
+  
+  // First check if we need to navigate to a specific folder
+  if (await shouldNavigateToFolder()) {
+    await navigateToFolder(turnitinSettings.folderName);
+    return;
+  }
   
   // Look for a class to submit to - find the first available class
   const classLink = document.querySelector('a[href*="class"]') ||
@@ -229,8 +381,10 @@ async function handleSubmissionPage() {
   // Look for submit button
   const submitButton = document.querySelector('button[type="submit"]') ||
                        document.querySelector('input[type="submit"]') ||
-                       document.querySelector('button:contains("Submit")') ||
-                       document.querySelector('button:contains("Upload")') ||
+                       Array.from(document.querySelectorAll('button')).find(b => 
+                         b.textContent?.toLowerCase().includes('submit') || 
+                         b.textContent?.toLowerCase().includes('upload')
+                       ) ||
                        document.querySelector('.submit-button');
   
   if (submitButton) {
@@ -259,7 +413,8 @@ async function waitForSubmissionConfirmation() {
       document.querySelector('.success-message'),
       document.querySelector('[data-status="submitted"]'),
       document.body.innerText.includes('successfully submitted'),
-      document.body.innerText.includes('submission received')
+      document.body.innerText.includes('submission received'),
+      document.body.innerText.includes('successfully uploaded')
     ];
     
     if (successIndicators.some(Boolean)) {
@@ -304,20 +459,26 @@ async function waitForReports() {
   console.log('Waiting for reports to be ready...');
   currentStep = 'waiting_reports';
   
+  // Get report wait time from settings
+  const data = await chrome.storage.local.get(['reportWaitTime']);
+  const maxWaitMinutes = data.reportWaitTime || 20;
+  const maxWaitTime = maxWaitMinutes * 60 * 1000;
+  
   const startTime = Date.now();
-  const maxWaitTime = 20 * 60 * 1000; // 20 minutes max
   
   while (Date.now() - startTime < maxWaitTime) {
     await wait(CHECK_INTERVAL * 3); // Check every 6 seconds
     
-    // Look for report links
+    // Look for report links or scores
     const similarityLink = document.querySelector('a[href*="similarity"]') ||
                            document.querySelector('[data-report="similarity"]') ||
-                           document.querySelector('.similarity-score');
+                           document.querySelector('.similarity-score') ||
+                           document.querySelector('[class*="similarity"]');
     
     const aiLink = document.querySelector('a[href*="ai"]') ||
                    document.querySelector('[data-report="ai"]') ||
-                   document.querySelector('.ai-score');
+                   document.querySelector('.ai-score') ||
+                   document.querySelector('[class*="ai-score"]');
     
     // Check for percentage displays
     const percentageElements = document.querySelectorAll('[class*="percent"], [class*="score"]');
@@ -362,13 +523,28 @@ async function downloadReports() {
   };
   
   // Try to extract percentages from page
-  const similarityScore = document.querySelector('.similarity-score, [data-similarity], .originality-score');
+  const similarityScore = document.querySelector('.similarity-score, [data-similarity], .originality-score, [class*="similarity"]');
   if (similarityScore) {
     const match = similarityScore.innerText.match(/(\d+)/);
     if (match) reports.similarityPercentage = parseInt(match[1]);
   }
   
-  const aiScore = document.querySelector('.ai-score, [data-ai-score]');
+  // Also check for percentage in any score element
+  if (!reports.similarityPercentage) {
+    const allScores = document.querySelectorAll('[class*="score"], [class*="percent"]');
+    for (const score of allScores) {
+      const text = score.innerText;
+      if (text && !text.toLowerCase().includes('ai')) {
+        const match = text.match(/(\d+)\s*%?/);
+        if (match) {
+          reports.similarityPercentage = parseInt(match[1]);
+          break;
+        }
+      }
+    }
+  }
+  
+  const aiScore = document.querySelector('.ai-score, [data-ai-score], [class*="ai-score"]');
   if (aiScore) {
     const match = aiScore.innerText.match(/(\d+)/);
     if (match) reports.aiPercentage = parseInt(match[1]);
@@ -376,11 +552,11 @@ async function downloadReports() {
   
   // Try to find and click download buttons
   const downloadButtons = document.querySelectorAll(
-    'a[href*="download"], button:contains("Download"), [data-action="download"]'
+    'a[href*="download"], button:contains("Download"), [data-action="download"], .download-btn'
   );
   
   for (const button of downloadButtons) {
-    const buttonText = button.innerText.toLowerCase();
+    const buttonText = button.innerText?.toLowerCase() || '';
     
     if (buttonText.includes('similarity') || buttonText.includes('originality')) {
       const pdfData = await clickAndCaptureDownload(button);
@@ -398,7 +574,7 @@ async function downloadReports() {
     reports.similarityReport = await captureReportFromViewer('similarity');
   }
   
-  if (!reports.aiReport) {
+  if (!reports.aiReport && turnitinSettings.waitForAiReport) {
     reports.aiReport = await captureReportFromViewer('ai');
   }
   
