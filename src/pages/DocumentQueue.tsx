@@ -11,9 +11,10 @@ import { useDocuments, Document } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/StatusBadge';
 import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
+import { CancelDocumentDialog } from '@/components/CancelDocumentDialog';
 import { BulkUploadPanel } from '@/components/BulkUploadPanel';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
-import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare, CheckCheck, FolderUp, Pencil } from 'lucide-react';
+import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare, CheckCheck, FolderUp, Pencil, Ban } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -54,7 +55,7 @@ interface BatchReportData {
 }
 
 export default function DocumentQueue() {
-  const { documents, loading, downloadFile, uploadReport, updateDocumentStatus, releaseDocument, fetchDocuments } = useDocuments();
+  const { documents, loading, downloadFile, uploadReport, updateDocumentStatus, releaseDocument, fetchDocuments, cancelDocument } = useDocuments();
   const { user, role } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -79,6 +80,11 @@ export default function DocumentQueue() {
   // Edit dialog state (admin only)
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [documentToEdit, setDocumentToEdit] = useState<Document | null>(null);
+  
+  // Cancel dialog state (admin only)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [documentToCancel, setDocumentToCancel] = useState<Document | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   
   // Batch selection state
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
@@ -723,6 +729,22 @@ export default function DocumentQueue() {
                                   <Pencil className="h-4 w-4" />
                                 </Button>
                               )}
+
+                              {/* Admin Cancel Button */}
+                              {isAdmin && (doc.status === 'pending' || doc.status === 'in_progress') && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => {
+                                    setDocumentToCancel(doc);
+                                    setCancelDialogOpen(true);
+                                  }}
+                                  title="Cancel document and refund credit"
+                                >
+                                  <Ban className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -1024,6 +1046,25 @@ export default function DocumentQueue() {
           onOpenChange={setEditDialogOpen}
           onSuccess={fetchDocuments}
           downloadFile={downloadFile}
+        />
+
+        {/* Cancel Document Dialog (Admin only) */}
+        <CancelDocumentDialog
+          open={cancelDialogOpen}
+          onOpenChange={setCancelDialogOpen}
+          document={documentToCancel}
+          cancelling={cancelling}
+          onConfirm={async (reason) => {
+            if (!documentToCancel || !user) return;
+            setCancelling(true);
+            try {
+              await cancelDocument(documentToCancel.id, reason, user.id);
+              setCancelDialogOpen(false);
+              setDocumentToCancel(null);
+            } finally {
+              setCancelling(false);
+            }
+          }}
         />
       </div>
     </DashboardLayout>

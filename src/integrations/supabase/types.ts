@@ -712,7 +712,11 @@ export type Database = {
           ai_report_path: string | null
           assigned_at: string | null
           assigned_staff_id: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           completed_at: string | null
+          credit_refunded: boolean | null
           deleted_at: string | null
           deleted_by_user: boolean | null
           error_message: string | null
@@ -740,7 +744,11 @@ export type Database = {
           ai_report_path?: string | null
           assigned_at?: string | null
           assigned_staff_id?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           completed_at?: string | null
+          credit_refunded?: boolean | null
           deleted_at?: string | null
           deleted_by_user?: boolean | null
           error_message?: string | null
@@ -768,7 +776,11 @@ export type Database = {
           ai_report_path?: string | null
           assigned_at?: string | null
           assigned_staff_id?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           completed_at?: string | null
+          credit_refunded?: boolean | null
           deleted_at?: string | null
           deleted_by_user?: boolean | null
           error_message?: string | null
@@ -2684,7 +2696,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "staff" | "customer"
-      document_status: "pending" | "in_progress" | "completed"
+      document_status: "pending" | "in_progress" | "completed" | "cancelled"
       similarity_queue_status: "queued" | "processing" | "completed" | "failed"
     }
     CompositeTypes: {
@@ -2814,7 +2826,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "staff", "customer"],
-      document_status: ["pending", "in_progress", "completed"],
+      document_status: ["pending", "in_progress", "completed", "cancelled"],
       similarity_queue_status: ["queued", "processing", "completed", "failed"],
     },
   },
