@@ -856,15 +856,31 @@ export const useDocuments = () => {
     adminUserId: string
   ) => {
     try {
-      // 1. Fetch document details
+      // 1. Fetch document details (separate queries to avoid join issues with null user_id)
       const { data: docData, error: fetchError } = await supabase
         .from('documents')
-        .select('*, profiles:user_id(email, full_name)')
+        .select('*')
         .eq('id', documentId)
-        .single();
+        .maybeSingle();
 
-      if (fetchError || !docData) {
+      if (fetchError) {
+        console.error('Error fetching document:', fetchError);
+        throw new Error(`Failed to fetch document: ${fetchError.message}`);
+      }
+      
+      if (!docData) {
         throw new Error('Document not found');
+      }
+      
+      // Fetch profile separately if user_id exists
+      let profileData: { email?: string; full_name?: string } | null = null;
+      if (docData.user_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email, full_name')
+          .eq('id', docData.user_id)
+          .maybeSingle();
+        profileData = profile;
       }
 
       // Only allow cancellation of pending/in_progress documents
@@ -881,17 +897,17 @@ export const useDocuments = () => {
         const balanceField = scanType === 'full' ? 'credit_balance' : 'similarity_credit_balance';
         
         // Get current balance
-        const { data: profileData, error: profileError } = await supabase
+        const { data: balanceData, error: balanceError } = await supabase
           .from('profiles')
           .select(balanceField)
           .eq('id', docData.user_id)
           .single();
 
-        if (profileError || !profileData) {
+        if (balanceError || !balanceData) {
           throw new Error('Failed to fetch user profile');
         }
 
-        const currentBalance = (profileData as Record<string, number>)[balanceField];
+        const currentBalance = (balanceData as Record<string, number>)[balanceField];
         const newBalance = currentBalance + 1;
 
         // Update balance
@@ -971,7 +987,6 @@ export const useDocuments = () => {
       if (cancelError) throw cancelError;
 
       // 6. Log to deleted_documents_log
-      const profileData = docData.profiles as { email?: string; full_name?: string } | null;
       await supabase.from('deleted_documents_log').insert({
         original_document_id: documentId,
         user_id: docData.user_id,
