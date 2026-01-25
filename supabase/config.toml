@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.send-guest-completion-email]
 verify_jwt = false
+
+[functions.extension-api]
+verify_jwt = false
