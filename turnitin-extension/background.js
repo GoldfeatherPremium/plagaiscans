@@ -1,18 +1,18 @@
-// Plagaiscans Turnitin Automation - Background Service Worker
+// Plagaiscans Turnitin Automation - Background Script (MV2)
 // This runs persistently and polls for pending documents
 
-const SUPABASE_URL = 'https://fyssbzgmhnolazjfwafm.supabase.co';
-const EXTENSION_API_URL = `${SUPABASE_URL}/functions/v1/extension-api`;
-const DEFAULT_POLL_INTERVAL_MS = 10000; // 10 seconds
-const MAX_PROCESSING_TIME_MS = 30 * 60 * 1000; // 30 minutes max per document
+var SUPABASE_URL = 'https://fyssbzgmhnolazjfwafm.supabase.co';
+var EXTENSION_API_URL = SUPABASE_URL + '/functions/v1/extension-api';
+var DEFAULT_POLL_INTERVAL_MS = 10000; // 10 seconds
+var MAX_PROCESSING_TIME_MS = 30 * 60 * 1000; // 30 minutes max per document
 
-let isProcessing = false;
-let currentDocumentId = null;
-let isEnabled = true;
-let extensionToken = null;
+var isProcessing = false;
+var currentDocumentId = null;
+var isEnabled = true;
+var extensionToken = null;
 
 // Initialize extension
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(function() {
   console.log('Plagaiscans Turnitin Automation installed');
   chrome.storage.local.set({ 
     isEnabled: true,
@@ -26,29 +26,30 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // Handle alarm for polling
-chrome.alarms.onAlarm.addListener(async (alarm) => {
+chrome.alarms.onAlarm.addListener(function(alarm) {
   if (alarm.name === 'pollDocuments') {
-    await checkForPendingDocuments();
+    checkForPendingDocuments();
   }
 });
 
 // Listen for messages from content script and popup
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
   handleMessage(message, sender, sendResponse);
   return true; // Keep channel open for async response
 });
 
-async function handleMessage(message, sender, sendResponse) {
+function handleMessage(message, sender, sendResponse) {
   switch (message.type) {
     case 'GET_STATUS':
-      const status = await getStatus();
-      sendResponse(status);
+      getStatus().then(function(status) {
+        sendResponse(status);
+      });
       break;
       
     case 'TOGGLE_ENABLED':
       isEnabled = message.enabled;
-      chrome.storage.local.set({ isEnabled });
-      sendResponse({ success: true, isEnabled });
+      chrome.storage.local.set({ isEnabled: isEnabled });
+      sendResponse({ success: true, isEnabled: isEnabled });
       break;
       
     case 'GET_CURRENT_DOCUMENT':
@@ -61,28 +62,39 @@ async function handleMessage(message, sender, sendResponse) {
       break;
       
     case 'UPLOAD_COMPLETE':
-      await handleUploadComplete(message.data);
-      sendResponse({ success: true });
+      handleUploadComplete(message.data).then(function() {
+        sendResponse({ success: true });
+      });
       break;
       
     case 'REPORTS_READY':
-      await handleReportsReady(message.data);
-      sendResponse({ success: true });
+      handleReportsReady(message.data).then(function() {
+        sendResponse({ success: true });
+      });
       break;
       
     case 'AUTOMATION_ERROR':
-      await handleAutomationError(message.error);
-      sendResponse({ acknowledged: true });
+      handleAutomationError(message.error).then(function() {
+        sendResponse({ acknowledged: true });
+      });
       break;
       
     case 'REQUEST_FILE':
-      const fileData = await getFileForUpload();
-      sendResponse(fileData);
+      getFileForUpload().then(function(fileData) {
+        sendResponse(fileData);
+      });
       break;
       
     case 'GET_TURNITIN_SETTINGS':
-      const settings = await getTurnitinSettings();
-      sendResponse(settings);
+      getTurnitinSettings().then(function(settings) {
+        sendResponse(settings);
+      });
+      break;
+      
+    case 'START_PROCESSING_NOW':
+      startProcessingNow().then(function(result) {
+        sendResponse(result);
+      });
       break;
       
     default:
@@ -90,301 +102,344 @@ async function handleMessage(message, sender, sendResponse) {
   }
 }
 
-async function getStatus() {
-  const data = await chrome.storage.local.get([
-    'isEnabled', 
-    'processedCount', 
-    'lastError', 
-    'currentStatus',
-    'currentDocumentName',
-    'turnitinCredentials',
-    'extensionToken',
-    'turnitinSettings'
-  ]);
-  
-  return {
-    isEnabled: data.isEnabled ?? true,
-    isProcessing,
-    currentDocumentId,
-    currentDocumentName: data.currentDocumentName,
-    processedCount: data.processedCount ?? 0,
-    lastError: data.lastError,
-    currentStatus: data.currentStatus ?? 'idle',
-    hasCredentials: !!data.turnitinCredentials?.email,
-    hasToken: !!data.extensionToken,
-    turnitinSettings: data.turnitinSettings || null
-  };
-}
-
-async function getTurnitinSettings() {
-  const data = await chrome.storage.local.get(['turnitinSettings']);
-  return data.turnitinSettings || {
-    loginUrl: 'https://nrtiedu.turnitin.com/',
-    folderName: 'Bio 2',
-    autoLaunch: true,
-    waitForAiReport: true
-  };
-}
-
-async function getExtensionToken() {
-  if (extensionToken) return extensionToken;
-  
-  const data = await chrome.storage.local.get(['extensionToken']);
-  extensionToken = data.extensionToken;
-  return extensionToken;
-}
-
-async function apiRequest(action, payload = {}) {
-  const token = await getExtensionToken();
-  if (!token) {
-    throw new Error('Extension token not configured');
-  }
-  
-  const response = await fetch(EXTENSION_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-extension-token': token
-    },
-    body: JSON.stringify({ action, ...payload })
+function getStatus() {
+  return new Promise(function(resolve) {
+    chrome.storage.local.get([
+      'isEnabled', 
+      'processedCount', 
+      'lastError', 
+      'currentStatus',
+      'currentDocumentName',
+      'turnitinCredentials',
+      'extensionToken',
+      'turnitinSettings'
+    ], function(data) {
+      resolve({
+        isEnabled: data.isEnabled !== undefined ? data.isEnabled : true,
+        isProcessing: isProcessing,
+        currentDocumentId: currentDocumentId,
+        currentDocumentName: data.currentDocumentName,
+        processedCount: data.processedCount || 0,
+        lastError: data.lastError,
+        currentStatus: data.currentStatus || 'idle',
+        hasCredentials: !!(data.turnitinCredentials && data.turnitinCredentials.username),
+        hasToken: !!data.extensionToken,
+        turnitinSettings: data.turnitinSettings || null
+      });
+    });
   });
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || `API error: ${response.status}`);
-  }
-  
-  return response.json();
 }
 
-async function checkForPendingDocuments() {
+function getTurnitinSettings() {
+  return new Promise(function(resolve) {
+    chrome.storage.local.get(['turnitinSettings'], function(data) {
+      resolve(data.turnitinSettings || {
+        loginUrl: 'https://nrtiedu.turnitin.com/',
+        folderName: 'Bio 2',
+        autoLaunch: true,
+        waitForAiReport: true
+      });
+    });
+  });
+}
+
+function getExtensionToken() {
+  return new Promise(function(resolve) {
+    if (extensionToken) {
+      resolve(extensionToken);
+      return;
+    }
+    
+    chrome.storage.local.get(['extensionToken'], function(data) {
+      extensionToken = data.extensionToken;
+      resolve(extensionToken);
+    });
+  });
+}
+
+function apiRequest(action, payload) {
+  payload = payload || {};
+  
+  return getExtensionToken().then(function(token) {
+    if (!token) {
+      throw new Error('Extension token not configured');
+    }
+    
+    return fetch(EXTENSION_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-extension-token': token
+      },
+      body: JSON.stringify(Object.assign({ action: action }, payload))
+    });
+  }).then(function(response) {
+    if (!response.ok) {
+      return response.json().catch(function() {
+        return { error: 'Unknown error' };
+      }).then(function(error) {
+        throw new Error(error.error || 'API error: ' + response.status);
+      });
+    }
+    return response.json();
+  });
+}
+
+function startProcessingNow() {
+  if (isProcessing) {
+    return Promise.resolve({ success: false, message: 'Already processing' });
+  }
+  
+  return getExtensionToken().then(function(token) {
+    if (!token) {
+      return { success: false, message: 'Extension token not configured' };
+    }
+    
+    return new Promise(function(resolve) {
+      chrome.storage.local.get(['turnitinCredentials'], function(creds) {
+        if (!creds.turnitinCredentials || !creds.turnitinCredentials.username) {
+          resolve({ success: false, message: 'Turnitin credentials not configured' });
+          return;
+        }
+        
+        apiRequest('get_pending_documents').then(function(result) {
+          if (result.documents && result.documents.length > 0) {
+            processDocument(result.documents[0]);
+            resolve({ success: true, message: 'Started processing: ' + result.documents[0].file_name });
+          } else {
+            resolve({ success: false, message: 'No pending documents found' });
+          }
+        }).catch(function(error) {
+          resolve({ success: false, message: error.message });
+        });
+      });
+    });
+  });
+}
+
+function checkForPendingDocuments() {
   if (!isEnabled || isProcessing) {
     return;
   }
   
-  try {
-    const token = await getExtensionToken();
+  getExtensionToken().then(function(token) {
     if (!token) {
       console.log('No extension token configured, skipping poll');
       return;
     }
     
     // Check for credentials
-    const creds = await chrome.storage.local.get(['turnitinCredentials']);
-    if (!creds.turnitinCredentials?.email) {
-      console.log('No Turnitin credentials configured, skipping poll');
-      return;
-    }
-    
-    // Send heartbeat and get pending documents
-    const result = await apiRequest('get_pending_documents');
-    
-    if (result.documents && result.documents.length > 0) {
-      await processDocument(result.documents[0]);
-    }
-  } catch (error) {
-    console.error('Error checking for pending documents:', error);
-    await logError('poll_error', error.message);
-  }
+    chrome.storage.local.get(['turnitinCredentials'], function(creds) {
+      if (!creds.turnitinCredentials || !creds.turnitinCredentials.username) {
+        console.log('No Turnitin credentials configured, skipping poll');
+        return;
+      }
+      
+      // Send heartbeat and get pending documents
+      apiRequest('get_pending_documents').then(function(result) {
+        if (result.documents && result.documents.length > 0) {
+          processDocument(result.documents[0]);
+        }
+      }).catch(function(error) {
+        console.error('Error checking for pending documents:', error);
+        logError('poll_error', error.message);
+      });
+    });
+  });
 }
 
-async function processDocument(document) {
+function processDocument(document) {
   if (isProcessing) return;
   
   isProcessing = true;
   currentDocumentId = document.id;
   
-  try {
-    console.log(`Processing document: ${document.file_name}`);
-    
-    await chrome.storage.local.set({ 
-      currentStatus: 'processing',
-      currentDocumentName: document.file_name
-    });
-    
-    // Update document status to processing
-    await apiRequest('update_document_status', {
-      documentId: document.id,
-      automationStatus: 'processing'
-    });
-    
-    // Increment attempt count
-    await apiRequest('increment_attempt_count', {
+  console.log('Processing document: ' + document.file_name);
+  
+  chrome.storage.local.set({ 
+    currentStatus: 'processing',
+    currentDocumentName: document.file_name
+  });
+  
+  // Update document status to processing
+  apiRequest('update_document_status', {
+    documentId: document.id,
+    automationStatus: 'processing'
+  }).then(function() {
+    return apiRequest('increment_attempt_count', {
       documentId: document.id
     });
-    
-    // Log the start
-    await apiRequest('log_automation', {
+  }).then(function() {
+    return apiRequest('log_automation', {
       documentId: document.id,
       logAction: 'processing_started',
       message: 'Started processing document'
     });
-    
-    // Download the file from storage
-    await chrome.storage.local.set({ currentStatus: 'downloading' });
-    const fileData = await downloadFile(document.file_path);
-    
-    // Store file data for content script to access
-    await chrome.storage.local.set({ 
+  }).then(function() {
+    chrome.storage.local.set({ currentStatus: 'downloading' });
+    return downloadFile(document.file_path);
+  }).then(function(fileData) {
+    chrome.storage.local.set({ 
       currentFileData: fileData,
       currentFileName: document.file_name,
       currentFilePath: document.file_path,
       currentScanType: document.scan_type
     });
     
-    // Get Turnitin settings
-    const turnitinSettings = await getTurnitinSettings();
+    return getTurnitinSettings();
+  }).then(function(turnitinSettings) {
+    chrome.storage.local.set({ currentStatus: 'opening_turnitin' });
     
-    // Open Turnitin in a new tab using configured URL
-    await chrome.storage.local.set({ currentStatus: 'opening_turnitin' });
-    const tab = await chrome.tabs.create({ 
+    chrome.tabs.create({ 
       url: turnitinSettings.loginUrl,
-      active: false // Keep it in background
+      active: false
+    }, function(tab) {
+      chrome.storage.local.set({ turnitinTabId: tab.id });
     });
-    
-    // Store tab ID for cleanup
-    await chrome.storage.local.set({ turnitinTabId: tab.id });
-    
-    // The content script will take over from here
-    
-  } catch (error) {
+  }).catch(function(error) {
     console.error('Error processing document:', error);
-    await handleAutomationError(error.message);
-  }
+    handleAutomationError(error.message);
+  });
 }
 
-async function downloadFile(filePath) {
-  // Get signed URL from our API
-  const result = await apiRequest('get_signed_url', {
+function downloadFile(filePath) {
+  return apiRequest('get_signed_url', {
     bucketName: 'documents',
     filePath: filePath
+  }).then(function(result) {
+    if (!result.signedUrl) {
+      throw new Error('Failed to get signed URL');
+    }
+    
+    return fetch(result.signedUrl);
+  }).then(function(fileResponse) {
+    if (!fileResponse.ok) {
+      throw new Error('Failed to download file');
+    }
+    
+    return fileResponse.blob();
+  }).then(function(blob) {
+    return new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onloadend = function() {
+        var base64 = reader.result.split(',')[1];
+        resolve({
+          base64: base64,
+          mimeType: blob.type,
+          size: blob.size
+        });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   });
-  
-  if (!result.signedUrl) {
-    throw new Error('Failed to get signed URL');
-  }
-  
-  // Download the file
-  const fileResponse = await fetch(result.signedUrl);
-  if (!fileResponse.ok) {
-    throw new Error('Failed to download file');
-  }
-  
-  const blob = await fileResponse.blob();
-  const arrayBuffer = await blob.arrayBuffer();
-  const base64 = btoa(
-    new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-  );
-  
-  return {
-    base64,
-    mimeType: blob.type,
-    size: blob.size
-  };
 }
 
-async function getFileForUpload() {
-  const data = await chrome.storage.local.get([
-    'currentFileData',
-    'currentFileName'
-  ]);
-  
-  return {
-    fileData: data.currentFileData,
-    fileName: data.currentFileName
-  };
+function getFileForUpload() {
+  return new Promise(function(resolve) {
+    chrome.storage.local.get([
+      'currentFileData',
+      'currentFileName'
+    ], function(data) {
+      resolve({
+        fileData: data.currentFileData,
+        fileName: data.currentFileName
+      });
+    });
+  });
 }
 
-async function handleUploadComplete(data) {
+function handleUploadComplete(data) {
   console.log('Upload complete, waiting for processing', data);
   
-  await chrome.storage.local.set({ 
+  chrome.storage.local.set({ 
     currentStatus: 'waiting_for_results',
     turnitinSubmissionId: data.submissionId
   });
   
-  await apiRequest('log_automation', {
+  return apiRequest('log_automation', {
     documentId: currentDocumentId,
     logAction: 'upload_complete',
-    message: `Document uploaded to Turnitin. Submission ID: ${data.submissionId}`
+    message: 'Document uploaded to Turnitin. Submission ID: ' + data.submissionId
   });
 }
 
-async function handleReportsReady(data) {
+function handleReportsReady(data) {
   console.log('Reports ready, uploading to storage', data);
   
-  try {
-    await chrome.storage.local.set({ currentStatus: 'uploading_reports' });
-    
-    // Upload similarity report
-    if (data.similarityReport) {
-      const similarityPath = `${currentDocumentId}/similarity_report.pdf`;
-      await apiRequest('upload_report', {
-        fileData: data.similarityReport,
-        fileName: 'similarity_report.pdf',
-        bucketName: 'reports',
-        filePath: similarityPath
-      });
-    }
-    
-    // Upload AI report if available
-    if (data.aiReport) {
-      const aiPath = `${currentDocumentId}/ai_report.pdf`;
-      await apiRequest('upload_report', {
-        fileData: data.aiReport,
-        fileName: 'ai_report.pdf',
-        bucketName: 'reports',
-        filePath: aiPath
-      });
-    }
-    
-    // Mark document as completed
-    await apiRequest('complete_document', {
+  chrome.storage.local.set({ currentStatus: 'uploading_reports' });
+  
+  var promises = [];
+  
+  // Upload similarity report
+  if (data.similarityReport) {
+    var similarityPath = currentDocumentId + '/similarity_report.pdf';
+    promises.push(apiRequest('upload_report', {
+      fileData: data.similarityReport,
+      fileName: 'similarity_report.pdf',
+      bucketName: 'reports',
+      filePath: similarityPath
+    }));
+  }
+  
+  // Upload AI report if available
+  if (data.aiReport) {
+    var aiPath = currentDocumentId + '/ai_report.pdf';
+    promises.push(apiRequest('upload_report', {
+      fileData: data.aiReport,
+      fileName: 'ai_report.pdf',
+      bucketName: 'reports',
+      filePath: aiPath
+    }));
+  }
+  
+  return Promise.all(promises).then(function() {
+    return apiRequest('complete_document', {
       documentId: currentDocumentId,
       similarityPercentage: data.similarityPercentage,
       aiPercentage: data.aiPercentage,
-      similarityReportPath: data.similarityReport ? `${currentDocumentId}/similarity_report.pdf` : null,
-      aiReportPath: data.aiReport ? `${currentDocumentId}/ai_report.pdf` : null
+      similarityReportPath: data.similarityReport ? currentDocumentId + '/similarity_report.pdf' : null,
+      aiReportPath: data.aiReport ? currentDocumentId + '/ai_report.pdf' : null
     });
-    
-    await apiRequest('log_automation', {
+  }).then(function() {
+    return apiRequest('log_automation', {
       documentId: currentDocumentId,
       logAction: 'processing_complete',
-      message: `Document processed. Similarity: ${data.similarityPercentage}%, AI: ${data.aiPercentage || 'N/A'}%`
+      message: 'Document processed. Similarity: ' + data.similarityPercentage + '%, AI: ' + (data.aiPercentage || 'N/A') + '%'
     });
-    
-    // Update processed count
-    const storage = await chrome.storage.local.get(['processedCount']);
-    await chrome.storage.local.set({ 
-      processedCount: (storage.processedCount || 0) + 1,
-      currentStatus: 'idle',
-      lastProcessedAt: new Date().toISOString()
+  }).then(function() {
+    return new Promise(function(resolve) {
+      chrome.storage.local.get(['processedCount'], function(storage) {
+        chrome.storage.local.set({ 
+          processedCount: (storage.processedCount || 0) + 1,
+          currentStatus: 'idle',
+          lastProcessedAt: new Date().toISOString()
+        }, resolve);
+      });
     });
-    
-    // Close Turnitin tab
-    const { turnitinTabId } = await chrome.storage.local.get(['turnitinTabId']);
-    if (turnitinTabId) {
-      try {
-        await chrome.tabs.remove(turnitinTabId);
-      } catch (e) {
-        // Tab might already be closed
-      }
-    }
-    
-    // Show notification
+  }).then(function() {
+    return new Promise(function(resolve) {
+      chrome.storage.local.get(['turnitinTabId'], function(result) {
+        if (result.turnitinTabId) {
+          try {
+            chrome.tabs.remove(result.turnitinTabId);
+          } catch (e) {}
+        }
+        resolve();
+      });
+    });
+  }).then(function() {
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon128.png',
       title: 'Document Processed',
-      message: `${data.fileName || 'Document'} has been processed successfully`
+      message: (data.fileName || 'Document') + ' has been processed successfully'
     });
     
-    // Reset state
     isProcessing = false;
     currentDocumentId = null;
     
-    // Clean up stored data
-    await chrome.storage.local.remove([
+    chrome.storage.local.remove([
       'currentFileData',
       'currentFileName', 
       'currentFilePath',
@@ -392,73 +447,73 @@ async function handleReportsReady(data) {
       'turnitinTabId',
       'turnitinSubmissionId'
     ]);
-    
-  } catch (error) {
+  }).catch(function(error) {
     console.error('Error handling reports:', error);
-    await handleAutomationError(error.message);
-  }
+    return handleAutomationError(error.message);
+  });
 }
 
-async function handleAutomationError(errorMessage) {
+function handleAutomationError(errorMessage) {
   console.error('Automation error:', errorMessage);
   
+  var promise = Promise.resolve();
+  
   if (currentDocumentId) {
-    try {
-      // Update document with error
-      await apiRequest('update_document_status', {
-        documentId: currentDocumentId,
-        automationStatus: 'failed',
-        errorMessage: errorMessage
-      });
-      
-      await apiRequest('log_automation', {
+    promise = apiRequest('update_document_status', {
+      documentId: currentDocumentId,
+      automationStatus: 'failed',
+      errorMessage: errorMessage
+    }).then(function() {
+      return apiRequest('log_automation', {
         documentId: currentDocumentId,
         logAction: 'processing_failed',
         message: errorMessage
       });
-    } catch (e) {
+    }).catch(function(e) {
       console.error('Failed to log error:', e);
-    }
+    });
   }
   
-  await chrome.storage.local.set({ 
-    currentStatus: 'error',
-    lastError: errorMessage,
-    lastErrorAt: new Date().toISOString()
+  return promise.then(function() {
+    chrome.storage.local.set({ 
+      currentStatus: 'error',
+      lastError: errorMessage,
+      lastErrorAt: new Date().toISOString()
+    });
+    
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon128.png',
+      title: 'Automation Error',
+      message: errorMessage.substring(0, 100)
+    });
+    
+    isProcessing = false;
+    currentDocumentId = null;
+    
+    return new Promise(function(resolve) {
+      chrome.storage.local.get(['turnitinTabId'], function(result) {
+        if (result.turnitinTabId) {
+          try {
+            chrome.tabs.remove(result.turnitinTabId);
+          } catch (e) {}
+        }
+        
+        chrome.storage.local.remove([
+          'currentFileData',
+          'currentFileName',
+          'currentFilePath', 
+          'currentScanType',
+          'turnitinTabId',
+          'turnitinSubmissionId'
+        ], resolve);
+      });
+    });
   });
-  
-  // Show error notification
-  chrome.notifications.create({
-    type: 'basic',
-    iconUrl: 'icons/icon128.png',
-    title: 'Automation Error',
-    message: errorMessage.substring(0, 100)
-  });
-  
-  // Reset state
-  isProcessing = false;
-  currentDocumentId = null;
-  
-  // Clean up
-  const { turnitinTabId } = await chrome.storage.local.get(['turnitinTabId']);
-  if (turnitinTabId) {
-    try {
-      await chrome.tabs.remove(turnitinTabId);
-    } catch (e) {}
-  }
-  
-  await chrome.storage.local.remove([
-    'currentFileData',
-    'currentFileName',
-    'currentFilePath', 
-    'currentScanType',
-    'turnitinTabId',
-    'turnitinSubmissionId'
-  ]);
 }
 
-async function logError(action, message) {
-  await chrome.storage.local.set({ lastError: message });
+function logError(action, message) {
+  chrome.storage.local.set({ lastError: message });
 }
 
 // Start checking for documents immediately
