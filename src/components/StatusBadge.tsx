@@ -1,7 +1,8 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { DocumentStatus } from '@/hooks/useDocuments';
+import { Clock, Loader2, CheckCircle, AlertCircle, Ban } from 'lucide-react';
+
+export type DocumentStatus = 'pending' | 'in_progress' | 'completed' | 'error' | 'cancelled';
 
 interface StatusBadgeProps {
   status: DocumentStatus;
@@ -28,6 +29,11 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       label: 'Error',
       className: 'bg-destructive/10 text-destructive border-destructive/30 border',
       icon: AlertCircle,
+    },
+    cancelled: {
+      label: 'Cancelled',
+      className: 'bg-red-100 text-red-700 border-red-300 border dark:bg-red-900/30 dark:text-red-400 dark:border-red-700',
+      icon: Ban,
     },
   };
 

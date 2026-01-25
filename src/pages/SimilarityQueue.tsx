@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, FileText, Upload, Clock, CheckCircle, User, Loader2, Download, AlertCircle, Trash2, Lock, Unlock, CheckSquare, CheckCheck, FileStack, Pencil } from 'lucide-react';
+import { Search, FileText, Upload, Clock, CheckCircle, User, Loader2, Download, AlertCircle, Trash2, Lock, Unlock, CheckSquare, CheckCheck, FileStack, Pencil, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
 import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
+import { CancelDocumentDialog } from '@/components/CancelDocumentDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSimilarityDocuments, SimilarityDocument } from '@/hooks/useSimilarityDocuments';
 import { useDocuments, Document } from '@/hooks/useDocuments';
@@ -40,7 +41,7 @@ interface BatchReportData {
 const SimilarityQueue: React.FC = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
-  const { documents, loading, fetchDocuments, uploadSimilarityReport, deleteSimilarityDocument } = useSimilarityDocuments();
+  const { documents, loading, fetchDocuments, uploadSimilarityReport, deleteSimilarityDocument, cancelSimilarityDocument } = useSimilarityDocuments();
   const { downloadFile } = useDocuments();
   const isAdmin = role === 'admin';
   
@@ -60,6 +61,11 @@ const SimilarityQueue: React.FC = () => {
   // Edit dialog state (admin only)
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [documentToEdit, setDocumentToEdit] = useState<Document | null>(null);
+  
+  // Cancel dialog state (admin only)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [documentToCancel, setDocumentToCancel] = useState<SimilarityDocument | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   
   // Batch selection state
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
@@ -1025,6 +1031,22 @@ const SimilarityQueue: React.FC = () => {
                                       <Pencil className="h-4 w-4" />
                                     </Button>
                                   )}
+
+                                  {/* Admin Cancel Button */}
+                                  {isAdmin && (doc.status === 'pending' || doc.status === 'in_progress') && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive"
+                                      onClick={() => {
+                                        setDocumentToCancel(doc);
+                                        setCancelDialogOpen(true);
+                                      }}
+                                      title="Cancel document and refund credit"
+                                    >
+                                      <Ban className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -1256,6 +1278,31 @@ const SimilarityQueue: React.FC = () => {
         onOpenChange={setEditDialogOpen}
         onSuccess={fetchDocuments}
         downloadFile={downloadFile}
+      />
+
+      {/* Cancel Document Dialog (Admin only) */}
+      <CancelDocumentDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        document={documentToCancel ? {
+          id: documentToCancel.id,
+          file_name: documentToCancel.file_name,
+          user_id: documentToCancel.user_id,
+          scan_type: 'similarity_only',
+          profile: documentToCancel.profile,
+        } : null}
+        cancelling={cancelling}
+        onConfirm={async (reason) => {
+          if (!documentToCancel || !user) return;
+          setCancelling(true);
+          try {
+            await cancelSimilarityDocument(documentToCancel.id, reason, user.id);
+            setCancelDialogOpen(false);
+            setDocumentToCancel(null);
+          } finally {
+            setCancelling(false);
+          }
+        }}
       />
     </DashboardLayout>
   );

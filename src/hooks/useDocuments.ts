@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-export type DocumentStatus = 'pending' | 'in_progress' | 'completed' | 'error';
+export type DocumentStatus = 'pending' | 'in_progress' | 'completed' | 'error' | 'cancelled';
 
 export interface Document {
   id: string;
@@ -849,6 +849,167 @@ export const useDocuments = () => {
     }
   };
 
+  // Cancel document (admin only) - refunds credit to customer
+  const cancelDocument = async (
+    documentId: string,
+    cancellationReason: string,
+    adminUserId: string
+  ) => {
+    try {
+      // 1. Fetch document details
+      const { data: docData, error: fetchError } = await supabase
+        .from('documents')
+        .select('*, profiles:user_id(email, full_name)')
+        .eq('id', documentId)
+        .single();
+
+      if (fetchError || !docData) {
+        throw new Error('Document not found');
+      }
+
+      // Only allow cancellation of pending/in_progress documents
+      if (docData.status !== 'pending' && docData.status !== 'in_progress') {
+        throw new Error('Only pending or in-progress documents can be cancelled');
+      }
+
+      const isGuestUpload = !!docData.magic_link_id;
+      const scanType = docData.scan_type || 'full';
+
+      // 2. Handle credit refund
+      if (docData.user_id) {
+        // Refund registered user
+        const balanceField = scanType === 'full' ? 'credit_balance' : 'similarity_credit_balance';
+        
+        // Get current balance
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select(balanceField)
+          .eq('id', docData.user_id)
+          .single();
+
+        if (profileError || !profileData) {
+          throw new Error('Failed to fetch user profile');
+        }
+
+        const currentBalance = (profileData as Record<string, number>)[balanceField];
+        const newBalance = currentBalance + 1;
+
+        // Update balance
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ [balanceField]: newBalance })
+          .eq('id', docData.user_id);
+
+        if (updateError) throw updateError;
+
+        // Log credit transaction
+        await supabase.from('credit_transactions').insert({
+          user_id: docData.user_id,
+          amount: 1,
+          balance_before: currentBalance,
+          balance_after: newBalance,
+          transaction_type: 'refund',
+          credit_type: scanType === 'full' ? 'full' : 'similarity_only',
+          description: `Credit refunded - Document cancelled by admin: ${docData.file_name}`,
+          performed_by: adminUserId,
+        });
+
+        // Create user notification
+        await supabase.from('user_notifications').insert({
+          user_id: docData.user_id,
+          title: 'Document Cancelled',
+          message: `Your document "${docData.file_name}" has been cancelled by an administrator. Your credit has been refunded.${cancellationReason ? ` Reason: ${cancellationReason}` : ''}`,
+          created_by: adminUserId,
+        });
+      } else if (isGuestUpload && docData.magic_link_id) {
+        // Restore guest upload slot
+        const { data: magicLink, error: mlError } = await supabase
+          .from('magic_upload_links')
+          .select('current_uploads')
+          .eq('id', docData.magic_link_id)
+          .single();
+
+        if (!mlError && magicLink) {
+          await supabase
+            .from('magic_upload_links')
+            .update({ current_uploads: Math.max(0, magicLink.current_uploads - 1) })
+            .eq('id', docData.magic_link_id);
+        }
+      }
+
+      // 3. Delete files from storage
+      // Delete original document
+      const bucket = isGuestUpload ? 'magic-uploads' : 'documents';
+      await supabase.storage.from(bucket).remove([docData.file_path]);
+
+      // Delete reports if they exist
+      if (docData.similarity_report_path) {
+        await supabase.storage.from('reports').remove([docData.similarity_report_path]);
+      }
+      if (docData.ai_report_path) {
+        await supabase.storage.from('reports').remove([docData.ai_report_path]);
+      }
+
+      // 4. Delete tag assignments
+      await supabase
+        .from('document_tag_assignments')
+        .delete()
+        .eq('document_id', documentId);
+
+      // 5. Update document status to cancelled
+      const { error: cancelError } = await supabase
+        .from('documents')
+        .update({
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString(),
+          cancelled_by: adminUserId,
+          cancellation_reason: cancellationReason || null,
+          credit_refunded: true,
+        })
+        .eq('id', documentId);
+
+      if (cancelError) throw cancelError;
+
+      // 6. Log to deleted_documents_log
+      const profileData = docData.profiles as { email?: string; full_name?: string } | null;
+      await supabase.from('deleted_documents_log').insert({
+        original_document_id: documentId,
+        user_id: docData.user_id,
+        magic_link_id: docData.magic_link_id,
+        file_name: docData.file_name,
+        file_path: docData.file_path,
+        scan_type: scanType,
+        similarity_percentage: docData.similarity_percentage,
+        ai_percentage: docData.ai_percentage,
+        similarity_report_path: docData.similarity_report_path,
+        ai_report_path: docData.ai_report_path,
+        remarks: docData.remarks,
+        uploaded_at: docData.uploaded_at,
+        completed_at: docData.completed_at,
+        deleted_by_type: 'admin_cancelled',
+        customer_email: profileData?.email || null,
+        customer_name: profileData?.full_name || null,
+      });
+
+      await fetchDocuments();
+
+      toast({
+        title: 'Document Cancelled',
+        description: `Document has been cancelled and credit refunded.`,
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error cancelling document:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to cancel document',
+        variant: 'destructive',
+      });
+      return { success: false };
+    }
+  };
+
   return {
     documents,
     loading,
@@ -860,5 +1021,6 @@ export const useDocuments = () => {
     fetchDocuments,
     releaseDocument,
     deleteDocument,
+    cancelDocument,
   };
 };

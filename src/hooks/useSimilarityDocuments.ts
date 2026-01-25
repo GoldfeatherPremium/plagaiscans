@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
-export type DocumentStatus = 'pending' | 'in_progress' | 'completed' | 'error';
+export type DocumentStatus = 'pending' | 'in_progress' | 'completed' | 'error' | 'cancelled';
 
 export interface SimilarityDocument {
   id: string;
@@ -278,6 +278,139 @@ export const useSimilarityDocuments = () => {
     }
   };
 
+  // Cancel similarity document (admin only) - refunds credit to customer
+  const cancelSimilarityDocument = async (
+    documentId: string,
+    cancellationReason: string,
+    adminUserId: string
+  ) => {
+    try {
+      // 1. Fetch document details
+      const { data: docData, error: fetchError } = await supabase
+        .from('documents')
+        .select('*, profiles:user_id(email, full_name)')
+        .eq('id', documentId)
+        .single();
+
+      if (fetchError || !docData) {
+        throw new Error('Document not found');
+      }
+
+      // Only allow cancellation of pending/in_progress documents
+      if (docData.status !== 'pending' && docData.status !== 'in_progress') {
+        throw new Error('Only pending or in-progress documents can be cancelled');
+      }
+
+      // 2. Handle credit refund for registered user
+      if (docData.user_id) {
+        // Get current similarity balance
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('similarity_credit_balance')
+          .eq('id', docData.user_id)
+          .single();
+
+        if (profileError || !profileData) {
+          throw new Error('Failed to fetch user profile');
+        }
+
+        const currentBalance = profileData.similarity_credit_balance;
+        const newBalance = currentBalance + 1;
+
+        // Update balance
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ similarity_credit_balance: newBalance })
+          .eq('id', docData.user_id);
+
+        if (updateError) throw updateError;
+
+        // Log credit transaction
+        await supabase.from('credit_transactions').insert({
+          user_id: docData.user_id,
+          amount: 1,
+          balance_before: currentBalance,
+          balance_after: newBalance,
+          transaction_type: 'refund',
+          credit_type: 'similarity_only',
+          description: `Credit refunded - Document cancelled by admin: ${docData.file_name}`,
+          performed_by: adminUserId,
+        });
+
+        // Create user notification
+        await supabase.from('user_notifications').insert({
+          user_id: docData.user_id,
+          title: 'Document Cancelled',
+          message: `Your document "${docData.file_name}" has been cancelled by an administrator. Your similarity credit has been refunded.${cancellationReason ? ` Reason: ${cancellationReason}` : ''}`,
+          created_by: adminUserId,
+        });
+      }
+
+      // 3. Delete files from storage
+      await supabase.storage.from('documents').remove([docData.file_path]);
+
+      // Delete similarity report if exists
+      if (docData.similarity_report_path) {
+        await supabase.storage.from('reports').remove([docData.similarity_report_path]);
+      }
+
+      // 4. Delete tag assignments
+      await supabase
+        .from('document_tag_assignments')
+        .delete()
+        .eq('document_id', documentId);
+
+      // 5. Update document status to cancelled
+      const { error: cancelError } = await supabase
+        .from('documents')
+        .update({
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString(),
+          cancelled_by: adminUserId,
+          cancellation_reason: cancellationReason || null,
+          credit_refunded: true,
+        })
+        .eq('id', documentId);
+
+      if (cancelError) throw cancelError;
+
+      // 6. Log to deleted_documents_log
+      const profileInfo = docData.profiles as { email?: string; full_name?: string } | null;
+      await supabase.from('deleted_documents_log').insert({
+        original_document_id: documentId,
+        user_id: docData.user_id,
+        file_name: docData.file_name,
+        file_path: docData.file_path,
+        scan_type: 'similarity_only',
+        similarity_percentage: docData.similarity_percentage,
+        similarity_report_path: docData.similarity_report_path,
+        remarks: docData.remarks,
+        uploaded_at: docData.uploaded_at,
+        completed_at: docData.completed_at,
+        deleted_by_type: 'admin_cancelled',
+        customer_email: profileInfo?.email || null,
+        customer_name: profileInfo?.full_name || null,
+      });
+
+      await fetchDocuments();
+
+      toast({
+        title: 'Document Cancelled',
+        description: 'Document has been cancelled and similarity credit refunded.',
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error cancelling similarity document:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to cancel document',
+        variant: 'destructive',
+      });
+      return { success: false };
+    }
+  };
+
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
@@ -312,5 +445,6 @@ export const useSimilarityDocuments = () => {
     uploadSimilarityDocument,
     uploadSimilarityReport,
     deleteSimilarityDocument,
+    cancelSimilarityDocument,
   };
 };
