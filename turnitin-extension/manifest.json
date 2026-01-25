@@ -1,23 +1,21 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "name": "Plagaiscans Turnitin Automation",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Automatically process documents through Turnitin and upload reports to Plagaiscans",
   "permissions": [
     "storage",
     "tabs",
     "downloads",
     "alarms",
-    "notifications"
-  ],
-  "host_permissions": [
+    "notifications",
     "https://*.turnitin.com/*",
     "https://nrtiedu.turnitin.com/*",
     "https://fyssbzgmhnolazjfwafm.supabase.co/*"
   ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "scripts": ["background.js"],
+    "persistent": true
   },
   "content_scripts": [
     {
@@ -26,7 +24,7 @@
       "run_at": "document_idle"
     }
   ],
-  "action": {
+  "browser_action": {
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",

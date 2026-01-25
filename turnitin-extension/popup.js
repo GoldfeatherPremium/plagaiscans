@@ -1,26 +1,31 @@
-// Popup script for Plagaiscans Turnitin Automation
+// Popup script for Plagaiscans Turnitin Automation (MV2)
 
 document.addEventListener('DOMContentLoaded', init);
 
-async function init() {
-  await updateStatus();
+function init() {
+  updateStatus();
   setupEventListeners();
   
   // Refresh status periodically
   setInterval(updateStatus, 3000);
 }
 
-async function updateStatus() {
-  try {
-    const status = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
+function updateStatus() {
+  chrome.runtime.sendMessage({ type: 'GET_STATUS' }, function(status) {
+    if (chrome.runtime.lastError) {
+      console.error('Error getting status:', chrome.runtime.lastError);
+      return;
+    }
+    
+    if (!status) return;
     
     // Update toggle
-    const toggle = document.getElementById('enableToggle');
+    var toggle = document.getElementById('enableToggle');
     toggle.checked = status.isEnabled;
     
     // Update status indicator
-    const statusDot = document.getElementById('statusDot');
-    const statusText = document.getElementById('statusText');
+    var statusDot = document.getElementById('statusDot');
+    var statusText = document.getElementById('statusText');
     
     statusDot.className = 'status-dot';
     
@@ -39,15 +44,28 @@ async function updateStatus() {
     }
     
     // Update connection status
-    const connectionStatus = document.getElementById('connectionStatus');
+    var connectionStatus = document.getElementById('connectionStatus');
     connectionStatus.textContent = status.hasCredentials ? 'Connected' : 'Not configured';
     connectionStatus.style.color = status.hasCredentials ? '#22c55e' : '#fbbf24';
     
     // Update processed count
     document.getElementById('processedCount').textContent = status.processedCount || 0;
     
+    // Update start now button state
+    var startNowBtn = document.getElementById('startNowBtn');
+    if (status.isProcessing) {
+      startNowBtn.disabled = true;
+      startNowBtn.textContent = 'Processing...';
+    } else if (!status.hasCredentials || !status.hasToken) {
+      startNowBtn.disabled = true;
+      startNowBtn.textContent = '▶ Start Processing Now';
+    } else {
+      startNowBtn.disabled = false;
+      startNowBtn.textContent = '▶ Start Processing Now';
+    }
+    
     // Show/hide current document
-    const currentDocContainer = document.getElementById('currentDocContainer');
+    var currentDocContainer = document.getElementById('currentDocContainer');
     if (status.isProcessing && status.currentDocumentName) {
       currentDocContainer.style.display = 'block';
       document.getElementById('currentDocName').textContent = status.currentDocumentName;
@@ -57,7 +75,7 @@ async function updateStatus() {
     }
     
     // Show/hide error
-    const errorContainer = document.getElementById('errorContainer');
+    var errorContainer = document.getElementById('errorContainer');
     if (status.lastError && !status.isProcessing) {
       errorContainer.style.display = 'block';
       document.getElementById('errorMessage').textContent = status.lastError;
@@ -66,16 +84,13 @@ async function updateStatus() {
     }
     
     // Show/hide credentials warning
-    const noCredsContainer = document.getElementById('noCredsContainer');
+    var noCredsContainer = document.getElementById('noCredsContainer');
     noCredsContainer.style.display = status.hasCredentials ? 'none' : 'block';
-    
-  } catch (error) {
-    console.error('Error updating status:', error);
-  }
+  });
 }
 
 function formatStatus(status) {
-  const statusMap = {
+  var statusMap = {
     'idle': 'Idle',
     'processing': 'Processing...',
     'downloading': 'Downloading file...',
@@ -89,26 +104,66 @@ function formatStatus(status) {
 
 function setupEventListeners() {
   // Toggle auto-processing
-  document.getElementById('enableToggle').addEventListener('change', async (e) => {
-    await chrome.runtime.sendMessage({ 
+  document.getElementById('enableToggle').addEventListener('change', function(e) {
+    chrome.runtime.sendMessage({ 
       type: 'TOGGLE_ENABLED', 
       enabled: e.target.checked 
+    }, function() {
+      updateStatus();
     });
-    await updateStatus();
+  });
+  
+  // Start Now button
+  document.getElementById('startNowBtn').addEventListener('click', function() {
+    var btn = document.getElementById('startNowBtn');
+    var messageEl = document.getElementById('startNowMessage');
+    
+    btn.disabled = true;
+    btn.textContent = 'Starting...';
+    
+    chrome.runtime.sendMessage({ type: 'START_PROCESSING_NOW' }, function(result) {
+      if (chrome.runtime.lastError) {
+        showStartNowMessage('Error: ' + chrome.runtime.lastError.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '▶ Start Processing Now';
+        return;
+      }
+      
+      if (result && result.success) {
+        showStartNowMessage(result.message, 'success');
+      } else {
+        showStartNowMessage(result ? result.message : 'Unknown error', 'error');
+        btn.disabled = false;
+        btn.textContent = '▶ Start Processing Now';
+      }
+      
+      updateStatus();
+    });
   });
   
   // Settings button
-  document.getElementById('settingsBtn').addEventListener('click', () => {
+  document.getElementById('settingsBtn').addEventListener('click', function() {
     chrome.runtime.openOptionsPage();
   });
   
   // Setup button (in no-creds warning)
-  document.getElementById('setupBtn').addEventListener('click', () => {
+  document.getElementById('setupBtn').addEventListener('click', function() {
     chrome.runtime.openOptionsPage();
   });
   
   // Refresh button
-  document.getElementById('refreshBtn').addEventListener('click', async () => {
-    await updateStatus();
+  document.getElementById('refreshBtn').addEventListener('click', function() {
+    updateStatus();
   });
+}
+
+function showStartNowMessage(message, type) {
+  var messageEl = document.getElementById('startNowMessage');
+  messageEl.textContent = message;
+  messageEl.className = 'start-now-message ' + type;
+  messageEl.style.display = 'block';
+  
+  setTimeout(function() {
+    messageEl.style.display = 'none';
+  }, 5000);
 }
