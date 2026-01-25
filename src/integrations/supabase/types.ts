@@ -192,6 +192,44 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          document_id: string | null
+          id: string
+          message: string | null
+          metadata: Json | null
+          status: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          document_id?: string | null
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+          status?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          document_id?: string | null
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_logs_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_statement_entries: {
         Row: {
           amount: number
@@ -712,6 +750,10 @@ export type Database = {
           ai_report_path: string | null
           assigned_at: string | null
           assigned_staff_id: string | null
+          automation_attempt_count: number | null
+          automation_error: string | null
+          automation_started_at: string | null
+          automation_status: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -744,6 +786,10 @@ export type Database = {
           ai_report_path?: string | null
           assigned_at?: string | null
           assigned_staff_id?: string | null
+          automation_attempt_count?: number | null
+          automation_error?: string | null
+          automation_started_at?: string | null
+          automation_status?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -776,6 +822,10 @@ export type Database = {
           ai_report_path?: string | null
           assigned_at?: string | null
           assigned_staff_id?: string | null
+          automation_attempt_count?: number | null
+          automation_error?: string | null
+          automation_started_at?: string | null
+          automation_status?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -1022,6 +1072,39 @@ export type Database = {
           tracking_disabled?: boolean
           updated_at?: string
           warmup_start_date?: string
+        }
+        Relationships: []
+      }
+      extension_auth_tokens: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          last_used_at: string | null
+          name: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          name?: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          name?: string
+          token?: string
+          user_id?: string
         }
         Relationships: []
       }

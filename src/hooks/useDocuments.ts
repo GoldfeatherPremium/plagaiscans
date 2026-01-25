@@ -26,6 +26,11 @@ export interface Document {
   updated_at: string;
   is_favorite?: boolean | null;
   files_cleaned_at?: string | null;
+  // Automation fields
+  automation_status?: string | null;
+  automation_error?: string | null;
+  automation_started_at?: string | null;
+  automation_attempt_count?: number;
   profiles?: {
     email: string;
     full_name: string | null;
