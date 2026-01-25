@@ -4,8 +4,9 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, Chrome, Settings, FileCheck, AlertCircle, CheckCircle2, Copy } from 'lucide-react';
+import { Download, Chrome, Settings, FileCheck, AlertCircle, CheckCircle2, Key } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { ExtensionTokenManager } from '@/components/ExtensionTokenManager';
 
 // Extension file contents embedded as strings
 const manifestJson = `{
@@ -53,13 +54,14 @@ const manifestJson = `{
 
 const backgroundJs = `// Plagaiscans Turnitin Automation - Background Service Worker
 const SUPABASE_URL = 'https://fyssbzgmhnolazjfwafm.supabase.co';
+const EXTENSION_API_URL = SUPABASE_URL + '/functions/v1/extension-api';
 const POLL_INTERVAL_MS = 10000;
 const MAX_PROCESSING_TIME_MS = 30 * 60 * 1000;
 
 let isProcessing = false;
 let currentDocumentId = null;
 let isEnabled = true;
-let supabaseKey = null;
+let extensionToken = null;
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Plagaiscans Turnitin Automation installed');
@@ -1044,7 +1046,7 @@ const AdminExtensionDownload: React.FC = () => {
     { step: 2, title: 'Open Extensions Page', description: 'Go to chrome://extensions/ (or edge://extensions/ for Edge)' },
     { step: 3, title: 'Enable Developer Mode', description: 'Toggle on Developer mode in the top right corner' },
     { step: 4, title: 'Load Unpacked', description: 'Click "Load unpacked" and select the extracted folder' },
-    { step: 5, title: 'Configure', description: 'Click the extension icon and enter your Turnitin credentials + service key' },
+    { step: 5, title: 'Configure', description: 'Click the extension icon, then configure your Turnitin credentials and paste your Extension Token' },
   ];
 
   return (
@@ -1143,10 +1145,10 @@ const AdminExtensionDownload: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <Settings className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <Key className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="font-medium text-sm">Service Role Key</p>
-                    <p className="text-xs text-muted-foreground">Contact admin for the backend service key</p>
+                    <p className="font-medium text-sm">Extension Token</p>
+                    <p className="text-xs text-muted-foreground">Generate a token below to use with the extension</p>
                   </div>
                 </div>
               </div>
@@ -1160,7 +1162,8 @@ const AdminExtensionDownload: React.FC = () => {
           </Card>
         </div>
 
-        {/* Installation Steps */}
+        {/* Token Manager */}
+        <ExtensionTokenManager />
         <Card>
           <CardHeader>
             <CardTitle>Installation Guide</CardTitle>

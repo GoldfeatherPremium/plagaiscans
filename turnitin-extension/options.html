@@ -220,6 +220,26 @@
       line-height: 1.5;
     }
     
+    .info-box {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    
+    .info-box h4 {
+      color: #3b82f6;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    
+    .info-box p {
+      color: #a1a1aa;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    
     .footer {
       text-align: center;
       margin-top: 40px;
@@ -290,25 +310,30 @@
       </form>
     </div>
     
-    <!-- Supabase Connection -->
+    <!-- Extension Token Connection -->
     <div class="card">
-      <h2 class="card-title">Backend Connection</h2>
-      <p class="card-description">Service key for connecting to Plagaiscans backend. Get this from your admin.</p>
+      <h2 class="card-title">Extension Token</h2>
+      <p class="card-description">Secure token for connecting to Plagaiscans. Generate this from your admin dashboard.</p>
       
-      <form id="supabaseForm">
+      <div class="info-box">
+        <h4>🔑 How to get your token</h4>
+        <p>Go to your admin dashboard → Settings → Extension Download, then click "Generate Token" to create a new extension token. Copy and paste it here.</p>
+      </div>
+      
+      <form id="tokenForm">
         <div class="form-group">
-          <label for="serviceKey">Service Role Key</label>
-          <input type="password" id="serviceKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
-          <p class="helper-text">Required for the extension to access pending documents</p>
+          <label for="extensionToken">Extension Token</label>
+          <input type="password" id="extensionToken" placeholder="ext_xxxxxxxxxxxx...">
+          <p class="helper-text">Starts with "ext_" - generated from the admin dashboard</p>
         </div>
         
         <div class="btn-group">
-          <button type="submit" class="btn btn-primary">Save Key</button>
-          <button type="button" class="btn btn-danger" id="clearKeyBtn">Clear</button>
+          <button type="submit" class="btn btn-primary">Save Token</button>
+          <button type="button" class="btn btn-danger" id="clearTokenBtn">Clear</button>
         </div>
         
-        <div class="success-message" id="keySuccess">✓ Service key saved successfully</div>
-        <div class="error-message" id="keyError"></div>
+        <div class="success-message" id="tokenSuccess">✓ Extension token saved and verified</div>
+        <div class="error-message" id="tokenError"></div>
       </form>
     </div>
     

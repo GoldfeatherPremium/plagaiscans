@@ -2,13 +2,14 @@
 // This runs persistently and polls for pending documents
 
 const SUPABASE_URL = 'https://fyssbzgmhnolazjfwafm.supabase.co';
+const EXTENSION_API_URL = `${SUPABASE_URL}/functions/v1/extension-api`;
 const POLL_INTERVAL_MS = 10000; // 10 seconds
 const MAX_PROCESSING_TIME_MS = 30 * 60 * 1000; // 30 minutes max per document
 
 let isProcessing = false;
 let currentDocumentId = null;
 let isEnabled = true;
-let supabaseKey = null;
+let extensionToken = null;
 
 // Initialize extension
 chrome.runtime.onInstalled.addListener(() => {
@@ -95,7 +96,8 @@ async function getStatus() {
     'lastError', 
     'currentStatus',
     'currentDocumentName',
-    'turnitinCredentials'
+    'turnitinCredentials',
+    'extensionToken'
   ]);
   
   return {
@@ -106,43 +108,40 @@ async function getStatus() {
     processedCount: data.processedCount ?? 0,
     lastError: data.lastError,
     currentStatus: data.currentStatus ?? 'idle',
-    hasCredentials: !!data.turnitinCredentials?.email
+    hasCredentials: !!data.turnitinCredentials?.email,
+    hasToken: !!data.extensionToken
   };
 }
 
-async function getSupabaseKey() {
-  if (supabaseKey) return supabaseKey;
+async function getExtensionToken() {
+  if (extensionToken) return extensionToken;
   
-  const data = await chrome.storage.local.get(['supabaseServiceKey']);
-  supabaseKey = data.supabaseServiceKey;
-  return supabaseKey;
+  const data = await chrome.storage.local.get(['extensionToken']);
+  extensionToken = data.extensionToken;
+  return extensionToken;
 }
 
-async function supabaseRequest(endpoint, options = {}) {
-  const key = await getSupabaseKey();
-  if (!key) {
-    throw new Error('Supabase service key not configured');
+async function apiRequest(action, payload = {}) {
+  const token = await getExtensionToken();
+  if (!token) {
+    throw new Error('Extension token not configured');
   }
   
-  const url = `${SUPABASE_URL}/rest/v1/${endpoint}`;
-  const response = await fetch(url, {
-    ...options,
+  const response = await fetch(EXTENSION_API_URL, {
+    method: 'POST',
     headers: {
-      'apikey': key,
-      'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json',
-      'Prefer': options.prefer || 'return=representation',
-      ...options.headers
-    }
+      'x-extension-token': token
+    },
+    body: JSON.stringify({ action, ...payload })
   });
   
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Supabase error: ${response.status} - ${error}`);
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(error.error || `API error: ${response.status}`);
   }
   
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
+  return response.json();
 }
 
 async function checkForPendingDocuments() {
@@ -151,9 +150,9 @@ async function checkForPendingDocuments() {
   }
   
   try {
-    const key = await getSupabaseKey();
-    if (!key) {
-      console.log('No Supabase key configured, skipping poll');
+    const token = await getExtensionToken();
+    if (!token) {
+      console.log('No extension token configured, skipping poll');
       return;
     }
     
@@ -164,13 +163,11 @@ async function checkForPendingDocuments() {
       return;
     }
     
-    // Query for pending documents
-    const documents = await supabaseRequest(
-      'documents?status=eq.pending&automation_status=is.null&order=uploaded_at.asc&limit=1'
-    );
+    // Send heartbeat and get pending documents
+    const result = await apiRequest('get_pending_documents');
     
-    if (documents && documents.length > 0) {
-      await processDocument(documents[0]);
+    if (result.documents && result.documents.length > 0) {
+      await processDocument(result.documents[0]);
     }
   } catch (error) {
     console.error('Error checking for pending documents:', error);
@@ -193,17 +190,22 @@ async function processDocument(document) {
     });
     
     // Update document status to processing
-    await supabaseRequest(`documents?id=eq.${document.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        automation_status: 'processing',
-        automation_started_at: new Date().toISOString(),
-        automation_attempt_count: (document.automation_attempt_count || 0) + 1
-      })
+    await apiRequest('update_document_status', {
+      documentId: document.id,
+      automationStatus: 'processing'
+    });
+    
+    // Increment attempt count
+    await apiRequest('increment_attempt_count', {
+      documentId: document.id
     });
     
     // Log the start
-    await logAutomation(document.id, 'processing_started', 'info', 'Started processing document');
+    await apiRequest('log_automation', {
+      documentId: document.id,
+      logAction: 'processing_started',
+      message: 'Started processing document'
+    });
     
     // Download the file from storage
     await chrome.storage.local.set({ currentStatus: 'downloading' });
@@ -236,30 +238,18 @@ async function processDocument(document) {
 }
 
 async function downloadFile(filePath) {
-  const key = await getSupabaseKey();
+  // Get signed URL from our API
+  const result = await apiRequest('get_signed_url', {
+    bucketName: 'documents',
+    filePath: filePath
+  });
   
-  // Get signed URL for the file
-  const response = await fetch(
-    `${SUPABASE_URL}/storage/v1/object/sign/documents/${filePath}`,
-    {
-      method: 'POST',
-      headers: {
-        'apikey': key,
-        'Authorization': `Bearer ${key}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ expiresIn: 3600 })
-    }
-  );
-  
-  if (!response.ok) {
+  if (!result.signedUrl) {
     throw new Error('Failed to get signed URL');
   }
   
-  const { signedURL } = await response.json();
-  
   // Download the file
-  const fileResponse = await fetch(`${SUPABASE_URL}/storage/v1${signedURL}`);
+  const fileResponse = await fetch(result.signedUrl);
   if (!fileResponse.ok) {
     throw new Error('Failed to download file');
   }
@@ -297,8 +287,11 @@ async function handleUploadComplete(data) {
     turnitinSubmissionId: data.submissionId
   });
   
-  await logAutomation(currentDocumentId, 'upload_complete', 'info', 
-    `Document uploaded to Turnitin. Submission ID: ${data.submissionId}`);
+  await apiRequest('log_automation', {
+    documentId: currentDocumentId,
+    logAction: 'upload_complete',
+    message: `Document uploaded to Turnitin. Submission ID: ${data.submissionId}`
+  });
 }
 
 async function handleReportsReady(data) {
@@ -307,50 +300,42 @@ async function handleReportsReady(data) {
   try {
     await chrome.storage.local.set({ currentStatus: 'uploading_reports' });
     
-    const key = await getSupabaseKey();
-    const docData = await chrome.storage.local.get(['currentFilePath', 'currentScanType']);
-    
     // Upload similarity report
     if (data.similarityReport) {
       const similarityPath = `${currentDocumentId}/similarity_report.pdf`;
-      await uploadToStorage('reports', similarityPath, data.similarityReport, 'application/pdf', key);
-      
-      // Update document with report path and percentage
-      await supabaseRequest(`documents?id=eq.${currentDocumentId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          similarity_report_path: similarityPath,
-          similarity_percentage: data.similarityPercentage
-        })
+      await apiRequest('upload_report', {
+        fileData: data.similarityReport,
+        fileName: 'similarity_report.pdf',
+        bucketName: 'reports',
+        filePath: similarityPath
       });
     }
     
     // Upload AI report if available
     if (data.aiReport) {
       const aiPath = `${currentDocumentId}/ai_report.pdf`;
-      await uploadToStorage('reports', aiPath, data.aiReport, 'application/pdf', key);
-      
-      await supabaseRequest(`documents?id=eq.${currentDocumentId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          ai_report_path: aiPath,
-          ai_percentage: data.aiPercentage
-        })
+      await apiRequest('upload_report', {
+        fileData: data.aiReport,
+        fileName: 'ai_report.pdf',
+        bucketName: 'reports',
+        filePath: aiPath
       });
     }
     
     // Mark document as completed
-    await supabaseRequest(`documents?id=eq.${currentDocumentId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        status: 'completed',
-        automation_status: 'completed',
-        completed_at: new Date().toISOString()
-      })
+    await apiRequest('complete_document', {
+      documentId: currentDocumentId,
+      similarityPercentage: data.similarityPercentage,
+      aiPercentage: data.aiPercentage,
+      similarityReportPath: data.similarityReport ? `${currentDocumentId}/similarity_report.pdf` : null,
+      aiReportPath: data.aiReport ? `${currentDocumentId}/ai_report.pdf` : null
     });
     
-    await logAutomation(currentDocumentId, 'processing_complete', 'success', 
-      `Document processed. Similarity: ${data.similarityPercentage}%, AI: ${data.aiPercentage || 'N/A'}%`);
+    await apiRequest('log_automation', {
+      documentId: currentDocumentId,
+      logAction: 'processing_complete',
+      message: `Document processed. Similarity: ${data.similarityPercentage}%, AI: ${data.aiPercentage || 'N/A'}%`
+    });
     
     // Update processed count
     const storage = await chrome.storage.local.get(['processedCount']);
@@ -398,52 +383,23 @@ async function handleReportsReady(data) {
   }
 }
 
-async function uploadToStorage(bucket, path, base64Data, contentType, key) {
-  // Convert base64 to blob
-  const byteCharacters = atob(base64Data);
-  const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
-  }
-  const byteArray = new Uint8Array(byteNumbers);
-  
-  const response = await fetch(
-    `${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`,
-    {
-      method: 'POST',
-      headers: {
-        'apikey': key,
-        'Authorization': `Bearer ${key}`,
-        'Content-Type': contentType,
-        'x-upsert': 'true'
-      },
-      body: byteArray
-    }
-  );
-  
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to upload to storage: ${error}`);
-  }
-  
-  return response.json();
-}
-
 async function handleAutomationError(errorMessage) {
   console.error('Automation error:', errorMessage);
   
   if (currentDocumentId) {
     try {
       // Update document with error
-      await supabaseRequest(`documents?id=eq.${currentDocumentId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          automation_status: 'failed',
-          automation_error: errorMessage
-        })
+      await apiRequest('update_document_status', {
+        documentId: currentDocumentId,
+        automationStatus: 'failed',
+        errorMessage: errorMessage
       });
       
-      await logAutomation(currentDocumentId, 'processing_failed', 'error', errorMessage);
+      await apiRequest('log_automation', {
+        documentId: currentDocumentId,
+        logAction: 'processing_failed',
+        message: errorMessage
+      });
     } catch (e) {
       console.error('Failed to log error:', e);
     }
@@ -485,32 +441,9 @@ async function handleAutomationError(errorMessage) {
   ]);
 }
 
-async function logAutomation(documentId, action, status, message) {
-  try {
-    await supabaseRequest('automation_logs', {
-      method: 'POST',
-      body: JSON.stringify({
-        document_id: documentId,
-        action,
-        status,
-        message,
-        metadata: {
-          timestamp: new Date().toISOString(),
-          extensionVersion: chrome.runtime.getManifest().version
-        }
-      })
-    });
-  } catch (error) {
-    console.error('Failed to log automation:', error);
-  }
-}
-
 async function logError(action, message) {
-  await chrome.storage.local.set({ 
-    lastError: message,
-    lastErrorAt: new Date().toISOString()
-  });
+  await chrome.storage.local.set({ lastError: message });
 }
 
-// Start polling immediately
+// Start checking for documents immediately
 checkForPendingDocuments();
