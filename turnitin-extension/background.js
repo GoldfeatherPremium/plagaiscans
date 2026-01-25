@@ -3,7 +3,7 @@
 
 const SUPABASE_URL = 'https://fyssbzgmhnolazjfwafm.supabase.co';
 const EXTENSION_API_URL = `${SUPABASE_URL}/functions/v1/extension-api`;
-const POLL_INTERVAL_MS = 10000; // 10 seconds
+const DEFAULT_POLL_INTERVAL_MS = 10000; // 10 seconds
 const MAX_PROCESSING_TIME_MS = 30 * 60 * 1000; // 30 minutes max per document
 
 let isProcessing = false;
@@ -56,19 +56,16 @@ async function handleMessage(message, sender, sendResponse) {
       break;
       
     case 'TURNITIN_READY':
-      // Content script reports Turnitin page is ready
       console.log('Turnitin page ready, starting automation');
       sendResponse({ acknowledged: true });
       break;
       
     case 'UPLOAD_COMPLETE':
-      // Content script reports upload is complete
       await handleUploadComplete(message.data);
       sendResponse({ success: true });
       break;
       
     case 'REPORTS_READY':
-      // Content script has downloaded the reports
       await handleReportsReady(message.data);
       sendResponse({ success: true });
       break;
@@ -79,9 +76,13 @@ async function handleMessage(message, sender, sendResponse) {
       break;
       
     case 'REQUEST_FILE':
-      // Content script needs the file to upload
       const fileData = await getFileForUpload();
       sendResponse(fileData);
+      break;
+      
+    case 'GET_TURNITIN_SETTINGS':
+      const settings = await getTurnitinSettings();
+      sendResponse(settings);
       break;
       
     default:
@@ -97,7 +98,8 @@ async function getStatus() {
     'currentStatus',
     'currentDocumentName',
     'turnitinCredentials',
-    'extensionToken'
+    'extensionToken',
+    'turnitinSettings'
   ]);
   
   return {
@@ -109,7 +111,18 @@ async function getStatus() {
     lastError: data.lastError,
     currentStatus: data.currentStatus ?? 'idle',
     hasCredentials: !!data.turnitinCredentials?.email,
-    hasToken: !!data.extensionToken
+    hasToken: !!data.extensionToken,
+    turnitinSettings: data.turnitinSettings || null
+  };
+}
+
+async function getTurnitinSettings() {
+  const data = await chrome.storage.local.get(['turnitinSettings']);
+  return data.turnitinSettings || {
+    loginUrl: 'https://nrtiedu.turnitin.com/',
+    folderName: 'Bio 2',
+    autoLaunch: true,
+    waitForAiReport: true
   };
 }
 
@@ -219,10 +232,13 @@ async function processDocument(document) {
       currentScanType: document.scan_type
     });
     
-    // Open Turnitin in a new tab
+    // Get Turnitin settings
+    const turnitinSettings = await getTurnitinSettings();
+    
+    // Open Turnitin in a new tab using configured URL
     await chrome.storage.local.set({ currentStatus: 'opening_turnitin' });
     const tab = await chrome.tabs.create({ 
-      url: 'https://www.turnitin.com/login_page.asp',
+      url: turnitinSettings.loginUrl,
       active: false // Keep it in background
     });
     

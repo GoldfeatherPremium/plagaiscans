@@ -12,7 +12,7 @@ import { ExtensionTokenManager } from '@/components/ExtensionTokenManager';
 const manifestJson = `{
   "manifest_version": 3,
   "name": "Plagaiscans Turnitin Automation",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Automatically process documents through Turnitin and upload reports to Plagaiscans",
   "permissions": [
     "storage",
@@ -23,6 +23,7 @@ const manifestJson = `{
   ],
   "host_permissions": [
     "https://*.turnitin.com/*",
+    "https://nrtiedu.turnitin.com/*",
     "https://fyssbzgmhnolazjfwafm.supabase.co/*"
   ],
   "background": {
@@ -31,7 +32,7 @@ const manifestJson = `{
   },
   "content_scripts": [
     {
-      "matches": ["https://*.turnitin.com/*"],
+      "matches": ["https://*.turnitin.com/*", "https://nrtiedu.turnitin.com/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
@@ -55,7 +56,7 @@ const manifestJson = `{
 const backgroundJs = `// Plagaiscans Turnitin Automation - Background Service Worker
 const SUPABASE_URL = 'https://fyssbzgmhnolazjfwafm.supabase.co';
 const EXTENSION_API_URL = SUPABASE_URL + '/functions/v1/extension-api';
-const POLL_INTERVAL_MS = 10000;
+const DEFAULT_POLL_INTERVAL_MS = 10000;
 const MAX_PROCESSING_TIME_MS = 30 * 60 * 1000;
 
 let isProcessing = false;
@@ -119,6 +120,10 @@ async function handleMessage(message, sender, sendResponse) {
       const fileData = await getFileForUpload();
       sendResponse(fileData);
       break;
+    case 'GET_TURNITIN_SETTINGS':
+      const settings = await getTurnitinSettings();
+      sendResponse(settings);
+      break;
     default:
       sendResponse({ error: 'Unknown message type' });
   }
@@ -127,7 +132,7 @@ async function handleMessage(message, sender, sendResponse) {
 async function getStatus() {
   const data = await chrome.storage.local.get([
     'isEnabled', 'processedCount', 'lastError', 'currentStatus',
-    'currentDocumentName', 'turnitinCredentials'
+    'currentDocumentName', 'turnitinCredentials', 'extensionToken', 'turnitinSettings'
   ]);
   return {
     isEnabled: data.isEnabled ?? true,
@@ -137,58 +142,64 @@ async function getStatus() {
     processedCount: data.processedCount ?? 0,
     lastError: data.lastError,
     currentStatus: data.currentStatus ?? 'idle',
-    hasCredentials: !!data.turnitinCredentials?.email
+    hasCredentials: !!data.turnitinCredentials?.email,
+    hasToken: !!data.extensionToken,
+    turnitinSettings: data.turnitinSettings || null
   };
 }
 
-async function getSupabaseKey() {
-  if (supabaseKey) return supabaseKey;
-  const data = await chrome.storage.local.get(['supabaseServiceKey']);
-  supabaseKey = data.supabaseServiceKey;
-  return supabaseKey;
+async function getTurnitinSettings() {
+  const data = await chrome.storage.local.get(['turnitinSettings']);
+  return data.turnitinSettings || {
+    loginUrl: 'https://nrtiedu.turnitin.com/',
+    folderName: 'Bio 2',
+    autoLaunch: true,
+    waitForAiReport: true
+  };
 }
 
-async function supabaseRequest(endpoint, options = {}) {
-  const key = await getSupabaseKey();
-  if (!key) throw new Error('Supabase service key not configured');
+async function getExtensionToken() {
+  if (extensionToken) return extensionToken;
+  const data = await chrome.storage.local.get(['extensionToken']);
+  extensionToken = data.extensionToken;
+  return extensionToken;
+}
+
+async function apiRequest(action, payload = {}) {
+  const token = await getExtensionToken();
+  if (!token) throw new Error('Extension token not configured');
   
-  const url = \`\${SUPABASE_URL}/rest/v1/\${endpoint}\`;
-  const response = await fetch(url, {
-    ...options,
+  const response = await fetch(EXTENSION_API_URL, {
+    method: 'POST',
     headers: {
-      'apikey': key,
-      'Authorization': \`Bearer \${key}\`,
       'Content-Type': 'application/json',
-      'Prefer': options.prefer || 'return=representation',
-      ...options.headers
-    }
+      'x-extension-token': token
+    },
+    body: JSON.stringify({ action, ...payload })
   });
   
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(\`Supabase error: \${response.status} - \${error}\`);
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(error.error || 'API error: ' + response.status);
   }
   
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
+  return response.json();
 }
 
 async function checkForPendingDocuments() {
   if (!isEnabled || isProcessing) return;
   
   try {
-    const key = await getSupabaseKey();
-    if (!key) return;
+    const token = await getExtensionToken();
+    if (!token) return;
     
     const creds = await chrome.storage.local.get(['turnitinCredentials']);
     if (!creds.turnitinCredentials?.email) return;
     
-    const documents = await supabaseRequest(
-      'documents?status=eq.pending&automation_status=is.null&order=uploaded_at.asc&limit=1'
-    );
+    const result = await apiRequest('get_pending_documents');
     
-    if (documents && documents.length > 0) {
-      await processDocument(documents[0]);
+    if (result.documents && result.documents.length > 0) {
+      await processDocument(result.documents[0]);
     }
   } catch (error) {
     console.error('Error checking for pending documents:', error);
@@ -203,22 +214,25 @@ async function processDocument(document) {
   currentDocumentId = document.id;
   
   try {
-    console.log(\`Processing document: \${document.file_name}\`);
+    console.log('Processing document:', document.file_name);
     await chrome.storage.local.set({ 
       currentStatus: 'processing',
       currentDocumentName: document.file_name
     });
     
-    await supabaseRequest(\`documents?id=eq.\${document.id}\`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        automation_status: 'processing',
-        automation_started_at: new Date().toISOString(),
-        automation_attempt_count: (document.automation_attempt_count || 0) + 1
-      })
+    await apiRequest('update_document_status', {
+      documentId: document.id,
+      automationStatus: 'processing'
     });
     
-    await logAutomation(document.id, 'processing_started', 'info', 'Started processing document');
+    await apiRequest('increment_attempt_count', { documentId: document.id });
+    
+    await apiRequest('log_automation', {
+      documentId: document.id,
+      logAction: 'processing_started',
+      message: 'Started processing document'
+    });
+    
     await chrome.storage.local.set({ currentStatus: 'downloading' });
     const fileData = await downloadFile(document.file_path);
     
@@ -229,9 +243,11 @@ async function processDocument(document) {
       currentScanType: document.scan_type
     });
     
+    const turnitinSettings = await getTurnitinSettings();
+    
     await chrome.storage.local.set({ currentStatus: 'opening_turnitin' });
     const tab = await chrome.tabs.create({ 
-      url: 'https://www.turnitin.com/login_page.asp',
+      url: turnitinSettings.loginUrl,
       active: false
     });
     await chrome.storage.local.set({ turnitinTabId: tab.id });
@@ -242,24 +258,14 @@ async function processDocument(document) {
 }
 
 async function downloadFile(filePath) {
-  const key = await getSupabaseKey();
-  const response = await fetch(
-    \`\${SUPABASE_URL}/storage/v1/object/sign/documents/\${filePath}\`,
-    {
-      method: 'POST',
-      headers: {
-        'apikey': key,
-        'Authorization': \`Bearer \${key}\`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ expiresIn: 3600 })
-    }
-  );
+  const result = await apiRequest('get_signed_url', {
+    bucketName: 'documents',
+    filePath: filePath
+  });
   
-  if (!response.ok) throw new Error('Failed to get signed URL');
-  const { signedURL } = await response.json();
+  if (!result.signedUrl) throw new Error('Failed to get signed URL');
   
-  const fileResponse = await fetch(\`\${SUPABASE_URL}/storage/v1\${signedURL}\`);
+  const fileResponse = await fetch(result.signedUrl);
   if (!fileResponse.ok) throw new Error('Failed to download file');
   
   const blob = await fileResponse.blob();
@@ -280,51 +286,51 @@ async function handleUploadComplete(data) {
     currentStatus: 'waiting_for_results',
     turnitinSubmissionId: data.submissionId
   });
-  await logAutomation(currentDocumentId, 'upload_complete', 'info', 
-    \`Document uploaded. Submission ID: \${data.submissionId}\`);
+  await apiRequest('log_automation', {
+    documentId: currentDocumentId,
+    logAction: 'upload_complete',
+    message: 'Document uploaded. Submission ID: ' + data.submissionId
+  });
 }
 
 async function handleReportsReady(data) {
   console.log('Reports ready', data);
   try {
     await chrome.storage.local.set({ currentStatus: 'uploading_reports' });
-    const key = await getSupabaseKey();
     
     if (data.similarityReport) {
-      const path = \`\${currentDocumentId}/similarity_report.pdf\`;
-      await uploadToStorage('reports', path, data.similarityReport, 'application/pdf', key);
-      await supabaseRequest(\`documents?id=eq.\${currentDocumentId}\`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          similarity_report_path: path,
-          similarity_percentage: data.similarityPercentage
-        })
+      const path = currentDocumentId + '/similarity_report.pdf';
+      await apiRequest('upload_report', {
+        fileData: data.similarityReport,
+        fileName: 'similarity_report.pdf',
+        bucketName: 'reports',
+        filePath: path
       });
     }
     
     if (data.aiReport) {
-      const path = \`\${currentDocumentId}/ai_report.pdf\`;
-      await uploadToStorage('reports', path, data.aiReport, 'application/pdf', key);
-      await supabaseRequest(\`documents?id=eq.\${currentDocumentId}\`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          ai_report_path: path,
-          ai_percentage: data.aiPercentage
-        })
+      const path = currentDocumentId + '/ai_report.pdf';
+      await apiRequest('upload_report', {
+        fileData: data.aiReport,
+        fileName: 'ai_report.pdf',
+        bucketName: 'reports',
+        filePath: path
       });
     }
     
-    await supabaseRequest(\`documents?id=eq.\${currentDocumentId}\`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        status: 'completed',
-        automation_status: 'completed',
-        completed_at: new Date().toISOString()
-      })
+    await apiRequest('complete_document', {
+      documentId: currentDocumentId,
+      similarityPercentage: data.similarityPercentage,
+      aiPercentage: data.aiPercentage,
+      similarityReportPath: data.similarityReport ? currentDocumentId + '/similarity_report.pdf' : null,
+      aiReportPath: data.aiReport ? currentDocumentId + '/ai_report.pdf' : null
     });
     
-    await logAutomation(currentDocumentId, 'processing_complete', 'success', 
-      \`Similarity: \${data.similarityPercentage}%, AI: \${data.aiPercentage || 'N/A'}%\`);
+    await apiRequest('log_automation', {
+      documentId: currentDocumentId,
+      logAction: 'processing_complete',
+      message: 'Similarity: ' + data.similarityPercentage + '%, AI: ' + (data.aiPercentage || 'N/A') + '%'
+    });
     
     const storage = await chrome.storage.local.get(['processedCount']);
     await chrome.storage.local.set({ 
@@ -342,7 +348,7 @@ async function handleReportsReady(data) {
       type: 'basic',
       iconUrl: 'icons/icon128.png',
       title: 'Document Processed',
-      message: \`\${data.fileName || 'Document'} processed successfully\`
+      message: (data.fileName || 'Document') + ' processed successfully'
     });
     
     isProcessing = false;
@@ -358,45 +364,21 @@ async function handleReportsReady(data) {
   }
 }
 
-async function uploadToStorage(bucket, path, base64Data, contentType, key) {
-  const byteCharacters = atob(base64Data);
-  const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
-  }
-  const byteArray = new Uint8Array(byteNumbers);
-  
-  const response = await fetch(\`\${SUPABASE_URL}/storage/v1/object/\${bucket}/\${path}\`, {
-    method: 'POST',
-    headers: {
-      'apikey': key,
-      'Authorization': \`Bearer \${key}\`,
-      'Content-Type': contentType,
-      'x-upsert': 'true'
-    },
-    body: byteArray
-  });
-  
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(\`Failed to upload: \${error}\`);
-  }
-  return response.json();
-}
-
 async function handleAutomationError(errorMessage) {
   console.error('Automation error:', errorMessage);
   
   if (currentDocumentId) {
     try {
-      await supabaseRequest(\`documents?id=eq.\${currentDocumentId}\`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          automation_status: 'failed',
-          automation_error: errorMessage
-        })
+      await apiRequest('update_document_status', {
+        documentId: currentDocumentId,
+        automationStatus: 'failed',
+        errorMessage: errorMessage
       });
-      await logAutomation(currentDocumentId, 'processing_failed', 'error', errorMessage);
+      await apiRequest('log_automation', {
+        documentId: currentDocumentId,
+        logAction: 'processing_failed',
+        message: errorMessage
+      });
     } catch (e) {}
   }
   
@@ -427,26 +409,6 @@ async function handleAutomationError(errorMessage) {
   ]);
 }
 
-async function logAutomation(documentId, action, status, message) {
-  try {
-    await supabaseRequest('automation_logs', {
-      method: 'POST',
-      body: JSON.stringify({
-        document_id: documentId,
-        action,
-        status,
-        message,
-        metadata: {
-          timestamp: new Date().toISOString(),
-          extensionVersion: chrome.runtime.getManifest().version
-        }
-      })
-    });
-  } catch (e) {
-    console.error('Failed to log automation:', e);
-  }
-}
-
 async function logError(action, message) {
   await chrome.storage.local.set({ lastError: message });
 }
@@ -458,6 +420,7 @@ console.log('Plagaiscans Turnitin Automation content script loaded');
 
 let isAutomating = false;
 let currentStep = null;
+let turnitinSettings = null;
 const WAIT_TIMEOUT = 60000;
 const CHECK_INTERVAL = 2000;
 const ACTION_DELAY = 1500;
@@ -465,6 +428,14 @@ const ACTION_DELAY = 1500;
 init();
 
 async function init() {
+  const data = await chrome.storage.local.get(['turnitinSettings']);
+  turnitinSettings = data.turnitinSettings || {
+    loginUrl: 'https://nrtiedu.turnitin.com/',
+    folderName: 'Bio 2',
+    autoLaunch: true,
+    waitForAiReport: true
+  };
+  
   const response = await chrome.runtime.sendMessage({ type: 'GET_CURRENT_DOCUMENT' });
   if (response?.documentId) {
     console.log('Automation active for document:', response.documentId);
@@ -477,14 +448,18 @@ async function init() {
 async function detectPageAndAct() {
   const url = window.location.href;
   try {
-    if (url.includes('login') || url.includes('Login')) {
+    if (url.includes('login') || url.includes('Login') || url.includes('signin')) {
       await handleLoginPage();
-    } else if (url.includes('home') || url.includes('dashboard')) {
-      await handleDashboard();
-    } else if (url.includes('submission') || url.includes('upload')) {
+    } else if (await shouldClickLaunchButton()) {
+      await handleLaunchAutomatically();
+    } else if (await shouldNavigateToFolder()) {
+      await navigateToFolder(turnitinSettings.folderName);
+    } else if (url.includes('submission') || url.includes('upload') || await hasFileInput()) {
       await handleSubmissionPage();
     } else if (url.includes('report') || url.includes('viewer')) {
       await handleReportPage();
+    } else if (url.includes('home') || url.includes('dashboard')) {
+      await handleDashboard();
     } else {
       await detectByContent();
     }
@@ -494,14 +469,100 @@ async function detectPageAndAct() {
   }
 }
 
+async function shouldClickLaunchButton() {
+  if (!turnitinSettings.autoLaunch) return false;
+  await wait(1000);
+  const buttons = document.querySelectorAll('button, a, [role="button"]');
+  for (const btn of buttons) {
+    const text = btn.textContent?.toLowerCase() || '';
+    if (text.includes('launch') && (text.includes('auto') || text.includes('originality'))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function handleLaunchAutomatically() {
+  console.log('Looking for Launch Automatically button');
+  currentStep = 'launch_automatically';
+  await wait(2000);
+  
+  const buttons = document.querySelectorAll('button, a, [role="button"], .btn, .button');
+  for (const btn of buttons) {
+    const text = btn.textContent?.toLowerCase() || '';
+    if (text.includes('launch') && (text.includes('auto') || text.includes('originality'))) {
+      console.log('Found Launch button, clicking...');
+      btn.click();
+      await waitForNavigation();
+      await wait(2000);
+      await detectPageAndAct();
+      return;
+    }
+  }
+  console.log('No Launch button found, continuing detection...');
+  await detectByContent();
+}
+
+async function shouldNavigateToFolder() {
+  await wait(1000);
+  const links = document.querySelectorAll('a, button, [role="button"], .folder, .class-item');
+  for (const link of links) {
+    const text = link.textContent?.toLowerCase() || '';
+    if (text.includes(turnitinSettings.folderName.toLowerCase())) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function navigateToFolder(folderName) {
+  console.log('Navigating to folder:', folderName);
+  currentStep = 'navigate_folder';
+  await wait(2000);
+  
+  const allLinks = document.querySelectorAll('a, button, [role="button"], .folder, .class-item, tr, td');
+  for (const link of allLinks) {
+    const text = link.textContent?.trim() || '';
+    if (text.toLowerCase().includes(folderName.toLowerCase())) {
+      console.log('Found folder, clicking...');
+      const clickable = link.querySelector('a, button') || link;
+      clickable.click();
+      await waitForNavigation();
+      await wait(2000);
+      await detectPageAndAct();
+      return;
+    }
+  }
+  throw new Error('Could not find folder: ' + folderName);
+}
+
+async function hasFileInput() {
+  await wait(500);
+  return !!document.querySelector('input[type="file"]');
+}
+
 async function detectByContent() {
   await wait(2000);
   const loginForm = document.querySelector('form[action*="login"]') || document.querySelector('input[type="password"]');
   if (loginForm) { await handleLoginPage(); return; }
+  if (await shouldClickLaunchButton()) { await handleLaunchAutomatically(); return; }
+  if (await shouldNavigateToFolder()) { await navigateToFolder(turnitinSettings.folderName); return; }
   const classLinks = document.querySelectorAll('a[href*="class"], .class-item');
   if (classLinks.length > 0) { await handleDashboard(); return; }
   const fileInput = document.querySelector('input[type="file"]');
   if (fileInput) { await handleSubmissionPage(); return; }
+  
+  const submitButtons = document.querySelectorAll('a, button');
+  for (const btn of submitButtons) {
+    const text = btn.textContent?.toLowerCase() || '';
+    if (text.includes('submit') || text.includes('upload') || text.includes('add submission')) {
+      btn.click();
+      await waitForNavigation();
+      await wait(2000);
+      await detectPageAndAct();
+      return;
+    }
+  }
   console.log('Unknown page type');
 }
 
@@ -520,11 +581,13 @@ async function handleLoginPage() {
   if (passwordInput) await simulateTyping(passwordInput, creds.password);
   await wait(ACTION_DELAY);
   
-  const submitButton = document.querySelector('button[type="submit"]') || document.querySelector('input[type="submit"]') || document.querySelector('.login-button');
+  const submitButton = document.querySelector('button[type="submit"]') || document.querySelector('input[type="submit"]') || 
+    Array.from(document.querySelectorAll('button')).find(b => b.textContent?.toLowerCase().includes('log in') || b.textContent?.toLowerCase().includes('sign in'));
   if (submitButton) {
     submitButton.click();
     console.log('Login submitted');
     await waitForNavigation();
+    await wait(3000);
     await detectPageAndAct();
   } else {
     throw new Error('Could not find login submit button');
@@ -533,7 +596,14 @@ async function handleLoginPage() {
 
 async function handleDashboard() {
   console.log('Handling dashboard');
+  currentStep = 'dashboard';
   await wait(2000);
+  
+  if (await shouldNavigateToFolder()) {
+    await navigateToFolder(turnitinSettings.folderName);
+    return;
+  }
+  
   const classLink = document.querySelector('a[href*="class"]') || document.querySelector('.class-name');
   if (classLink) {
     classLink.click();
@@ -576,7 +646,8 @@ async function handleSubmissionPage() {
   if (titleInput) await simulateTyping(titleInput, fileInfo.fileName.replace(/\\.[^.]+$/, ''));
   await wait(ACTION_DELAY);
   
-  const submitButton = document.querySelector('button[type="submit"]') || document.querySelector('input[type="submit"]');
+  const submitButton = document.querySelector('button[type="submit"]') || document.querySelector('input[type="submit"]') ||
+    Array.from(document.querySelectorAll('button')).find(b => b.textContent?.toLowerCase().includes('submit') || b.textContent?.toLowerCase().includes('upload'));
   if (submitButton) {
     submitButton.click();
     await waitForSubmissionConfirmation();
@@ -590,7 +661,9 @@ async function waitForSubmissionConfirmation() {
   const startTime = Date.now();
   while (Date.now() - startTime < WAIT_TIMEOUT * 2) {
     await wait(CHECK_INTERVAL);
-    const success = document.querySelector('.submission-success') || document.body.innerText.includes('successfully submitted');
+    const success = document.querySelector('.submission-success') || 
+      document.body.innerText.includes('successfully submitted') ||
+      document.body.innerText.includes('successfully uploaded');
     if (success) {
       console.log('Submission confirmed!');
       const submissionId = extractSubmissionId();
@@ -611,11 +684,14 @@ function extractSubmissionId() {
 
 async function waitForReports() {
   console.log('Waiting for reports');
+  const data = await chrome.storage.local.get(['reportWaitTime']);
+  const maxWaitMinutes = data.reportWaitTime || 20;
+  const maxWait = maxWaitMinutes * 60 * 1000;
   const startTime = Date.now();
-  const maxWait = 20 * 60 * 1000;
+  
   while (Date.now() - startTime < maxWait) {
     await wait(CHECK_INTERVAL * 3);
-    const similarityLink = document.querySelector('a[href*="similarity"]') || document.querySelector('.similarity-score');
+    const similarityLink = document.querySelector('a[href*="similarity"]') || document.querySelector('.similarity-score') || document.querySelector('[class*="similarity"]');
     if (similarityLink) {
       console.log('Reports ready');
       await downloadReports();
@@ -633,13 +709,24 @@ async function downloadReports() {
   console.log('Downloading reports');
   const reports = { similarityReport: null, aiReport: null, similarityPercentage: null, aiPercentage: null };
   
-  const similarityScore = document.querySelector('.similarity-score, [data-similarity]');
+  const similarityScore = document.querySelector('.similarity-score, [data-similarity], [class*="similarity"]');
   if (similarityScore) {
     const match = similarityScore.innerText.match(/(\\d+)/);
     if (match) reports.similarityPercentage = parseInt(match[1]);
   }
   
-  const aiScore = document.querySelector('.ai-score, [data-ai-score]');
+  if (!reports.similarityPercentage) {
+    const allScores = document.querySelectorAll('[class*="score"], [class*="percent"]');
+    for (const score of allScores) {
+      const text = score.innerText;
+      if (text && !text.toLowerCase().includes('ai')) {
+        const match = text.match(/(\\d+)\\s*%?/);
+        if (match) { reports.similarityPercentage = parseInt(match[1]); break; }
+      }
+    }
+  }
+  
+  const aiScore = document.querySelector('.ai-score, [data-ai-score], [class*="ai-score"]');
   if (aiScore) {
     const match = aiScore.innerText.match(/(\\d+)/);
     if (match) reports.aiPercentage = parseInt(match[1]);
@@ -781,8 +868,8 @@ async function updateStatus() {
     else if (status.isProcessing) { statusDot.classList.add('processing'); statusText.textContent = formatStatus(status.currentStatus); }
     else if (status.isEnabled) { statusDot.classList.add('success'); statusText.textContent = 'Ready'; }
     else { statusDot.classList.add('idle'); statusText.textContent = 'Disabled'; }
-    document.getElementById('connectionStatus').textContent = status.hasCredentials ? 'Connected' : 'Not configured';
-    document.getElementById('connectionStatus').style.color = status.hasCredentials ? '#22c55e' : '#fbbf24';
+    document.getElementById('connectionStatus').textContent = status.hasToken ? 'Connected' : 'Not configured';
+    document.getElementById('connectionStatus').style.color = status.hasToken ? '#22c55e' : '#fbbf24';
     document.getElementById('processedCount').textContent = status.processedCount || 0;
     const currentDocContainer = document.getElementById('currentDocContainer');
     if (status.isProcessing && status.currentDocumentName) { currentDocContainer.style.display = 'block'; document.getElementById('currentDocName').textContent = status.currentDocumentName; document.getElementById('currentDocStatus').textContent = formatStatus(status.currentStatus); }
@@ -793,7 +880,7 @@ async function updateStatus() {
     document.getElementById('noCredsContainer').style.display = status.hasCredentials ? 'none' : 'block';
   } catch (error) { console.error('Error updating status:', error); }
 }
-function formatStatus(status) { const m = { 'idle': 'Idle', 'processing': 'Processing...', 'downloading': 'Downloading...', 'opening_turnitin': 'Opening Turnitin...', 'waiting_for_results': 'Waiting for results...', 'uploading_reports': 'Uploading reports...', 'error': 'Error' }; return m[status] || status; }
+function formatStatus(status) { const m = { 'idle': 'Idle', 'processing': 'Processing...', 'downloading': 'Downloading...', 'opening_turnitin': 'Opening Turnitin...', 'waiting_for_results': 'Waiting for results...', 'uploading_reports': 'Uploading reports...', 'error': 'Error', 'launch_automatically': 'Launching...', 'navigate_folder': 'Navigating...' }; return m[status] || status; }
 function setupEventListeners() {
   document.getElementById('enableToggle').addEventListener('change', async (e) => { await chrome.runtime.sendMessage({ type: 'TOGGLE_ENABLED', enabled: e.target.checked }); await updateStatus(); });
   document.getElementById('settingsBtn').addEventListener('click', () => chrome.runtime.openOptionsPage());
@@ -820,10 +907,13 @@ const optionsHtml = `<!DOCTYPE html>
     .card-description { font-size: 13px; color: #a1a1aa; margin-bottom: 20px; }
     .form-group { margin-bottom: 20px; }
     label { display: block; font-size: 13px; font-weight: 500; color: #e4e4e7; margin-bottom: 8px; }
-    input[type="text"], input[type="email"], input[type="password"] { width: 100%; padding: 12px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
+    input[type="text"], input[type="email"], input[type="password"], input[type="url"], input[type="number"] { width: 100%; padding: 12px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
     input:focus { outline: none; border-color: #3b82f6; }
     input::placeholder { color: #52525b; }
     .helper-text { font-size: 12px; color: #71717a; margin-top: 6px; }
+    .checkbox-group { display: flex; align-items: center; gap: 10px; }
+    .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; accent-color: #3b82f6; }
+    .checkbox-group label { margin-bottom: 0; }
     .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
     .btn-primary { background: #3b82f6; color: white; }
     .btn-primary:hover { background: #2563eb; }
@@ -838,6 +928,9 @@ const optionsHtml = `<!DOCTYPE html>
     .warning-box { background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
     .warning-box h4 { color: #fbbf24; font-size: 14px; margin-bottom: 8px; }
     .warning-box p { color: #a1a1aa; font-size: 13px; }
+    .info-box { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+    .info-box h4 { color: #3b82f6; font-size: 14px; margin-bottom: 8px; }
+    .info-box p { color: #a1a1aa; font-size: 13px; }
     .footer { text-align: center; margin-top: 40px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.1); }
     .footer p { color: #71717a; font-size: 13px; }
     .footer a { color: #3b82f6; text-decoration: none; }
@@ -846,22 +939,43 @@ const optionsHtml = `<!DOCTYPE html>
 <body>
   <div class="container">
     <div class="header"><img src="icons/icon128.png" alt="Plagaiscans"><h1>Automation Settings</h1><p>Configure your Turnitin automation settings</p></div>
+    
+    <div class="card">
+      <h2 class="card-title">Turnitin Settings</h2>
+      <p class="card-description">Configure your Turnitin Originality portal settings</p>
+      <div class="info-box"><h4>🎯 Turnitin Originality</h4><p>Configure the URL, target folder, and workflow settings for your institution's Turnitin portal.</p></div>
+      <form id="turnitinSettingsForm">
+        <div class="form-group"><label for="turnitinUrl">Turnitin Login URL</label><input type="url" id="turnitinUrl" placeholder="https://nrtiedu.turnitin.com/"><p class="helper-text">Your institution's Turnitin portal URL</p></div>
+        <div class="form-group"><label for="folderName">Target Folder Name</label><input type="text" id="folderName" placeholder="Bio 2"><p class="helper-text">The folder where documents will be uploaded</p></div>
+        <div class="form-group checkbox-group"><input type="checkbox" id="autoLaunch" checked><label for="autoLaunch">Click "Launch automatically" after login</label></div>
+        <div class="form-group checkbox-group"><input type="checkbox" id="waitForAiReport" checked><label for="waitForAiReport">Wait for AI Detection report</label></div>
+        <button type="submit" class="btn btn-primary">Save Turnitin Settings</button>
+        <div class="success-message" id="turnitinSettingsSuccess">✓ Turnitin settings saved</div>
+        <div class="error-message" id="turnitinSettingsError"></div>
+      </form>
+    </div>
+    
     <div class="card">
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;"><div><h2 class="card-title">Turnitin Credentials</h2><p class="card-description">Enter your Turnitin login details. Stored securely in your browser only.</p></div><span class="status-badge warning" id="credStatus"><span class="dot"></span>Not configured</span></div>
       <div class="warning-box"><h4>🔒 Security Notice</h4><p>Your credentials are stored locally and never sent to our servers.</p></div>
       <form id="turnitinForm"><div class="form-group"><label for="turnitinEmail">Email Address</label><input type="email" id="turnitinEmail" placeholder="your.email@university.edu"></div><div class="form-group"><label for="turnitinPassword">Password</label><input type="password" id="turnitinPassword" placeholder="••••••••••••"><p class="helper-text">Your password is encrypted and stored locally</p></div><div class="btn-group"><button type="submit" class="btn btn-primary">Save Credentials</button><button type="button" class="btn btn-danger" id="clearCredsBtn">Clear</button></div><div class="success-message" id="credSuccess">✓ Credentials saved</div><div class="error-message" id="credError"></div></form>
     </div>
+    
     <div class="card">
-      <h2 class="card-title">Backend Connection</h2><p class="card-description">Service key for connecting to Plagaiscans backend.</p>
-      <form id="supabaseForm"><div class="form-group"><label for="serviceKey">Service Role Key</label><input type="password" id="serviceKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."><p class="helper-text">Required for the extension to access pending documents</p></div><div class="btn-group"><button type="submit" class="btn btn-primary">Save Key</button><button type="button" class="btn btn-danger" id="clearKeyBtn">Clear</button></div><div class="success-message" id="keySuccess">✓ Key saved</div><div class="error-message" id="keyError"></div></form>
+      <h2 class="card-title">Extension Token</h2><p class="card-description">Secure token for connecting to Plagaiscans. Generate from admin dashboard.</p>
+      <div class="info-box"><h4>🔑 How to get your token</h4><p>Go to admin dashboard → Settings → Extension Download, then click "Generate Token".</p></div>
+      <form id="tokenForm"><div class="form-group"><label for="extensionToken">Extension Token</label><input type="password" id="extensionToken" placeholder="ext_xxxxxxxxxxxx..."><p class="helper-text">Starts with "ext_"</p></div><div class="btn-group"><button type="submit" class="btn btn-primary">Save Token</button><button type="button" class="btn btn-danger" id="clearTokenBtn">Clear</button></div><div class="success-message" id="tokenSuccess">✓ Token saved and verified</div><div class="error-message" id="tokenError"></div></form>
     </div>
+    
     <div class="card">
       <h2 class="card-title">Advanced Settings</h2><p class="card-description">Fine-tune the automation behavior</p>
-      <div class="form-group"><label for="pollInterval">Poll Interval (seconds)</label><input type="text" id="pollInterval" placeholder="10" value="10"><p class="helper-text">How often to check for pending documents</p></div>
-      <div class="form-group"><label for="maxRetries">Max Retries</label><input type="text" id="maxRetries" placeholder="3" value="3"><p class="helper-text">Number of retries on failure</p></div>
+      <div class="form-group"><label for="pollInterval">Poll Interval (seconds)</label><input type="number" id="pollInterval" placeholder="10" value="10" min="5" max="60"><p class="helper-text">How often to check for pending documents</p></div>
+      <div class="form-group"><label for="maxRetries">Max Retries</label><input type="number" id="maxRetries" placeholder="3" value="3" min="1" max="10"><p class="helper-text">Number of retries on failure</p></div>
+      <div class="form-group"><label for="reportWaitTime">Report Wait Time (minutes)</label><input type="number" id="reportWaitTime" placeholder="20" value="20" min="5" max="60"><p class="helper-text">Maximum time to wait for reports</p></div>
       <button type="button" class="btn btn-primary" id="saveAdvancedBtn">Save Settings</button><div class="success-message" id="advancedSuccess">✓ Settings saved</div>
     </div>
-    <div class="footer"><p>Plagaiscans Turnitin Automation v1.0.0</p><p><a href="https://plagaiscans.lovable.app" target="_blank">Open Dashboard</a> • <a href="https://plagaiscans.lovable.app/contact" target="_blank">Get Help</a></p></div>
+    
+    <div class="footer"><p>Plagaiscans Turnitin Automation v1.1.0</p><p><a href="https://plagaiscans.lovable.app" target="_blank">Open Dashboard</a> • <a href="https://plagaiscans.lovable.app/contact" target="_blank">Get Help</a></p></div>
   </div>
   <script src="options.js"></script>
 </body>
@@ -870,18 +984,38 @@ const optionsHtml = `<!DOCTYPE html>
 const optionsJs = `document.addEventListener('DOMContentLoaded', init);
 async function init() { await loadSavedSettings(); setupEventListeners(); }
 async function loadSavedSettings() {
-  const data = await chrome.storage.local.get(['turnitinCredentials', 'supabaseServiceKey', 'pollInterval', 'maxRetries']);
+  const data = await chrome.storage.local.get(['turnitinCredentials', 'extensionToken', 'turnitinSettings', 'pollInterval', 'maxRetries', 'reportWaitTime']);
   if (data.turnitinCredentials?.email) { document.getElementById('credStatus').className = 'status-badge'; document.getElementById('credStatus').innerHTML = '<span class="dot"></span>Configured'; document.getElementById('turnitinEmail').value = data.turnitinCredentials.email; }
-  if (data.supabaseServiceKey) document.getElementById('serviceKey').placeholder = '••• Key saved •••';
+  if (data.extensionToken) document.getElementById('extensionToken').placeholder = '••• Token saved •••';
+  if (data.turnitinSettings) {
+    document.getElementById('turnitinUrl').value = data.turnitinSettings.loginUrl || 'https://nrtiedu.turnitin.com/';
+    document.getElementById('folderName').value = data.turnitinSettings.folderName || 'Bio 2';
+    document.getElementById('autoLaunch').checked = data.turnitinSettings.autoLaunch !== false;
+    document.getElementById('waitForAiReport').checked = data.turnitinSettings.waitForAiReport !== false;
+  } else {
+    document.getElementById('turnitinUrl').value = 'https://nrtiedu.turnitin.com/';
+    document.getElementById('folderName').value = 'Bio 2';
+  }
   if (data.pollInterval) document.getElementById('pollInterval').value = data.pollInterval;
   if (data.maxRetries) document.getElementById('maxRetries').value = data.maxRetries;
+  if (data.reportWaitTime) document.getElementById('reportWaitTime').value = data.reportWaitTime;
 }
 function setupEventListeners() {
+  document.getElementById('turnitinSettingsForm').addEventListener('submit', async (e) => { e.preventDefault(); await saveTurnitinSettings(); });
   document.getElementById('turnitinForm').addEventListener('submit', async (e) => { e.preventDefault(); await saveTurnitinCredentials(); });
   document.getElementById('clearCredsBtn').addEventListener('click', async () => { await chrome.storage.local.remove(['turnitinCredentials']); document.getElementById('turnitinEmail').value = ''; document.getElementById('turnitinPassword').value = ''; document.getElementById('credStatus').className = 'status-badge warning'; document.getElementById('credStatus').innerHTML = '<span class="dot"></span>Not configured'; showMessage('credSuccess', 'Credentials cleared'); });
-  document.getElementById('supabaseForm').addEventListener('submit', async (e) => { e.preventDefault(); await saveServiceKey(); });
-  document.getElementById('clearKeyBtn').addEventListener('click', async () => { await chrome.storage.local.remove(['supabaseServiceKey']); document.getElementById('serviceKey').value = ''; document.getElementById('serviceKey').placeholder = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; showMessage('keySuccess', 'Key cleared'); });
+  document.getElementById('tokenForm').addEventListener('submit', async (e) => { e.preventDefault(); await saveExtensionToken(); });
+  document.getElementById('clearTokenBtn').addEventListener('click', async () => { await chrome.storage.local.remove(['extensionToken']); document.getElementById('extensionToken').value = ''; document.getElementById('extensionToken').placeholder = 'ext_xxxxxxxxxxxx...'; showMessage('tokenSuccess', 'Token cleared'); });
   document.getElementById('saveAdvancedBtn').addEventListener('click', async () => await saveAdvancedSettings());
+}
+async function saveTurnitinSettings() {
+  const loginUrl = document.getElementById('turnitinUrl').value.trim() || 'https://nrtiedu.turnitin.com/';
+  const folderName = document.getElementById('folderName').value.trim() || 'Bio 2';
+  const autoLaunch = document.getElementById('autoLaunch').checked;
+  const waitForAiReport = document.getElementById('waitForAiReport').checked;
+  try { new URL(loginUrl); } catch { showError('turnitinSettingsError', 'Please enter a valid URL'); return; }
+  await chrome.storage.local.set({ turnitinSettings: { loginUrl, folderName, autoLaunch, waitForAiReport } });
+  showMessage('turnitinSettingsSuccess', 'Turnitin settings saved');
 }
 async function saveTurnitinCredentials() {
   const email = document.getElementById('turnitinEmail').value.trim();
@@ -894,24 +1028,33 @@ async function saveTurnitinCredentials() {
   document.getElementById('credStatus').className = 'status-badge'; document.getElementById('credStatus').innerHTML = '<span class="dot"></span>Configured';
   document.getElementById('turnitinPassword').value = ''; showMessage('credSuccess', 'Credentials saved');
 }
-async function saveServiceKey() {
-  const key = document.getElementById('serviceKey').value.trim();
-  if (!key) { showError('keyError', 'Please enter the key'); return; }
-  if (!key.startsWith('eyJ')) { showError('keyError', 'Invalid key format'); return; }
-  try { const r = await fetch('https://fyssbzgmhnolazjfwafm.supabase.co/rest/v1/documents?limit=1', { headers: { 'apikey': key, 'Authorization': 'Bearer ' + key } }); if (!r.ok) throw new Error(); } catch { showError('keyError', 'Connection failed'); return; }
-  await chrome.storage.local.set({ supabaseServiceKey: key }); document.getElementById('serviceKey').value = ''; document.getElementById('serviceKey').placeholder = '••• Key saved •••'; showMessage('keySuccess', 'Key saved and verified');
+async function saveExtensionToken() {
+  const token = document.getElementById('extensionToken').value.trim();
+  if (!token) { showError('tokenError', 'Please enter token'); return; }
+  if (!token.startsWith('ext_')) { showError('tokenError', 'Invalid format. Should start with "ext_"'); return; }
+  try { 
+    const r = await fetch('https://fyssbzgmhnolazjfwafm.supabase.co/functions/v1/extension-api', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json', 'x-extension-token': token }, 
+      body: JSON.stringify({ action: 'heartbeat' }) 
+    }); 
+    if (!r.ok) throw new Error('Invalid token'); 
+  } catch (e) { showError('tokenError', e.message || 'Failed to verify token'); return; }
+  await chrome.storage.local.set({ extensionToken: token }); document.getElementById('extensionToken').value = ''; document.getElementById('extensionToken').placeholder = '••• Token saved •••'; showMessage('tokenSuccess', 'Token saved and verified');
 }
 async function saveAdvancedSettings() {
   const pollInterval = parseInt(document.getElementById('pollInterval').value) || 10;
   const maxRetries = parseInt(document.getElementById('maxRetries').value) || 3;
-  await chrome.storage.local.set({ pollInterval: Math.max(5, Math.min(60, pollInterval)), maxRetries: Math.max(1, Math.min(10, maxRetries)) }); showMessage('advancedSuccess', 'Settings saved');
+  const reportWaitTime = parseInt(document.getElementById('reportWaitTime').value) || 20;
+  await chrome.storage.local.set({ pollInterval: Math.max(5, Math.min(60, pollInterval)), maxRetries: Math.max(1, Math.min(10, maxRetries)), reportWaitTime: Math.max(5, Math.min(60, reportWaitTime)) }); 
+  showMessage('advancedSuccess', 'Settings saved');
 }
 function showMessage(id, msg) { const el = document.getElementById(id); el.textContent = '✓ ' + msg; el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 3000); }
 function showError(id, msg) { const el = document.getElementById(id); el.textContent = msg; el.style.display = 'block'; setTimeout(() => el.style.display = 'none', 5000); }`;
 
 const readmeMd = `# Plagaiscans Turnitin Automation Extension
 
-This Chrome/Edge browser extension automatically processes documents from your Plagaiscans queue through Turnitin.com.
+This Chrome/Edge browser extension automatically processes documents from your Plagaiscans queue through Turnitin.
 
 ## Features
 
@@ -920,6 +1063,7 @@ This Chrome/Edge browser extension automatically processes documents from your P
 - 📊 **Report Upload**: Automatically uploads AI and Similarity reports back to Plagaiscans
 - 🔔 **Notifications**: Get notified when documents are processed
 - 🔐 **Secure**: Credentials stored locally in your browser only
+- ⚙️ **Configurable**: Set your Turnitin URL, target folder, and workflow options
 
 ## Installation
 
@@ -939,9 +1083,13 @@ This Chrome/Edge browser extension automatically processes documents from your P
 
 1. Click the extension icon in your toolbar
 2. Click **Settings** to open the options page
-3. Enter your **Turnitin credentials** (email and password)
-4. Enter the **Service Role Key** (get this from your Plagaiscans admin)
-5. Save the settings
+3. Configure **Turnitin Settings**:
+   - Set your Turnitin URL (e.g., https://nrtiedu.turnitin.com/)
+   - Set your target folder name (e.g., "Bio 2")
+   - Enable/disable "Launch automatically" and AI report options
+4. Enter your **Turnitin credentials** (email and password)
+5. Enter the **Extension Token** (get this from your Plagaiscans admin dashboard)
+6. Save the settings
 
 ## Usage
 
@@ -949,11 +1097,21 @@ This Chrome/Edge browser extension automatically processes documents from your P
 2. **Toggle Auto-Processing** - click the extension icon and toggle on/off
 3. **Monitor progress** - the popup shows current status and processing history
 
+## Workflow
+
+1. Extension checks for pending documents
+2. Opens your configured Turnitin URL
+3. Auto-fills login credentials
+4. Clicks "Launch automatically" (if enabled)
+5. Navigates to your target folder
+6. Uploads document and waits for processing
+7. Downloads reports and uploads to Plagaiscans
+
 ## Security Notes
 
 - Your Turnitin credentials are **stored locally** in Chrome's secure storage
 - Credentials are **never sent** to Plagaiscans servers
-- The service key provides backend access to manage documents
+- The extension token provides secure, revocable access to the backend
 
 ## Requirements
 
@@ -1046,7 +1204,7 @@ const AdminExtensionDownload: React.FC = () => {
     { step: 2, title: 'Open Extensions Page', description: 'Go to chrome://extensions/ (or edge://extensions/ for Edge)' },
     { step: 3, title: 'Enable Developer Mode', description: 'Toggle on Developer mode in the top right corner' },
     { step: 4, title: 'Load Unpacked', description: 'Click "Load unpacked" and select the extracted folder' },
-    { step: 5, title: 'Configure', description: 'Click the extension icon, then configure your Turnitin credentials and paste your Extension Token' },
+    { step: 5, title: 'Configure', description: 'Set your Turnitin URL, folder, credentials, and paste your Extension Token' },
   ];
 
   return (
@@ -1075,23 +1233,28 @@ const AdminExtensionDownload: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-2">
-                <Badge variant="secondary">v1.0.0</Badge>
+                <Badge variant="secondary">v1.1.0</Badge>
                 <Badge variant="outline">Manifest V3</Badge>
+                <Badge variant="outline">Turnitin Originality</Badge>
               </div>
               
               <p className="text-sm text-muted-foreground">
-                This extension automatically processes pending documents through Turnitin and uploads 
+                This extension automatically processes pending documents through Turnitin Originality and uploads 
                 the reports back to your Plagaiscans dashboard.
               </p>
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
                   <CheckCircle2 className="h-4 w-4 text-primary" />
-                  <span>Auto-login to Turnitin</span>
+                  <span>Configurable Turnitin URL & folder</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <CheckCircle2 className="h-4 w-4 text-primary" />
-                  <span>Automatic file upload</span>
+                  <span>Auto "Launch automatically" click</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <span>Auto-login & file upload</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <CheckCircle2 className="h-4 w-4 text-primary" />
@@ -1099,7 +1262,7 @@ const AdminExtensionDownload: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <CheckCircle2 className="h-4 w-4 text-primary" />
-                  <span>Real-time status updates</span>
+                  <span>Secure token-based authentication</span>
                 </div>
               </div>
 
@@ -1124,39 +1287,43 @@ const AdminExtensionDownload: React.FC = () => {
                 </div>
                 <div>
                   <CardTitle>Requirements</CardTitle>
-                  <CardDescription>Before you install</CardDescription>
+                  <CardDescription>Before you begin</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
-                  <FileCheck className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="font-medium text-sm">Active Turnitin Account</p>
-                    <p className="text-xs text-muted-foreground">You need valid login credentials for Turnitin.com</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
                   <Chrome className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="font-medium text-sm">Chrome or Edge Browser</p>
-                    <p className="text-xs text-muted-foreground">Chromium-based browsers only (no Firefox/Safari)</p>
+                    <p className="text-sm font-medium">Chrome or Edge Browser</p>
+                    <p className="text-xs text-muted-foreground">Latest Chromium-based browser required</p>
                   </div>
                 </div>
+                
+                <div className="flex items-start gap-3">
+                  <FileCheck className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium">Turnitin Account</p>
+                    <p className="text-xs text-muted-foreground">Active login credentials for your institution's Turnitin portal</p>
+                  </div>
+                </div>
+                
                 <div className="flex items-start gap-3">
                   <Key className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="font-medium text-sm">Extension Token</p>
-                    <p className="text-xs text-muted-foreground">Generate a token below to use with the extension</p>
+                    <p className="text-sm font-medium">Extension Token</p>
+                    <p className="text-xs text-muted-foreground">Generate a secure token below to connect the extension</p>
                   </div>
                 </div>
-              </div>
-
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-xs text-muted-foreground">
-                  <strong>Note:</strong> Your computer and browser must remain on for the extension to process documents automatically.
-                </p>
+                
+                <div className="flex items-start gap-3">
+                  <Settings className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium">Computer Running</p>
+                    <p className="text-xs text-muted-foreground">Browser must remain open for automation</p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1164,20 +1331,22 @@ const AdminExtensionDownload: React.FC = () => {
 
         {/* Token Manager */}
         <ExtensionTokenManager />
+
+        {/* Installation Steps */}
         <Card>
           <CardHeader>
-            <CardTitle>Installation Guide</CardTitle>
-            <CardDescription>Follow these steps to install the extension</CardDescription>
+            <CardTitle>Installation Steps</CardTitle>
+            <CardDescription>Follow these steps to install and configure the extension</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {installationSteps.map((item) => (
-                <div key={item.step} className="flex gap-4">
+                <div key={item.step} className="flex items-start gap-4">
                   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                     <span className="text-sm font-semibold text-primary">{item.step}</span>
                   </div>
                   <div>
-                    <h4 className="font-medium">{item.title}</h4>
+                    <p className="font-medium">{item.title}</p>
                     <p className="text-sm text-muted-foreground">{item.description}</p>
                   </div>
                 </div>
