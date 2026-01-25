@@ -233,22 +233,25 @@ async function handleLoginPage() {
   const data = await chrome.storage.local.get(['turnitinCredentials']);
   const creds = data.turnitinCredentials;
   
-  if (!creds?.email || !creds?.password) {
+  if (!creds?.username || !creds?.password) {
     throw new Error('Turnitin credentials not configured');
   }
   
   // Wait for login form to be ready
-  await waitForElement('input[type="email"], input[name="email"], #email, input[type="text"]');
+  await waitForElement('input[type="text"], input[name="username"], #username, input[name="email"], input[type="email"]');
   
-  // Find and fill email field
-  const emailInput = document.querySelector('input[type="email"]') || 
-                     document.querySelector('input[name="email"]') ||
-                     document.querySelector('#email') ||
-                     document.querySelector('input[placeholder*="email" i]') ||
-                     document.querySelector('input[type="text"]');
+  // Find and fill username field (check for username first, then email as fallback)
+  const usernameInput = document.querySelector('input[name="username"]') ||
+                        document.querySelector('#username') ||
+                        document.querySelector('input[placeholder*="username" i]') ||
+                        document.querySelector('input[placeholder*="user" i]') ||
+                        document.querySelector('input[type="text"]:not([type="password"])') ||
+                        document.querySelector('input[type="email"]') || 
+                        document.querySelector('input[name="email"]') ||
+                        document.querySelector('#email');
   
-  if (emailInput) {
-    await simulateTyping(emailInput, creds.email);
+  if (usernameInput) {
+    await simulateTyping(usernameInput, creds.username);
   }
   
   await wait(ACTION_DELAY);

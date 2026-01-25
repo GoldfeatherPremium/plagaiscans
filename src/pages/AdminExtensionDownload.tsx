@@ -142,7 +142,7 @@ async function getStatus() {
     processedCount: data.processedCount ?? 0,
     lastError: data.lastError,
     currentStatus: data.currentStatus ?? 'idle',
-    hasCredentials: !!data.turnitinCredentials?.email,
+    hasCredentials: !!data.turnitinCredentials?.username,
     hasToken: !!data.extensionToken,
     turnitinSettings: data.turnitinSettings || null
   };
@@ -194,7 +194,7 @@ async function checkForPendingDocuments() {
     if (!token) return;
     
     const creds = await chrome.storage.local.get(['turnitinCredentials']);
-    if (!creds.turnitinCredentials?.email) return;
+    if (!creds.turnitinCredentials?.username) return;
     
     const result = await apiRequest('get_pending_documents');
     
@@ -570,11 +570,11 @@ async function handleLoginPage() {
   console.log('Handling login page');
   const data = await chrome.storage.local.get(['turnitinCredentials']);
   const creds = data.turnitinCredentials;
-  if (!creds?.email || !creds?.password) throw new Error('Turnitin credentials not configured');
+  if (!creds?.username || !creds?.password) throw new Error('Turnitin credentials not configured');
   
-  await waitForElement('input[type="email"], input[name="email"], #email, input[type="text"]');
-  const emailInput = document.querySelector('input[type="email"]') || document.querySelector('input[name="email"]') || document.querySelector('#email') || document.querySelector('input[type="text"]');
-  if (emailInput) await simulateTyping(emailInput, creds.email);
+  await waitForElement('input[type="text"], input[name="username"], #username, input[name="email"], input[type="email"]');
+  const usernameInput = document.querySelector('input[name="username"]') || document.querySelector('#username') || document.querySelector('input[placeholder*="username" i]') || document.querySelector('input[type="text"]:not([type="password"])') || document.querySelector('input[type="email"]') || document.querySelector('input[name="email"]');
+  if (usernameInput) await simulateTyping(usernameInput, creds.username);
   await wait(ACTION_DELAY);
   
   const passwordInput = document.querySelector('input[type="password"]') || document.querySelector('input[name="password"]');
@@ -958,7 +958,7 @@ const optionsHtml = `<!DOCTYPE html>
     <div class="card">
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;"><div><h2 class="card-title">Turnitin Credentials</h2><p class="card-description">Enter your Turnitin login details. Stored securely in your browser only.</p></div><span class="status-badge warning" id="credStatus"><span class="dot"></span>Not configured</span></div>
       <div class="warning-box"><h4>🔒 Security Notice</h4><p>Your credentials are stored locally and never sent to our servers.</p></div>
-      <form id="turnitinForm"><div class="form-group"><label for="turnitinEmail">Email Address</label><input type="email" id="turnitinEmail" placeholder="your.email@university.edu"></div><div class="form-group"><label for="turnitinPassword">Password</label><input type="password" id="turnitinPassword" placeholder="••••••••••••"><p class="helper-text">Your password is encrypted and stored locally</p></div><div class="btn-group"><button type="submit" class="btn btn-primary">Save Credentials</button><button type="button" class="btn btn-danger" id="clearCredsBtn">Clear</button></div><div class="success-message" id="credSuccess">✓ Credentials saved</div><div class="error-message" id="credError"></div></form>
+      <form id="turnitinForm"><div class="form-group"><label for="turnitinUsername">Username</label><input type="text" id="turnitinUsername" placeholder="Your Turnitin username"></div><div class="form-group"><label for="turnitinPassword">Password</label><input type="password" id="turnitinPassword" placeholder="••••••••••••"><p class="helper-text">Your password is encrypted and stored locally</p></div><div class="btn-group"><button type="submit" class="btn btn-primary">Save Credentials</button><button type="button" class="btn btn-danger" id="clearCredsBtn">Clear</button></div><div class="success-message" id="credSuccess">✓ Credentials saved</div><div class="error-message" id="credError"></div></form>
     </div>
     
     <div class="card">
@@ -985,7 +985,7 @@ const optionsJs = `document.addEventListener('DOMContentLoaded', init);
 async function init() { await loadSavedSettings(); setupEventListeners(); }
 async function loadSavedSettings() {
   const data = await chrome.storage.local.get(['turnitinCredentials', 'extensionToken', 'turnitinSettings', 'pollInterval', 'maxRetries', 'reportWaitTime']);
-  if (data.turnitinCredentials?.email) { document.getElementById('credStatus').className = 'status-badge'; document.getElementById('credStatus').innerHTML = '<span class="dot"></span>Configured'; document.getElementById('turnitinEmail').value = data.turnitinCredentials.email; }
+  if (data.turnitinCredentials?.username) { document.getElementById('credStatus').className = 'status-badge'; document.getElementById('credStatus').innerHTML = '<span class="dot"></span>Configured'; document.getElementById('turnitinUsername').value = data.turnitinCredentials.username; }
   if (data.extensionToken) document.getElementById('extensionToken').placeholder = '••• Token saved •••';
   if (data.turnitinSettings) {
     document.getElementById('turnitinUrl').value = data.turnitinSettings.loginUrl || 'https://nrtiedu.turnitin.com/';
@@ -1003,7 +1003,7 @@ async function loadSavedSettings() {
 function setupEventListeners() {
   document.getElementById('turnitinSettingsForm').addEventListener('submit', async (e) => { e.preventDefault(); await saveTurnitinSettings(); });
   document.getElementById('turnitinForm').addEventListener('submit', async (e) => { e.preventDefault(); await saveTurnitinCredentials(); });
-  document.getElementById('clearCredsBtn').addEventListener('click', async () => { await chrome.storage.local.remove(['turnitinCredentials']); document.getElementById('turnitinEmail').value = ''; document.getElementById('turnitinPassword').value = ''; document.getElementById('credStatus').className = 'status-badge warning'; document.getElementById('credStatus').innerHTML = '<span class="dot"></span>Not configured'; showMessage('credSuccess', 'Credentials cleared'); });
+  document.getElementById('clearCredsBtn').addEventListener('click', async () => { await chrome.storage.local.remove(['turnitinCredentials']); document.getElementById('turnitinUsername').value = ''; document.getElementById('turnitinPassword').value = ''; document.getElementById('credStatus').className = 'status-badge warning'; document.getElementById('credStatus').innerHTML = '<span class="dot"></span>Not configured'; showMessage('credSuccess', 'Credentials cleared'); });
   document.getElementById('tokenForm').addEventListener('submit', async (e) => { e.preventDefault(); await saveExtensionToken(); });
   document.getElementById('clearTokenBtn').addEventListener('click', async () => { await chrome.storage.local.remove(['extensionToken']); document.getElementById('extensionToken').value = ''; document.getElementById('extensionToken').placeholder = 'ext_xxxxxxxxxxxx...'; showMessage('tokenSuccess', 'Token cleared'); });
   document.getElementById('saveAdvancedBtn').addEventListener('click', async () => await saveAdvancedSettings());
@@ -1018,13 +1018,13 @@ async function saveTurnitinSettings() {
   showMessage('turnitinSettingsSuccess', 'Turnitin settings saved');
 }
 async function saveTurnitinCredentials() {
-  const email = document.getElementById('turnitinEmail').value.trim();
+  const username = document.getElementById('turnitinUsername').value.trim();
   const password = document.getElementById('turnitinPassword').value;
-  if (!email) { showError('credError', 'Please enter email'); return; }
+  if (!username) { showError('credError', 'Please enter username'); return; }
   const existing = await chrome.storage.local.get(['turnitinCredentials']);
   const savedPassword = password || existing.turnitinCredentials?.password;
   if (!savedPassword) { showError('credError', 'Please enter password'); return; }
-  await chrome.storage.local.set({ turnitinCredentials: { email, password: savedPassword } });
+  await chrome.storage.local.set({ turnitinCredentials: { username, password: savedPassword } });
   document.getElementById('credStatus').className = 'status-badge'; document.getElementById('credStatus').innerHTML = '<span class="dot"></span>Configured';
   document.getElementById('turnitinPassword').value = ''; showMessage('credSuccess', 'Credentials saved');
 }
@@ -1087,7 +1087,7 @@ This Chrome/Edge browser extension automatically processes documents from your P
    - Set your Turnitin URL (e.g., https://nrtiedu.turnitin.com/)
    - Set your target folder name (e.g., "Bio 2")
    - Enable/disable "Launch automatically" and AI report options
-4. Enter your **Turnitin credentials** (email and password)
+4. Enter your **Turnitin credentials** (username and password)
 5. Enter the **Extension Token** (get this from your Plagaiscans admin dashboard)
 6. Save the settings
 

@@ -19,10 +19,10 @@ async function loadSavedSettings() {
   
   // Update credential status
   const credStatus = document.getElementById('credStatus');
-  if (data.turnitinCredentials?.email) {
+  if (data.turnitinCredentials?.username) {
     credStatus.className = 'status-badge';
     credStatus.innerHTML = '<span class="dot"></span>Configured';
-    document.getElementById('turnitinEmail').value = data.turnitinCredentials.email;
+    document.getElementById('turnitinUsername').value = data.turnitinCredentials.username;
     document.getElementById('turnitinPassword').placeholder = '••••••••••••••••';
   }
   
@@ -73,7 +73,7 @@ function setupEventListeners() {
   // Clear credentials button
   document.getElementById('clearCredsBtn').addEventListener('click', async () => {
     await chrome.storage.local.remove(['turnitinCredentials']);
-    document.getElementById('turnitinEmail').value = '';
+    document.getElementById('turnitinUsername').value = '';
     document.getElementById('turnitinPassword').value = '';
     document.getElementById('turnitinPassword').placeholder = '••••••••••••';
     
@@ -131,11 +131,11 @@ async function saveTurnitinSettings() {
 }
 
 async function saveTurnitinCredentials() {
-  const email = document.getElementById('turnitinEmail').value.trim();
+  const username = document.getElementById('turnitinUsername').value.trim();
   const password = document.getElementById('turnitinPassword').value;
   
-  if (!email) {
-    showError('credError', 'Please enter your email address');
+  if (!username) {
+    showError('credError', 'Please enter your username');
     return;
   }
   
@@ -150,7 +150,7 @@ async function saveTurnitinCredentials() {
   
   await chrome.storage.local.set({
     turnitinCredentials: {
-      email,
+      username,
       password: savedPassword
     }
   });
