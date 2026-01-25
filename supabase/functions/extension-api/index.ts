@@ -151,10 +151,26 @@ Deno.serve(async (req) => {
         const { bucketName, filePath } = body;
         
         if (!bucketName || !filePath) {
+          console.error('get_signed_url: Missing params', { bucketName, filePath });
           return new Response(
-            JSON.stringify({ error: 'Missing bucketName or filePath' }),
+            JSON.stringify({ error: 'Missing bucketName or filePath', details: { bucketName, filePath } }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
+        }
+
+        console.log('Creating signed URL for:', { bucketName, filePath });
+
+        // First check if the file exists
+        const { data: fileList, error: listError } = await supabaseAdmin.storage
+          .from(bucketName)
+          .list(filePath.split('/').slice(0, -1).join('/') || '', {
+            search: filePath.split('/').pop()
+          });
+
+        if (listError) {
+          console.error('Error listing files:', listError, { bucketName, filePath });
+        } else {
+          console.log('File list result:', fileList);
         }
 
         const { data, error } = await supabaseAdmin.storage
@@ -162,10 +178,10 @@ Deno.serve(async (req) => {
           .createSignedUrl(filePath, 3600); // 1 hour expiry
 
         if (error) {
-          console.error('Error creating signed URL:', error);
-          await logAction('error', error.message, { bucketName, filePath });
+          console.error('Error creating signed URL:', error, { bucketName, filePath });
+          await logAction('error', `${error.message} - bucket: ${bucketName}, path: ${filePath}`, { bucketName, filePath });
           return new Response(
-            JSON.stringify({ error: 'Failed to create signed URL' }),
+            JSON.stringify({ error: 'Failed to create signed URL', details: error.message, bucketName, filePath }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
