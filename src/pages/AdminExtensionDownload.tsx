@@ -431,355 +431,388 @@ function logError(action, message) { chrome.storage.local.set({ lastError: messa
 checkForPendingDocuments();`;
 
 const contentJs = `// Plagaiscans Turnitin Automation - Content Script
+// Runs on Turnitin Originality (nrtiedu.turnitin.com) to automate upload and download
+
 console.log('Plagaiscans Turnitin Automation content script loaded');
 
 var isAutomating = false;
 var currentStep = null;
 var turnitinSettings = null;
-var WAIT_TIMEOUT = 60000;
-var CHECK_INTERVAL = 2000;
-var ACTION_DELAY = 1500;
+var currentFileName = null;
+var WAIT_TIMEOUT = 120000;
+var CHECK_INTERVAL = 3000;
+var ACTION_DELAY = 2000;
+var REPORT_WAIT_TIME = 20 * 60 * 1000;
 
 init();
 
 function init() {
-  chrome.storage.local.get(['turnitinSettings'], function(data) {
+  log('Initializing content script...');
+  chrome.storage.local.get(['turnitinSettings', 'currentFileName'], function(data) {
     turnitinSettings = data.turnitinSettings || {
       loginUrl: 'https://nrtiedu.turnitin.com/',
       folderName: 'Bio 2',
       autoLaunch: true,
       waitForAiReport: true
     };
+    currentFileName = data.currentFileName;
+    log('Settings loaded: folder=' + turnitinSettings.folderName);
     chrome.runtime.sendMessage({ type: 'GET_CURRENT_DOCUMENT' }, function(response) {
       if (response && response.documentId) {
-        console.log('Automation active for document:', response.documentId);
+        log('Automation active for document: ' + response.documentId);
         isAutomating = true;
         chrome.runtime.sendMessage({ type: 'TURNITIN_READY' });
-        detectPageAndAct();
+        wait(2000).then(function() { detectPageAndAct(); });
+      } else {
+        log('No active document, content script idle');
       }
     });
   });
 }
+
+function log(message) { console.log('[Plagaiscans] ' + message); }
 
 function detectPageAndAct() {
   var url = window.location.href;
+  log('Detecting page: ' + url);
   chrome.storage.local.get(['authMethod'], function(authData) {
     var usingCookies = authData.authMethod === 'cookies';
-    if (url.includes('login') || url.includes('Login') || url.includes('signin')) {
-      if (usingCookies) {
-        console.log('Using cookie auth, redirecting from login to home...');
-        var homeUrl = turnitinSettings.loginUrl.replace(/\\/$/, '') + '/home';
-        window.location.href = homeUrl;
-        return;
-      }
-      handleLoginPage();
-    } else {
-      shouldClickLaunchButton().then(function(shouldClick) {
-        if (shouldClick) { handleLaunchAutomatically(); return; }
-        shouldNavigateToFolder().then(function(shouldNav) {
-          if (shouldNav) { navigateToFolder(turnitinSettings.folderName); return; }
-          hasFileInput().then(function(hasInput) {
-            if (url.includes('submission') || url.includes('upload') || hasInput) { handleSubmissionPage(); return; }
-            if (url.includes('report') || url.includes('viewer')) { handleReportPage(); return; }
-            if (url.includes('home') || url.includes('dashboard')) { handleDashboard(); return; }
-            detectByContent();
-          });
-        });
-      });
-    }
-  });
-}
-
-function shouldClickLaunchButton() {
-  return new Promise(function(resolve) {
-    if (!turnitinSettings.autoLaunch) { resolve(false); return; }
-    wait(1000).then(function() {
-      var buttons = document.querySelectorAll('button, a, [role="button"]');
-      for (var i = 0; i < buttons.length; i++) {
-        var text = (buttons[i].textContent || '').toLowerCase();
-        if (text.includes('launch') && (text.includes('auto') || text.includes('originality'))) {
-          resolve(true); return;
+    try {
+      if (isLoginPage()) {
+        if (usingCookies) {
+          log('Using cookie auth, redirecting to home...');
+          var homeUrl = turnitinSettings.loginUrl.replace(/\\/$/, '') + '/home';
+          window.location.href = homeUrl;
+          return;
         }
-      }
-      resolve(false);
-    });
-  });
-}
-
-function handleLaunchAutomatically() {
-  console.log('Looking for Launch Automatically button');
-  currentStep = 'launch_automatically';
-  wait(2000).then(function() {
-    var buttons = document.querySelectorAll('button, a, [role="button"], .btn, .button');
-    for (var i = 0; i < buttons.length; i++) {
-      var text = (buttons[i].textContent || '').toLowerCase();
-      if (text.includes('launch') && (text.includes('auto') || text.includes('originality'))) {
-        console.log('Found Launch button, clicking...');
-        buttons[i].click();
-        waitForNavigation().then(function() {
-          wait(2000).then(function() { detectPageAndAct(); });
-        });
+        handleLoginPage();
         return;
       }
-    }
-    console.log('No Launch button found, continuing detection...');
-    detectByContent();
-  });
-}
-
-function shouldNavigateToFolder() {
-  return new Promise(function(resolve) {
-    wait(1000).then(function() {
-      var links = document.querySelectorAll('a, button, [role="button"], .folder, .class-item');
-      for (var i = 0; i < links.length; i++) {
-        var text = (links[i].textContent || '').toLowerCase();
-        if (text.includes(turnitinSettings.folderName.toLowerCase())) { resolve(true); return; }
-      }
-      resolve(false);
-    });
-  });
-}
-
-function navigateToFolder(folderName) {
-  console.log('Navigating to folder:', folderName);
-  currentStep = 'navigate_folder';
-  wait(2000).then(function() {
-    var allLinks = document.querySelectorAll('a, button, [role="button"], .folder, .class-item, tr, td');
-    for (var i = 0; i < allLinks.length; i++) {
-      var text = (allLinks[i].textContent || '').trim();
-      if (text.toLowerCase().includes(folderName.toLowerCase())) {
-        console.log('Found folder, clicking...');
-        var clickable = allLinks[i].querySelector('a, button') || allLinks[i];
-        clickable.click();
-        waitForNavigation().then(function() {
-          wait(2000).then(function() { detectPageAndAct(); });
-        });
-        return;
-      }
-    }
-    chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find folder: ' + folderName });
-  });
-}
-
-function hasFileInput() {
-  return new Promise(function(resolve) {
-    wait(500).then(function() { resolve(!!document.querySelector('input[type="file"]')); });
-  });
-}
-
-function detectByContent() {
-  wait(2000).then(function() {
-    var loginForm = document.querySelector('form[action*="login"]') || document.querySelector('input[type="password"]');
-    if (loginForm) { handleLoginPage(); return; }
-    shouldClickLaunchButton().then(function(shouldClick) {
-      if (shouldClick) { handleLaunchAutomatically(); return; }
-      shouldNavigateToFolder().then(function(shouldNav) {
-        if (shouldNav) { navigateToFolder(turnitinSettings.folderName); return; }
-        var classLinks = document.querySelectorAll('a[href*="class"], .class-item');
-        if (classLinks.length > 0) { handleDashboard(); return; }
-        var fileInput = document.querySelector('input[type="file"]');
-        if (fileInput) { handleSubmissionPage(); return; }
-        var submitButtons = document.querySelectorAll('a, button');
-        for (var i = 0; i < submitButtons.length; i++) {
-          var text = (submitButtons[i].textContent || '').toLowerCase();
-          if (text.includes('submit') || text.includes('upload') || text.includes('add submission')) {
-            submitButtons[i].click();
-            waitForNavigation().then(function() {
-              wait(2000).then(function() { detectPageAndAct(); });
-            });
-            return;
-          }
-        }
-        console.log('Unknown page type');
+      hasLaunchButton().then(function(hasLaunch) {
+        if (hasLaunch) { handleLaunchButton(); return; }
+        if (isMyFilesPage()) { handleMyFilesPage(); return; }
+        if (isReportViewer()) { handleReportViewer({}); return; }
+        if (hasUploadModal()) { handleUploadModal(); return; }
+        log('Unknown page, navigating to home...');
+        window.location.href = turnitinSettings.loginUrl.replace(/\\/$/, '') + '/home';
       });
-    });
+    } catch (error) {
+      log('ERROR: ' + error.message);
+      chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: error.message });
+    }
   });
+}
+
+function isLoginPage() {
+  var url = window.location.href.toLowerCase();
+  if (url.includes('login') || url.includes('signin')) return true;
+  var loginForm = document.querySelector('input[type="password"]');
+  var loginButton = findElementByText(['log in', 'sign in', 'login'], 'button');
+  return !!(loginForm || loginButton);
+}
+
+function hasLaunchButton() {
+  return wait(1500).then(function() {
+    var btn = findElementByText(['launch', 'launch automatically', 'launch originality'], 'button, a, [role="button"]');
+    return !!btn;
+  });
+}
+
+function isMyFilesPage() {
+  var url = window.location.href.toLowerCase();
+  if (url.includes('/home') || url.includes('/my-files') || url.includes('/files')) return true;
+  var hasFileList = document.querySelector('table, [role="grid"], .file-list');
+  var hasUploadBtn = findElementByText(['upload'], 'button, a');
+  return !!(hasFileList && hasUploadBtn);
+}
+
+function isReportViewer() {
+  var url = window.location.href.toLowerCase();
+  return url.includes('/report') || url.includes('/viewer') || url.includes('/similarity');
+}
+
+function hasUploadModal() {
+  var modal = document.querySelector('[role="dialog"], .modal');
+  var fileInput = document.querySelector('input[type="file"]');
+  return !!(modal && fileInput);
 }
 
 function handleLoginPage() {
-  console.log('Handling login page');
+  log('Step: Login page');
+  currentStep = 'login';
   chrome.storage.local.get(['turnitinCredentials'], function(data) {
     var creds = data.turnitinCredentials;
     if (!creds || !creds.username || !creds.password) {
       chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Turnitin credentials not configured' });
       return;
     }
-    waitForElement('input[type="text"], input[name="username"], #username, input[name="email"], input[type="email"]').then(function() {
-      var usernameInput = document.querySelector('input[name="username"]') || document.querySelector('#username') || document.querySelector('input[placeholder*="username" i]') || document.querySelector('input[type="text"]:not([type="password"])') || document.querySelector('input[type="email"]') || document.querySelector('input[name="email"]');
-      if (usernameInput) { simulateTyping(usernameInput, creds.username); }
+    wait(2000).then(function() {
+      var usernameInput = document.querySelector('input[name="username"]') || document.querySelector('#username') || document.querySelector('input[type="text"]:not([type="password"])');
+      if (usernameInput) { simulateTyping(usernameInput, creds.username); log('Username entered'); }
+      else { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find username field' }); return; }
       wait(ACTION_DELAY).then(function() {
-        var passwordInput = document.querySelector('input[type="password"]') || document.querySelector('input[name="password"]');
-        if (passwordInput) { simulateTyping(passwordInput, creds.password); }
+        var passwordInput = document.querySelector('input[type="password"]');
+        if (passwordInput) { simulateTyping(passwordInput, creds.password); log('Password entered'); }
+        else { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find password field' }); return; }
         wait(ACTION_DELAY).then(function() {
-          var submitButton = document.querySelector('button[type="submit"]') || document.querySelector('input[type="submit"]');
-          if (!submitButton) {
-            var buttons = document.querySelectorAll('button');
-            for (var i = 0; i < buttons.length; i++) {
-              var text = (buttons[i].textContent || '').toLowerCase();
-              if (text.includes('log in') || text.includes('sign in')) { submitButton = buttons[i]; break; }
-            }
-          }
-          if (submitButton) {
-            submitButton.click();
-            console.log('Login submitted');
-            waitForNavigation().then(function() {
-              wait(3000).then(function() { detectPageAndAct(); });
-            });
-          } else {
-            chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find login submit button' });
-          }
+          var loginBtn = findElementByText(['log in', 'sign in', 'login', 'submit'], 'button, input[type="submit"]');
+          if (loginBtn) { loginBtn.click(); log('Login submitted'); waitForNavigation().then(function() { wait(3000).then(function() { detectPageAndAct(); }); }); }
+          else { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find login button' }); }
         });
       });
     });
   });
 }
 
-function handleDashboard() {
-  console.log('Handling dashboard');
-  currentStep = 'dashboard';
+function handleLaunchButton() {
+  log('Step: Launch button page');
+  currentStep = 'launch';
   wait(2000).then(function() {
-    shouldNavigateToFolder().then(function(shouldNav) {
-      if (shouldNav) { navigateToFolder(turnitinSettings.folderName); return; }
-      var classLink = document.querySelector('a[href*="class"]') || document.querySelector('.class-name');
-      if (classLink) {
-        classLink.click();
-        waitForNavigation().then(function() { detectPageAndAct(); });
-      } else {
-        var submitLink = document.querySelector('a[href*="submit"]');
-        if (submitLink) {
-          submitLink.click();
-          waitForNavigation().then(function() { detectPageAndAct(); });
-        } else {
-          chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find class or submit link' });
+    var launchBtn = findElementByText(['launch', 'launch automatically', 'launch originality'], 'button, a, [role="button"]');
+    if (launchBtn) { log('Clicking Launch button...'); launchBtn.click(); waitForNavigation().then(function() { wait(3000).then(function() { detectPageAndAct(); }); }); }
+    else { log('No Launch button found, continuing...'); handleMyFilesPage(); }
+  });
+}
+
+function handleMyFilesPage() {
+  log('Step: My Files page');
+  currentStep = 'my_files';
+  wait(2000).then(function() {
+    var isInTargetFolder = checkIfInFolder(turnitinSettings.folderName);
+    if (!isInTargetFolder) { navigateToFolder(); return; }
+    log('In target folder: ' + turnitinSettings.folderName);
+    isDocumentAlreadyUploaded().then(function(uploaded) {
+      if (uploaded) { log('Document already uploaded, checking for results...'); waitForReportsAndDownload(); return; }
+      clickUploadButton();
+    });
+  });
+}
+
+function checkIfInFolder(folderName) {
+  var breadcrumb = document.querySelector('[class*="breadcrumb"], .breadcrumb');
+  if (breadcrumb && breadcrumb.textContent.toLowerCase().includes(folderName.toLowerCase())) return true;
+  var header = document.querySelector('h1, h2, [class*="header"], [class*="title"]');
+  if (header && header.textContent.toLowerCase().includes(folderName.toLowerCase())) return true;
+  return false;
+}
+
+function navigateToFolder() {
+  log('Looking for folder: ' + turnitinSettings.folderName);
+  wait(2000).then(function() {
+    var rows = document.querySelectorAll('tr, [role="row"], [class*="row"], [class*="folder"], [class*="item"]');
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var text = row.textContent || '';
+      if (text.toLowerCase().includes(turnitinSettings.folderName.toLowerCase())) {
+        var hasFolder = row.querySelector('[class*="folder"], svg[data-icon*="folder"]') || row.innerHTML.toLowerCase().includes('folder');
+        if (hasFolder || text.trim() === turnitinSettings.folderName) {
+          log('Found folder row, clicking...');
+          var clickable = row.querySelector('a, button, [role="button"]') || row;
+          clickable.click();
+          waitForNavigation().then(function() { wait(2000).then(function() { detectPageAndAct(); }); });
+          return;
         }
       }
+    }
+    var folderLink = findElementByText([turnitinSettings.folderName], 'a, button, [role="button"]');
+    if (folderLink) { log('Found folder link, clicking...'); folderLink.click(); waitForNavigation().then(function() { wait(2000).then(function() { detectPageAndAct(); }); }); return; }
+    chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find folder: ' + turnitinSettings.folderName });
+  });
+}
+
+function isDocumentAlreadyUploaded() {
+  return new Promise(function(resolve) {
+    if (!currentFileName) { resolve(false); return; }
+    var cleanName = currentFileName.replace(/\\.[^.]+$/, '').toLowerCase();
+    var pageText = document.body.textContent.toLowerCase();
+    resolve(pageText.includes(cleanName));
+  });
+}
+
+function clickUploadButton() {
+  log('Looking for Upload button...');
+  var uploadBtn = findElementByText(['upload'], 'button, a, [role="button"]');
+  if (uploadBtn) {
+    log('Clicking Upload button...');
+    uploadBtn.click();
+    wait(2000).then(function() {
+      if (hasUploadModal()) { handleUploadModal(); }
+      else { detectPageAndAct(); }
+    });
+  } else { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find Upload button' }); }
+}
+
+function handleUploadModal() {
+  log('Step: Upload modal');
+  currentStep = 'upload';
+  wait(2000).then(function() {
+    chrome.runtime.sendMessage({ type: 'REQUEST_FILE' }, function(fileInfo) {
+      if (!fileInfo || !fileInfo.fileData) { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'No file data received' }); return; }
+      log('Got file: ' + fileInfo.fileName);
+      var byteCharacters = atob(fileInfo.fileData.base64);
+      var byteNumbers = new Array(byteCharacters.length);
+      for (var i = 0; i < byteCharacters.length; i++) { byteNumbers[i] = byteCharacters.charCodeAt(i); }
+      var byteArray = new Uint8Array(byteNumbers);
+      var blob = new Blob([byteArray], { type: fileInfo.fileData.mimeType || 'application/octet-stream' });
+      var file = new File([blob], fileInfo.fileName, { type: blob.type });
+      var fileInput = document.querySelector('input[type="file"]');
+      if (!fileInput) { waitForElement('input[type="file"]').then(function(input) { if (input) { attachFile(input, file, fileInfo); } else { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find file input' }); } }); return; }
+      attachFile(fileInput, file, fileInfo);
     });
   });
 }
 
-function handleSubmissionPage() {
-  console.log('Handling submission page');
-  chrome.runtime.sendMessage({ type: 'REQUEST_FILE' }, function(fileInfo) {
-    if (!fileInfo || !fileInfo.fileData) {
-      chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'No file data received' });
-      return;
-    }
-    var byteCharacters = atob(fileInfo.fileData.base64);
-    var byteNumbers = new Array(byteCharacters.length);
-    for (var i = 0; i < byteCharacters.length; i++) { byteNumbers[i] = byteCharacters.charCodeAt(i); }
-    var byteArray = new Uint8Array(byteNumbers);
-    var blob = new Blob([byteArray], { type: fileInfo.fileData.mimeType });
-    var file = new File([blob], fileInfo.fileName, { type: fileInfo.fileData.mimeType });
-    waitForElement('input[type="file"]').then(function(fileInput) {
-      if (!fileInput) { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find file input' }); return; }
-      var dataTransfer = new DataTransfer();
-      dataTransfer.items.add(file);
-      fileInput.files = dataTransfer.files;
-      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-      wait(ACTION_DELAY).then(function() {
-        var titleInput = document.querySelector('input[name="title"]') || document.querySelector('#submission-title');
-        if (titleInput) { simulateTyping(titleInput, fileInfo.fileName.replace(/\\.[^.]+$/, '')); }
-        wait(ACTION_DELAY).then(function() {
-          var submitButton = document.querySelector('button[type="submit"]') || document.querySelector('input[type="submit"]');
-          if (!submitButton) {
-            var buttons = document.querySelectorAll('button');
-            for (var i = 0; i < buttons.length; i++) {
-              var text = (buttons[i].textContent || '').toLowerCase();
-              if (text.includes('submit') || text.includes('upload')) { submitButton = buttons[i]; break; }
-            }
-          }
-          if (submitButton) { submitButton.click(); waitForSubmissionConfirmation(); }
-          else { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find submit button' }); }
+function attachFile(fileInput, file, fileInfo) {
+  var dataTransfer = new DataTransfer();
+  dataTransfer.items.add(file);
+  fileInput.files = dataTransfer.files;
+  fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+  log('File attached');
+  wait(ACTION_DELAY).then(function() {
+    var titleInput = document.querySelector('input[name="title"], input[placeholder*="title" i], #title');
+    if (titleInput) { var title = fileInfo.fileName.replace(/\\.[^.]+$/, ''); simulateTyping(titleInput, title); log('Title entered'); }
+    wait(ACTION_DELAY).then(function() {
+      var submitBtn = findElementByText(['upload', 'submit', 'confirm', 'add'], 'button, input[type="submit"]');
+      if (submitBtn) {
+        log('Clicking submit button...');
+        submitBtn.click();
+        wait(3000).then(function() {
+          chrome.runtime.sendMessage({ type: 'UPLOAD_COMPLETE', data: { submissionId: 'pending', fileName: fileInfo.fileName } });
+          wait(5000).then(function() { window.location.reload(); });
         });
-      });
+      } else { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find submit button' }); }
     });
   });
 }
 
-function waitForSubmissionConfirmation() {
-  console.log('Waiting for confirmation');
+function waitForReportsAndDownload() {
+  log('Step: Waiting for reports');
+  currentStep = 'waiting_reports';
   var startTime = Date.now();
-  function checkConfirmation() {
-    if (Date.now() - startTime >= WAIT_TIMEOUT * 2) {
-      chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Timeout waiting for confirmation' });
-      return;
-    }
-    var success = document.querySelector('.submission-success') || document.body.innerText.includes('successfully submitted') || document.body.innerText.includes('successfully uploaded');
-    if (success) {
-      console.log('Submission confirmed!');
-      var submissionId = extractSubmissionId();
-      chrome.runtime.sendMessage({ type: 'UPLOAD_COMPLETE', data: { submissionId: submissionId } });
-      waitForReports();
-      return;
-    }
-    if (window.location.href.includes('report')) { handleReportPage(); return; }
-    setTimeout(checkConfirmation, CHECK_INTERVAL);
+  var checkCount = 0;
+  function checkReports() {
+    checkCount++;
+    log('Checking for reports... (attempt ' + checkCount + ')');
+    wait(CHECK_INTERVAL).then(function() {
+      var docRow = findDocumentRow();
+      if (docRow) {
+        var scores = extractScoresFromRow(docRow);
+        if (scores.similarityReady) {
+          log('Reports ready! Similarity: ' + scores.similarity + '%');
+          openDocumentAndDownload(docRow, scores);
+          return;
+        }
+      }
+      if (Date.now() - startTime >= REPORT_WAIT_TIME) { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Timeout waiting for reports' }); return; }
+      if (checkCount % 20 === 0) { log('Refreshing page...'); window.location.reload(); return; }
+      setTimeout(checkReports, CHECK_INTERVAL);
+    });
   }
-  setTimeout(checkConfirmation, CHECK_INTERVAL);
+  checkReports();
 }
 
-function extractSubmissionId() {
-  var urlMatch = window.location.href.match(/submission[_-]?id[=\\/](\\w+)/i);
-  if (urlMatch) return urlMatch[1];
+function findDocumentRow() {
+  if (!currentFileName) return null;
+  var cleanName = currentFileName.replace(/\\.[^.]+$/, '').toLowerCase();
+  var rows = document.querySelectorAll('tr, [role="row"], [class*="row"]');
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var text = (row.textContent || '').toLowerCase();
+    if (text.includes(cleanName)) return row;
+  }
   return null;
 }
 
-function waitForReports() {
-  console.log('Waiting for reports');
-  chrome.storage.local.get(['reportWaitTime'], function(data) {
-    var maxWaitMinutes = data.reportWaitTime || 20;
-    var maxWait = maxWaitMinutes * 60 * 1000;
-    var startTime = Date.now();
-    function checkReports() {
-      if (Date.now() - startTime >= maxWait) {
-        chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Timeout waiting for reports' });
-        return;
+function extractScoresFromRow(row) {
+  var result = { similarity: null, ai: null, similarityReady: false };
+  var text = row.textContent || '';
+  var percentMatches = text.match(/(\\d+)\\s*%/g);
+  if (percentMatches && percentMatches.length > 0) {
+    var simMatch = percentMatches[0].match(/(\\d+)/);
+    if (simMatch) { result.similarity = parseInt(simMatch[1]); result.similarityReady = true; }
+    if (percentMatches.length > 1) { var aiMatch = percentMatches[1].match(/(\\d+)/); if (aiMatch) result.ai = parseInt(aiMatch[1]); }
+  }
+  if (text.includes('processing') || text.includes('pending') || text.includes('*%')) result.similarityReady = false;
+  return result;
+}
+
+function openDocumentAndDownload(row, scores) {
+  log('Step: Opening document and downloading reports');
+  currentStep = 'downloading';
+  var similarityLink = row.querySelector('[class*="similarity"], [class*="score"] a, a[href*="report"]');
+  if (!similarityLink) {
+    var cells = row.querySelectorAll('td, [class*="cell"]');
+    for (var i = 0; i < cells.length; i++) {
+      var cell = cells[i];
+      if (cell.textContent && cell.textContent.match(/\\d+\\s*%/)) {
+        var clickable = cell.querySelector('a, button') || cell;
+        similarityLink = clickable;
+        break;
       }
-      var similarityLink = document.querySelector('a[href*="similarity"]') || document.querySelector('.similarity-score') || document.querySelector('[class*="similarity"]');
-      if (similarityLink) {
-        console.log('Reports ready');
-        downloadReports();
-        return;
-      }
-      if ((Date.now() - startTime) % 60000 < CHECK_INTERVAL * 3) { window.location.reload(); }
-      setTimeout(checkReports, CHECK_INTERVAL * 3);
     }
-    setTimeout(checkReports, CHECK_INTERVAL * 3);
+  }
+  if (similarityLink) { log('Clicking to open report viewer...'); similarityLink.click(); wait(3000).then(function() { handleReportViewer(scores); }); }
+  else { log('Could not find report link, completing with scores only'); completeWithScores(scores); }
+}
+
+function handleReportViewer(scores) {
+  log('Step: Report viewer');
+  currentStep = 'report_viewer';
+  scores = scores || {};
+  wait(3000).then(function() {
+    var reports = { similarityReport: null, aiReport: null, similarityPercentage: scores.similarity || null, aiPercentage: scores.ai || null };
+    if (!reports.similarityPercentage) {
+      var scoreElem = document.querySelector('[class*="score"], [class*="percent"], [class*="similarity"]');
+      if (scoreElem) { var match = scoreElem.textContent.match(/(\\d+)/); if (match) reports.similarityPercentage = parseInt(match[1]); }
+    }
+    var downloadArrow = document.querySelector('[class*="download"], [aria-label*="download"]');
+    if (!downloadArrow) {
+      var buttons = document.querySelectorAll('button, [role="button"]');
+      for (var i = 0; i < buttons.length; i++) {
+        var btn = buttons[i];
+        var html = btn.innerHTML.toLowerCase();
+        if (html.includes('download') || html.includes('arrow')) { downloadArrow = btn; break; }
+      }
+    }
+    if (downloadArrow) {
+      log('Found download arrow, clicking...');
+      downloadArrow.click();
+      wait(1500).then(function() {
+        var similarityOption = findElementByText(['similarity', 'originality'], '[role="menuitem"], a, button');
+        if (similarityOption) { log('Downloading similarity report...'); similarityOption.click(); }
+        wait(3000).then(function() {
+          downloadArrow.click();
+          wait(1500).then(function() {
+            var aiOption = findElementByText(['ai', 'writing'], '[role="menuitem"], a, button');
+            if (aiOption) { log('Downloading AI report...'); aiOption.click(); }
+            wait(3000).then(function() { completeWithScores(reports); });
+          });
+        });
+      });
+    } else { log('No download arrow found'); completeWithScores(reports); }
   });
 }
 
-function downloadReports() {
-  console.log('Downloading reports');
-  var reports = { similarityReport: null, aiReport: null, similarityPercentage: null, aiPercentage: null };
-  var similarityScore = document.querySelector('.similarity-score, [data-similarity], [class*="similarity"]');
-  if (similarityScore) {
-    var match = similarityScore.innerText.match(/(\\d+)/);
-    if (match) reports.similarityPercentage = parseInt(match[1]);
-  }
-  if (!reports.similarityPercentage) {
-    var allScores = document.querySelectorAll('[class*="score"], [class*="percent"]');
-    for (var i = 0; i < allScores.length; i++) {
-      var text = allScores[i].innerText;
-      if (text && !text.toLowerCase().includes('ai')) {
-        var scoreMatch = text.match(/(\\d+)\\s*%?/);
-        if (scoreMatch) { reports.similarityPercentage = parseInt(scoreMatch[1]); break; }
-      }
-    }
-  }
-  var aiScore = document.querySelector('.ai-score, [data-ai-score], [class*="ai-score"]');
-  if (aiScore) {
-    var aiMatch = aiScore.innerText.match(/(\\d+)/);
-    if (aiMatch) reports.aiPercentage = parseInt(aiMatch[1]);
-  }
+function completeWithScores(scores) {
+  log('Completing document with scores');
+  var reports = { similarityReport: null, aiReport: null, similarityPercentage: scores.similarity || scores.similarityPercentage || null, aiPercentage: scores.ai || scores.aiPercentage || null, fileName: currentFileName };
+  log('Final scores - Similarity: ' + reports.similarityPercentage + '%, AI: ' + reports.aiPercentage + '%');
   chrome.runtime.sendMessage({ type: 'REPORTS_READY', data: reports });
 }
 
-function handleReportPage() {
-  console.log('On report page');
-  downloadReports();
-}
-
 function wait(ms) { return new Promise(function(resolve) { setTimeout(resolve, ms); }); }
+
+function findElementByText(textArray, selector) {
+  var elements = document.querySelectorAll(selector || '*');
+  for (var i = 0; i < elements.length; i++) {
+    var elem = elements[i];
+    var text = (elem.textContent || '').toLowerCase().trim();
+    for (var j = 0; j < textArray.length; j++) {
+      if (text.includes(textArray[j].toLowerCase())) return elem;
+    }
+  }
+  return null;
+}
 
 function waitForElement(selector, timeout) {
   timeout = timeout || WAIT_TIMEOUT;
@@ -813,24 +846,17 @@ function simulateTyping(element, text) {
   element.value = '';
   var i = 0;
   function typeChar() {
-    if (i >= text.length) {
-      element.dispatchEvent(new Event('change', { bubbles: true }));
-      return;
-    }
+    if (i >= text.length) { element.dispatchEvent(new Event('change', { bubbles: true })); return; }
     element.value += text[i];
     element.dispatchEvent(new Event('input', { bubbles: true }));
     i++;
-    setTimeout(typeChar, 50 + Math.random() * 50);
+    setTimeout(typeChar, 30 + Math.random() * 30);
   }
   typeChar();
 }
 
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
-  if (message.type === 'START_AUTOMATION') {
-    isAutomating = true;
-    detectPageAndAct();
-    sendResponse({ started: true });
-  }
+  if (message.type === 'START_AUTOMATION') { isAutomating = true; detectPageAndAct(); sendResponse({ started: true }); }
   return true;
 });`;
 
