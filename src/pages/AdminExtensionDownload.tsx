@@ -497,17 +497,16 @@ function detectPageAndAct() {
         handleLoginPage();
         return;
       }
-      // Step 2: Check URL for /home BEFORE launch button to prevent loops
-      if (url.includes('/home') || url.includes('/my-files') || url.includes('/files')) {
-        log('On My Files page (URL detected)');
-        handleMyFilesPage();
-        return;
-      }
-      if (isReportViewer()) { handleReportViewer({}); return; }
-      if (hasUploadModal()) { handleUploadModal(); return; }
-      // Step 3: Only check for Launch button if NOT on /home pages
+      // Step 2: Check for Launch button FIRST (dashboard may have /home in URL)
       hasLaunchButton().then(function(hasLaunch) {
         if (hasLaunch) { handleLaunchButton(); return; }
+        // Step 3: Check if in report viewer
+        if (isReportViewer()) { handleReportViewer({}); return; }
+        // Step 4: Check for upload modal
+        if (hasUploadModal()) { handleUploadModal(); return; }
+        // Step 5: Check if inside Originality tool (folder view)
+        if (isInsideOriginalityTool()) { log('Inside Originality tool'); handleMyFilesPage(); return; }
+        // Step 6: Check if on My Files via DOM
         if (isMyFilesPage()) { handleMyFilesPage(); return; }
         log('Unknown page, navigating to home...');
         window.location.href = turnitinSettings.loginUrl.replace(/\\/$/, '') + '/home';
@@ -528,16 +527,18 @@ function isLoginPage() {
 }
 
 function hasLaunchButton() {
-  // Skip if URL already contains /home to prevent loops
-  if (window.location.href.includes('/home')) {
-    return Promise.resolve(false);
-  }
   return wait(1500).then(function() {
+    // Check if Turnitin Originality card exists (dashboard indicator)
+    var pageText = document.body.textContent || '';
+    var hasTurnitinCard = pageText.includes('Turnitin Originality') && pageText.includes('similarity reporting');
+    log('Page has Turnitin Originality card: ' + hasTurnitinCard);
+    // Look for visible Launch button
     var buttons = document.querySelectorAll('button, a, [role="button"]');
     for (var i = 0; i < buttons.length; i++) {
       var text = (buttons[i].textContent || '').toLowerCase().trim();
-      var isVisible = buttons[i].offsetParent !== null;
-      if (isVisible && (text === 'launch' || text.includes('launch originality') || text.startsWith('launch '))) {
+      var isVisible = buttons[i].offsetParent !== null || buttons[i].offsetWidth > 0;
+      if (isVisible && (text === 'launch' || text.includes('launch originality') || text === 'launch automatically')) {
+        log('Found launch button: ' + text);
         return true;
       }
     }
@@ -545,9 +546,24 @@ function hasLaunchButton() {
   });
 }
 
-function isMyFilesPage() {
+function isInsideOriginalityTool() {
   var url = window.location.href.toLowerCase();
-  if (url.includes('/home') || url.includes('/my-files') || url.includes('/files')) return true;
+  if (url.includes('/originality') || url.includes('/my-files') || url.includes('/files')) {
+    return true;
+  }
+  // Check for file table without Launch button
+  var hasFileTable = document.querySelector('table tbody tr, [role="grid"] [role="row"]');
+  var hasUploadBtn = findElementByText(['upload'], 'button, a');
+  if (hasFileTable && hasUploadBtn) {
+    var launchBtn = findElementByText(['launch'], 'button');
+    if (!launchBtn || launchBtn.textContent.toLowerCase().trim() !== 'launch') {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isMyFilesPage() {
   var hasFileList = document.querySelector('table, [role="grid"], .file-list');
   var hasUploadBtn = findElementByText(['upload'], 'button, a');
   return !!(hasFileList && hasUploadBtn);

@@ -88,12 +88,11 @@ async function detectPageAndAct() {
       return;
     }
     
-    // Step 2: Check if URL contains /home or /my-files - we're on My Files page
-    // IMPORTANT: Do this BEFORE checking for Launch button to prevent navigation loops!
-    if (url.includes('/home') || url.includes('/my-files') || url.includes('/files')) {
-      currentStep = 'myfiles';
-      log('On My Files page (URL detected), handling folder navigation...');
-      await handleMyFilesPage();
+    // Step 2: Check for "Launch" button (Turnitin Originality card on dashboard)
+    // This MUST come before folder detection because dashboard may have /home in URL
+    if (await hasLaunchButton()) {
+      currentStep = 'launch';
+      await handleLaunchButton();
       return;
     }
     
@@ -111,11 +110,12 @@ async function detectPageAndAct() {
       return;
     }
     
-    // Step 5: Check for "Launch" button page (post-login landing)
-    // Only check this if we're NOT on a /home page already
-    if (await hasLaunchButton()) {
-      currentStep = 'launch';
-      await handleLaunchButton();
+    // Step 5: Check if we're inside Originality tool (folder/file view)
+    // This is AFTER Launch button check - if no Launch button, we must be inside the tool
+    if (isInsideOriginalityTool()) {
+      currentStep = 'myfiles';
+      log('Inside Originality tool, handling folder navigation...');
+      await handleMyFilesPage();
       return;
     }
     
@@ -160,15 +160,16 @@ function isLoginPage() {
 }
 
 async function hasLaunchButton() {
-  // CRITICAL: Skip if URL already contains /home to prevent loops
-  if (window.location.href.includes('/home')) {
-    log('Already on /home URL, skipping Launch button check');
-    return false;
-  }
-  
   await wait(1500);
   
-  // Look for VISIBLE Launch button with stricter matching
+  // First check if "Turnitin Originality" text exists on page (dashboard indicator)
+  var pageText = document.body.textContent || '';
+  var hasTurnitinOriginalityCard = pageText.includes('Turnitin Originality') && 
+                                    pageText.includes('similarity reporting');
+  
+  log('Page has Turnitin Originality card: ' + hasTurnitinOriginalityCard);
+  
+  // Look for VISIBLE Launch button
   var buttons = document.querySelectorAll('button, a, [role="button"]');
   for (var i = 0; i < buttons.length; i++) {
     var btn = buttons[i];
@@ -177,16 +178,43 @@ async function hasLaunchButton() {
     // Check visibility
     var isVisible = btn.offsetParent !== null || btn.offsetWidth > 0 || btn.offsetHeight > 0;
     
-    // Strict matching for launch button
+    // Strict matching for launch button - must be exactly "launch" or similar
     var isLaunchButton = (
       text === 'launch' ||
       text === 'launch automatically' ||
-      text.includes('launch originality') ||
-      text.startsWith('launch ')
+      text.includes('launch originality')
     );
     
     if (isVisible && isLaunchButton) {
       log('Found launch button with text: "' + text + '"');
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Check if we're inside the Originality tool (folder/file view, not dashboard)
+function isInsideOriginalityTool() {
+  var url = window.location.href.toLowerCase();
+  
+  // Check for Originality-specific URL patterns (after clicking Launch)
+  if (url.includes('/originality') || url.includes('/my-files') || url.includes('/files')) {
+    log('URL indicates inside Originality tool');
+    return true;
+  }
+  
+  // Check for folder/file list indicators (table with files)
+  var hasFileTable = document.querySelector('table tbody tr, [role="grid"] [role="row"]');
+  var hasUploadBtn = findElementByText(['upload'], 'button, a');
+  var hasFolderList = document.querySelector('[class*="folder"], [data-testid*="folder"]');
+  
+  // If we have a file table or upload button without the Launch card, we're inside
+  if ((hasFileTable || hasFolderList) && hasUploadBtn) {
+    // Double-check we don't have the Launch button visible
+    var launchBtn = findElementByText(['launch'], 'button');
+    if (!launchBtn || launchBtn.textContent.toLowerCase().trim() !== 'launch') {
+      log('DOM indicates inside Originality tool (has file list, no Launch button)');
       return true;
     }
   }
