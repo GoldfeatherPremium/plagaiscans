@@ -12,7 +12,7 @@ import { ExtensionTokenManager } from '@/components/ExtensionTokenManager';
 const manifestJson = `{
   "manifest_version": 2,
   "name": "Plagaiscans Turnitin Automation",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Automatically process documents through Turnitin and upload reports to Plagaiscans",
   "permissions": [
     "storage",
@@ -20,6 +20,7 @@ const manifestJson = `{
     "downloads",
     "alarms",
     "notifications",
+    "cookies",
     "https://*.turnitin.com/*",
     "https://nrtiedu.turnitin.com/*",
     "https://fyssbzgmhnolazjfwafm.supabase.co/*"
@@ -143,7 +144,8 @@ function getStatus() {
   return new Promise(function(resolve) {
     chrome.storage.local.get([
       'isEnabled', 'processedCount', 'lastError', 'currentStatus',
-      'currentDocumentName', 'turnitinCredentials', 'extensionToken', 'turnitinSettings'
+      'currentDocumentName', 'turnitinCredentials', 'extensionToken', 'turnitinSettings',
+      'authMethod', 'turnitinCookies'
     ], function(data) {
       resolve({
         isEnabled: data.isEnabled !== undefined ? data.isEnabled : true,
@@ -154,6 +156,8 @@ function getStatus() {
         lastError: data.lastError,
         currentStatus: data.currentStatus || 'idle',
         hasCredentials: !!(data.turnitinCredentials && data.turnitinCredentials.username),
+        hasCookies: !!(data.turnitinCookies && data.turnitinCookies.length > 0),
+        authMethod: data.authMethod || 'credentials',
         hasToken: !!data.extensionToken,
         turnitinSettings: data.turnitinSettings || null
       });
@@ -208,9 +212,11 @@ function startProcessingNow() {
   return getExtensionToken().then(function(token) {
     if (!token) return { success: false, message: 'Extension token not configured' };
     return new Promise(function(resolve) {
-      chrome.storage.local.get(['turnitinCredentials'], function(creds) {
-        if (!creds.turnitinCredentials || !creds.turnitinCredentials.username) {
-          resolve({ success: false, message: 'Turnitin credentials not configured' });
+      chrome.storage.local.get(['turnitinCredentials', 'authMethod', 'turnitinCookies'], function(data) {
+        var hasCredentials = data.turnitinCredentials && data.turnitinCredentials.username;
+        var hasCookies = data.authMethod === 'cookies' && data.turnitinCookies && data.turnitinCookies.length > 0;
+        if (!hasCredentials && !hasCookies) {
+          resolve({ success: false, message: 'Turnitin authentication not configured' });
           return;
         }
         apiRequest('get_pending_documents').then(function(result) {
@@ -232,9 +238,11 @@ function checkForPendingDocuments() {
   if (!isEnabled || isProcessing) return;
   getExtensionToken().then(function(token) {
     if (!token) { console.log('No extension token configured, skipping poll'); return; }
-    chrome.storage.local.get(['turnitinCredentials'], function(creds) {
-      if (!creds.turnitinCredentials || !creds.turnitinCredentials.username) {
-        console.log('No Turnitin credentials configured, skipping poll');
+    chrome.storage.local.get(['turnitinCredentials', 'authMethod', 'turnitinCookies'], function(data) {
+      var hasCredentials = data.turnitinCredentials && data.turnitinCredentials.username;
+      var hasCookies = data.authMethod === 'cookies' && data.turnitinCookies && data.turnitinCookies.length > 0;
+      if (!hasCredentials && !hasCookies) {
+        console.log('No Turnitin authentication configured, skipping poll');
         return;
       }
       apiRequest('get_pending_documents').then(function(result) {
@@ -265,11 +273,51 @@ function processDocument(document) {
   })
   .then(function(turnitinSettings) {
     chrome.storage.local.set({ currentStatus: 'opening_turnitin' });
-    chrome.tabs.create({ url: turnitinSettings.loginUrl, active: false }, function(tab) {
-      chrome.storage.local.set({ turnitinTabId: tab.id });
+    return injectCookiesIfNeeded().then(function() { return turnitinSettings; });
+  })
+  .then(function(turnitinSettings) {
+    chrome.storage.local.get(['authMethod'], function(data) {
+      var url = turnitinSettings.loginUrl;
+      if (data.authMethod === 'cookies') {
+        url = turnitinSettings.loginUrl.replace(/\\/$/, '') + '/home';
+      }
+      chrome.tabs.create({ url: url, active: false }, function(tab) {
+        chrome.storage.local.set({ turnitinTabId: tab.id });
+      });
     });
   })
   .catch(function(error) { console.error('Error processing document:', error); handleAutomationError(error.message); });
+}
+
+function injectCookiesIfNeeded() {
+  return new Promise(function(resolve) {
+    chrome.storage.local.get(['authMethod', 'turnitinCookies'], function(data) {
+      if (data.authMethod !== 'cookies' || !data.turnitinCookies || data.turnitinCookies.length === 0) {
+        resolve();
+        return;
+      }
+      console.log('Injecting ' + data.turnitinCookies.length + ' cookies for Turnitin');
+      var pending = data.turnitinCookies.length;
+      data.turnitinCookies.forEach(function(cookie) {
+        chrome.cookies.set({
+          url: 'https://nrtiedu.turnitin.com',
+          name: cookie.name,
+          value: cookie.value,
+          domain: cookie.domain || '.turnitin.com',
+          path: cookie.path || '/',
+          secure: cookie.secure !== false,
+          httpOnly: cookie.httpOnly || false,
+          expirationDate: cookie.expirationDate
+        }, function() {
+          pending--;
+          if (pending === 0) {
+            console.log('Cookie injection complete');
+            resolve();
+          }
+        });
+      });
+    });
+  });
 }
 
 function downloadFile(filePath) {
@@ -415,22 +463,31 @@ function init() {
 
 function detectPageAndAct() {
   var url = window.location.href;
-  if (url.includes('login') || url.includes('Login') || url.includes('signin')) {
-    handleLoginPage();
-  } else {
-    shouldClickLaunchButton().then(function(shouldClick) {
-      if (shouldClick) { handleLaunchAutomatically(); return; }
-      shouldNavigateToFolder().then(function(shouldNav) {
-        if (shouldNav) { navigateToFolder(turnitinSettings.folderName); return; }
-        hasFileInput().then(function(hasInput) {
-          if (url.includes('submission') || url.includes('upload') || hasInput) { handleSubmissionPage(); return; }
-          if (url.includes('report') || url.includes('viewer')) { handleReportPage(); return; }
-          if (url.includes('home') || url.includes('dashboard')) { handleDashboard(); return; }
-          detectByContent();
+  chrome.storage.local.get(['authMethod'], function(authData) {
+    var usingCookies = authData.authMethod === 'cookies';
+    if (url.includes('login') || url.includes('Login') || url.includes('signin')) {
+      if (usingCookies) {
+        console.log('Using cookie auth, redirecting from login to home...');
+        var homeUrl = turnitinSettings.loginUrl.replace(/\\/$/, '') + '/home';
+        window.location.href = homeUrl;
+        return;
+      }
+      handleLoginPage();
+    } else {
+      shouldClickLaunchButton().then(function(shouldClick) {
+        if (shouldClick) { handleLaunchAutomatically(); return; }
+        shouldNavigateToFolder().then(function(shouldNav) {
+          if (shouldNav) { navigateToFolder(turnitinSettings.folderName); return; }
+          hasFileInput().then(function(hasInput) {
+            if (url.includes('submission') || url.includes('upload') || hasInput) { handleSubmissionPage(); return; }
+            if (url.includes('report') || url.includes('viewer')) { handleReportPage(); return; }
+            if (url.includes('home') || url.includes('dashboard')) { handleDashboard(); return; }
+            detectByContent();
+          });
         });
       });
-    });
-  }
+    }
+  });
 }
 
 function shouldClickLaunchButton() {
@@ -890,7 +947,7 @@ function wakeUpBackground() {
     chrome.runtime.getBackgroundPage(function(bg) {
       if (bg) {
         console.log('Background page accessed, creating alarm');
-        chrome.alarms.create('pollDocuments', { periodInMinutes: 0.17 });
+        chrome.alarms.create('pollDocuments', { periodInMinutes: 1 });
         setTimeout(function() { updateStatus(); }, 500);
       } else {
         console.log('Could not access background page');
@@ -943,13 +1000,14 @@ function updateStatusUI(status) {
     else statusText.textContent = 'Disabled';
   }
   var connectionStatus = document.getElementById('connectionStatus');
-  if (connectionStatus) { connectionStatus.textContent = status.hasCredentials ? 'Connected' : 'Not configured'; connectionStatus.style.color = status.hasCredentials ? '#22c55e' : '#fbbf24'; }
+  var hasAuth = status.hasCredentials || status.hasCookies;
+  if (connectionStatus) { connectionStatus.textContent = hasAuth ? (status.authMethod === 'cookies' ? 'Cookies' : 'Credentials') : 'Not configured'; connectionStatus.style.color = hasAuth ? '#22c55e' : '#fbbf24'; }
   var processedCountEl = document.getElementById('processedCount');
   if (processedCountEl) processedCountEl.textContent = status.processedCount || 0;
   var startNowBtn = document.getElementById('startNowBtn');
   if (startNowBtn) {
     if (status.isProcessing) { startNowBtn.disabled = true; startNowBtn.textContent = 'Processing...'; }
-    else if (!status.hasCredentials || !status.hasToken) { startNowBtn.disabled = true; startNowBtn.textContent = '▶ Start Processing Now'; }
+    else if (!hasAuth || !status.hasToken) { startNowBtn.disabled = true; startNowBtn.textContent = '▶ Start Processing Now'; }
     else { startNowBtn.disabled = false; startNowBtn.textContent = '▶ Start Processing Now'; }
   }
   var currentDocContainer = document.getElementById('currentDocContainer');
@@ -969,7 +1027,7 @@ function updateStatusUI(status) {
     else { errorContainer.style.display = 'none'; }
   }
   var noCredsContainer = document.getElementById('noCredsContainer');
-  if (noCredsContainer) noCredsContainer.style.display = status.hasCredentials ? 'none' : 'block';
+  if (noCredsContainer) noCredsContainer.style.display = hasAuth ? 'none' : 'block';
 }
 
 function formatStatus(status) {
@@ -1443,9 +1501,10 @@ const AdminExtensionDownload: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-2">
-                <Badge variant="secondary">v1.2.0</Badge>
+                <Badge variant="secondary">v1.3.0</Badge>
                 <Badge variant="outline">Manifest V2</Badge>
                 <Badge variant="outline">Mobile Ready</Badge>
+                <Badge variant="outline">Cookie Auth</Badge>
               </div>
               
               <p className="text-sm text-muted-foreground">

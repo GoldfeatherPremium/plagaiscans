@@ -127,7 +127,9 @@ function getStatus() {
       'currentDocumentName',
       'turnitinCredentials',
       'extensionToken',
-      'turnitinSettings'
+      'turnitinSettings',
+      'authMethod',
+      'turnitinCookies'
     ], function(data) {
       resolve({
         isEnabled: data.isEnabled !== undefined ? data.isEnabled : true,
@@ -138,6 +140,8 @@ function getStatus() {
         lastError: data.lastError,
         currentStatus: data.currentStatus || 'idle',
         hasCredentials: !!(data.turnitinCredentials && data.turnitinCredentials.username),
+        hasCookies: !!(data.turnitinCookies && data.turnitinCookies.length > 0),
+        authMethod: data.authMethod || 'credentials',
         hasToken: !!data.extensionToken,
         turnitinSettings: data.turnitinSettings || null
       });
@@ -211,9 +215,12 @@ function startProcessingNow() {
     }
     
     return new Promise(function(resolve) {
-      chrome.storage.local.get(['turnitinCredentials'], function(creds) {
-        if (!creds.turnitinCredentials || !creds.turnitinCredentials.username) {
-          resolve({ success: false, message: 'Turnitin credentials not configured' });
+      chrome.storage.local.get(['turnitinCredentials', 'authMethod', 'turnitinCookies'], function(data) {
+        var hasCredentials = data.turnitinCredentials && data.turnitinCredentials.username;
+        var hasCookies = data.authMethod === 'cookies' && data.turnitinCookies && data.turnitinCookies.length > 0;
+        
+        if (!hasCredentials && !hasCookies) {
+          resolve({ success: false, message: 'Turnitin authentication not configured' });
           return;
         }
         
@@ -243,10 +250,13 @@ function checkForPendingDocuments() {
       return;
     }
     
-    // Check for credentials
-    chrome.storage.local.get(['turnitinCredentials'], function(creds) {
-      if (!creds.turnitinCredentials || !creds.turnitinCredentials.username) {
-        console.log('No Turnitin credentials configured, skipping poll');
+    // Check for credentials OR cookies
+    chrome.storage.local.get(['turnitinCredentials', 'authMethod', 'turnitinCookies'], function(data) {
+      var hasCredentials = data.turnitinCredentials && data.turnitinCredentials.username;
+      var hasCookies = data.authMethod === 'cookies' && data.turnitinCookies && data.turnitinCookies.length > 0;
+      
+      if (!hasCredentials && !hasCookies) {
+        console.log('No Turnitin authentication configured, skipping poll');
         return;
       }
       
@@ -305,15 +315,72 @@ function processDocument(document) {
   }).then(function(turnitinSettings) {
     chrome.storage.local.set({ currentStatus: 'opening_turnitin' });
     
-    chrome.tabs.create({ 
-      url: turnitinSettings.loginUrl,
-      active: false
-    }, function(tab) {
-      chrome.storage.local.set({ turnitinTabId: tab.id });
+    // Inject cookies if using cookie auth before opening tab
+    return injectCookiesIfNeeded().then(function() {
+      return turnitinSettings;
+    });
+  }).then(function(turnitinSettings) {
+    // Determine URL based on auth method
+    return new Promise(function(resolve) {
+      chrome.storage.local.get(['authMethod'], function(data) {
+        var url = turnitinSettings.loginUrl;
+        
+        // If using cookies, go directly to home page (skip login)
+        if (data.authMethod === 'cookies') {
+          url = turnitinSettings.loginUrl.replace(/\/$/, '') + '/home';
+        }
+        
+        chrome.tabs.create({ 
+          url: url,
+          active: false
+        }, function(tab) {
+          chrome.storage.local.set({ turnitinTabId: tab.id });
+          resolve();
+        });
+      });
     });
   }).catch(function(error) {
     console.error('Error processing document:', error);
     handleAutomationError(error.message);
+  });
+}
+
+// Inject cookies for Turnitin if using cookie authentication
+function injectCookiesIfNeeded() {
+  return new Promise(function(resolve) {
+    chrome.storage.local.get(['authMethod', 'turnitinCookies'], function(data) {
+      if (data.authMethod !== 'cookies' || !data.turnitinCookies || data.turnitinCookies.length === 0) {
+        resolve();
+        return;
+      }
+      
+      console.log('Injecting ' + data.turnitinCookies.length + ' cookies for Turnitin');
+      
+      var promises = data.turnitinCookies.map(function(cookie) {
+        return new Promise(function(cookieResolve) {
+          chrome.cookies.set({
+            url: 'https://nrtiedu.turnitin.com',
+            name: cookie.name,
+            value: cookie.value,
+            domain: cookie.domain || '.turnitin.com',
+            path: cookie.path || '/',
+            secure: cookie.secure !== false,
+            httpOnly: cookie.httpOnly || false,
+            expirationDate: cookie.expirationDate
+          }, function(result) {
+            if (chrome.runtime.lastError) {
+              console.log('Failed to set cookie ' + cookie.name + ':', chrome.runtime.lastError);
+            }
+            cookieResolve();
+          });
+        });
+      });
+      
+      Promise.all(promises).then(function() {
+        console.log('Cookie injection complete');
+        resolve();
+      });
+    });
   });
 }
 

@@ -44,9 +44,20 @@ async function init() {
 async function detectPageAndAct() {
   const url = window.location.href;
   
+  // Check auth method first
+  const authData = await chrome.storage.local.get(['authMethod']);
+  const usingCookies = authData.authMethod === 'cookies';
+  
   try {
     // Check for login page
     if (url.includes('login') || url.includes('Login') || url.includes('signin') || url.includes('sign-in')) {
+      if (usingCookies) {
+        // Using cookies - should already be logged in, redirect to home
+        console.log('Using cookie auth, redirecting from login to home...');
+        const homeUrl = turnitinSettings.loginUrl.replace(/\/$/, '') + '/home';
+        window.location.href = homeUrl;
+        return;
+      }
       await handleLoginPage();
     } 
     // Check for "Launch automatically" page (post-login landing)
@@ -174,10 +185,23 @@ async function hasFileInput() {
 async function detectByContent() {
   await wait(2000); // Wait for page to fully load
   
+  // Check auth method
+  const authData = await chrome.storage.local.get(['authMethod']);
+  const usingCookies = authData.authMethod === 'cookies';
+  
   // Check for login form
   const loginForm = document.querySelector('form[action*="login"]') || 
                     document.querySelector('input[type="password"]');
   if (loginForm) {
+    if (usingCookies) {
+      // Using cookies but still on login page - cookies may have expired
+      console.log('Cookie auth failed - still on login page. Cookies may be expired.');
+      await chrome.runtime.sendMessage({ 
+        type: 'AUTOMATION_ERROR', 
+        error: 'Session cookies expired. Please re-import cookies.' 
+      });
+      return;
+    }
     await handleLoginPage();
     return;
   }

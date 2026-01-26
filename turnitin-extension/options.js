@@ -14,7 +14,10 @@ async function loadSavedSettings() {
     'turnitinSettings',
     'pollInterval',
     'maxRetries',
-    'reportWaitTime'
+    'reportWaitTime',
+    'authMethod',
+    'turnitinCookies',
+    'cookiesImportedAt'
   ]);
   
   // Update credential status
@@ -30,6 +33,15 @@ async function loadSavedSettings() {
   if (data.extensionToken) {
     document.getElementById('extensionToken').placeholder = '••• Token saved •••';
   }
+  
+  // Load auth method
+  const authMethod = data.authMethod || 'credentials';
+  document.getElementById('authMethodCredentials').checked = authMethod === 'credentials';
+  document.getElementById('authMethodCookies').checked = authMethod === 'cookies';
+  updateAuthMethodUI(authMethod);
+  
+  // Load cookie status
+  updateCookieStatus(data.turnitinCookies, data.cookiesImportedAt);
   
   // Load Turnitin settings
   if (data.turnitinSettings) {
@@ -57,7 +69,63 @@ async function loadSavedSettings() {
   }
 }
 
+function updateAuthMethodUI(method) {
+  const credentialsSection = document.getElementById('credentialsSection');
+  const cookiesSection = document.getElementById('cookiesSection');
+  
+  if (method === 'cookies') {
+    credentialsSection.style.display = 'none';
+    cookiesSection.style.display = 'block';
+  } else {
+    credentialsSection.style.display = 'block';
+    cookiesSection.style.display = 'none';
+  }
+}
+
+function updateCookieStatus(cookies, importedAt) {
+  const cookieStatus = document.getElementById('cookieStatus');
+  
+  if (cookies && cookies.length > 0) {
+    const importDate = importedAt ? new Date(importedAt).toLocaleString() : 'Unknown';
+    const cookieCount = cookies.length;
+    
+    // Check for expiration
+    const now = Date.now() / 1000;
+    const expiredCookies = cookies.filter(c => c.expirationDate && c.expirationDate < now);
+    
+    if (expiredCookies.length > 0) {
+      cookieStatus.className = 'status-badge warning';
+      cookieStatus.innerHTML = `<span class="dot"></span>${expiredCookies.length} expired cookies`;
+    } else {
+      cookieStatus.className = 'status-badge';
+      cookieStatus.innerHTML = `<span class="dot"></span>${cookieCount} cookies saved`;
+    }
+    
+    document.getElementById('cookieInfo').textContent = `Imported: ${importDate}`;
+    document.getElementById('cookieInfo').style.display = 'block';
+  } else {
+    cookieStatus.className = 'status-badge warning';
+    cookieStatus.innerHTML = '<span class="dot"></span>Not configured';
+    document.getElementById('cookieInfo').style.display = 'none';
+  }
+}
+
 function setupEventListeners() {
+  // Auth method toggle
+  document.getElementById('authMethodCredentials').addEventListener('change', function() {
+    if (this.checked) {
+      chrome.storage.local.set({ authMethod: 'credentials' });
+      updateAuthMethodUI('credentials');
+    }
+  });
+  
+  document.getElementById('authMethodCookies').addEventListener('change', function() {
+    if (this.checked) {
+      chrome.storage.local.set({ authMethod: 'cookies' });
+      updateAuthMethodUI('cookies');
+    }
+  });
+  
   // Turnitin settings form
   document.getElementById('turnitinSettingsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -82,6 +150,30 @@ function setupEventListeners() {
     credStatus.innerHTML = '<span class="dot"></span>Not configured';
     
     showMessage('credSuccess', 'Credentials cleared');
+  });
+  
+  // Cookie import form
+  document.getElementById('cookieForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await importCookies();
+  });
+  
+  // Export current cookies button
+  document.getElementById('exportCookiesBtn').addEventListener('click', async () => {
+    await exportCurrentCookies();
+  });
+  
+  // Test cookies button
+  document.getElementById('testCookiesBtn').addEventListener('click', async () => {
+    await testCookies();
+  });
+  
+  // Clear cookies button
+  document.getElementById('clearCookiesBtn').addEventListener('click', async () => {
+    await chrome.storage.local.remove(['turnitinCookies', 'cookiesImportedAt']);
+    document.getElementById('cookieData').value = '';
+    updateCookieStatus(null, null);
+    showMessage('cookieSuccess', 'Cookies cleared');
   });
   
   // Token form
@@ -165,6 +257,173 @@ async function saveTurnitinCredentials() {
   document.getElementById('turnitinPassword').placeholder = '••••••••••••••••';
   
   showMessage('credSuccess', 'Credentials saved successfully');
+}
+
+async function importCookies() {
+  const cookieData = document.getElementById('cookieData').value.trim();
+  
+  if (!cookieData) {
+    showError('cookieError', 'Please paste your cookie data');
+    return;
+  }
+  
+  try {
+    const cookies = parseCookieData(cookieData);
+    
+    if (!cookies || cookies.length === 0) {
+      showError('cookieError', 'No valid cookies found. Check format.');
+      return;
+    }
+    
+    // Save cookies to storage
+    await chrome.storage.local.set({
+      turnitinCookies: cookies,
+      cookiesImportedAt: Date.now(),
+      authMethod: 'cookies'
+    });
+    
+    // Update UI
+    document.getElementById('authMethodCookies').checked = true;
+    updateAuthMethodUI('cookies');
+    updateCookieStatus(cookies, Date.now());
+    document.getElementById('cookieData').value = '';
+    
+    showMessage('cookieSuccess', `Imported ${cookies.length} cookies successfully`);
+  } catch (error) {
+    showError('cookieError', 'Invalid cookie format: ' + error.message);
+  }
+}
+
+function parseCookieData(data) {
+  const cookies = [];
+  
+  // Try JSON format first (Chrome DevTools export)
+  try {
+    const jsonData = JSON.parse(data);
+    
+    if (Array.isArray(jsonData)) {
+      for (const cookie of jsonData) {
+        if (cookie.name && cookie.value) {
+          cookies.push({
+            name: cookie.name,
+            value: cookie.value,
+            domain: cookie.domain || '.turnitin.com',
+            path: cookie.path || '/',
+            secure: cookie.secure ?? true,
+            httpOnly: cookie.httpOnly ?? false,
+            expirationDate: cookie.expirationDate || cookie.expires || undefined
+          });
+        }
+      }
+      return cookies;
+    }
+  } catch (e) {
+    // Not JSON, try other formats
+  }
+  
+  // Try Netscape format
+  const lines = data.split('\n').filter(line => line.trim() && !line.startsWith('#'));
+  
+  for (const line of lines) {
+    // Netscape format: domain, flag, path, secure, expiration, name, value
+    const parts = line.split('\t');
+    
+    if (parts.length >= 7) {
+      cookies.push({
+        name: parts[5].trim(),
+        value: parts[6].trim(),
+        domain: parts[0].trim(),
+        path: parts[2].trim(),
+        secure: parts[3].trim().toLowerCase() === 'true',
+        httpOnly: false,
+        expirationDate: parseInt(parts[4]) || undefined
+      });
+    } else if (line.includes('=')) {
+      // Simple key=value format
+      const [name, ...valueParts] = line.split('=');
+      if (name && valueParts.length > 0) {
+        cookies.push({
+          name: name.trim(),
+          value: valueParts.join('=').trim(),
+          domain: '.turnitin.com',
+          path: '/',
+          secure: true,
+          httpOnly: false
+        });
+      }
+    }
+  }
+  
+  return cookies;
+}
+
+async function exportCurrentCookies() {
+  try {
+    // Get all cookies for turnitin.com
+    const cookies = await chrome.cookies.getAll({ domain: '.turnitin.com' });
+    const nrtiCookies = await chrome.cookies.getAll({ domain: 'nrtiedu.turnitin.com' });
+    
+    const allCookies = [...cookies, ...nrtiCookies];
+    
+    if (allCookies.length === 0) {
+      showError('cookieError', 'No Turnitin cookies found. Are you logged in?');
+      return;
+    }
+    
+    // Format for display
+    const cookieJson = JSON.stringify(allCookies.map(c => ({
+      name: c.name,
+      value: c.value,
+      domain: c.domain,
+      path: c.path,
+      secure: c.secure,
+      httpOnly: c.httpOnly,
+      expirationDate: c.expirationDate
+    })), null, 2);
+    
+    document.getElementById('cookieData').value = cookieJson;
+    showMessage('cookieSuccess', `Found ${allCookies.length} cookies. Click Import to save them.`);
+  } catch (error) {
+    showError('cookieError', 'Failed to export cookies: ' + error.message);
+  }
+}
+
+async function testCookies() {
+  const data = await chrome.storage.local.get(['turnitinCookies', 'turnitinSettings']);
+  
+  if (!data.turnitinCookies || data.turnitinCookies.length === 0) {
+    showError('cookieError', 'No cookies saved. Import cookies first.');
+    return;
+  }
+  
+  try {
+    // Inject cookies first
+    for (const cookie of data.turnitinCookies) {
+      try {
+        await chrome.cookies.set({
+          url: 'https://nrtiedu.turnitin.com',
+          name: cookie.name,
+          value: cookie.value,
+          domain: cookie.domain || '.turnitin.com',
+          path: cookie.path || '/',
+          secure: cookie.secure ?? true,
+          httpOnly: cookie.httpOnly ?? false,
+          expirationDate: cookie.expirationDate
+        });
+      } catch (e) {
+        console.log('Failed to set cookie:', cookie.name, e);
+      }
+    }
+    
+    // Open Turnitin to test
+    const loginUrl = data.turnitinSettings?.loginUrl || 'https://nrtiedu.turnitin.com/';
+    const homeUrl = loginUrl.replace(/\/$/, '') + '/home';
+    
+    chrome.tabs.create({ url: homeUrl });
+    showMessage('cookieSuccess', 'Cookies injected. Check if you are logged in.');
+  } catch (error) {
+    showError('cookieError', 'Failed to test cookies: ' + error.message);
+  }
 }
 
 async function saveExtensionToken() {
