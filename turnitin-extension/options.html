@@ -543,6 +543,12 @@ auth_token=xyz789'></textarea>
       <h2 class="card-title">Advanced Settings</h2>
       <p class="card-description">Fine-tune the automation behavior</p>
       
+      <div class="form-group checkbox-group">
+        <input type="checkbox" id="autoProcessNext">
+        <label for="autoProcessNext">Auto-process next document after completion</label>
+      </div>
+      <p class="helper-text" style="margin-top: -12px; margin-bottom: 20px;">When disabled, extension waits for manual trigger after each document (recommended for testing)</p>
+      
       <div class="form-group">
         <label for="pollInterval">Poll Interval (seconds)</label>
         <input type="number" id="pollInterval" placeholder="10" value="10" min="5" max="60">
