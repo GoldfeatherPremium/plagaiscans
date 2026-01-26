@@ -1,4 +1,5 @@
 // Plagaiscans Turnitin Automation - Content Script
+// Version 1.3.1 - Fixed folder navigation loop and URL-based detection
 // Runs on Turnitin Originality (nrtiedu.turnitin.com) to automate upload and download
 
 console.log('Plagaiscans Turnitin Automation content script loaded');
@@ -54,11 +55,19 @@ async function init() {
 }
 
 function log(message) {
-  console.log('[Plagaiscans] ' + message);
+  console.log('[Plagaiscans] [' + currentStep + '] ' + message);
+  
+  // Send logs to background for server logging
+  chrome.runtime.sendMessage({
+    type: 'LOG',
+    message: message,
+    step: currentStep
+  }).catch(function() {});
 }
 
 async function detectPageAndAct() {
   var url = window.location.href;
+  currentStep = 'detect';
   log('Detecting page: ' + url);
   
   // Check auth method first
@@ -66,8 +75,9 @@ async function detectPageAndAct() {
   var usingCookies = authData.authMethod === 'cookies';
   
   try {
-    // Step 1: Check for login page
+    // Step 1: Check for login page FIRST
     if (isLoginPage()) {
+      currentStep = 'login';
       if (usingCookies) {
         log('Using cookie auth, redirecting from login to home...');
         var homeUrl = turnitinSettings.loginUrl.replace(/\/$/, '') + '/home';
@@ -78,35 +88,52 @@ async function detectPageAndAct() {
       return;
     }
     
-    // Step 2: Check for "Launch" button page (post-login landing)
-    if (await hasLaunchButton()) {
-      await handleLaunchButton();
-      return;
-    }
-    
-    // Step 3: Check if we're on My Files / Home page
-    if (isMyFilesPage()) {
+    // Step 2: Check if URL contains /home or /my-files - we're on My Files page
+    // IMPORTANT: Do this BEFORE checking for Launch button to prevent navigation loops!
+    if (url.includes('/home') || url.includes('/my-files') || url.includes('/files')) {
+      currentStep = 'myfiles';
+      log('On My Files page (URL detected), handling folder navigation...');
       await handleMyFilesPage();
       return;
     }
     
-    // Step 4: Check if in report viewer
+    // Step 3: Check if in report viewer
     if (isReportViewer()) {
+      currentStep = 'report';
       await handleReportViewer();
       return;
     }
     
-    // Step 5: Check for upload modal
+    // Step 4: Check for upload modal
     if (hasUploadModal()) {
+      currentStep = 'upload';
       await handleUploadModal();
       return;
     }
     
+    // Step 5: Check for "Launch" button page (post-login landing)
+    // Only check this if we're NOT on a /home page already
+    if (await hasLaunchButton()) {
+      currentStep = 'launch';
+      await handleLaunchButton();
+      return;
+    }
+    
+    // Step 6: Fallback - Check if we're on My Files via DOM elements
+    if (isMyFilesPage()) {
+      currentStep = 'myfiles';
+      log('On My Files page (DOM detected), handling folder navigation...');
+      await handleMyFilesPage();
+      return;
+    }
+    
     // Default: try to navigate to home
+    currentStep = 'navigate';
     log('Unknown page, navigating to home...');
     window.location.href = turnitinSettings.loginUrl.replace(/\/$/, '') + '/home';
     
   } catch (error) {
+    currentStep = 'error';
     log('ERROR: ' + error.message);
     await chrome.runtime.sendMessage({ 
       type: 'AUTOMATION_ERROR', 
@@ -123,13 +150,48 @@ function isLoginPage() {
   // Also check for login form
   var loginForm = document.querySelector('input[type="password"]');
   var loginButton = findElementByText(['log in', 'sign in', 'login'], 'button');
+  
+  // But make sure we're not in an upload modal
+  if (hasUploadModal()) {
+    return false;
+  }
+  
   return !!(loginForm || loginButton);
 }
 
 async function hasLaunchButton() {
+  // CRITICAL: Skip if URL already contains /home to prevent loops
+  if (window.location.href.includes('/home')) {
+    log('Already on /home URL, skipping Launch button check');
+    return false;
+  }
+  
   await wait(1500);
-  var launchBtn = findElementByText(['launch', 'launch automatically', 'launch originality'], 'button, a, [role="button"]');
-  return !!launchBtn;
+  
+  // Look for VISIBLE Launch button with stricter matching
+  var buttons = document.querySelectorAll('button, a, [role="button"]');
+  for (var i = 0; i < buttons.length; i++) {
+    var btn = buttons[i];
+    var text = (btn.textContent || '').toLowerCase().trim();
+    
+    // Check visibility
+    var isVisible = btn.offsetParent !== null || btn.offsetWidth > 0 || btn.offsetHeight > 0;
+    
+    // Strict matching for launch button
+    var isLaunchButton = (
+      text === 'launch' ||
+      text === 'launch automatically' ||
+      text.includes('launch originality') ||
+      text.startsWith('launch ')
+    );
+    
+    if (isVisible && isLaunchButton) {
+      log('Found launch button with text: "' + text + '"');
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 function isMyFilesPage() {
@@ -222,7 +284,7 @@ async function handleLaunchButton() {
     launchBtn.click();
     await waitForNavigation();
     await wait(3000);
-    await detectPageAndAct();
+    // After clicking, page should reload/navigate and init() will re-run
   } else {
     log('No Launch button found, continuing...');
     await handleMyFilesPage();
@@ -241,6 +303,7 @@ async function handleMyFilesPage() {
   
   if (!isInTargetFolder) {
     // Navigate to the folder first
+    log('Not in target folder, navigating to: ' + turnitinSettings.folderName);
     await navigateToFolder();
     return;
   }
@@ -259,15 +322,27 @@ async function handleMyFilesPage() {
 }
 
 function checkIfInFolder(folderName) {
+  var folderLower = folderName.toLowerCase();
+  
   // Check breadcrumb for folder name
   var breadcrumb = document.querySelector('[class*="breadcrumb"], .breadcrumb, nav[aria-label*="breadcrumb"]');
-  if (breadcrumb && breadcrumb.textContent.toLowerCase().includes(folderName.toLowerCase())) {
+  if (breadcrumb && breadcrumb.textContent.toLowerCase().includes(folderLower)) {
+    log('Found folder in breadcrumb');
     return true;
   }
   
   // Check page title or header
-  var header = document.querySelector('h1, h2, [class*="header"], [class*="title"]');
-  if (header && header.textContent.toLowerCase().includes(folderName.toLowerCase())) {
+  var headers = document.querySelectorAll('h1, h2, [class*="header"], [class*="title"]');
+  for (var i = 0; i < headers.length; i++) {
+    if (headers[i].textContent.toLowerCase().includes(folderLower)) {
+      log('Found folder in header');
+      return true;
+    }
+  }
+  
+  // Check URL
+  if (window.location.href.toLowerCase().includes(encodeURIComponent(folderLower).toLowerCase())) {
+    log('Found folder in URL');
     return true;
   }
   
@@ -276,44 +351,58 @@ function checkIfInFolder(folderName) {
 
 async function navigateToFolder() {
   log('Looking for folder: ' + turnitinSettings.folderName);
+  var folderLower = turnitinSettings.folderName.toLowerCase();
   
   await wait(2000);
   
   // Find folder in the file/folder list
   var rows = document.querySelectorAll('tr, [role="row"], [class*="row"], [class*="folder"], [class*="item"]');
   
+  log('Found ' + rows.length + ' rows to check');
+  
   for (var i = 0; i < rows.length; i++) {
     var row = rows[i];
-    var text = row.textContent || '';
+    var text = (row.textContent || '').toLowerCase();
     
-    // Check if this row contains the folder name and has a folder icon
-    if (text.toLowerCase().includes(turnitinSettings.folderName.toLowerCase())) {
+    // Check if this row contains the folder name
+    if (text.includes(folderLower)) {
       // Look for folder indicators
       var hasFolder = row.querySelector('[class*="folder"], svg[data-icon*="folder"], .folder-icon') ||
                       row.innerHTML.toLowerCase().includes('folder');
       
-      if (hasFolder || text.trim() === turnitinSettings.folderName) {
-        log('Found folder row, clicking...');
+      // Accept if it has folder indicator OR text exactly matches folder name
+      if (hasFolder || text.trim().includes(folderLower)) {
+        log('Found folder row with text: ' + text.substring(0, 50) + '...');
         
         // Click the folder name link/button
         var clickable = row.querySelector('a, button, [role="button"], [class*="name"]') || row;
+        log('Clicking element: ' + (clickable.tagName || 'unknown'));
         clickable.click();
         
         await waitForNavigation();
-        await wait(2000);
-        await detectPageAndAct();
+        await wait(3000);
+        
+        // Verify we navigated
+        var nowInFolder = checkIfInFolder(turnitinSettings.folderName);
+        if (nowInFolder) {
+          log('Successfully navigated to folder');
+          await handleMyFilesPage();
+        } else {
+          log('Navigation may have failed, retrying detection...');
+          await detectPageAndAct();
+        }
         return;
       }
     }
   }
   
-  // Try finding by link text
+  // Try finding by link text directly
   var folderLink = findElementByText([turnitinSettings.folderName], 'a, button, [role="button"]');
   if (folderLink) {
-    log('Found folder link, clicking...');
+    log('Found folder link by text, clicking...');
     folderLink.click();
     await waitForNavigation();
-    await wait(2000);
+    await wait(3000);
     await detectPageAndAct();
     return;
   }
@@ -498,176 +587,103 @@ function extractScoresFromRow(row) {
   var result = {
     similarity: null,
     ai: null,
-    similarityReady: false
+    similarityReady: false,
+    aiReady: false
   };
   
-  var cells = row.querySelectorAll('td, [role="cell"], [class*="cell"]');
   var text = row.textContent || '';
   
-  // Look for percentage patterns
-  var percentMatches = text.match(/(\d+)\s*%/g);
+  // Find percentage patterns
+  var percentages = text.match(/(\d+)\s*%/g);
   
-  if (percentMatches && percentMatches.length > 0) {
+  if (percentages && percentages.length >= 1) {
     // First percentage is usually similarity
-    var simMatch = percentMatches[0].match(/(\d+)/);
-    if (simMatch) {
-      result.similarity = parseInt(simMatch[1]);
-      result.similarityReady = true;
-    }
+    result.similarity = parseInt(percentages[0]);
+    result.similarityReady = !text.includes('processing') && !text.includes('*%');
     
-    // Second percentage is usually AI
-    if (percentMatches.length > 1) {
-      var aiMatch = percentMatches[1].match(/(\d+)/);
-      if (aiMatch) {
-        result.ai = parseInt(aiMatch[1]);
-      }
+    if (percentages.length >= 2) {
+      result.ai = parseInt(percentages[1]);
+      result.aiReady = true;
     }
-  }
-  
-  // Check if still processing
-  var isProcessing = text.includes('processing') || text.includes('pending') || text.includes('*%');
-  if (isProcessing) {
-    result.similarityReady = false;
   }
   
   return result;
 }
 
-// ========== DOWNLOAD REPORTS ==========
 async function openDocumentAndDownload(row, scores) {
-  log('Step: Opening document and downloading reports');
-  currentStep = 'downloading';
+  log('Opening document for report download');
+  currentStep = 'downloading_reports';
   
-  // Find and click the similarity score/link to open viewer
-  var similarityLink = row.querySelector('[class*="similarity"], [class*="score"] a, a[href*="similarity"], a[href*="report"]');
-  
-  if (!similarityLink) {
-    // Try clicking on the score percentage itself
-    var cells = row.querySelectorAll('td, [class*="cell"]');
-    for (var i = 0; i < cells.length; i++) {
-      var cell = cells[i];
-      if (cell.textContent && cell.textContent.match(/\d+\s*%/)) {
-        var clickable = cell.querySelector('a, button, [role="button"]') || cell;
-        similarityLink = clickable;
-        break;
-      }
-    }
-  }
-  
-  if (similarityLink) {
-    log('Clicking to open report viewer...');
-    similarityLink.click();
-    
-    await wait(3000);
-    
-    // Now we should be in the report viewer
-    await handleReportViewer(scores);
-  } else {
-    // Just report the scores without PDF downloads
-    log('Could not find link to report viewer, completing with scores only');
-    await completeWithScores(scores);
-  }
-}
-
-async function handleReportViewer(scores) {
-  log('Step: Report viewer');
-  currentStep = 'report_viewer';
-  
-  scores = scores || { similarity: null, ai: null };
+  // Click on similarity score to open viewer
+  var clickable = row.querySelector('[class*="similarity"], [class*="score"], a') || row;
+  clickable.click();
   
   await wait(3000);
   
-  var reports = {
-    similarityReport: null,
-    aiReport: null,
-    similarityPercentage: scores.similarity,
-    aiPercentage: scores.ai
-  };
+  // Handle the report viewer page
+  await handleReportViewer();
+}
+
+async function handleReportViewer() {
+  log('Step: Report viewer');
+  currentStep = 'report_viewer';
   
-  // Try to extract scores from viewer if not provided
-  if (!reports.similarityPercentage) {
-    var scoreElem = document.querySelector('[class*="score"], [class*="percent"], [class*="similarity"]');
-    if (scoreElem) {
-      var match = scoreElem.textContent.match(/(\d+)/);
-      if (match) reports.similarityPercentage = parseInt(match[1]);
-    }
+  await wait(2000);
+  
+  var similarityReport = null;
+  var aiReport = null;
+  
+  // Look for download button (usually an arrow or download icon)
+  var downloadBtn = document.querySelector('[class*="download"], [aria-label*="download"], button[title*="download"]');
+  
+  if (!downloadBtn) {
+    // Try finding by icon
+    downloadBtn = document.querySelector('svg[data-icon="download"], [class*="arrow-down"], .export-btn');
   }
   
-  // Look for download menu/button (downward arrow)
-  var downloadArrow = document.querySelector('[class*="download"], [aria-label*="download"], [data-testid*="download"], svg[class*="arrow-down"], [class*="menu"] button');
-  
-  if (!downloadArrow) {
-    // Try finding by common icons
-    var buttons = document.querySelectorAll('button, [role="button"], [class*="icon"]');
-    for (var i = 0; i < buttons.length; i++) {
-      var btn = buttons[i];
-      var html = btn.innerHTML.toLowerCase();
-      if (html.includes('download') || html.includes('arrow') || btn.getAttribute('aria-label')?.toLowerCase().includes('download')) {
-        downloadArrow = btn;
-        break;
-      }
-    }
+  if (!downloadBtn) {
+    // Try text-based
+    downloadBtn = findElementByText(['download', 'export'], 'button, a, [role="button"]');
   }
   
-  if (downloadArrow) {
-    log('Found download arrow, clicking...');
-    downloadArrow.click();
+  if (downloadBtn) {
+    // Download similarity report
+    log('Clicking download for Similarity report...');
+    downloadBtn.click();
     await wait(1500);
     
-    // Look for download options in dropdown menu
-    var menuItems = document.querySelectorAll('[role="menuitem"], [class*="menu"] a, [class*="menu"] button, [class*="dropdown"] a');
-    
-    // Download similarity report
-    var similarityOption = findElementByText(['similarity', 'originality'], '[role="menuitem"], a, button');
-    if (similarityOption) {
-      log('Downloading similarity report...');
-      similarityOption.click();
+    var simOption = findElementByText(['similarity'], 'button, a, [role="menuitem"], li');
+    if (simOption) {
+      simOption.click();
       await wait(3000);
-      
-      // Re-open menu for AI report
-      downloadArrow.click();
-      await wait(1500);
+      log('Similarity report download initiated');
     }
     
     // Download AI report
-    var aiOption = findElementByText(['ai', 'writing'], '[role="menuitem"], a, button');
+    log('Clicking download for AI report...');
+    downloadBtn.click();
+    await wait(1500);
+    
+    var aiOption = findElementByText(['ai', 'writing'], 'button, a, [role="menuitem"], li');
     if (aiOption) {
-      log('Downloading AI report...');
       aiOption.click();
       await wait(3000);
+      log('AI report download initiated');
     }
   } else {
-    log('No download arrow found, trying alternative methods...');
-    
-    // Try finding direct download links
-    var downloadLinks = document.querySelectorAll('a[href*="download"], a[href*=".pdf"]');
-    for (var i = 0; i < downloadLinks.length; i++) {
-      downloadLinks[i].click();
-      await wait(2000);
-    }
+    log('Could not find download button, trying alternative methods...');
   }
   
-  // For now, complete with just the scores
-  // TODO: Implement actual PDF capture via downloads API
-  await completeWithScores(reports);
-}
-
-async function completeWithScores(scores) {
-  log('Completing document with scores');
-  
-  var reports = {
-    similarityReport: null,
-    aiReport: null,
-    similarityPercentage: scores.similarity || scores.similarityPercentage || null,
-    aiPercentage: scores.ai || scores.aiPercentage || null,
-    fileName: currentFileName
-  };
-  
-  log('Final scores - Similarity: ' + reports.similarityPercentage + '%, AI: ' + reports.aiPercentage + '%');
-  
+  // Send completion to background
+  log('Notifying background of report downloads...');
   await chrome.runtime.sendMessage({
     type: 'REPORTS_READY',
-    data: reports
+    data: {
+      similarityReport: similarityReport,
+      aiReport: aiReport,
+      similarityPercentage: 0,
+      aiPercentage: 0
+    }
   });
 }
 
@@ -678,47 +694,71 @@ function wait(ms) {
   });
 }
 
-function findElementByText(textArray, selector) {
-  var elements = document.querySelectorAll(selector || '*');
+function waitForElement(selector, timeout) {
+  timeout = timeout || WAIT_TIMEOUT;
+  
+  return new Promise(function(resolve) {
+    var startTime = Date.now();
+    
+    function check() {
+      var element = document.querySelector(selector);
+      if (element) {
+        resolve(element);
+        return;
+      }
+      
+      if (Date.now() - startTime > timeout) {
+        resolve(null);
+        return;
+      }
+      
+      setTimeout(check, 500);
+    }
+    
+    check();
+  });
+}
+
+function waitForNavigation() {
+  return new Promise(function(resolve) {
+    var currentUrl = window.location.href;
+    var checks = 0;
+    
+    function check() {
+      checks++;
+      if (window.location.href !== currentUrl || checks > 30) {
+        resolve();
+        return;
+      }
+      setTimeout(check, 500);
+    }
+    
+    check();
+  });
+}
+
+function findElementByText(texts, selectors) {
+  if (!Array.isArray(texts)) {
+    texts = [texts];
+  }
+  
+  var elements = document.querySelectorAll(selectors);
   
   for (var i = 0; i < elements.length; i++) {
-    var elem = elements[i];
-    var text = (elem.textContent || '').toLowerCase().trim();
+    var el = elements[i];
+    var elText = (el.textContent || '').toLowerCase().trim();
     
-    for (var j = 0; j < textArray.length; j++) {
-      if (text.includes(textArray[j].toLowerCase())) {
-        return elem;
+    for (var j = 0; j < texts.length; j++) {
+      if (elText.includes(texts[j].toLowerCase())) {
+        // Check if visible
+        if (el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0) {
+          return el;
+        }
       }
     }
   }
   
   return null;
-}
-
-async function waitForElement(selector, timeout) {
-  timeout = timeout || WAIT_TIMEOUT;
-  var startTime = Date.now();
-  
-  while (Date.now() - startTime < timeout) {
-    var element = document.querySelector(selector);
-    if (element) return element;
-    await wait(500);
-  }
-  
-  return null;
-}
-
-async function waitForNavigation() {
-  var currentUrl = window.location.href;
-  var startTime = Date.now();
-  
-  while (Date.now() - startTime < WAIT_TIMEOUT) {
-    await wait(500);
-    if (window.location.href !== currentUrl) {
-      await wait(2000);
-      return;
-    }
-  }
 }
 
 async function simulateTyping(element, text) {
@@ -728,18 +768,8 @@ async function simulateTyping(element, text) {
   for (var i = 0; i < text.length; i++) {
     element.value += text[i];
     element.dispatchEvent(new Event('input', { bubbles: true }));
-    await wait(30 + Math.random() * 30);
+    await wait(50);
   }
   
   element.dispatchEvent(new Event('change', { bubbles: true }));
 }
-
-// Listen for messages from background
-chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
-  if (message.type === 'START_AUTOMATION') {
-    isAutomating = true;
-    detectPageAndAct();
-    sendResponse({ started: true });
-  }
-  return true;
-});

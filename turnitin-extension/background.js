@@ -224,15 +224,18 @@ function startProcessingNow() {
           return;
         }
         
-        apiRequest('get_pending_documents').then(function(result) {
-          if (result.documents && result.documents.length > 0) {
-            processDocument(result.documents[0]);
-            resolve({ success: true, message: 'Started processing: ' + result.documents[0].file_name });
-          } else {
-            resolve({ success: false, message: 'No pending documents found' });
-          }
-        }).catch(function(error) {
-          resolve({ success: false, message: error.message });
+        // Clear the lastCompletedAt to allow processing (manual trigger)
+        chrome.storage.local.remove(['lastCompletedAt'], function() {
+          apiRequest('get_pending_documents').then(function(result) {
+            if (result.documents && result.documents.length > 0) {
+              processDocument(result.documents[0]);
+              resolve({ success: true, message: 'Started processing: ' + result.documents[0].file_name });
+            } else {
+              resolve({ success: false, message: 'No pending documents found' });
+            }
+          }).catch(function(error) {
+            resolve({ success: false, message: error.message });
+          });
         });
       });
     });
@@ -251,12 +254,18 @@ function checkForPendingDocuments() {
     }
     
     // Check for credentials OR cookies
-    chrome.storage.local.get(['turnitinCredentials', 'authMethod', 'turnitinCookies'], function(data) {
+    chrome.storage.local.get(['turnitinCredentials', 'authMethod', 'turnitinCookies', 'autoProcessNext', 'lastCompletedAt'], function(data) {
       var hasCredentials = data.turnitinCredentials && data.turnitinCredentials.username;
       var hasCookies = data.authMethod === 'cookies' && data.turnitinCookies && data.turnitinCookies.length > 0;
       
       if (!hasCredentials && !hasCookies) {
         console.log('No Turnitin authentication configured, skipping poll');
+        return;
+      }
+      
+      // Check if auto-process is disabled and we completed a document recently
+      if (!data.autoProcessNext && data.lastCompletedAt) {
+        console.log('Single-file mode: waiting for manual trigger. Last completed:', new Date(data.lastCompletedAt).toISOString());
         return;
       }
       
@@ -520,6 +529,11 @@ function handleReportsReady(data) {
     
     isProcessing = false;
     currentDocumentId = null;
+    
+    // Mark completion time for single-file mode
+    chrome.storage.local.set({
+      lastCompletedAt: Date.now()
+    });
     
     chrome.storage.local.remove([
       'currentFileData',

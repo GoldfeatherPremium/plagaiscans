@@ -219,15 +219,18 @@ function startProcessingNow() {
           resolve({ success: false, message: 'Turnitin authentication not configured' });
           return;
         }
-        apiRequest('get_pending_documents').then(function(result) {
-          if (result.documents && result.documents.length > 0) {
-            processDocument(result.documents[0]);
-            resolve({ success: true, message: 'Started processing: ' + result.documents[0].file_name });
-          } else {
-            resolve({ success: false, message: 'No pending documents found' });
-          }
-        }).catch(function(error) {
-          resolve({ success: false, message: error.message });
+        // Clear lastCompletedAt for manual trigger
+        chrome.storage.local.remove(['lastCompletedAt'], function() {
+          apiRequest('get_pending_documents').then(function(result) {
+            if (result.documents && result.documents.length > 0) {
+              processDocument(result.documents[0]);
+              resolve({ success: true, message: 'Started processing: ' + result.documents[0].file_name });
+            } else {
+              resolve({ success: false, message: 'No pending documents found' });
+            }
+          }).catch(function(error) {
+            resolve({ success: false, message: error.message });
+          });
         });
       });
     });
@@ -238,11 +241,16 @@ function checkForPendingDocuments() {
   if (!isEnabled || isProcessing) return;
   getExtensionToken().then(function(token) {
     if (!token) { console.log('No extension token configured, skipping poll'); return; }
-    chrome.storage.local.get(['turnitinCredentials', 'authMethod', 'turnitinCookies'], function(data) {
+    chrome.storage.local.get(['turnitinCredentials', 'authMethod', 'turnitinCookies', 'autoProcessNext', 'lastCompletedAt'], function(data) {
       var hasCredentials = data.turnitinCredentials && data.turnitinCredentials.username;
       var hasCookies = data.authMethod === 'cookies' && data.turnitinCookies && data.turnitinCookies.length > 0;
       if (!hasCredentials && !hasCookies) {
         console.log('No Turnitin authentication configured, skipping poll');
+        return;
+      }
+      // Single-file mode: if auto-process is disabled and we completed recently, wait
+      if (!data.autoProcessNext && data.lastCompletedAt) {
+        console.log('Single-file mode: waiting for manual trigger');
         return;
       }
       apiRequest('get_pending_documents').then(function(result) {
@@ -478,6 +486,7 @@ function detectPageAndAct() {
   chrome.storage.local.get(['authMethod'], function(authData) {
     var usingCookies = authData.authMethod === 'cookies';
     try {
+      // Step 1: Check for login page
       if (isLoginPage()) {
         if (usingCookies) {
           log('Using cookie auth, redirecting to home...');
@@ -488,11 +497,18 @@ function detectPageAndAct() {
         handleLoginPage();
         return;
       }
+      // Step 2: Check URL for /home BEFORE launch button to prevent loops
+      if (url.includes('/home') || url.includes('/my-files') || url.includes('/files')) {
+        log('On My Files page (URL detected)');
+        handleMyFilesPage();
+        return;
+      }
+      if (isReportViewer()) { handleReportViewer({}); return; }
+      if (hasUploadModal()) { handleUploadModal(); return; }
+      // Step 3: Only check for Launch button if NOT on /home pages
       hasLaunchButton().then(function(hasLaunch) {
         if (hasLaunch) { handleLaunchButton(); return; }
         if (isMyFilesPage()) { handleMyFilesPage(); return; }
-        if (isReportViewer()) { handleReportViewer({}); return; }
-        if (hasUploadModal()) { handleUploadModal(); return; }
         log('Unknown page, navigating to home...');
         window.location.href = turnitinSettings.loginUrl.replace(/\\/$/, '') + '/home';
       });
@@ -512,9 +528,20 @@ function isLoginPage() {
 }
 
 function hasLaunchButton() {
+  // Skip if URL already contains /home to prevent loops
+  if (window.location.href.includes('/home')) {
+    return Promise.resolve(false);
+  }
   return wait(1500).then(function() {
-    var btn = findElementByText(['launch', 'launch automatically', 'launch originality'], 'button, a, [role="button"]');
-    return !!btn;
+    var buttons = document.querySelectorAll('button, a, [role="button"]');
+    for (var i = 0; i < buttons.length; i++) {
+      var text = (buttons[i].textContent || '').toLowerCase().trim();
+      var isVisible = buttons[i].offsetParent !== null;
+      if (isVisible && (text === 'launch' || text.includes('launch originality') || text.startsWith('launch '))) {
+        return true;
+      }
+    }
+    return false;
   });
 }
 

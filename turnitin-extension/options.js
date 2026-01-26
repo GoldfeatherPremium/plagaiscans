@@ -17,7 +17,8 @@ async function loadSavedSettings() {
     'reportWaitTime',
     'authMethod',
     'turnitinCookies',
-    'cookiesImportedAt'
+    'cookiesImportedAt',
+    'autoProcessNext'
   ]);
   
   // Update credential status
@@ -67,6 +68,9 @@ async function loadSavedSettings() {
   if (data.reportWaitTime) {
     document.getElementById('reportWaitTime').value = data.reportWaitTime;
   }
+  
+  // Load auto-process setting (default to false for single-file mode)
+  document.getElementById('autoProcessNext').checked = data.autoProcessNext === true;
 }
 
 function updateAuthMethodUI(method) {
@@ -473,12 +477,19 @@ async function saveAdvancedSettings() {
   const pollInterval = parseInt(document.getElementById('pollInterval').value) || 10;
   const maxRetries = parseInt(document.getElementById('maxRetries').value) || 3;
   const reportWaitTime = parseInt(document.getElementById('reportWaitTime').value) || 20;
+  const autoProcessNext = document.getElementById('autoProcessNext').checked;
   
   await chrome.storage.local.set({
     pollInterval: Math.max(5, Math.min(60, pollInterval)),
     maxRetries: Math.max(1, Math.min(10, maxRetries)),
-    reportWaitTime: Math.max(5, Math.min(60, reportWaitTime))
+    reportWaitTime: Math.max(5, Math.min(60, reportWaitTime)),
+    autoProcessNext: autoProcessNext
   });
+  
+  // If auto-process is now enabled, clear the lastCompletedAt to allow immediate processing
+  if (autoProcessNext) {
+    await chrome.storage.local.remove(['lastCompletedAt']);
+  }
   
   showMessage('advancedSuccess', 'Settings saved');
 }
