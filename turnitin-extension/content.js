@@ -1,91 +1,113 @@
 // Plagaiscans Turnitin Automation - Content Script
-// Runs on Turnitin.com pages to automate the upload and download process
+// Runs on Turnitin Originality (nrtiedu.turnitin.com) to automate upload and download
 
 console.log('Plagaiscans Turnitin Automation content script loaded');
 
 // State
-let isAutomating = false;
-let currentStep = null;
-let turnitinSettings = null;
+var isAutomating = false;
+var currentStep = null;
+var turnitinSettings = null;
+var currentFileName = null;
 
 // Configuration
-const WAIT_TIMEOUT = 60000; // 60 seconds max wait
-const CHECK_INTERVAL = 2000; // Check every 2 seconds
-const ACTION_DELAY = 1500; // Delay between actions
+var WAIT_TIMEOUT = 120000; // 2 minutes max wait for elements
+var CHECK_INTERVAL = 3000; // Check every 3 seconds
+var ACTION_DELAY = 2000; // Delay between actions
+var REPORT_WAIT_TIME = 20 * 60 * 1000; // 20 minutes max for reports
 
 // Initialize when page loads
 init();
 
 async function init() {
+  log('Initializing content script...');
+  
   // Get Turnitin settings from storage
-  const data = await chrome.storage.local.get(['turnitinSettings']);
+  var data = await chrome.storage.local.get(['turnitinSettings', 'currentFileName']);
   turnitinSettings = data.turnitinSettings || {
     loginUrl: 'https://nrtiedu.turnitin.com/',
     folderName: 'Bio 2',
     autoLaunch: true,
     waitForAiReport: true
   };
+  currentFileName = data.currentFileName;
+  
+  log('Settings loaded: folder=' + turnitinSettings.folderName);
   
   // Check if we're being controlled by the extension
-  const response = await chrome.runtime.sendMessage({ type: 'GET_CURRENT_DOCUMENT' });
+  var response = await chrome.runtime.sendMessage({ type: 'GET_CURRENT_DOCUMENT' });
   
-  if (response?.documentId) {
-    console.log('Automation active for document:', response.documentId);
+  if (response && response.documentId) {
+    log('Automation active for document: ' + response.documentId);
     isAutomating = true;
     
     // Notify background that we're ready
     await chrome.runtime.sendMessage({ type: 'TURNITIN_READY' });
     
+    // Wait for page to fully load
+    await wait(2000);
+    
     // Start automation based on current page
     await detectPageAndAct();
+  } else {
+    log('No active document, content script idle');
   }
 }
 
+function log(message) {
+  console.log('[Plagaiscans] ' + message);
+}
+
 async function detectPageAndAct() {
-  const url = window.location.href;
+  var url = window.location.href;
+  log('Detecting page: ' + url);
   
   // Check auth method first
-  const authData = await chrome.storage.local.get(['authMethod']);
-  const usingCookies = authData.authMethod === 'cookies';
+  var authData = await chrome.storage.local.get(['authMethod']);
+  var usingCookies = authData.authMethod === 'cookies';
   
   try {
-    // Check for login page
-    if (url.includes('login') || url.includes('Login') || url.includes('signin') || url.includes('sign-in')) {
+    // Step 1: Check for login page
+    if (isLoginPage()) {
       if (usingCookies) {
-        // Using cookies - should already be logged in, redirect to home
-        console.log('Using cookie auth, redirecting from login to home...');
-        const homeUrl = turnitinSettings.loginUrl.replace(/\/$/, '') + '/home';
+        log('Using cookie auth, redirecting from login to home...');
+        var homeUrl = turnitinSettings.loginUrl.replace(/\/$/, '') + '/home';
         window.location.href = homeUrl;
         return;
       }
       await handleLoginPage();
-    } 
-    // Check for "Launch automatically" page (post-login landing)
-    else if (await shouldClickLaunchButton()) {
-      await handleLaunchAutomatically();
+      return;
     }
-    // Check for folder/class selection page
-    else if (await shouldNavigateToFolder()) {
-      await navigateToFolder(turnitinSettings.folderName);
+    
+    // Step 2: Check for "Launch" button page (post-login landing)
+    if (await hasLaunchButton()) {
+      await handleLaunchButton();
+      return;
     }
-    // Check for submission/upload page
-    else if (url.includes('submission') || url.includes('upload') || await hasFileInput()) {
-      await handleSubmissionPage();
+    
+    // Step 3: Check if we're on My Files / Home page
+    if (isMyFilesPage()) {
+      await handleMyFilesPage();
+      return;
     }
-    // Check for report/viewer page
-    else if (url.includes('report') || url.includes('viewer')) {
-      await handleReportPage();
+    
+    // Step 4: Check if in report viewer
+    if (isReportViewer()) {
+      await handleReportViewer();
+      return;
     }
-    // Check for dashboard/home
-    else if (url.includes('home') || url.includes('dashboard')) {
-      await handleDashboard();
+    
+    // Step 5: Check for upload modal
+    if (hasUploadModal()) {
+      await handleUploadModal();
+      return;
     }
-    // Try to detect by page content
-    else {
-      await detectByContent();
-    }
+    
+    // Default: try to navigate to home
+    log('Unknown page, navigating to home...');
+    window.location.href = turnitinSettings.loginUrl.replace(/\/$/, '') + '/home';
+    
   } catch (error) {
-    console.error('Automation error:', error);
+    log('ERROR: ' + error.message);
     await chrome.runtime.sendMessage({ 
       type: 'AUTOMATION_ERROR', 
       error: error.message 
@@ -93,566 +115,592 @@ async function detectPageAndAct() {
   }
 }
 
-async function shouldClickLaunchButton() {
-  if (!turnitinSettings.autoLaunch) return false;
-  
-  await wait(1000);
-  
-  // Look for "Launch automatically" or similar buttons
-  const launchButtons = document.querySelectorAll('button, a, [role="button"]');
-  for (const btn of launchButtons) {
-    const text = btn.textContent?.toLowerCase() || '';
-    if (text.includes('launch') && (text.includes('auto') || text.includes('originality'))) {
-      return true;
-    }
+function isLoginPage() {
+  var url = window.location.href.toLowerCase();
+  if (url.includes('login') || url.includes('signin') || url.includes('sign-in')) {
+    return true;
   }
-  
-  return false;
+  // Also check for login form
+  var loginForm = document.querySelector('input[type="password"]');
+  var loginButton = findElementByText(['log in', 'sign in', 'login'], 'button');
+  return !!(loginForm || loginButton);
 }
 
-async function handleLaunchAutomatically() {
-  console.log('Looking for Launch Automatically button');
-  currentStep = 'launch_automatically';
-  
-  await wait(2000);
-  
-  // Find and click "Launch automatically" button
-  const buttons = document.querySelectorAll('button, a, [role="button"], .btn, .button');
-  for (const btn of buttons) {
-    const text = btn.textContent?.toLowerCase() || '';
-    if (text.includes('launch') && (text.includes('auto') || text.includes('originality'))) {
-      console.log('Found Launch button, clicking...');
-      btn.click();
-      await waitForNavigation();
-      await wait(2000);
-      await detectPageAndAct();
-      return;
-    }
-  }
-  
-  // If no launch button found, continue with detection
-  console.log('No Launch button found, continuing detection...');
-  await detectByContent();
+async function hasLaunchButton() {
+  await wait(1500);
+  var launchBtn = findElementByText(['launch', 'launch automatically', 'launch originality'], 'button, a, [role="button"]');
+  return !!launchBtn;
 }
 
-async function shouldNavigateToFolder() {
-  await wait(1000);
-  
-  // Check if we're on a page with folder/class links
-  const folderLinks = document.querySelectorAll('a, button, [role="button"], .folder, .class-item, [data-testid*="folder"], [data-testid*="class"]');
-  for (const link of folderLinks) {
-    const text = link.textContent?.toLowerCase() || '';
-    if (text.includes(turnitinSettings.folderName.toLowerCase())) {
-      return true;
-    }
+function isMyFilesPage() {
+  var url = window.location.href.toLowerCase();
+  // Check URL patterns
+  if (url.includes('/home') || url.includes('/my-files') || url.includes('/files')) {
+    return true;
   }
-  
-  return false;
+  // Check for folder list or file list indicators
+  var hasFileList = document.querySelector('table, [role="grid"], .file-list, [class*="folder"]');
+  var hasUploadBtn = findElementByText(['upload'], 'button, a');
+  return !!(hasFileList && hasUploadBtn);
 }
 
-async function navigateToFolder(folderName) {
-  console.log(`Navigating to folder: ${folderName}`);
-  currentStep = 'navigate_folder';
-  
-  await wait(2000);
-  
-  // Find folder link by name (case-insensitive search)
-  const allLinks = document.querySelectorAll('a, button, [role="button"], .folder, .class-item, tr, td, .assignment');
-  for (const link of allLinks) {
-    const text = link.textContent?.trim() || '';
-    if (text.toLowerCase().includes(folderName.toLowerCase())) {
-      console.log(`Found folder "${folderName}", clicking...`);
-      
-      // Click the link or a clickable child
-      const clickable = link.querySelector('a, button') || link;
-      clickable.click();
-      
-      await waitForNavigation();
-      await wait(2000);
-      await detectPageAndAct();
-      return;
-    }
-  }
-  
-  throw new Error(`Could not find folder: ${folderName}`);
+function isReportViewer() {
+  var url = window.location.href.toLowerCase();
+  return url.includes('/report') || url.includes('/viewer') || url.includes('/similarity');
 }
 
-async function hasFileInput() {
-  await wait(500);
-  return !!document.querySelector('input[type="file"]');
+function hasUploadModal() {
+  var modal = document.querySelector('[role="dialog"], .modal, [class*="modal"]');
+  var fileInput = document.querySelector('input[type="file"]');
+  return !!(modal && fileInput);
 }
 
-async function detectByContent() {
-  await wait(2000); // Wait for page to fully load
-  
-  // Check auth method
-  const authData = await chrome.storage.local.get(['authMethod']);
-  const usingCookies = authData.authMethod === 'cookies';
-  
-  // Check for login form
-  const loginForm = document.querySelector('form[action*="login"]') || 
-                    document.querySelector('input[type="password"]');
-  if (loginForm) {
-    if (usingCookies) {
-      // Using cookies but still on login page - cookies may have expired
-      console.log('Cookie auth failed - still on login page. Cookies may be expired.');
-      await chrome.runtime.sendMessage({ 
-        type: 'AUTOMATION_ERROR', 
-        error: 'Session cookies expired. Please re-import cookies.' 
-      });
-      return;
-    }
-    await handleLoginPage();
-    return;
-  }
-  
-  // Check for "Launch automatically" button
-  if (await shouldClickLaunchButton()) {
-    await handleLaunchAutomatically();
-    return;
-  }
-  
-  // Check for folder navigation
-  if (await shouldNavigateToFolder()) {
-    await navigateToFolder(turnitinSettings.folderName);
-    return;
-  }
-  
-  // Check for dashboard/class list
-  const classLinks = document.querySelectorAll('a[href*="class"], .class-item, [data-class-id]');
-  if (classLinks.length > 0) {
-    await handleDashboard();
-    return;
-  }
-  
-  // Check for submission form
-  const fileInput = document.querySelector('input[type="file"]');
-  if (fileInput) {
-    await handleSubmissionPage();
-    return;
-  }
-  
-  // Check for submit/upload button that might lead to upload page
-  const submitButtons = document.querySelectorAll('a, button');
-  for (const btn of submitButtons) {
-    const text = btn.textContent?.toLowerCase() || '';
-    if (text.includes('submit') || text.includes('upload') || text.includes('add submission')) {
-      console.log('Found submit/upload button, clicking...');
-      btn.click();
-      await waitForNavigation();
-      await wait(2000);
-      await detectPageAndAct();
-      return;
-    }
-  }
-  
-  console.log('Unknown page type, waiting for navigation...');
-}
-
+// ========== LOGIN HANDLING ==========
 async function handleLoginPage() {
-  console.log('Handling login page');
+  log('Step: Login page');
   currentStep = 'login';
   
-  // Get credentials from storage
-  const data = await chrome.storage.local.get(['turnitinCredentials']);
-  const creds = data.turnitinCredentials;
+  var data = await chrome.storage.local.get(['turnitinCredentials']);
+  var creds = data.turnitinCredentials;
   
-  if (!creds?.username || !creds?.password) {
+  if (!creds || !creds.username || !creds.password) {
     throw new Error('Turnitin credentials not configured');
   }
   
-  // Wait for login form to be ready
-  await waitForElement('input[type="text"], input[name="username"], #username, input[name="email"], input[type="email"]');
+  await wait(2000);
   
-  // Find and fill username field (check for username first, then email as fallback)
-  const usernameInput = document.querySelector('input[name="username"]') ||
-                        document.querySelector('#username') ||
-                        document.querySelector('input[placeholder*="username" i]') ||
-                        document.querySelector('input[placeholder*="user" i]') ||
-                        document.querySelector('input[type="text"]:not([type="password"])') ||
-                        document.querySelector('input[type="email"]') || 
-                        document.querySelector('input[name="email"]') ||
-                        document.querySelector('#email');
+  // Find and fill username
+  var usernameInput = document.querySelector('input[name="username"]') ||
+                      document.querySelector('#username') ||
+                      document.querySelector('input[placeholder*="username" i]') ||
+                      document.querySelector('input[type="text"]:not([type="password"])');
   
   if (usernameInput) {
     await simulateTyping(usernameInput, creds.username);
+    log('Username entered');
+  } else {
+    throw new Error('Could not find username field');
   }
   
   await wait(ACTION_DELAY);
   
-  // Find and fill password field
-  const passwordInput = document.querySelector('input[type="password"]') ||
-                        document.querySelector('input[name="password"]') ||
-                        document.querySelector('#password');
-  
+  // Find and fill password
+  var passwordInput = document.querySelector('input[type="password"]');
   if (passwordInput) {
     await simulateTyping(passwordInput, creds.password);
+    log('Password entered');
+  } else {
+    throw new Error('Could not find password field');
   }
   
   await wait(ACTION_DELAY);
   
-  // Find and click submit button
-  const submitButton = document.querySelector('button[type="submit"]') ||
-                       document.querySelector('input[type="submit"]') ||
-                       document.querySelector('button:contains("Log in")') ||
-                       document.querySelector('button:contains("Sign in")') ||
-                       document.querySelector('.login-button') ||
-                       document.querySelector('[data-testid="login-button"]') ||
-                       Array.from(document.querySelectorAll('button')).find(b => 
-                         b.textContent?.toLowerCase().includes('log in') || 
-                         b.textContent?.toLowerCase().includes('sign in')
-                       );
-  
-  if (submitButton) {
-    submitButton.click();
-    console.log('Login submitted, waiting for redirect...');
-    
-    // Wait for page change
+  // Click login button
+  var loginBtn = findElementByText(['log in', 'sign in', 'login', 'submit'], 'button, input[type="submit"]');
+  if (loginBtn) {
+    loginBtn.click();
+    log('Login submitted');
     await waitForNavigation();
-    await wait(3000); // Extra wait for redirect
+    await wait(3000);
     await detectPageAndAct();
   } else {
-    throw new Error('Could not find login submit button');
+    throw new Error('Could not find login button');
   }
 }
 
-async function handleDashboard() {
-  console.log('Handling dashboard');
-  currentStep = 'dashboard';
+// ========== LAUNCH BUTTON HANDLING ==========
+async function handleLaunchButton() {
+  log('Step: Launch button page');
+  currentStep = 'launch';
   
   await wait(2000);
   
-  // First check if we need to navigate to a specific folder
-  if (await shouldNavigateToFolder()) {
-    await navigateToFolder(turnitinSettings.folderName);
+  var launchBtn = findElementByText(['launch', 'launch automatically', 'launch originality'], 'button, a, [role="button"]');
+  
+  if (launchBtn) {
+    log('Clicking Launch button...');
+    launchBtn.click();
+    await waitForNavigation();
+    await wait(3000);
+    await detectPageAndAct();
+  } else {
+    log('No Launch button found, continuing...');
+    await handleMyFilesPage();
+  }
+}
+
+// ========== MY FILES PAGE HANDLING ==========
+async function handleMyFilesPage() {
+  log('Step: My Files page');
+  currentStep = 'my_files';
+  
+  await wait(2000);
+  
+  // Check if we're already in the target folder
+  var isInTargetFolder = checkIfInFolder(turnitinSettings.folderName);
+  
+  if (!isInTargetFolder) {
+    // Navigate to the folder first
+    await navigateToFolder();
     return;
   }
   
-  // Look for a class to submit to - find the first available class
-  const classLink = document.querySelector('a[href*="class"]') ||
-                    document.querySelector('.class-name') ||
-                    document.querySelector('[data-class-id]') ||
-                    document.querySelector('.assignment-link');
+  log('In target folder: ' + turnitinSettings.folderName);
   
-  if (classLink) {
-    console.log('Found class link, clicking...');
-    classLink.click();
-    await waitForNavigation();
-    await detectPageAndAct();
-  } else {
-    // Try to find submit/upload button directly
-    const submitLink = document.querySelector('a[href*="submit"]') ||
-                       document.querySelector('button:contains("Submit")') ||
-                       document.querySelector('[data-action="submit"]');
+  // Check if our document was already uploaded (look for it in the list)
+  if (await isDocumentAlreadyUploaded()) {
+    log('Document already uploaded, checking for results...');
+    await waitForReportsAndDownload();
+    return;
+  }
+  
+  // Click the Upload button
+  await clickUploadButton();
+}
+
+function checkIfInFolder(folderName) {
+  // Check breadcrumb for folder name
+  var breadcrumb = document.querySelector('[class*="breadcrumb"], .breadcrumb, nav[aria-label*="breadcrumb"]');
+  if (breadcrumb && breadcrumb.textContent.toLowerCase().includes(folderName.toLowerCase())) {
+    return true;
+  }
+  
+  // Check page title or header
+  var header = document.querySelector('h1, h2, [class*="header"], [class*="title"]');
+  if (header && header.textContent.toLowerCase().includes(folderName.toLowerCase())) {
+    return true;
+  }
+  
+  return false;
+}
+
+async function navigateToFolder() {
+  log('Looking for folder: ' + turnitinSettings.folderName);
+  
+  await wait(2000);
+  
+  // Find folder in the file/folder list
+  var rows = document.querySelectorAll('tr, [role="row"], [class*="row"], [class*="folder"], [class*="item"]');
+  
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var text = row.textContent || '';
     
-    if (submitLink) {
-      submitLink.click();
-      await waitForNavigation();
-      await detectPageAndAct();
-    } else {
-      throw new Error('Could not find class or submit link on dashboard');
+    // Check if this row contains the folder name and has a folder icon
+    if (text.toLowerCase().includes(turnitinSettings.folderName.toLowerCase())) {
+      // Look for folder indicators
+      var hasFolder = row.querySelector('[class*="folder"], svg[data-icon*="folder"], .folder-icon') ||
+                      row.innerHTML.toLowerCase().includes('folder');
+      
+      if (hasFolder || text.trim() === turnitinSettings.folderName) {
+        log('Found folder row, clicking...');
+        
+        // Click the folder name link/button
+        var clickable = row.querySelector('a, button, [role="button"], [class*="name"]') || row;
+        clickable.click();
+        
+        await waitForNavigation();
+        await wait(2000);
+        await detectPageAndAct();
+        return;
+      }
     }
+  }
+  
+  // Try finding by link text
+  var folderLink = findElementByText([turnitinSettings.folderName], 'a, button, [role="button"]');
+  if (folderLink) {
+    log('Found folder link, clicking...');
+    folderLink.click();
+    await waitForNavigation();
+    await wait(2000);
+    await detectPageAndAct();
+    return;
+  }
+  
+  throw new Error('Could not find folder: ' + turnitinSettings.folderName);
+}
+
+async function isDocumentAlreadyUploaded() {
+  if (!currentFileName) return false;
+  
+  var cleanName = currentFileName.replace(/\.[^.]+$/, '').toLowerCase();
+  var pageText = document.body.textContent.toLowerCase();
+  
+  return pageText.includes(cleanName);
+}
+
+async function clickUploadButton() {
+  log('Looking for Upload button...');
+  
+  // Find the Upload button (typically blue button in header)
+  var uploadBtn = findElementByText(['upload'], 'button, a, [role="button"]');
+  
+  if (uploadBtn) {
+    log('Clicking Upload button...');
+    uploadBtn.click();
+    await wait(2000);
+    
+    // Check if modal appeared
+    if (hasUploadModal()) {
+      await handleUploadModal();
+    } else {
+      // Maybe it navigated to upload page
+      await detectPageAndAct();
+    }
+  } else {
+    throw new Error('Could not find Upload button');
   }
 }
 
-async function handleSubmissionPage() {
-  console.log('Handling submission page');
+// ========== UPLOAD MODAL HANDLING ==========
+async function handleUploadModal() {
+  log('Step: Upload modal');
   currentStep = 'upload';
   
-  // Request file from background
-  const fileInfo = await chrome.runtime.sendMessage({ type: 'REQUEST_FILE' });
+  await wait(2000);
   
-  if (!fileInfo?.fileData) {
+  // Request file from background
+  var fileInfo = await chrome.runtime.sendMessage({ type: 'REQUEST_FILE' });
+  
+  if (!fileInfo || !fileInfo.fileData) {
     throw new Error('No file data received from background');
   }
   
+  log('Got file: ' + fileInfo.fileName);
+  
   // Convert base64 to File object
-  const byteCharacters = atob(fileInfo.fileData.base64);
-  const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
+  var byteCharacters = atob(fileInfo.fileData.base64);
+  var byteNumbers = new Array(byteCharacters.length);
+  for (var i = 0; i < byteCharacters.length; i++) {
     byteNumbers[i] = byteCharacters.charCodeAt(i);
   }
-  const byteArray = new Uint8Array(byteNumbers);
-  const blob = new Blob([byteArray], { type: fileInfo.fileData.mimeType });
-  const file = new File([blob], fileInfo.fileName, { type: fileInfo.fileData.mimeType });
+  var byteArray = new Uint8Array(byteNumbers);
+  var blob = new Blob([byteArray], { type: fileInfo.fileData.mimeType || 'application/octet-stream' });
+  var file = new File([blob], fileInfo.fileName, { type: blob.type });
   
   // Find file input
-  const fileInput = await waitForElement('input[type="file"]');
+  var fileInput = document.querySelector('input[type="file"]');
   
   if (!fileInput) {
-    throw new Error('Could not find file input on submission page');
+    // Try waiting for it
+    fileInput = await waitForElement('input[type="file"]');
   }
   
-  // Create a DataTransfer to set the file
-  const dataTransfer = new DataTransfer();
+  if (!fileInput) {
+    throw new Error('Could not find file input');
+  }
+  
+  // Attach file
+  var dataTransfer = new DataTransfer();
   dataTransfer.items.add(file);
   fileInput.files = dataTransfer.files;
-  
-  // Trigger change event
   fileInput.dispatchEvent(new Event('change', { bubbles: true }));
   
-  console.log('File attached, looking for title field...');
+  log('File attached');
   await wait(ACTION_DELAY);
   
-  // Fill title if required
-  const titleInput = document.querySelector('input[name="title"]') ||
-                     document.querySelector('#submission-title') ||
-                     document.querySelector('input[placeholder*="title" i]');
-  
+  // Fill title if there's a title field
+  var titleInput = document.querySelector('input[name="title"], input[placeholder*="title" i], #title, [class*="title"] input');
   if (titleInput) {
-    await simulateTyping(titleInput, fileInfo.fileName.replace(/\.[^.]+$/, ''));
+    var title = fileInfo.fileName.replace(/\.[^.]+$/, '');
+    await simulateTyping(titleInput, title);
+    log('Title entered: ' + title);
   }
   
   await wait(ACTION_DELAY);
   
-  // Look for submit button
-  const submitButton = document.querySelector('button[type="submit"]') ||
-                       document.querySelector('input[type="submit"]') ||
-                       Array.from(document.querySelectorAll('button')).find(b => 
-                         b.textContent?.toLowerCase().includes('submit') || 
-                         b.textContent?.toLowerCase().includes('upload')
-                       ) ||
-                       document.querySelector('.submit-button');
+  // Find and click submit/upload confirm button
+  var submitBtn = findElementByText(['upload', 'submit', 'confirm', 'add'], 'button, input[type="submit"]');
   
-  if (submitButton) {
-    console.log('Clicking submit button...');
-    submitButton.click();
+  if (submitBtn) {
+    log('Clicking submit button...');
+    submitBtn.click();
     
-    // Wait for submission confirmation
-    await waitForSubmissionConfirmation();
+    await wait(3000);
+    
+    // Notify background of upload
+    await chrome.runtime.sendMessage({
+      type: 'UPLOAD_COMPLETE',
+      data: { submissionId: 'pending', fileName: fileInfo.fileName }
+    });
+    
+    // Wait for modal to close and file to appear in list
+    await wait(5000);
+    
+    // Refresh and check for results
+    window.location.reload();
   } else {
-    throw new Error('Could not find submit button');
+    throw new Error('Could not find submit button in upload modal');
   }
 }
 
-async function waitForSubmissionConfirmation() {
-  console.log('Waiting for submission confirmation...');
-  
-  // Wait for either success message or redirect
-  const startTime = Date.now();
-  
-  while (Date.now() - startTime < WAIT_TIMEOUT * 2) {
-    await wait(CHECK_INTERVAL);
-    
-    // Check for success indicators
-    const successIndicators = [
-      document.querySelector('.submission-success'),
-      document.querySelector('.success-message'),
-      document.querySelector('[data-status="submitted"]'),
-      document.body.innerText.includes('successfully submitted'),
-      document.body.innerText.includes('submission received'),
-      document.body.innerText.includes('successfully uploaded')
-    ];
-    
-    if (successIndicators.some(Boolean)) {
-      console.log('Submission confirmed!');
-      
-      // Try to find submission ID
-      const submissionId = extractSubmissionId();
-      
-      await chrome.runtime.sendMessage({
-        type: 'UPLOAD_COMPLETE',
-        data: { submissionId }
-      });
-      
-      // Wait for reports to be ready
-      await waitForReports();
-      return;
-    }
-    
-    // Check if we're on a report/results page already
-    if (window.location.href.includes('report') || 
-        window.location.href.includes('viewer')) {
-      await handleReportPage();
-      return;
-    }
-  }
-  
-  throw new Error('Timeout waiting for submission confirmation');
-}
-
-function extractSubmissionId() {
-  // Try to find submission ID from URL or page
-  const urlMatch = window.location.href.match(/submission[_-]?id[=\/](\w+)/i);
-  if (urlMatch) return urlMatch[1];
-  
-  const pageMatch = document.body.innerHTML.match(/submission[_-]?id[:\s]+["']?(\w+)["']?/i);
-  if (pageMatch) return pageMatch[1];
-  
-  return null;
-}
-
-async function waitForReports() {
-  console.log('Waiting for reports to be ready...');
+// ========== WAIT FOR REPORTS ==========
+async function waitForReportsAndDownload() {
+  log('Step: Waiting for reports');
   currentStep = 'waiting_reports';
   
-  // Get report wait time from settings
-  const data = await chrome.storage.local.get(['reportWaitTime']);
-  const maxWaitMinutes = data.reportWaitTime || 20;
-  const maxWaitTime = maxWaitMinutes * 60 * 1000;
+  var startTime = Date.now();
+  var checkCount = 0;
   
-  const startTime = Date.now();
-  
-  while (Date.now() - startTime < maxWaitTime) {
-    await wait(CHECK_INTERVAL * 3); // Check every 6 seconds
+  while (Date.now() - startTime < REPORT_WAIT_TIME) {
+    checkCount++;
+    log('Checking for reports... (attempt ' + checkCount + ')');
     
-    // Look for report links or scores
-    const similarityLink = document.querySelector('a[href*="similarity"]') ||
-                           document.querySelector('[data-report="similarity"]') ||
-                           document.querySelector('.similarity-score') ||
-                           document.querySelector('[class*="similarity"]');
+    await wait(CHECK_INTERVAL);
     
-    const aiLink = document.querySelector('a[href*="ai"]') ||
-                   document.querySelector('[data-report="ai"]') ||
-                   document.querySelector('.ai-score') ||
-                   document.querySelector('[class*="ai-score"]');
+    // Find our document row
+    var docRow = findDocumentRow();
     
-    // Check for percentage displays
-    const percentageElements = document.querySelectorAll('[class*="percent"], [class*="score"]');
-    
-    if (similarityLink || percentageElements.length > 0) {
-      console.log('Reports appear to be ready, downloading...');
-      await downloadReports();
-      return;
-    }
-    
-    // Check if processing status changed
-    const processingIndicator = document.querySelector('.processing, .pending, [data-status="processing"]');
-    if (!processingIndicator) {
-      // Processing might be done, check for results
-      const resultsSection = document.querySelector('.results, .report-section, .submission-detail');
-      if (resultsSection) {
-        await downloadReports();
+    if (docRow) {
+      // Check for similarity percentage (not processing/pending)
+      var scores = extractScoresFromRow(docRow);
+      
+      if (scores.similarityReady) {
+        log('Reports ready! Similarity: ' + scores.similarity + '%, AI: ' + (scores.ai || 'N/A') + '%');
+        
+        // Click on the document row to open viewer
+        await openDocumentAndDownload(docRow, scores);
         return;
       }
     }
     
-    // Refresh page occasionally to check for updates
-    if ((Date.now() - startTime) % 60000 < CHECK_INTERVAL * 3) {
-      console.log('Refreshing page to check for updates...');
+    // Refresh page every 60 seconds to check for updates
+    if (checkCount % 20 === 0) {
+      log('Refreshing page to check for updates...');
       window.location.reload();
-      await wait(5000);
+      return; // Will re-enter through init()
     }
   }
   
   throw new Error('Timeout waiting for reports to be ready');
 }
 
-async function downloadReports() {
-  console.log('Downloading reports...');
-  currentStep = 'downloading_reports';
+function findDocumentRow() {
+  if (!currentFileName) return null;
   
-  const reports = {
-    similarityReport: null,
-    aiReport: null,
-    similarityPercentage: null,
-    aiPercentage: null
-  };
+  var cleanName = currentFileName.replace(/\.[^.]+$/, '').toLowerCase();
+  var rows = document.querySelectorAll('tr, [role="row"], [class*="row"]');
   
-  // Try to extract percentages from page
-  const similarityScore = document.querySelector('.similarity-score, [data-similarity], .originality-score, [class*="similarity"]');
-  if (similarityScore) {
-    const match = similarityScore.innerText.match(/(\d+)/);
-    if (match) reports.similarityPercentage = parseInt(match[1]);
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var text = (row.textContent || '').toLowerCase();
+    
+    if (text.includes(cleanName)) {
+      return row;
+    }
   }
   
-  // Also check for percentage in any score element
-  if (!reports.similarityPercentage) {
-    const allScores = document.querySelectorAll('[class*="score"], [class*="percent"]');
-    for (const score of allScores) {
-      const text = score.innerText;
-      if (text && !text.toLowerCase().includes('ai')) {
-        const match = text.match(/(\d+)\s*%?/);
-        if (match) {
-          reports.similarityPercentage = parseInt(match[1]);
-          break;
-        }
+  return null;
+}
+
+function extractScoresFromRow(row) {
+  var result = {
+    similarity: null,
+    ai: null,
+    similarityReady: false
+  };
+  
+  var cells = row.querySelectorAll('td, [role="cell"], [class*="cell"]');
+  var text = row.textContent || '';
+  
+  // Look for percentage patterns
+  var percentMatches = text.match(/(\d+)\s*%/g);
+  
+  if (percentMatches && percentMatches.length > 0) {
+    // First percentage is usually similarity
+    var simMatch = percentMatches[0].match(/(\d+)/);
+    if (simMatch) {
+      result.similarity = parseInt(simMatch[1]);
+      result.similarityReady = true;
+    }
+    
+    // Second percentage is usually AI
+    if (percentMatches.length > 1) {
+      var aiMatch = percentMatches[1].match(/(\d+)/);
+      if (aiMatch) {
+        result.ai = parseInt(aiMatch[1]);
       }
     }
   }
   
-  const aiScore = document.querySelector('.ai-score, [data-ai-score], [class*="ai-score"]');
-  if (aiScore) {
-    const match = aiScore.innerText.match(/(\d+)/);
-    if (match) reports.aiPercentage = parseInt(match[1]);
+  // Check if still processing
+  var isProcessing = text.includes('processing') || text.includes('pending') || text.includes('*%');
+  if (isProcessing) {
+    result.similarityReady = false;
   }
   
-  // Try to find and click download buttons
-  const downloadButtons = document.querySelectorAll(
-    'a[href*="download"], button:contains("Download"), [data-action="download"], .download-btn'
-  );
+  return result;
+}
+
+// ========== DOWNLOAD REPORTS ==========
+async function openDocumentAndDownload(row, scores) {
+  log('Step: Opening document and downloading reports');
+  currentStep = 'downloading';
   
-  for (const button of downloadButtons) {
-    const buttonText = button.innerText?.toLowerCase() || '';
+  // Find and click the similarity score/link to open viewer
+  var similarityLink = row.querySelector('[class*="similarity"], [class*="score"] a, a[href*="similarity"], a[href*="report"]');
+  
+  if (!similarityLink) {
+    // Try clicking on the score percentage itself
+    var cells = row.querySelectorAll('td, [class*="cell"]');
+    for (var i = 0; i < cells.length; i++) {
+      var cell = cells[i];
+      if (cell.textContent && cell.textContent.match(/\d+\s*%/)) {
+        var clickable = cell.querySelector('a, button, [role="button"]') || cell;
+        similarityLink = clickable;
+        break;
+      }
+    }
+  }
+  
+  if (similarityLink) {
+    log('Clicking to open report viewer...');
+    similarityLink.click();
     
-    if (buttonText.includes('similarity') || buttonText.includes('originality')) {
-      const pdfData = await clickAndCaptureDownload(button);
-      if (pdfData) reports.similarityReport = pdfData;
+    await wait(3000);
+    
+    // Now we should be in the report viewer
+    await handleReportViewer(scores);
+  } else {
+    // Just report the scores without PDF downloads
+    log('Could not find link to report viewer, completing with scores only');
+    await completeWithScores(scores);
+  }
+}
+
+async function handleReportViewer(scores) {
+  log('Step: Report viewer');
+  currentStep = 'report_viewer';
+  
+  scores = scores || { similarity: null, ai: null };
+  
+  await wait(3000);
+  
+  var reports = {
+    similarityReport: null,
+    aiReport: null,
+    similarityPercentage: scores.similarity,
+    aiPercentage: scores.ai
+  };
+  
+  // Try to extract scores from viewer if not provided
+  if (!reports.similarityPercentage) {
+    var scoreElem = document.querySelector('[class*="score"], [class*="percent"], [class*="similarity"]');
+    if (scoreElem) {
+      var match = scoreElem.textContent.match(/(\d+)/);
+      if (match) reports.similarityPercentage = parseInt(match[1]);
+    }
+  }
+  
+  // Look for download menu/button (downward arrow)
+  var downloadArrow = document.querySelector('[class*="download"], [aria-label*="download"], [data-testid*="download"], svg[class*="arrow-down"], [class*="menu"] button');
+  
+  if (!downloadArrow) {
+    // Try finding by common icons
+    var buttons = document.querySelectorAll('button, [role="button"], [class*="icon"]');
+    for (var i = 0; i < buttons.length; i++) {
+      var btn = buttons[i];
+      var html = btn.innerHTML.toLowerCase();
+      if (html.includes('download') || html.includes('arrow') || btn.getAttribute('aria-label')?.toLowerCase().includes('download')) {
+        downloadArrow = btn;
+        break;
+      }
+    }
+  }
+  
+  if (downloadArrow) {
+    log('Found download arrow, clicking...');
+    downloadArrow.click();
+    await wait(1500);
+    
+    // Look for download options in dropdown menu
+    var menuItems = document.querySelectorAll('[role="menuitem"], [class*="menu"] a, [class*="menu"] button, [class*="dropdown"] a');
+    
+    // Download similarity report
+    var similarityOption = findElementByText(['similarity', 'originality'], '[role="menuitem"], a, button');
+    if (similarityOption) {
+      log('Downloading similarity report...');
+      similarityOption.click();
+      await wait(3000);
+      
+      // Re-open menu for AI report
+      downloadArrow.click();
+      await wait(1500);
     }
     
-    if (buttonText.includes('ai') || buttonText.includes('writing')) {
-      const pdfData = await clickAndCaptureDownload(button);
-      if (pdfData) reports.aiReport = pdfData;
+    // Download AI report
+    var aiOption = findElementByText(['ai', 'writing'], '[role="menuitem"], a, button');
+    if (aiOption) {
+      log('Downloading AI report...');
+      aiOption.click();
+      await wait(3000);
+    }
+  } else {
+    log('No download arrow found, trying alternative methods...');
+    
+    // Try finding direct download links
+    var downloadLinks = document.querySelectorAll('a[href*="download"], a[href*=".pdf"]');
+    for (var i = 0; i < downloadLinks.length; i++) {
+      downloadLinks[i].click();
+      await wait(2000);
     }
   }
   
-  // If we couldn't download via buttons, try to capture from viewer
-  if (!reports.similarityReport) {
-    reports.similarityReport = await captureReportFromViewer('similarity');
-  }
+  // For now, complete with just the scores
+  // TODO: Implement actual PDF capture via downloads API
+  await completeWithScores(reports);
+}
+
+async function completeWithScores(scores) {
+  log('Completing document with scores');
   
-  if (!reports.aiReport && turnitinSettings.waitForAiReport) {
-    reports.aiReport = await captureReportFromViewer('ai');
-  }
+  var reports = {
+    similarityReport: null,
+    aiReport: null,
+    similarityPercentage: scores.similarity || scores.similarityPercentage || null,
+    aiPercentage: scores.ai || scores.aiPercentage || null,
+    fileName: currentFileName
+  };
   
-  // Send reports to background
+  log('Final scores - Similarity: ' + reports.similarityPercentage + '%, AI: ' + reports.aiPercentage + '%');
+  
   await chrome.runtime.sendMessage({
     type: 'REPORTS_READY',
     data: reports
   });
 }
 
-async function clickAndCaptureDownload(button) {
-  // This is a simplified version - in production you'd intercept downloads
-  button.click();
-  await wait(2000);
-  
-  // For now, return null - you'd implement actual download capture
-  return null;
+// ========== UTILITY FUNCTIONS ==========
+function wait(ms) {
+  return new Promise(function(resolve) {
+    setTimeout(resolve, ms);
+  });
 }
 
-async function captureReportFromViewer(type) {
-  // Try to capture report from an embedded viewer/iframe
-  const iframe = document.querySelector(`iframe[src*="${type}"], .report-viewer iframe`);
+function findElementByText(textArray, selector) {
+  var elements = document.querySelectorAll(selector || '*');
   
-  if (iframe) {
-    // Note: Cross-origin restrictions may prevent this
-    try {
-      // Would need to implement proper PDF extraction
-      return null;
-    } catch (e) {
-      console.log(`Could not capture ${type} report from viewer`);
+  for (var i = 0; i < elements.length; i++) {
+    var elem = elements[i];
+    var text = (elem.textContent || '').toLowerCase().trim();
+    
+    for (var j = 0; j < textArray.length; j++) {
+      if (text.includes(textArray[j].toLowerCase())) {
+        return elem;
+      }
     }
   }
   
   return null;
 }
 
-async function handleReportPage() {
-  console.log('On report page');
-  await downloadReports();
-}
-
-// Utility functions
-async function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function waitForElement(selector, timeout = WAIT_TIMEOUT) {
-  const startTime = Date.now();
+async function waitForElement(selector, timeout) {
+  timeout = timeout || WAIT_TIMEOUT;
+  var startTime = Date.now();
   
   while (Date.now() - startTime < timeout) {
-    const element = document.querySelector(selector);
+    var element = document.querySelector(selector);
     if (element) return element;
     await wait(500);
   }
@@ -661,13 +709,13 @@ async function waitForElement(selector, timeout = WAIT_TIMEOUT) {
 }
 
 async function waitForNavigation() {
-  const currentUrl = window.location.href;
-  const startTime = Date.now();
+  var currentUrl = window.location.href;
+  var startTime = Date.now();
   
   while (Date.now() - startTime < WAIT_TIMEOUT) {
     await wait(500);
     if (window.location.href !== currentUrl) {
-      await wait(2000); // Wait for new page to load
+      await wait(2000);
       return;
     }
   }
@@ -677,17 +725,17 @@ async function simulateTyping(element, text) {
   element.focus();
   element.value = '';
   
-  for (const char of text) {
-    element.value += char;
+  for (var i = 0; i < text.length; i++) {
+    element.value += text[i];
     element.dispatchEvent(new Event('input', { bubbles: true }));
-    await wait(50 + Math.random() * 50); // Random delay for natural typing
+    await wait(30 + Math.random() * 30);
   }
   
   element.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 // Listen for messages from background
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
   if (message.type === 'START_AUTOMATION') {
     isAutomating = true;
     detectPageAndAct();
