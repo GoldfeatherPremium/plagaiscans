@@ -450,23 +450,61 @@ async function isDocumentAlreadyUploaded() {
 async function clickUploadButton() {
   log('Looking for Upload button...');
   
-  // Find the Upload button (typically blue button in header)
-  var uploadBtn = findElementByText(['upload'], 'button, a, [role="button"]');
+  await wait(1500);
+  
+  // Find the Upload button - look for teal/green button with upload text
+  var uploadBtn = null;
+  var buttons = document.querySelectorAll('button, a, [role="button"]');
+  
+  for (var i = 0; i < buttons.length; i++) {
+    var btn = buttons[i];
+    var text = (btn.textContent || '').toLowerCase().trim();
+    var isVisible = btn.offsetParent !== null || btn.offsetWidth > 0;
+    
+    // Match "Upload" button specifically (not "Upload a file" link)
+    if (isVisible && text.includes('upload') && !text.includes('upload a file')) {
+      uploadBtn = btn;
+      log('Found Upload button: "' + text + '"');
+      break;
+    }
+  }
+  
+  // Also try to find by class or aria-label
+  if (!uploadBtn) {
+    uploadBtn = document.querySelector('[class*="upload-btn"], [aria-label*="upload" i], button[class*="primary"]');
+  }
   
   if (uploadBtn) {
     log('Clicking Upload button...');
     uploadBtn.click();
-    await wait(2000);
+    await wait(2500);
     
     // Check if modal appeared
     if (hasUploadModal()) {
       await handleUploadModal();
     } else {
-      // Maybe it navigated to upload page
-      await detectPageAndAct();
+      // Wait a bit more and check again
+      await wait(2000);
+      if (hasUploadModal()) {
+        await handleUploadModal();
+      } else {
+        log('Upload modal did not appear, retrying...');
+        await detectPageAndAct();
+      }
     }
   } else {
-    throw new Error('Could not find Upload button');
+    // Try clicking "Upload a file" link if it exists (empty folder state)
+    var uploadLink = findElementByText(['upload a file'], 'a, button, [role="button"]');
+    if (uploadLink) {
+      log('Clicking "Upload a file" link...');
+      uploadLink.click();
+      await wait(2500);
+      if (hasUploadModal()) {
+        await handleUploadModal();
+      }
+    } else {
+      throw new Error('Could not find Upload button');
+    }
   }
 }
 
@@ -484,7 +522,7 @@ async function handleUploadModal() {
     throw new Error('No file data received from background');
   }
   
-  log('Got file: ' + fileInfo.fileName);
+  log('Got file: ' + fileInfo.fileName + ' (' + fileInfo.fileData.base64.length + ' chars base64)');
   
   // Convert base64 to File object
   var byteCharacters = atob(fileInfo.fileData.base64);
@@ -496,26 +534,47 @@ async function handleUploadModal() {
   var blob = new Blob([byteArray], { type: fileInfo.fileData.mimeType || 'application/octet-stream' });
   var file = new File([blob], fileInfo.fileName, { type: blob.type });
   
-  // Find file input
+  log('File created: ' + file.name + ', size: ' + file.size + ' bytes');
+  
+  // Find file input - it may be hidden, look for any file input in the modal
   var fileInput = document.querySelector('input[type="file"]');
   
   if (!fileInput) {
-    // Try waiting for it
-    fileInput = await waitForElement('input[type="file"]');
+    // Try clicking "Browse Files" button first to trigger file input
+    var browseBtn = findElementByText(['browse files', 'browse', 'choose file', 'select file'], 'button, a, [role="button"]');
+    if (browseBtn) {
+      log('Found Browse Files button, looking for hidden file input...');
+    }
+    
+    // Wait for file input to appear
+    fileInput = await waitForElement('input[type="file"]', 5000);
   }
   
   if (!fileInput) {
-    throw new Error('Could not find file input');
+    throw new Error('Could not find file input in upload modal');
   }
   
-  // Attach file
+  log('Found file input, injecting file...');
+  
+  // Attach file using DataTransfer
   var dataTransfer = new DataTransfer();
   dataTransfer.items.add(file);
   fileInput.files = dataTransfer.files;
+  
+  // Dispatch multiple events to ensure the file is recognized
+  fileInput.dispatchEvent(new Event('input', { bubbles: true }));
   fileInput.dispatchEvent(new Event('change', { bubbles: true }));
   
-  log('File attached');
-  await wait(ACTION_DELAY);
+  log('File attached successfully');
+  await wait(3000);
+  
+  // Verify file was attached - look for filename in modal
+  var modalText = document.body.textContent || '';
+  if (modalText.toLowerCase().includes(fileInfo.fileName.toLowerCase().replace(/\.[^.]+$/, ''))) {
+    log('File name appears in modal, upload recognized');
+  } else {
+    log('Warning: File name not found in modal text, but continuing...');
+  }
   
   // Fill title if there's a title field
   var titleInput = document.querySelector('input[name="title"], input[placeholder*="title" i], #title, [class*="title"] input');
@@ -523,18 +582,52 @@ async function handleUploadModal() {
     var title = fileInfo.fileName.replace(/\.[^.]+$/, '');
     await simulateTyping(titleInput, title);
     log('Title entered: ' + title);
+    await wait(1000);
   }
   
   await wait(ACTION_DELAY);
   
-  // Find and click submit/upload confirm button
-  var submitBtn = findElementByText(['upload', 'submit', 'confirm', 'add'], 'button, input[type="submit"]');
+  // Find and click Submit button - be specific to avoid clicking Cancel
+  var submitBtn = null;
+  var buttons = document.querySelectorAll('button, input[type="submit"]');
+  
+  for (var i = 0; i < buttons.length; i++) {
+    var btn = buttons[i];
+    var text = (btn.textContent || '').toLowerCase().trim();
+    var isVisible = btn.offsetParent !== null || btn.offsetWidth > 0;
+    var isDisabled = btn.disabled || btn.hasAttribute('disabled');
+    
+    // Look for Submit button specifically, not Cancel
+    if (isVisible && !isDisabled && (text === 'submit' || text === 'upload' || text === 'confirm')) {
+      submitBtn = btn;
+      log('Found submit button: "' + text + '"');
+      break;
+    }
+  }
+  
+  if (!submitBtn) {
+    // Fallback - find by class or aria
+    submitBtn = document.querySelector('button[class*="primary"], button[class*="submit"], [aria-label*="submit" i]');
+  }
   
   if (submitBtn) {
-    log('Clicking submit button...');
+    log('Clicking Submit button...');
     submitBtn.click();
     
-    await wait(3000);
+    await wait(5000);
+    
+    // Check if modal closed (success)
+    var modalStillOpen = hasUploadModal();
+    if (!modalStillOpen) {
+      log('Upload modal closed, file submitted successfully');
+    } else {
+      log('Modal still open, checking for errors...');
+      // Look for error messages
+      var errorEl = document.querySelector('[class*="error"], [role="alert"]');
+      if (errorEl) {
+        log('Error in modal: ' + errorEl.textContent);
+      }
+    }
     
     // Notify background of upload
     await chrome.runtime.sendMessage({
@@ -542,13 +635,18 @@ async function handleUploadModal() {
       data: { submissionId: 'pending', fileName: fileInfo.fileName }
     });
     
-    // Wait for modal to close and file to appear in list
+    // Wait for file to appear in list
     await wait(5000);
     
     // Refresh and check for results
+    log('Refreshing page to check for results...');
     window.location.reload();
   } else {
-    throw new Error('Could not find submit button in upload modal');
+    log('Submit button not found or disabled. Buttons found:');
+    buttons.forEach(function(b) {
+      log('  - "' + (b.textContent || '').trim() + '" disabled=' + b.disabled);
+    });
+    throw new Error('Could not find enabled Submit button in upload modal');
   }
 }
 

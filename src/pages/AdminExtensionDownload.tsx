@@ -674,15 +674,29 @@ function isDocumentAlreadyUploaded() {
 
 function clickUploadButton() {
   log('Looking for Upload button...');
-  var uploadBtn = findElementByText(['upload'], 'button, a, [role="button"]');
-  if (uploadBtn) {
-    log('Clicking Upload button...');
-    uploadBtn.click();
-    wait(2000).then(function() {
-      if (hasUploadModal()) { handleUploadModal(); }
-      else { detectPageAndAct(); }
-    });
-  } else { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find Upload button' }); }
+  wait(1500).then(function() {
+    var uploadBtn = null;
+    var buttons = document.querySelectorAll('button, a, [role="button"]');
+    for (var i = 0; i < buttons.length; i++) {
+      var btn = buttons[i];
+      var text = (btn.textContent || '').toLowerCase().trim();
+      var isVisible = btn.offsetParent !== null || btn.offsetWidth > 0;
+      if (isVisible && text.includes('upload') && !text.includes('upload a file')) { uploadBtn = btn; log('Found Upload button: "' + text + '"'); break; }
+    }
+    if (!uploadBtn) { uploadBtn = document.querySelector('[class*="upload-btn"], [aria-label*="upload" i], button[class*="primary"]'); }
+    if (uploadBtn) {
+      log('Clicking Upload button...');
+      uploadBtn.click();
+      wait(2500).then(function() {
+        if (hasUploadModal()) { handleUploadModal(); }
+        else { wait(2000).then(function() { if (hasUploadModal()) { handleUploadModal(); } else { log('Upload modal did not appear, retrying...'); detectPageAndAct(); } }); }
+      });
+    } else {
+      var uploadLink = findElementByText(['upload a file'], 'a, button, [role="button"]');
+      if (uploadLink) { log('Clicking "Upload a file" link...'); uploadLink.click(); wait(2500).then(function() { if (hasUploadModal()) { handleUploadModal(); } }); }
+      else { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find Upload button' }); }
+    }
+  });
 }
 
 function handleUploadModal() {
@@ -691,15 +705,17 @@ function handleUploadModal() {
   wait(2000).then(function() {
     chrome.runtime.sendMessage({ type: 'REQUEST_FILE' }, function(fileInfo) {
       if (!fileInfo || !fileInfo.fileData) { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'No file data received' }); return; }
-      log('Got file: ' + fileInfo.fileName);
+      log('Got file: ' + fileInfo.fileName + ' (' + fileInfo.fileData.base64.length + ' chars)');
       var byteCharacters = atob(fileInfo.fileData.base64);
       var byteNumbers = new Array(byteCharacters.length);
       for (var i = 0; i < byteCharacters.length; i++) { byteNumbers[i] = byteCharacters.charCodeAt(i); }
       var byteArray = new Uint8Array(byteNumbers);
       var blob = new Blob([byteArray], { type: fileInfo.fileData.mimeType || 'application/octet-stream' });
       var file = new File([blob], fileInfo.fileName, { type: blob.type });
+      log('File created: ' + file.name + ', size: ' + file.size + ' bytes');
       var fileInput = document.querySelector('input[type="file"]');
-      if (!fileInput) { waitForElement('input[type="file"]').then(function(input) { if (input) { attachFile(input, file, fileInfo); } else { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find file input' }); } }); return; }
+      if (!fileInput) { log('No file input found, waiting...'); waitForElement('input[type="file"]', 5000).then(function(input) { if (input) { attachFile(input, file, fileInfo); } else { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find file input in upload modal' }); } }); return; }
+      log('Found file input, injecting file...');
       attachFile(fileInput, file, fileInfo);
     });
   });
@@ -709,21 +725,37 @@ function attachFile(fileInput, file, fileInfo) {
   var dataTransfer = new DataTransfer();
   dataTransfer.items.add(file);
   fileInput.files = dataTransfer.files;
+  fileInput.dispatchEvent(new Event('input', { bubbles: true }));
   fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-  log('File attached');
-  wait(ACTION_DELAY).then(function() {
-    var titleInput = document.querySelector('input[name="title"], input[placeholder*="title" i], #title');
-    if (titleInput) { var title = fileInfo.fileName.replace(/\\.[^.]+$/, ''); simulateTyping(titleInput, title); log('Title entered'); }
+  log('File attached successfully');
+  wait(3000).then(function() {
+    var titleInput = document.querySelector('input[name="title"], input[placeholder*="title" i], #title, [class*="title"] input');
+    if (titleInput) { var title = fileInfo.fileName.replace(/\\.[^.]+$/, ''); simulateTyping(titleInput, title); log('Title entered: ' + title); }
     wait(ACTION_DELAY).then(function() {
-      var submitBtn = findElementByText(['upload', 'submit', 'confirm', 'add'], 'button, input[type="submit"]');
+      var submitBtn = null;
+      var buttons = document.querySelectorAll('button, input[type="submit"]');
+      for (var i = 0; i < buttons.length; i++) {
+        var btn = buttons[i];
+        var text = (btn.textContent || '').toLowerCase().trim();
+        var isVisible = btn.offsetParent !== null || btn.offsetWidth > 0;
+        var isDisabled = btn.disabled || btn.hasAttribute('disabled');
+        if (isVisible && !isDisabled && (text === 'submit' || text === 'upload' || text === 'confirm')) { submitBtn = btn; log('Found submit button: "' + text + '"'); break; }
+      }
+      if (!submitBtn) { submitBtn = document.querySelector('button[class*="primary"], button[class*="submit"]'); }
       if (submitBtn) {
-        log('Clicking submit button...');
+        log('Clicking Submit button...');
         submitBtn.click();
-        wait(3000).then(function() {
+        wait(5000).then(function() {
+          var modalStillOpen = hasUploadModal();
+          if (!modalStillOpen) { log('Upload modal closed, file submitted successfully'); }
+          else { log('Modal still open, checking for errors...'); var errorEl = document.querySelector('[class*="error"], [role="alert"]'); if (errorEl) { log('Error: ' + errorEl.textContent); } }
           chrome.runtime.sendMessage({ type: 'UPLOAD_COMPLETE', data: { submissionId: 'pending', fileName: fileInfo.fileName } });
-          wait(5000).then(function() { window.location.reload(); });
+          wait(5000).then(function() { log('Refreshing page to check for results...'); window.location.reload(); });
         });
-      } else { chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find submit button' }); }
+      } else {
+        log('Submit button not found or disabled');
+        chrome.runtime.sendMessage({ type: 'AUTOMATION_ERROR', error: 'Could not find enabled Submit button' });
+      }
     });
   });
 }
