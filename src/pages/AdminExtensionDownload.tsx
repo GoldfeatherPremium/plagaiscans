@@ -1088,19 +1088,26 @@ const optionsHtml = `<!DOCTYPE html>
     .form-group { margin-bottom: 16px; }
     .form-group:last-child { margin-bottom: 0; }
     label { display: block; font-size: 13px; color: #a1a1aa; margin-bottom: 6px; }
-    input[type="text"], input[type="password"], input[type="url"], input[type="number"] { width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; transition: border-color 0.2s; }
-    input:focus { outline: none; border-color: #3b82f6; }
-    input::placeholder { color: #71717a; }
+    input[type="text"], input[type="password"], input[type="url"], input[type="number"], textarea { width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; transition: border-color 0.2s; }
+    textarea { min-height: 100px; resize: vertical; font-family: monospace; font-size: 12px; }
+    input:focus, textarea:focus { outline: none; border-color: #3b82f6; }
+    input::placeholder, textarea::placeholder { color: #71717a; }
     .checkbox-group { display: flex; align-items: center; gap: 10px; padding: 12px 0; }
     .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; accent-color: #3b82f6; }
     .checkbox-group label { margin-bottom: 0; color: #e4e4e7; cursor: pointer; }
     .checkbox-hint { font-size: 11px; color: #71717a; margin-left: 28px; margin-top: -8px; }
+    .radio-group { display: flex; gap: 20px; margin-bottom: 16px; }
+    .radio-option { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .radio-option input[type="radio"] { width: 18px; height: 18px; accent-color: #3b82f6; }
+    .radio-option label { margin-bottom: 0; cursor: pointer; color: #e4e4e7; }
     .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
     .btn-primary { background: #3b82f6; color: white; }
     .btn-primary:hover { background: #2563eb; }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: #e4e4e7; }
+    .btn-secondary:hover { background: rgba(255,255,255,0.15); }
     .btn-danger { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
     .btn-danger:hover { background: rgba(239, 68, 68, 0.3); }
-    .btn-group { display: flex; gap: 8px; margin-top: 16px; }
+    .btn-group { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
     .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; background: rgba(34, 197, 94, 0.2); color: #22c55e; }
     .status-badge.warning { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
     .status-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
@@ -1108,6 +1115,10 @@ const optionsHtml = `<!DOCTYPE html>
     .error-message { color: #ef4444; font-size: 13px; margin-top: 8px; display: none; }
     .input-hint { font-size: 11px; color: #71717a; margin-top: 4px; }
     .divider { height: 1px; background: rgba(255,255,255,0.1); margin: 20px 0; }
+    .info-box { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 12px; color: #93c5fd; }
+    .auth-section { display: none; }
+    .auth-section.active { display: block; }
+    .cookie-info { font-size: 11px; color: #71717a; margin-top: 6px; display: none; }
   </style>
 </head>
 <body>
@@ -1143,24 +1154,61 @@ const optionsHtml = `<!DOCTYPE html>
       </form>
     </div>
     <div class="section">
-      <div class="section-title">Turnitin Credentials</div>
-      <form id="turnitinForm">
-        <div class="form-group">
-          <label for="turnitinUsername">Username</label>
-          <input type="text" id="turnitinUsername" placeholder="your_username">
+      <div class="section-title">Authentication Method</div>
+      <div class="radio-group">
+        <div class="radio-option">
+          <input type="radio" id="authMethodCredentials" name="authMethod" value="credentials" checked>
+          <label for="authMethodCredentials">Use Credentials</label>
         </div>
-        <div class="form-group">
-          <label for="turnitinPassword">Password</label>
-          <input type="password" id="turnitinPassword" placeholder="Leave blank to keep existing">
+        <div class="radio-option">
+          <input type="radio" id="authMethodCookies" name="authMethod" value="cookies">
+          <label for="authMethodCookies">Use Cookies</label>
         </div>
-        <div class="btn-group">
-          <button type="submit" class="btn btn-primary">Save Credentials</button>
-          <button type="button" class="btn btn-danger" id="clearCredsBtn">Clear</button>
-        </div>
-        <div id="credSuccess" class="success-message"></div>
-        <div id="credError" class="error-message"></div>
-      </form>
-      <div style="margin-top: 12px;"><span class="status-badge warning" id="credStatus"><span class="dot"></span>Not configured</span></div>
+      </div>
+      <div id="credentialsSection" class="auth-section active">
+        <div class="info-box">🔒 Your credentials are stored locally and never sent to our servers.</div>
+        <form id="turnitinForm">
+          <div class="form-group">
+            <label for="turnitinUsername">Username</label>
+            <input type="text" id="turnitinUsername" placeholder="your_username">
+          </div>
+          <div class="form-group">
+            <label for="turnitinPassword">Password</label>
+            <input type="password" id="turnitinPassword" placeholder="Leave blank to keep existing">
+          </div>
+          <div class="btn-group">
+            <button type="submit" class="btn btn-primary">Save Credentials</button>
+            <button type="button" class="btn btn-danger" id="clearCredsBtn">Clear</button>
+          </div>
+          <div id="credSuccess" class="success-message"></div>
+          <div id="credError" class="error-message"></div>
+        </form>
+        <div style="margin-top: 12px;"><span class="status-badge warning" id="credStatus"><span class="dot"></span>Not configured</span></div>
+      </div>
+      <div id="cookiesSection" class="auth-section">
+        <div class="info-box">🍪 Import session cookies from a logged-in browser. Useful when credentials don't work (MFA, CAPTCHA).</div>
+        <form id="cookieForm">
+          <div class="form-group">
+            <label for="cookieData">Cookie Data (JSON, Netscape, or key=value format)</label>
+            <textarea id="cookieData" placeholder='[{"name": "session_id", "value": "abc123", "domain": ".turnitin.com"}]
+
+Or simple format:
+session_id=abc123
+auth_token=xyz789'></textarea>
+            <div class="input-hint">Paste cookies from browser DevTools or export tools</div>
+            <div class="cookie-info" id="cookieInfo"></div>
+          </div>
+          <div class="btn-group">
+            <button type="submit" class="btn btn-primary">Import Cookies</button>
+            <button type="button" class="btn btn-secondary" id="exportCookiesBtn">Export Current</button>
+            <button type="button" class="btn btn-secondary" id="testCookiesBtn">Test</button>
+            <button type="button" class="btn btn-danger" id="clearCookiesBtn">Clear</button>
+          </div>
+          <div id="cookieSuccess" class="success-message"></div>
+          <div id="cookieError" class="error-message"></div>
+        </form>
+        <div style="margin-top: 12px;"><span class="status-badge warning" id="cookieStatus"><span class="dot"></span>Not configured</span></div>
+      </div>
     </div>
     <div class="section">
       <div class="section-title">Extension Token</div>
@@ -1208,7 +1256,7 @@ const optionsJs = `document.addEventListener('DOMContentLoaded', init);
 function init() { loadSavedSettings(); setupEventListeners(); }
 
 function loadSavedSettings() {
-  chrome.storage.local.get(['turnitinCredentials', 'extensionToken', 'turnitinSettings', 'pollInterval', 'maxRetries', 'reportWaitTime'], function(data) {
+  chrome.storage.local.get(['turnitinCredentials', 'extensionToken', 'turnitinSettings', 'pollInterval', 'maxRetries', 'reportWaitTime', 'authMethod', 'turnitinCookies', 'cookiesImportedAt'], function(data) {
     if (data.turnitinCredentials && data.turnitinCredentials.username) {
       document.getElementById('turnitinUsername').value = data.turnitinCredentials.username;
       document.getElementById('turnitinPassword').placeholder = '••••••••';
@@ -1218,6 +1266,11 @@ function loadSavedSettings() {
     if (data.extensionToken) {
       document.getElementById('extensionToken').placeholder = '••• Token saved •••';
     }
+    var authMethod = data.authMethod || 'credentials';
+    document.getElementById('authMethodCredentials').checked = authMethod === 'credentials';
+    document.getElementById('authMethodCookies').checked = authMethod === 'cookies';
+    updateAuthMethodUI(authMethod);
+    updateCookieStatus(data.turnitinCookies, data.cookiesImportedAt);
     if (data.turnitinSettings) {
       document.getElementById('turnitinUrl').value = data.turnitinSettings.loginUrl || '';
       document.getElementById('folderName').value = data.turnitinSettings.folderName || '';
@@ -1230,7 +1283,47 @@ function loadSavedSettings() {
   });
 }
 
+function updateAuthMethodUI(method) {
+  var credentialsSection = document.getElementById('credentialsSection');
+  var cookiesSection = document.getElementById('cookiesSection');
+  if (method === 'cookies') {
+    credentialsSection.className = 'auth-section';
+    cookiesSection.className = 'auth-section active';
+  } else {
+    credentialsSection.className = 'auth-section active';
+    cookiesSection.className = 'auth-section';
+  }
+}
+
+function updateCookieStatus(cookies, importedAt) {
+  var cookieStatus = document.getElementById('cookieStatus');
+  if (cookies && cookies.length > 0) {
+    var importDate = importedAt ? new Date(importedAt).toLocaleString() : 'Unknown';
+    var now = Date.now() / 1000;
+    var expiredCookies = cookies.filter(function(c) { return c.expirationDate && c.expirationDate < now; });
+    if (expiredCookies.length > 0) {
+      cookieStatus.className = 'status-badge warning';
+      cookieStatus.innerHTML = '<span class="dot"></span>' + expiredCookies.length + ' expired cookies';
+    } else {
+      cookieStatus.className = 'status-badge';
+      cookieStatus.innerHTML = '<span class="dot"></span>' + cookies.length + ' cookies saved';
+    }
+    document.getElementById('cookieInfo').textContent = 'Imported: ' + importDate;
+    document.getElementById('cookieInfo').style.display = 'block';
+  } else {
+    cookieStatus.className = 'status-badge warning';
+    cookieStatus.innerHTML = '<span class="dot"></span>Not configured';
+    document.getElementById('cookieInfo').style.display = 'none';
+  }
+}
+
 function setupEventListeners() {
+  document.getElementById('authMethodCredentials').addEventListener('change', function() {
+    if (this.checked) { chrome.storage.local.set({ authMethod: 'credentials' }); updateAuthMethodUI('credentials'); }
+  });
+  document.getElementById('authMethodCookies').addEventListener('change', function() {
+    if (this.checked) { chrome.storage.local.set({ authMethod: 'cookies' }); updateAuthMethodUI('cookies'); }
+  });
   document.getElementById('turnitinSettingsForm').addEventListener('submit', function(e) { e.preventDefault(); saveTurnitinSettings(); });
   document.getElementById('turnitinForm').addEventListener('submit', function(e) { e.preventDefault(); saveTurnitinCredentials(); });
   document.getElementById('clearCredsBtn').addEventListener('click', function() {
@@ -1240,6 +1333,16 @@ function setupEventListeners() {
       document.getElementById('credStatus').className = 'status-badge warning';
       document.getElementById('credStatus').innerHTML = '<span class="dot"></span>Not configured';
       showMessage('credSuccess', 'Credentials cleared');
+    });
+  });
+  document.getElementById('cookieForm').addEventListener('submit', function(e) { e.preventDefault(); importCookies(); });
+  document.getElementById('exportCookiesBtn').addEventListener('click', exportCurrentCookies);
+  document.getElementById('testCookiesBtn').addEventListener('click', testCookies);
+  document.getElementById('clearCookiesBtn').addEventListener('click', function() {
+    chrome.storage.local.remove(['turnitinCookies', 'cookiesImportedAt'], function() {
+      document.getElementById('cookieData').value = '';
+      updateCookieStatus(null, null);
+      showMessage('cookieSuccess', 'Cookies cleared');
     });
   });
   document.getElementById('tokenForm').addEventListener('submit', function(e) { e.preventDefault(); saveExtensionToken(); });
@@ -1276,6 +1379,82 @@ function saveTurnitinCredentials() {
       document.getElementById('credStatus').innerHTML = '<span class="dot"></span>Configured';
       document.getElementById('turnitinPassword').value = '';
       showMessage('credSuccess', 'Credentials saved');
+    });
+  });
+}
+
+function importCookies() {
+  var cookieData = document.getElementById('cookieData').value.trim();
+  if (!cookieData) { showError('cookieError', 'Please paste your cookie data'); return; }
+  try {
+    var cookies = parseCookieData(cookieData);
+    if (!cookies || cookies.length === 0) { showError('cookieError', 'No valid cookies found. Check format.'); return; }
+    chrome.storage.local.set({ turnitinCookies: cookies, cookiesImportedAt: Date.now(), authMethod: 'cookies' }, function() {
+      document.getElementById('authMethodCookies').checked = true;
+      updateAuthMethodUI('cookies');
+      updateCookieStatus(cookies, Date.now());
+      document.getElementById('cookieData').value = '';
+      showMessage('cookieSuccess', 'Imported ' + cookies.length + ' cookies');
+    });
+  } catch (error) { showError('cookieError', 'Invalid format: ' + error.message); }
+}
+
+function parseCookieData(data) {
+  var cookies = [];
+  try {
+    var jsonData = JSON.parse(data);
+    if (Array.isArray(jsonData)) {
+      for (var i = 0; i < jsonData.length; i++) {
+        var c = jsonData[i];
+        if (c.name && c.value) {
+          cookies.push({ name: c.name, value: c.value, domain: c.domain || '.turnitin.com', path: c.path || '/', secure: c.secure !== false, httpOnly: c.httpOnly || false, expirationDate: c.expirationDate || c.expires });
+        }
+      }
+      return cookies;
+    }
+  } catch (e) {}
+  var lines = data.split('\\n').filter(function(l) { return l.trim() && !l.startsWith('#'); });
+  for (var j = 0; j < lines.length; j++) {
+    var line = lines[j];
+    var parts = line.split('\\t');
+    if (parts.length >= 7) {
+      cookies.push({ name: parts[5].trim(), value: parts[6].trim(), domain: parts[0].trim(), path: parts[2].trim(), secure: parts[3].trim().toLowerCase() === 'true', httpOnly: false, expirationDate: parseInt(parts[4]) || undefined });
+    } else if (line.indexOf('=') !== -1) {
+      var eqIdx = line.indexOf('=');
+      var name = line.substring(0, eqIdx).trim();
+      var value = line.substring(eqIdx + 1).trim();
+      if (name && value) { cookies.push({ name: name, value: value, domain: '.turnitin.com', path: '/', secure: true, httpOnly: false }); }
+    }
+  }
+  return cookies;
+}
+
+function exportCurrentCookies() {
+  chrome.cookies.getAll({ domain: '.turnitin.com' }, function(cookies) {
+    chrome.cookies.getAll({ domain: 'nrtiedu.turnitin.com' }, function(nrtiCookies) {
+      var allCookies = cookies.concat(nrtiCookies);
+      if (allCookies.length === 0) { showError('cookieError', 'No Turnitin cookies found. Login in browser first.'); return; }
+      var cookieJson = JSON.stringify(allCookies.map(function(c) { return { name: c.name, value: c.value, domain: c.domain, path: c.path, secure: c.secure, httpOnly: c.httpOnly, expirationDate: c.expirationDate }; }), null, 2);
+      document.getElementById('cookieData').value = cookieJson;
+      showMessage('cookieSuccess', 'Found ' + allCookies.length + ' cookies. Click Import to save.');
+    });
+  });
+}
+
+function testCookies() {
+  chrome.storage.local.get(['turnitinCookies', 'turnitinSettings'], function(data) {
+    if (!data.turnitinCookies || data.turnitinCookies.length === 0) { showError('cookieError', 'No cookies saved. Import first.'); return; }
+    var pending = data.turnitinCookies.length;
+    data.turnitinCookies.forEach(function(cookie) {
+      chrome.cookies.set({ url: 'https://nrtiedu.turnitin.com', name: cookie.name, value: cookie.value, domain: cookie.domain || '.turnitin.com', path: cookie.path || '/', secure: cookie.secure !== false, httpOnly: cookie.httpOnly || false, expirationDate: cookie.expirationDate }, function() {
+        pending--;
+        if (pending === 0) {
+          var loginUrl = data.turnitinSettings && data.turnitinSettings.loginUrl ? data.turnitinSettings.loginUrl : 'https://nrtiedu.turnitin.com/';
+          var homeUrl = loginUrl.replace(/\\/$/, '') + '/home';
+          chrome.tabs.create({ url: homeUrl });
+          showMessage('cookieSuccess', 'Cookies injected. Check if logged in.');
+        }
+      });
     });
   });
 }
