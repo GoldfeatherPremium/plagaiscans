@@ -88,7 +88,8 @@
     input[type="email"],
     input[type="password"],
     input[type="url"],
-    input[type="number"] {
+    input[type="number"],
+    textarea {
       width: 100%;
       padding: 12px 16px;
       background: rgba(255,255,255,0.05);
@@ -99,13 +100,22 @@
       transition: all 0.2s;
     }
     
-    input:focus {
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    
+    input:focus,
+    textarea:focus {
       outline: none;
       border-color: #3b82f6;
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
     }
     
-    input::placeholder {
+    input::placeholder,
+    textarea::placeholder {
       color: #52525b;
     }
     
@@ -133,6 +143,31 @@
       cursor: pointer;
     }
     
+    .radio-group {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    
+    .radio-option input[type="radio"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #3b82f6;
+      cursor: pointer;
+    }
+    
+    .radio-option label {
+      margin-bottom: 0;
+      cursor: pointer;
+    }
+    
     .btn {
       padding: 12px 24px;
       border: none;
@@ -152,6 +187,15 @@
       background: #2563eb;
     }
     
+    .btn-secondary {
+      background: rgba(255,255,255,0.1);
+      color: #e4e4e7;
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.15);
+    }
+    
     .btn-danger {
       background: rgba(239, 68, 68, 0.2);
       color: #ef4444;
@@ -165,6 +209,7 @@
       display: flex;
       gap: 12px;
       margin-top: 24px;
+      flex-wrap: wrap;
     }
     
     .status-badge {
@@ -260,6 +305,33 @@
       line-height: 1.5;
     }
     
+    .purple-box {
+      background: rgba(147, 51, 234, 0.1);
+      border: 1px solid rgba(147, 51, 234, 0.3);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    
+    .purple-box h4 {
+      color: #a855f7;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    
+    .purple-box p {
+      color: #a1a1aa;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    
+    .cookie-info {
+      font-size: 12px;
+      color: #71717a;
+      margin-top: 8px;
+      display: none;
+    }
+    
     .footer {
       text-align: center;
       margin-top: 40px;
@@ -279,6 +351,14 @@
     
     .footer a:hover {
       text-decoration: underline;
+    }
+    
+    .auth-section {
+      display: none;
+    }
+    
+    .auth-section.active {
+      display: block;
     }
   </style>
 </head>
@@ -329,44 +409,106 @@
       </form>
     </div>
     
-    <!-- Turnitin Credentials -->
+    <!-- Authentication Method -->
     <div class="card">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-        <div>
-          <h2 class="card-title">Turnitin Credentials</h2>
-          <p class="card-description">Enter your Turnitin login details. These are stored securely in your browser only.</p>
+      <h2 class="card-title">Authentication Method</h2>
+      <p class="card-description">Choose how to authenticate with Turnitin</p>
+      
+      <div class="radio-group">
+        <div class="radio-option">
+          <input type="radio" id="authMethodCredentials" name="authMethod" value="credentials" checked>
+          <label for="authMethodCredentials">Use Credentials</label>
         </div>
-        <span class="status-badge warning" id="credStatus">
-          <span class="dot"></span>
-          Not configured
-        </span>
+        <div class="radio-option">
+          <input type="radio" id="authMethodCookies" name="authMethod" value="cookies">
+          <label for="authMethodCookies">Use Cookies</label>
+        </div>
       </div>
       
-      <div class="warning-box">
-        <h4>🔒 Security Notice</h4>
-        <p>Your credentials are stored locally in your browser and never sent to our servers. They are only used to automate the Turnitin login process.</p>
+      <!-- Credentials Section -->
+      <div id="credentialsSection" class="auth-section active">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 4px;">Turnitin Credentials</h3>
+            <p class="card-description" style="margin-bottom: 0;">Enter your Turnitin login details</p>
+          </div>
+          <span class="status-badge warning" id="credStatus">
+            <span class="dot"></span>
+            Not configured
+          </span>
+        </div>
+        
+        <div class="warning-box">
+          <h4>🔒 Security Notice</h4>
+          <p>Your credentials are stored locally in your browser and never sent to our servers. They are only used to automate the Turnitin login process.</p>
+        </div>
+        
+        <form id="turnitinForm">
+          <div class="form-group">
+            <label for="turnitinUsername">Username</label>
+            <input type="text" id="turnitinUsername" placeholder="Your Turnitin username">
+          </div>
+          
+          <div class="form-group">
+            <label for="turnitinPassword">Password</label>
+            <input type="password" id="turnitinPassword" placeholder="••••••••••••">
+            <p class="helper-text">Your password is encrypted and stored locally</p>
+          </div>
+          
+          <div class="btn-group">
+            <button type="submit" class="btn btn-primary">Save Credentials</button>
+            <button type="button" class="btn btn-danger" id="clearCredsBtn">Clear</button>
+          </div>
+          
+          <div class="success-message" id="credSuccess">✓ Credentials saved successfully</div>
+          <div class="error-message" id="credError"></div>
+        </form>
       </div>
       
-      <form id="turnitinForm">
-        <div class="form-group">
-          <label for="turnitinUsername">Username</label>
-          <input type="text" id="turnitinUsername" placeholder="Your Turnitin username">
+      <!-- Cookies Section -->
+      <div id="cookiesSection" class="auth-section">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 4px;">Cookie Import</h3>
+            <p class="card-description" style="margin-bottom: 0;">Import session cookies from logged-in browser</p>
+          </div>
+          <span class="status-badge warning" id="cookieStatus">
+            <span class="dot"></span>
+            Not configured
+          </span>
         </div>
         
-        <div class="form-group">
-          <label for="turnitinPassword">Password</label>
-          <input type="password" id="turnitinPassword" placeholder="••••••••••••">
-          <p class="helper-text">Your password is encrypted and stored locally</p>
+        <div class="purple-box">
+          <h4>🍪 How to get cookies</h4>
+          <p>1. Login to Turnitin in your browser<br>
+             2. Open DevTools (F12) → Application → Cookies<br>
+             3. Right-click → Copy all cookies<br>
+             4. Paste the JSON below and click Import</p>
         </div>
         
-        <div class="btn-group">
-          <button type="submit" class="btn btn-primary">Save Credentials</button>
-          <button type="button" class="btn btn-danger" id="clearCredsBtn">Clear</button>
-        </div>
-        
-        <div class="success-message" id="credSuccess">✓ Credentials saved successfully</div>
-        <div class="error-message" id="credError"></div>
-      </form>
+        <form id="cookieForm">
+          <div class="form-group">
+            <label for="cookieData">Cookie Data</label>
+            <textarea id="cookieData" placeholder='[{"name": "session_id", "value": "abc123", "domain": ".turnitin.com", ...}]
+
+Or simple format:
+session_id=abc123
+auth_token=xyz789'></textarea>
+            <p class="helper-text">Accepts JSON, Netscape format, or name=value pairs</p>
+            <p class="cookie-info" id="cookieInfo"></p>
+          </div>
+          
+          <div class="btn-group">
+            <button type="submit" class="btn btn-primary">Import Cookies</button>
+            <button type="button" class="btn btn-secondary" id="exportCookiesBtn">Export Current</button>
+            <button type="button" class="btn btn-secondary" id="testCookiesBtn">Test</button>
+            <button type="button" class="btn btn-danger" id="clearCookiesBtn">Clear</button>
+          </div>
+          
+          <div class="success-message" id="cookieSuccess">✓ Cookies imported successfully</div>
+          <div class="error-message" id="cookieError"></div>
+        </form>
+      </div>
     </div>
     
     <!-- Extension Token Connection -->
@@ -424,7 +566,7 @@
     </div>
     
     <div class="footer">
-      <p>Plagaiscans Turnitin Automation v1.1.0</p>
+      <p>Plagaiscans Turnitin Automation v1.3.0</p>
       <p><a href="https://plagaiscans.lovable.app" target="_blank">Open Dashboard</a> • <a href="https://plagaiscans.lovable.app/contact" target="_blank">Get Help</a></p>
     </div>
   </div>
