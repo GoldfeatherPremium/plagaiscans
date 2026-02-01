@@ -622,6 +622,10 @@ export default function GuestUpload() {
                                   <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
                                     Deleted by user
                                   </Badge>
+                                ) : status === 'cancelled' ? (
+                                  <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700">
+                                    Cancelled
+                                  </Badge>
                                 ) : (
                                   <Badge
                                     variant={
@@ -696,6 +700,10 @@ export default function GuestUpload() {
                                 {isDeleted ? (
                                   <span className="text-sm text-muted-foreground italic">
                                     Deleted {file.deleted_at ? formatDateTime(file.deleted_at).date : ''}
+                                  </span>
+                                ) : status === 'cancelled' ? (
+                                  <span className="text-sm text-destructive font-medium">
+                                    {file.cancellation_reason || 'Cancelled by admin'}
                                   </span>
                                 ) : file.remarks ? (
                                   <span className="text-sm text-foreground">{file.remarks}</span>

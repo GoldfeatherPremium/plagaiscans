@@ -26,6 +26,10 @@ export interface Document {
   updated_at: string;
   is_favorite?: boolean | null;
   files_cleaned_at?: string | null;
+  // Cancellation fields
+  cancellation_reason: string | null;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
   // Automation fields
   automation_status?: string | null;
   automation_error?: string | null;
