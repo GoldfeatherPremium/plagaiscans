@@ -161,7 +161,7 @@ const Footer = () => {
               © {currentYear} {get('nav_brand', 'Plagaiscans')}. {t('footer.allRightsReserved')}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {t('footer.tradingName')}: {get('nav_brand', 'Plagaiscans')} | {t('footer.legalEntity')}: {get('footer_company_name', 'Goldfeather Prem Ltd')} ({get('footer_country', 'United Kingdom')})
+              {t('footer.tradingName')}: {get('nav_brand', 'Plagaiscans')} | {t('footer.legalEntity')}: {get('footer_company_name', 'Plagaiscans Technologies Ltd')} ({get('footer_country', 'United Kingdom')})
             </p>
           </div>
           <div className="flex flex-wrap justify-center items-center gap-4 text-xs text-muted-foreground">

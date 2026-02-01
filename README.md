@@ -78,7 +78,7 @@ Navigate to **Project > Settings > Domains** and click **Connect Domain**.
 ## Legal Information
 
 **Trading Name**: PlagaiScans  
-**Legal Entity**: Goldfeather Prem Ltd (United Kingdom)
+**Legal Entity**: Plagaiscans Technologies Ltd (United Kingdom)
 
 **Disclaimer**: This service is provided for informational and research purposes only.
 

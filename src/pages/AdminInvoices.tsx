@@ -433,7 +433,7 @@ export default function AdminInvoices() {
               <DialogHeader>
                 <DialogTitle>Create New Invoice</DialogTitle>
                 <DialogDescription>
-                  Create a legally compliant invoice for Goldfeather Prem Ltd
+                  Create a legally compliant invoice for Plagaiscans Technologies Ltd
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
