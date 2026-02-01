@@ -389,7 +389,11 @@ export default function MyDocuments() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {doc.remarks ? (
+                            {doc.status === 'cancelled' ? (
+                              <span className="text-sm text-destructive font-medium">
+                                {doc.cancellation_reason || 'Cancelled by admin'}
+                              </span>
+                            ) : doc.remarks ? (
                               <span className="text-sm text-foreground">{doc.remarks}</span>
                             ) : doc.error_message ? (
                               <span className="text-sm text-destructive">{doc.error_message}</span>

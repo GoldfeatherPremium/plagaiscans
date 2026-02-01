@@ -24,12 +24,15 @@ export interface MagicUploadFile {
   file_size: number | null;
   uploaded_at: string;
   // Status and results from processing
-  status?: 'pending' | 'in_progress' | 'completed';
+  status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   similarity_percentage?: number | null;
   ai_percentage?: number | null;
   similarity_report_path?: string | null;
   ai_report_path?: string | null;
   remarks?: string | null;
+  // Cancellation fields
+  cancellation_reason?: string | null;
+  cancelled_at?: string | null;
   // Soft delete tracking
   deleted_by_user?: boolean;
   deleted_at?: string | null;
@@ -334,12 +337,14 @@ export const useMagicLinks = () => {
           file_path: doc.file_path,
           file_size: null,
           uploaded_at: doc.uploaded_at,
-          status: doc.status as 'pending' | 'in_progress' | 'completed',
+          status: doc.status as 'pending' | 'in_progress' | 'completed' | 'cancelled',
           similarity_percentage: doc.similarity_percentage,
           ai_percentage: doc.ai_percentage,
           similarity_report_path: doc.similarity_report_path,
           ai_report_path: doc.ai_report_path,
           remarks: doc.remarks,
+          cancellation_reason: doc.cancellation_reason,
+          cancelled_at: doc.cancelled_at,
           deleted_by_user: doc.deleted_by_user || false,
           deleted_at: doc.deleted_at,
         }));
