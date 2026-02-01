@@ -41,7 +41,8 @@ const ContactSection = () => {
           subject: `Contact Form: ${formData.name}`,
           message: `From: ${formData.name}\nEmail: ${formData.email}\n\n${formData.message}`,
           priority: 'normal',
-          status: 'open'
+          status: 'open',
+          ticket_type: 'contact'
         });
 
       if (error) throw error;

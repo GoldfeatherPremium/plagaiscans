@@ -93,6 +93,7 @@ const AdminWebhookLogs = lazy(() => import("./pages/AdminWebhookLogs"));
 const AdminUnifiedPayments = lazy(() => import("./pages/AdminUnifiedPayments"));
 const MyInvoices = lazy(() => import("./pages/MyInvoices"));
 const MyReceipts = lazy(() => import("./pages/MyReceipts"));
+const MySupportTickets = lazy(() => import("./pages/MySupportTickets"));
 const AdminInvoices = lazy(() => import("./pages/AdminInvoices"));
 const AdminBankStatements = lazy(() => import("./pages/AdminBankStatements"));
 const AdminCreditValidity = lazy(() => import("./pages/AdminCreditValidity"));
@@ -276,6 +277,7 @@ const AppRoutes = () => (
       <Route path="/dashboard/subscription" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><SubscriptionManagement /></ProtectedRoute>} />
       <Route path="/dashboard/analytics" element={<ProtectedRoute allowedRoles={['customer']}><CustomerDocumentAnalytics /></ProtectedRoute>} />
       <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['customer']}><ReferralProgram /></ProtectedRoute>} />
+      <Route path="/dashboard/my-tickets" element={<ProtectedRoute allowedRoles={['customer']}><MySupportTickets /></ProtectedRoute>} />
       
       {/* Staff Routes */}
       <Route path="/dashboard/queue" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><DocumentQueue /></ProtectedRoute>} />
