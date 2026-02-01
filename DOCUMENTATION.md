@@ -512,7 +512,7 @@ VITE_SUPABASE_PROJECT_ID=<project_id>
 ## Legal Information
 
 **Trading Name**: PlagaiScans  
-**Legal Entity**: Goldfeather Prem Ltd  
+**Legal Entity**: Plagaiscans Technologies Ltd  
 **Country**: United Kingdom
 
 **Disclaimer**: This service is provided for informational and research purposes only.

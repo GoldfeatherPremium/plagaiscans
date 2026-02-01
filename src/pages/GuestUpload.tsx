@@ -904,7 +904,7 @@ export default function GuestUpload() {
         <div className="max-w-6xl mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} PlagaiScans. All rights reserved.</p>
           <p className="mt-1">
-            Trading Name: PlagaiScans | Legal Entity: Goldfeather Prem Ltd (United Kingdom)
+            Trading Name: PlagaiScans | Legal Entity: Plagaiscans Technologies Ltd (United Kingdom)
           </p>
           <p className="mt-2 text-xs">
             This service is provided for informational and research purposes only.

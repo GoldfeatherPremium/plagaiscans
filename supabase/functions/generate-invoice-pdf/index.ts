@@ -13,7 +13,7 @@ const logStep = (step: string, details?: any) => {
 
 // UK Business Details
 const COMPANY = {
-  legalName: "Goldfeather Prem Ltd",
+  legalName: "Plagaiscans Technologies Ltd",
   tradingName: "Plagaiscans",
   companyNumber: "16113228",
   country: "United Kingdom",

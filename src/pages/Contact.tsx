@@ -218,7 +218,7 @@ export default function Contact() {
           {/* Company Info */}
           <Card className="mt-12 bg-primary/5 border-primary/20">
             <CardContent className="p-8 text-center">
-              <h2 className="text-xl font-bold mb-2">Goldfeather Prem Ltd</h2>
+              <h2 className="text-xl font-bold mb-2">Plagaiscans Technologies Ltd</h2>
               <p className="text-muted-foreground">
                 Operating as PlagaiScans • United Kingdom
               </p>

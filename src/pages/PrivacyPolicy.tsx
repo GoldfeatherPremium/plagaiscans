@@ -44,7 +44,7 @@ export default function PrivacyPolicy() {
                 <section className="mb-8">
                   <h2 className="text-2xl font-bold mb-4">1. Data Controller</h2>
                   <p className="text-muted-foreground">
-                    <strong>Goldfeather Prem Ltd</strong> (United Kingdom), operating as PlagaiScans, 
+                    <strong>Plagaiscans Technologies Ltd</strong> (United Kingdom), operating as PlagaiScans, 
                     is the data controller responsible for your personal data. This privacy policy 
                     explains how we collect, use, and protect your information.
                   </p>
@@ -235,7 +235,7 @@ export default function PrivacyPolicy() {
                   </p>
                   <p className="text-muted-foreground mt-4">
                     <strong>Email:</strong> support@plagaiscans.com<br />
-                    <strong>Data Controller:</strong> Goldfeather Prem Ltd<br />
+                    <strong>Data Controller:</strong> Plagaiscans Technologies Ltd<br />
                     <strong>Country:</strong> United Kingdom
                   </p>
                 </section>

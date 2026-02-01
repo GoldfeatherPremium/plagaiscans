@@ -55,8 +55,8 @@ export default function AboutUs() {
     <>
       <SEO
         title="About Us"
-        description="Learn about Plagaiscans, an academic integrity platform for plagiarism detection and similarity analysis. Operated by Goldfeather Prem Ltd, United Kingdom."
-        keywords="about Plagaiscans, plagiarism detection company, academic integrity platform, Goldfeather Prem Ltd"
+        description="Learn about Plagaiscans, an academic integrity platform for plagiarism detection and similarity analysis. Operated by Plagaiscans Technologies Ltd, United Kingdom."
+        keywords="about Plagaiscans, plagiarism detection company, academic integrity platform, Plagaiscans Technologies Ltd"
         canonicalUrl="/about-us"
         ogImage="/og-about.png"
         structuredData={{
@@ -158,11 +158,11 @@ export default function AboutUs() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold">Company Information</h2>
-                  <p className="text-muted-foreground">Operated by Goldfeather Prem Ltd</p>
+                  <p className="text-muted-foreground">Operated by Plagaiscans Technologies Ltd</p>
                 </div>
               </div>
               <p className="text-muted-foreground">
-                Plagaiscans is a service operated by <strong>Goldfeather Prem Ltd</strong>, a company registered in the <strong>United Kingdom</strong>. We are committed to providing accurate, reliable, and confidential document analysis services while maintaining the highest standards of data security and privacy.
+                Plagaiscans is a service operated by <strong>Plagaiscans Technologies Ltd</strong>, a company registered in the <strong>United Kingdom</strong>. We are committed to providing accurate, reliable, and confidential document analysis services while maintaining the highest standards of data security and privacy.
               </p>
             </CardContent>
           </Card>
@@ -181,7 +181,7 @@ export default function AboutUs() {
                 </a>
               </div>
               <p className="text-sm text-muted-foreground mt-6">
-                Goldfeather Prem Ltd • United Kingdom
+                Plagaiscans Technologies Ltd • United Kingdom
               </p>
             </CardContent>
           </Card>

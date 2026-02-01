@@ -48,7 +48,7 @@ export default function TermsAndConditions() {
                     and services. By accessing or using our services, you agree to be bound by these terms.
                   </p>
                   <p className="text-muted-foreground mt-4">
-                    These services are provided by <strong>Goldfeather Prem Ltd</strong> (United Kingdom), 
+                    These services are provided by <strong>Plagaiscans Technologies Ltd</strong> (United Kingdom), 
                     operating under the brand name <strong>PlagaiScans</strong>.
                   </p>
                 </section>
@@ -205,7 +205,7 @@ export default function TermsAndConditions() {
                 <section className="mb-8">
                   <h2 className="text-2xl font-bold mb-4">10. Limitation of Liability</h2>
                   <p className="text-muted-foreground">
-                    PlagaiScans and Goldfeather Prem Ltd provide services on an "as is" basis. We make 
+                    PlagaiScans and Plagaiscans Technologies Ltd provide services on an "as is" basis. We make 
                     no warranties, express or implied, regarding:
                   </p>
                   <ul className="list-disc pl-6 text-muted-foreground mt-4 space-y-2">
@@ -227,7 +227,7 @@ export default function TermsAndConditions() {
                   </p>
                   <p className="text-muted-foreground mt-4">
                     The PlagaiScans platform, including its design, features, and technology, is owned by 
-                    Goldfeather Prem Ltd and protected by intellectual property laws.
+                    Plagaiscans Technologies Ltd and protected by intellectual property laws.
                   </p>
                 </section>
 
@@ -255,7 +255,7 @@ export default function TermsAndConditions() {
                   </p>
                   <p className="text-muted-foreground mt-4">
                     <strong>Email:</strong> support@plagaiscans.com<br />
-                    <strong>Company:</strong> Goldfeather Prem Ltd<br />
+                    <strong>Company:</strong> Plagaiscans Technologies Ltd<br />
                     <strong>Country:</strong> United Kingdom
                   </p>
                 </section>
