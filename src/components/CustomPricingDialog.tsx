@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, MessageSquare, Building2 } from 'lucide-react';
+import { Loader2, Send, Building2 } from 'lucide-react';
 import {
   Select,
   SelectContent,
