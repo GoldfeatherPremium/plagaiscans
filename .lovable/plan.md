@@ -1,135 +1,131 @@
 
-# Replace Company Name: Goldfeather Prem Ltd → Plagaiscans Technologies Ltd
+# Airwallex Compliance Updates
 
 ## Summary
-Replace all occurrences of "Goldfeather Prem Ltd" with "Plagaiscans Technologies Ltd" throughout the entire application including pages, translations, edge functions, documentation, and configuration files.
+Update website legal pages to meet Airwallex payment integration requirements. Airwallex requires: business details display, clear terms & conditions, refund policy, privacy policy, and consistent company information throughout.
+
+## Issues Found
+
+### 1. Missing "Goldfeather Prem Ltd" Reference
+The Refund Policy page still contains "Goldfeather Prem Ltd" at line 276 - this was missed in the previous update.
+
+### 2. Missing Airwallex-Required Business Details
+According to Airwallex documentation, the following must be clearly displayed:
+- Company registration number (missing)
+- Physical business address (missing)
+- Phone number (optional but recommended)
+
+### 3. Payment Processor Not Disclosed
+Privacy Policy should disclose Airwallex as a payment processor under "Third-Party Services"
+
+### 4. Service Delivery Terms Missing
+Terms & Conditions should clarify digital service delivery (no physical shipping)
 
 ---
 
-## Files to Update (23 files total)
-
-### Frontend Pages (8 files)
+## Files to Update
 
 | File | Changes |
 |------|---------|
-| `src/pages/TermsAndConditions.tsx` | 4 occurrences - sections 1, 10, 11, 12 |
-| `src/pages/PrivacyPolicy.tsx` | 2 occurrences - sections 1 and 5 |
-| `src/pages/AboutUs.tsx` | 4 occurrences - SEO meta, company card, description |
-| `src/pages/Contact.tsx` | 1 occurrence - company card heading |
-| `src/pages/GuestUpload.tsx` | 1 occurrence - footer legal entity |
-| `src/pages/AdminInvoices.tsx` | 3 occurrences - dialog descriptions, card info |
-| `src/pages/AdminBankStatements.tsx` | 2 occurrences - default account_name values |
-
-### Components (1 file)
-
-| File | Changes |
-|------|---------|
-| `src/components/Footer.tsx` | 1 occurrence - default value for `footer_company_name` |
-
-### Translation Files (7 files)
-
-| File | Changes |
-|------|---------|
-| `src/i18n/locales/en/legal.json` | 1 occurrence - section1Desc |
-| `src/i18n/locales/de/legal.json` | 1 occurrence - section1Desc |
-| `src/i18n/locales/ar/legal.json` | 1 occurrence - section1Desc |
-| `src/i18n/locales/zh/legal.json` | 1 occurrence - section1Desc |
-| `src/i18n/locales/es/legal.json` | 1 occurrence - section1Desc |
-| `src/i18n/locales/fr/legal.json` | 1 occurrence - section1Desc |
-| `src/i18n/locales/ru/legal.json` | 1 occurrence - section1Desc |
-
-### Edge Functions (2 files)
-
-| File | Changes |
-|------|---------|
-| `supabase/functions/generate-invoice-pdf/index.ts` | 1 occurrence - COMPANY.legalName |
-| `supabase/functions/generate-receipt-pdf/index.ts` | 1 occurrence - COMPANY.legalName |
-
-### Configuration & Documentation (3 files)
-
-| File | Changes |
-|------|---------|
-| `index.html` | 1 occurrence - Schema.org provider name |
-| `README.md` | 1 occurrence - Legal Entity section |
-| `DOCUMENTATION.md` | 1 occurrence - Legal Entity section |
-
-### Database Migration (1 file - Informational Only)
-
-| File | Notes |
-|------|-------|
-| `supabase/migrations/20251228165243_*.sql` | Contains default "Goldfeather Prem Ltd" - **Cannot edit migrations**. Existing database records will retain old value until manually updated. |
+| `src/pages/RefundPolicy.tsx` | Fix remaining "Goldfeather Prem Ltd" reference |
+| `src/pages/TermsAndConditions.tsx` | Add company registration number, add service delivery section |
+| `src/pages/PrivacyPolicy.tsx` | Add Airwallex as payment processor, add registration details |
+| `src/pages/AboutUs.tsx` | Add company registration number |
+| `src/pages/Contact.tsx` | Add company registration number and address |
+| `src/components/Footer.tsx` | Add registration number to footer |
 
 ---
 
-## Implementation Steps
+## Implementation Details
 
-### Step 1: Update Frontend Pages
-Replace all hardcoded "Goldfeather Prem Ltd" strings with "Plagaiscans Technologies Ltd" in:
-- TermsAndConditions.tsx
-- PrivacyPolicy.tsx
-- AboutUs.tsx (including SEO keywords)
-- Contact.tsx
-- GuestUpload.tsx
-- AdminInvoices.tsx
-- AdminBankStatements.tsx
+### 1. RefundPolicy.tsx (Line 276)
+Replace "Goldfeather Prem Ltd" with "Plagaiscans Technologies Ltd"
 
-### Step 2: Update Footer Component
-Change default fallback value in Footer.tsx line 164:
+### 2. TermsAndConditions.tsx
+Add new section "Service Delivery":
+- Credits are delivered instantly upon payment confirmation
+- Digital service - no physical shipping required
+- Service available 24/7 through our online platform
+
+Add to Introduction section:
+- Company Registration Number: [Your UK Company Number]
+
+### 3. PrivacyPolicy.tsx
+Update "Third-Party Services" section to include:
+- Airwallex for secure payment processing
+- Card details handled directly by payment providers
+
+Add to "Data Controller" section:
+- Company Registration Number
+
+### 4. AboutUs.tsx
+Add to "Company Information" card:
+- Company Registration Number
+- Registered Address (if available)
+
+### 5. Contact.tsx
+Add to company info card:
+- Company Registration Number
+- Registered Address
+
+### 6. Footer.tsx
+Update footer bottom section to include:
+- Company Registration Number
+
+---
+
+## Sample Changes Preview
+
+### Terms & Conditions - New Section
 ```text
-Before: get('footer_company_name', 'Goldfeather Prem Ltd')
-After:  get('footer_company_name', 'Plagaiscans Technologies Ltd')
+Service Delivery
+
+Our services are delivered digitally:
+- Credits are added to your account instantly upon successful payment
+- Analysis reports are generated within minutes of document submission
+- All services are accessible through our web platform 24/7
+- No physical shipping is involved in our service delivery
 ```
 
-### Step 3: Update All Translation Files
-Update `section1Desc` in privacy policy translations for all 7 languages:
-- EN, DE, AR, ZH, ES, FR, RU
-
-### Step 4: Update Edge Functions
-Update COMPANY.legalName in both PDF generation functions:
-- generate-invoice-pdf
-- generate-receipt-pdf
-
-### Step 5: Update HTML & Documentation
-- index.html Schema.org structured data
-- README.md
-- DOCUMENTATION.md
-
-### Step 6: Update Database Default (Optional)
-For new bank statement records to use the correct company name, run SQL in Cloud View:
-```sql
-UPDATE bank_statement_settings 
-SET account_name = 'Plagaiscans Technologies Ltd' 
-WHERE account_name = 'Goldfeather Prem Ltd';
-```
-
----
-
-## Technical Details
-
-### Search Pattern
+### Privacy Policy - Payment Processor Update
 ```text
-Find: Goldfeather Prem Ltd
-Replace: Plagaiscans Technologies Ltd
+Payment Processors: We use trusted payment processors including 
+Airwallex to securely process payments. Card details are handled 
+directly by these payment providers and are not stored on our servers.
 ```
 
-### Case Variations to Handle
-- "Goldfeather Prem Ltd" (standard)
-- "Goldfeather Prem Ltd" (in translated text)
-- Company references in SEO meta descriptions
-
-### Files That Will NOT Be Modified
-- Migration files (immutable)
-- Auto-generated files (client.ts, types.ts)
+### Contact Information Format
+```text
+Company: Plagaiscans Technologies Ltd
+Registration No: [Your UK Company Number]
+Address: [Your Registered Address]
+Country: United Kingdom
+Email: support@plagaiscans.com
+```
 
 ---
 
-## Verification Checklist
-After implementation, verify:
-1. Footer displays correct company name
-2. Privacy Policy shows correct data controller
-3. Terms & Conditions shows correct company info
-4. Contact page shows correct company card
-5. Guest upload page footer is correct
-6. Generated invoices/receipts show correct company
-7. All language translations are updated
-8. Schema.org data in index.html is correct
+## Important Note
+
+You will need to provide the following information that I cannot generate:
+1. **UK Company Registration Number** (Companies House number, format: 8-digit number)
+2. **Registered Business Address** (required by Airwallex)
+
+These are legally required for payment processor compliance and cannot be made up.
+
+---
+
+## Verification Checklist (Post-Implementation)
+
+After changes are made, verify:
+1. All pages show consistent company name "Plagaiscans Technologies Ltd"
+2. Company registration number appears on Terms, Privacy, About, Contact, and Footer
+3. Airwallex is mentioned as a payment processor in Privacy Policy
+4. Service delivery terms are clear in Terms & Conditions
+5. Refund policy clearly states 14-day window and process
+6. Contact information is complete with all required details
+
+This ensures Airwallex compliance for:
+- Business details displayed requirement
+- Website terms & conditions requirement
+- Clear refund/shipping policy requirement
