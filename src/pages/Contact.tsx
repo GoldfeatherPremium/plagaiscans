@@ -5,14 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { FileCheck, ArrowLeft, Mail, Clock, MessageSquare, Send } from 'lucide-react';
+import { FileCheck, ArrowLeft, Mail, Clock, MessageSquare, Send, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import Footer from '@/components/Footer';
+import { useWhatsApp } from '@/hooks/useWhatsApp';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
 import { useTranslation } from 'react-i18next';
 
 export default function Contact() {
   const { t } = useTranslation('common');
+  const { openWhatsAppSupport } = useWhatsApp();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -91,6 +93,31 @@ export default function Contact() {
                       <a href="mailto:support@plagaiscans.com" className="text-primary hover:underline font-medium">
                         support@plagaiscans.com
                       </a>
+                    </div>
+                  </div>
+              </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="h-12 w-12 rounded-lg bg-[#25D366]/10 flex items-center justify-center flex-shrink-0">
+                      <MessageCircle className="h-6 w-6 text-[#25D366]" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg mb-1">WhatsApp Support</h3>
+                      <p className="text-muted-foreground text-sm mb-2">
+                        Chat with us directly
+                      </p>
+                      <p className="font-medium mb-3">+44 7360 536649</p>
+                      <Button 
+                        onClick={() => openWhatsAppSupport()}
+                        className="bg-[#25D366] hover:bg-[#128C7E] text-white"
+                        size="sm"
+                      >
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        Chat on WhatsApp
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
