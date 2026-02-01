@@ -316,6 +316,7 @@ export const DashboardSidebar: React.FC = () => {
       { to: '/dashboard/payments', icon: Receipt, label: t('sidebar.paymentHistory') },
       { to: '/dashboard/invoices', icon: FileDown, label: t('sidebar.myInvoices') },
       { to: '/dashboard/receipts', icon: Receipt, label: t('sidebar.myReceipts') },
+      { to: '/dashboard/my-tickets', icon: MessageSquare, label: 'Support Tickets' },
       { to: '/dashboard/profile', icon: User, label: t('sidebar.profile') },
     );
     

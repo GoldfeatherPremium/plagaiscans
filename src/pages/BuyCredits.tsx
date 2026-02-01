@@ -9,13 +9,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   CreditCard, CheckCircle, Loader2, ShoppingCart, Plus, Minus, Trash2, 
   Sparkles, Zap, Star, RefreshCw, Clock, Calendar, Crown, ArrowRight, FileText,
-  ScanSearch, Bot
+  ScanSearch, Bot, Building2
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTranslation } from 'react-i18next';
+import { CustomPricingDialog } from '@/components/CustomPricingDialog';
 
 type PackageType = 'one_time' | 'subscription' | 'time_limited';
 type CreditType = 'full' | 'similarity_only';
@@ -267,6 +268,31 @@ export default function BuyCredits() {
               </div>
             </div>
           </div>
+        </Card>
+
+        {/* Custom Pricing CTA */}
+        <Card className="border-dashed border-2 bg-gradient-to-r from-purple-500/5 via-transparent to-primary/5">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                  <Building2 className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Need More Credits?</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Get custom pricing for your organization or large volume needs
+                  </p>
+                </div>
+              </div>
+              <CustomPricingDialog>
+                <Button variant="outline" className="border-purple-500/30 hover:bg-purple-500/10">
+                  <Building2 className="h-4 w-4 mr-2" />
+                  Request Custom Pricing
+                </Button>
+              </CustomPricingDialog>
+            </div>
+          </CardContent>
         </Card>
 
         {/* Credit Type Selector */}
