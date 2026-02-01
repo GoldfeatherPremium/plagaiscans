@@ -1,131 +1,68 @@
 
-# Airwallex Compliance Updates
+# Plan: Display Cancellation Reason to Customers
 
-## Summary
-Update website legal pages to meet Airwallex payment integration requirements. Airwallex requires: business details display, clear terms & conditions, refund policy, privacy policy, and consistent company information throughout.
+## Overview
+When an admin cancels a document and provides a reason, that reason should be visible to customers in both their account's My Documents page and on the Guest Upload page.
 
-## Issues Found
+## Changes Required
 
-### 1. Missing "Goldfeather Prem Ltd" Reference
-The Refund Policy page still contains "Goldfeather Prem Ltd" at line 276 - this was missed in the previous update.
+### 1. Update Document Interface (src/hooks/useDocuments.ts)
+Add the missing cancellation fields to the `Document` interface:
+- `cancellation_reason: string | null`
+- `cancelled_at: string | null`
+- `cancelled_by: string | null`
 
-### 2. Missing Airwallex-Required Business Details
-According to Airwallex documentation, the following must be clearly displayed:
-- Company registration number (missing)
-- Physical business address (missing)
-- Phone number (optional but recommended)
+### 2. Update MagicUploadFile Interface (src/hooks/useMagicLinks.ts)
+Add cancellation fields to the `MagicUploadFile` interface:
+- `cancellation_reason?: string | null`
+- `cancelled_at?: string | null`
 
-### 3. Payment Processor Not Disclosed
-Privacy Policy should disclose Airwallex as a payment processor under "Third-Party Services"
+Update the `getFilesByToken` function to map these fields from the documents query.
 
-### 4. Service Delivery Terms Missing
-Terms & Conditions should clarify digital service delivery (no physical shipping)
+### 3. Update My Documents Page (src/pages/MyDocuments.tsx)
+Modify the remarks column display logic to show cancellation reason when status is cancelled:
+- If `status === 'cancelled'` and `cancellation_reason` exists, display the reason with a red/warning style
+- Show a default message like "Cancelled by admin" if no reason is provided
 
----
+### 4. Update Guest Upload Page (src/pages/GuestUpload.tsx)
+Similar updates to the documents table in the "My Documents" tab:
+- Handle `cancelled` status in the status column (will use StatusBadge style)
+- Show cancellation reason in the remarks column when applicable
 
-## Files to Update
+## Technical Details
 
-| File | Changes |
-|------|---------|
-| `src/pages/RefundPolicy.tsx` | Fix remaining "Goldfeather Prem Ltd" reference |
-| `src/pages/TermsAndConditions.tsx` | Add company registration number, add service delivery section |
-| `src/pages/PrivacyPolicy.tsx` | Add Airwallex as payment processor, add registration details |
-| `src/pages/AboutUs.tsx` | Add company registration number |
-| `src/pages/Contact.tsx` | Add company registration number and address |
-| `src/components/Footer.tsx` | Add registration number to footer |
-
----
-
-## Implementation Details
-
-### 1. RefundPolicy.tsx (Line 276)
-Replace "Goldfeather Prem Ltd" with "Plagaiscans Technologies Ltd"
-
-### 2. TermsAndConditions.tsx
-Add new section "Service Delivery":
-- Credits are delivered instantly upon payment confirmation
-- Digital service - no physical shipping required
-- Service available 24/7 through our online platform
-
-Add to Introduction section:
-- Company Registration Number: [Your UK Company Number]
-
-### 3. PrivacyPolicy.tsx
-Update "Third-Party Services" section to include:
-- Airwallex for secure payment processing
-- Card details handled directly by payment providers
-
-Add to "Data Controller" section:
-- Company Registration Number
-
-### 4. AboutUs.tsx
-Add to "Company Information" card:
-- Company Registration Number
-- Registered Address (if available)
-
-### 5. Contact.tsx
-Add to company info card:
-- Company Registration Number
-- Registered Address
-
-### 6. Footer.tsx
-Update footer bottom section to include:
-- Company Registration Number
-
----
-
-## Sample Changes Preview
-
-### Terms & Conditions - New Section
-```text
-Service Delivery
-
-Our services are delivered digitally:
-- Credits are added to your account instantly upon successful payment
-- Analysis reports are generated within minutes of document submission
-- All services are accessible through our web platform 24/7
-- No physical shipping is involved in our service delivery
+### Document Type Updates
+```typescript
+// In useDocuments.ts - Document interface
+cancellation_reason: string | null;
+cancelled_at: string | null;
+cancelled_by: string | null;
 ```
 
-### Privacy Policy - Payment Processor Update
-```text
-Payment Processors: We use trusted payment processors including 
-Airwallex to securely process payments. Card details are handled 
-directly by these payment providers and are not stored on our servers.
+### MagicUploadFile Type Updates
+```typescript
+// In useMagicLinks.ts - MagicUploadFile interface
+cancellation_reason?: string | null;
+cancelled_at?: string | null;
 ```
 
-### Contact Information Format
-```text
-Company: Plagaiscans Technologies Ltd
-Registration No: [Your UK Company Number]
-Address: [Your Registered Address]
-Country: United Kingdom
-Email: support@plagaiscans.com
+### Remarks Column Logic (both pages)
+```tsx
+// Priority order for remarks display:
+1. If cancelled && cancellation_reason → Show "Cancelled: {reason}" in red
+2. If cancelled && no reason → Show "Cancelled by admin" in red
+3. If has remarks → Show remarks
+4. If has error_message → Show error in red
+5. Default status messages (In queue, Processing, etc.)
 ```
 
----
+## Files to Modify
+1. `src/hooks/useDocuments.ts` - Add cancellation fields to Document interface
+2. `src/hooks/useMagicLinks.ts` - Add cancellation fields and mapping
+3. `src/pages/MyDocuments.tsx` - Update remarks column display
+4. `src/pages/GuestUpload.tsx` - Update status badge and remarks display
 
-## Important Note
-
-You will need to provide the following information that I cannot generate:
-1. **UK Company Registration Number** (Companies House number, format: 8-digit number)
-2. **Registered Business Address** (required by Airwallex)
-
-These are legally required for payment processor compliance and cannot be made up.
-
----
-
-## Verification Checklist (Post-Implementation)
-
-After changes are made, verify:
-1. All pages show consistent company name "Plagaiscans Technologies Ltd"
-2. Company registration number appears on Terms, Privacy, About, Contact, and Footer
-3. Airwallex is mentioned as a payment processor in Privacy Policy
-4. Service delivery terms are clear in Terms & Conditions
-5. Refund policy clearly states 14-day window and process
-6. Contact information is complete with all required details
-
-This ensures Airwallex compliance for:
-- Business details displayed requirement
-- Website terms & conditions requirement
-- Clear refund/shipping policy requirement
+## User Experience
+- Customers will see a "Cancelled" status badge (red) for cancelled documents
+- The remarks column will show the admin's cancellation reason if provided
+- This helps customers understand why their document was cancelled
