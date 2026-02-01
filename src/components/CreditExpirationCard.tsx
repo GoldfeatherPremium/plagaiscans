@@ -67,7 +67,15 @@ export const CreditExpirationCard: React.FC = () => {
     return null;
   }
 
-  const totalExpiringCredits = validityRecords.reduce((sum, v) => sum + v.remaining_credits, 0);
+  // Calculate separate totals for full and similarity credits
+  const totalFullCredits = validityRecords
+    .filter(v => v.credit_type === 'full')
+    .reduce((sum, v) => sum + v.remaining_credits, 0);
+  
+  const totalSimilarityCredits = validityRecords
+    .filter(v => v.credit_type === 'similarity')
+    .reduce((sum, v) => sum + v.remaining_credits, 0);
+
   const soonestExpiry = validityRecords[0];
   const daysUntilExpiry = differenceInDays(new Date(soonestExpiry.expires_at), new Date());
   const isExpiringSoon = daysUntilExpiry <= 7;
@@ -86,25 +94,46 @@ export const CreditExpirationCard: React.FC = () => {
           )}
         </CardTitle>
         <CardDescription>
-          Credits that will expire if not used
+          Unused credits that will expire if not used
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Summary */}
-        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-          <div className="flex items-center gap-3">
-            <Coins className="h-5 w-5 text-amber-500" />
-            <span className="font-medium">Total Expiring</span>
-          </div>
-          <span className="text-2xl font-bold text-amber-600">{totalExpiringCredits}</span>
+        {/* Separate Summary for Full and Similarity Credits */}
+        <div className="grid grid-cols-2 gap-3">
+          {totalFullCredits > 0 && (
+            <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
+              <div className="flex items-center gap-2">
+                <Coins className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">AI Scan</span>
+              </div>
+              <span className="text-xl font-bold text-primary">{totalFullCredits}</span>
+            </div>
+          )}
+          {totalSimilarityCredits > 0 && (
+            <div className="flex items-center justify-between p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+              <div className="flex items-center gap-2">
+                <Coins className="h-4 w-4 text-orange-500" />
+                <span className="text-sm font-medium">Similarity</span>
+              </div>
+              <span className="text-xl font-bold text-orange-500">{totalSimilarityCredits}</span>
+            </div>
+          )}
         </div>
 
         {/* Individual Records */}
         <div className="space-y-2">
           {validityRecords.slice(0, 5).map((record) => {
             const days = differenceInDays(new Date(record.expires_at), new Date());
+            const hours = Math.floor((new Date(record.expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60));
             const isUrgent = days <= 3;
             const isWarning = days <= 7;
+
+            // Show more precise time for urgent items
+            const timeDisplay = days <= 0 
+              ? (hours <= 0 ? 'Expiring now' : `${hours}h left`)
+              : days === 1 
+                ? 'Tomorrow' 
+                : `${days} days left`;
 
             return (
               <div 
@@ -118,24 +147,24 @@ export const CreditExpirationCard: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Calendar className={`h-4 w-4 ${isUrgent ? 'text-red-500' : isWarning ? 'text-amber-500' : 'text-muted-foreground'}`} />
                   <span className="text-sm">
-                    {days <= 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${days} days left`}
+                    {timeDisplay}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge 
                     variant={record.credit_type === 'full' ? 'default' : 'secondary'}
-                    className="text-xs"
+                    className={record.credit_type === 'full' ? '' : 'bg-orange-500/10 text-orange-600 border-orange-500/20'}
                   >
-                    {record.credit_type === 'full' ? 'Full' : 'Similarity'}
+                    {record.credit_type === 'full' ? 'AI Scan' : 'Similarity'}
                   </Badge>
                   <Badge 
                     variant={isUrgent ? 'destructive' : isWarning ? 'outline' : 'secondary'}
                     className={isWarning && !isUrgent ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : ''}
                   >
-                    {record.remaining_credits} credits
+                    {record.remaining_credits} unused
                   </Badge>
                   <span className="text-xs text-muted-foreground">
-                    {format(new Date(record.expires_at), 'MMM dd')}
+                    {format(new Date(record.expires_at), 'MMM dd, HH:mm')}
                   </span>
                 </div>
               </div>
