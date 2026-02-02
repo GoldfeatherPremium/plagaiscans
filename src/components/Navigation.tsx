@@ -43,26 +43,26 @@ const Navigation = () => {
   ];
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
       <div className="container-width px-6 md:px-12">
-        <div className="flex items-center justify-between h-16 md:h-20">
+        <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2" aria-label="Plagaiscans home">
-            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5 text-primary-foreground" />
+            <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
+              <FileText className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="text-xl md:text-2xl font-display font-bold text-foreground">
+            <span className="text-lg font-display font-bold text-foreground">
               Plagaiscans
             </span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
               link.isRoute ? (
                 <Link
                   key={link.href}
                   to={link.href}
-                  className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-sm font-medium link-underline"
+                  className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
                 >
                   {link.label}
                 </Link>
@@ -70,7 +70,7 @@ const Navigation = () => {
                 <a
                   key={link.href}
                   href={link.href}
-                  className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-sm font-medium link-underline"
+                  className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
                 >
                   {link.label}
                 </a>
@@ -87,10 +87,9 @@ const Navigation = () => {
               variant="ghost" 
               size="sm" 
               onClick={toggleTheme}
-              className="relative w-9 h-9 p-0 overflow-hidden"
+              className="w-8 h-8 p-0"
             >
-              <Sun className={`h-4 w-4 absolute transition-all duration-500 ${isDark ? 'rotate-90 scale-0 opacity-0' : 'rotate-0 scale-100 opacity-100'}`} />
-              <Moon className={`h-4 w-4 absolute transition-all duration-500 ${isDark ? 'rotate-0 scale-100 opacity-100' : '-rotate-90 scale-0 opacity-0'}`} />
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               <span className="sr-only">{t('nav.toggleTheme')}</span>
             </Button>
             <Link to="/auth">
@@ -106,10 +105,9 @@ const Navigation = () => {
               variant="ghost" 
               size="sm" 
               onClick={toggleTheme}
-              className="relative w-9 h-9 p-0 overflow-hidden"
+              className="w-8 h-8 p-0"
             >
-              <Sun className={`h-4 w-4 absolute transition-all duration-500 ${isDark ? 'rotate-90 scale-0 opacity-0' : 'rotate-0 scale-100 opacity-100'}`} />
-              <Moon className={`h-4 w-4 absolute transition-all duration-500 ${isDark ? 'rotate-0 scale-100 opacity-100' : '-rotate-90 scale-0 opacity-0'}`} />
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               <span className="sr-only">Toggle theme</span>
             </Button>
             <button
@@ -123,14 +121,14 @@ const Navigation = () => {
         </div>
 
         {isOpen && (
-          <div className="md:hidden pb-6 animate-fade-in">
-            <div className="flex flex-col gap-4">
+          <div className="md:hidden pb-4 border-t border-border pt-4">
+            <div className="flex flex-col gap-3">
               {navLinks.map((link) => (
                 link.isRoute ? (
                   <Link
                     key={link.href}
                     to={link.href}
-                    className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-lg font-medium py-2"
+                    className="text-muted-foreground hover:text-foreground transition-colors text-base font-medium py-2"
                     onClick={() => setIsOpen(false)}
                   >
                     {link.label}
@@ -139,7 +137,7 @@ const Navigation = () => {
                   <a
                     key={link.href}
                     href={link.href}
-                    className="text-muted-foreground hover:text-foreground transition-colors duration-300 text-lg font-medium py-2"
+                    className="text-muted-foreground hover:text-foreground transition-colors text-base font-medium py-2"
                     onClick={() => setIsOpen(false)}
                   >
                     {link.label}
