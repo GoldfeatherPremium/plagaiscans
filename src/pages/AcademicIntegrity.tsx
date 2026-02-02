@@ -12,7 +12,7 @@ export default function AcademicIntegrity() {
 
   const pageSchema = generateWebPageSchema(
     'Academic Integrity Guide',
-    'Learn about academic integrity principles, proper citation practices, and how plagiarism detection tools support ethical scholarship.',
+    'Learn about academic integrity principles, proper citation practices, and how similarity review tools support content review.',
     '/academic-integrity'
   );
 

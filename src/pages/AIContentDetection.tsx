@@ -178,9 +178,9 @@ export default function AIContentDetection() {
                   {t('aiContentDetection.ctaDesc')}
                 </p>
                 <Link to="/auth">
-                  <Button variant="hero" size="lg" className="group">
+                  <Button variant="default" size="lg">
                     {t('aiContentDetection.ctaButton')}
-                    <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="h-5 w-5 ml-2" />
                   </Button>
                 </Link>
               </CardContent>

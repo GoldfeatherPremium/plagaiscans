@@ -110,10 +110,10 @@ export default function Resources() {
     <>
       <SEO
         title="Resources & Learning Center"
-        description="Educational articles, guides, and tips to help you understand academic integrity, plagiarism detection, and improve your writing skills."
-        keywords="academic writing resources, plagiarism prevention tips, citation guides, academic integrity articles"
+        description="Educational articles, guides, and tips to help you with content review and document analysis."
+        keywords="content review resources, document analysis tips, citation guides, writing articles"
         canonicalUrl="/resources"
-        structuredData={generateWebPageSchema('Resources & Learning Center', 'Educational articles and guides for academic writing', '/resources')}
+        structuredData={generateWebPageSchema('Resources & Learning Center', 'Educational articles and guides for content review', '/resources')}
       />
       <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -148,7 +148,7 @@ export default function Resources() {
               ) : (
                 <>
                   {get('resources_hero_title', 'Resources &').split('&')[0]}
-                  <span className="gradient-text">{get('resources_hero_title', '& Learning Center').includes('&') ? get('resources_hero_title').split('&')[1] : 'Learning Center'}</span>
+                  <span className="text-primary">{get('resources_hero_title', '& Learning Center').includes('&') ? get('resources_hero_title').split('&')[1] : 'Learning Center'}</span>
                 </>
               )}
             </h1>
@@ -263,12 +263,12 @@ Modern similarity detection tools are designed to support the writing process, h
                 {get('resources_cta_title', 'Ready to Check Your Document?')}
               </h2>
               <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-                {get('resources_cta_subtitle', "Apply what you've learned and verify your document's originality with Plagaiscans.")}
+                {get('resources_cta_subtitle', "Upload your document to generate a similarity report for your review.")}
               </p>
               <Link to="/auth">
-                <Button variant="hero" size="lg" className="group">
+                <Button variant="default" size="lg">
                   Get Started
-                  <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="h-5 w-5 ml-2" />
                 </Button>
               </Link>
             </CardContent>

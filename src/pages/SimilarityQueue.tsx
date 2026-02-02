@@ -564,7 +564,7 @@ const SimilarityQueue: React.FC = () => {
             <p className="text-muted-foreground mt-1">
               {role === 'customer' 
                 ? 'View your similarity-only document checks' 
-                : 'Process similarity-only documents (no AI detection required)'}
+                : 'Process similarity-only documents (similarity report only)'}
             </p>
             {role === 'staff' && (
               <p className="text-sm text-muted-foreground mt-2">
@@ -1071,7 +1071,7 @@ const SimilarityQueue: React.FC = () => {
                 <p className="text-muted-foreground mt-1">
                   {role === 'customer'
                     ? 'These documents are checked for similarity only. You can delete completed documents after downloading the report.'
-                    : 'These documents only require a similarity report. No AI detection report is needed.'}
+                    : 'These documents only require a similarity report.'}
                 </p>
               </div>
             </div>

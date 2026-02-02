@@ -37,7 +37,7 @@ const AboutSection = () => {
           </span>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-6">
             {t('about.title')}
-            <span className="gradient-text"> {t('about.titleGradient')}</span>
+            <span className="text-primary"> {t('about.titleGradient')}</span>
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
             {t('about.paragraph1')}

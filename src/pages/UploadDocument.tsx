@@ -383,7 +383,7 @@ export default function UploadDocument() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">Cost per document</p>
-              <p className="text-xs text-muted-foreground">Includes similarity + AI detection</p>
+              <p className="text-xs text-muted-foreground">Includes similarity report and content analysis</p>
             </div>
             <p className="text-xl font-bold">1 Credit</p>
           </div>
