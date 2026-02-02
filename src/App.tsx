@@ -80,6 +80,7 @@ const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const AcademicIntegrity = lazy(() => import("./pages/AcademicIntegrity"));
 const Resources = lazy(() => import("./pages/Resources"));
+const UseCases = lazy(() => import("./pages/UseCases"));
 const Article = lazy(() => import("./pages/Article"));
 const AdminRefundRequests = lazy(() => import("./pages/AdminRefundRequests"));
 const PlagiarismChecker = lazy(() => import("./pages/PlagiarismChecker"));
@@ -249,6 +250,7 @@ const AppRoutes = () => (
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/unsubscribe" element={<Unsubscribe />} />
       <Route path="/how-it-works" element={<HowItWorks />} />
+      <Route path="/use-cases" element={<UseCases />} />
       <Route path="/faq" element={<FAQ />} />
         <Route path="/academic-integrity" element={<AcademicIntegrity />} />
         <Route path="/plagiarism-checker" element={<PlagiarismChecker />} />

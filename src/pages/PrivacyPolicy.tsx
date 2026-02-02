@@ -11,7 +11,7 @@ export default function PrivacyPolicy() {
     <>
       <SEO
         title="Privacy Policy"
-        description="Learn how PlagaiScans collects, uses, and protects your personal data. GDPR compliant privacy policy for our plagiarism detection service."
+        description="Learn how PlagaiScans collects, uses, and protects your personal data. GDPR compliant privacy policy."
         keywords="privacy policy, data protection, GDPR, document privacy"
         canonicalUrl="/privacy-policy"
         structuredData={generateWebPageSchema('Privacy Policy', 'How we protect your data', '/privacy-policy')}
@@ -20,7 +20,7 @@ export default function PrivacyPolicy() {
         <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
           <div className="container-width flex h-16 items-center justify-between px-4">
             <Link to="/" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                 <FileCheck className="h-5 w-5 text-primary-foreground" />
               </div>
               <span className="font-display font-bold text-lg">PlagaiScans</span>
@@ -37,14 +37,14 @@ export default function PrivacyPolicy() {
         <main className="container-width px-4 py-16">
           <div className="max-w-4xl mx-auto">
             <h1 className="text-4xl font-display font-bold mb-4">Privacy Policy</h1>
-            <p className="text-muted-foreground mb-8">Last updated: December 2024</p>
+            <p className="text-muted-foreground mb-8">Last updated: January 2025</p>
 
             <Card>
               <CardContent className="p-8 prose prose-neutral dark:prose-invert max-w-none">
                 <section className="mb-8">
                   <h2 className="text-2xl font-bold mb-4">1. Data Controller</h2>
                   <p className="text-muted-foreground">
-                    <strong>Plagaiscans Technologies Ltd</strong> (United Kingdom), operating as PlagaiScans, 
+                    <strong>Plagaiscans Technologies Ltd</strong> (United Kingdom, Company No. 16998013), operating as PlagaiScans, 
                     is the data controller responsible for your personal data. This privacy policy 
                     explains how we collect, use, and protect your information.
                   </p>
@@ -74,15 +74,6 @@ export default function PrivacyPolicy() {
                     <li>Transaction IDs and payment references</li>
                     <li>Payment method used (we do not store full card details)</li>
                     <li>Purchase history and credit balance</li>
-                    <li>Subscription status and billing dates</li>
-                    <li>Promo code usage history</li>
-                  </ul>
-
-                  <h3 className="text-xl font-semibold mt-4 mb-2">Notification Preferences</h3>
-                  <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                    <li>Email notification preferences</li>
-                    <li>Push notification subscriptions</li>
-                    <li>Communication preferences</li>
                   </ul>
 
                   <h3 className="text-xl font-semibold mt-4 mb-2">Technical Information</h3>
@@ -95,50 +86,66 @@ export default function PrivacyPolicy() {
                 </section>
 
                 <section className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">3. How We Use Your Information</h2>
+                  <h2 className="text-2xl font-bold mb-4">3. Document Handling</h2>
+                  <p className="text-muted-foreground mb-4">
+                    <strong>How Your Documents Are Processed:</strong>
+                  </p>
+                  <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+                    <li>Documents are uploaded to our secure servers for analysis</li>
+                    <li>Content is compared against indexed sources</li>
+                    <li>Reports are generated based on this comparison</li>
+                    <li>Documents may be retained for up to 30 days after processing unless deleted earlier by the user</li>
+                  </ul>
+                  
+                  <p className="text-muted-foreground mt-4 mb-4">
+                    <strong>Document Deletion:</strong>
+                  </p>
+                  <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+                    <li>Users may delete their documents at any time after processing</li>
+                    <li>Deletion removes the document and associated reports from our systems</li>
+                    <li>We do not retain document content after deletion</li>
+                  </ul>
+
+                  <p className="text-muted-foreground mt-4 mb-4">
+                    <strong>Third-Party Disclosure:</strong>
+                  </p>
+                  <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+                    <li>Documents are NOT shared with other users</li>
+                    <li>Documents are NOT added to any public database</li>
+                    <li>Analysis may use third-party APIs (no document storage by third parties)</li>
+                  </ul>
+                </section>
+
+                <section className="mb-8">
+                  <h2 className="text-2xl font-bold mb-4">4. How We Use Your Information</h2>
                   <p className="text-muted-foreground mb-4">We use your information to:</p>
                   <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                     <li>Provide and maintain our document analysis services</li>
                     <li>Process your transactions and manage your account</li>
-                    <li>Manage credit balances, subscriptions, and validity periods</li>
-                    <li>Send service-related notifications (document completion, credit expiry warnings)</li>
-                    <li>Send renewal reminders and subscription updates</li>
+                    <li>Manage credit balances and validity periods</li>
+                    <li>Send service-related notifications</li>
                     <li>Respond to your inquiries and provide customer support</li>
-                    <li>Improve our services and develop new features</li>
+                    <li>Improve our services</li>
                     <li>Detect and prevent fraud or unauthorized access</li>
                     <li>Comply with legal obligations</li>
                   </ul>
                 </section>
 
                 <section className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">4. Automated Communications</h2>
+                  <h2 className="text-2xl font-bold mb-4">5. Payment Processing</h2>
                   <p className="text-muted-foreground mb-4">
-                    We send automated emails and push notifications for:
+                    Payments are processed by third-party payment processors including:
                   </p>
                   <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                    <li>Document analysis completion</li>
-                    <li>Credit expiration reminders (7 days and 1 day before expiry)</li>
-                    <li>Subscription renewal reminders</li>
-                    <li>Payment confirmations and receipts</li>
-                    <li>Account security notifications</li>
+                    <li>Stripe (card payments)</li>
+                    <li>PayPal</li>
+                    <li>Airwallex</li>
+                    <li>Other providers as indicated at checkout</li>
                   </ul>
                   <p className="text-muted-foreground mt-4">
-                    You can manage your notification preferences in your account settings.
+                    These processors handle payment information directly. We do not store complete 
+                    payment card details on our servers.
                   </p>
-                </section>
-
-                <section className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">5. Document Handling and Storage</h2>
-                  <p className="text-muted-foreground mb-4">
-                    We take the security and privacy of your documents seriously:
-                  </p>
-                  <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                    <li>Documents are stored securely using encrypted cloud storage</li>
-                    <li>Access to documents is restricted to authorized personnel only</li>
-                    <li>Documents are processed in non-repository instructor accounts</li>
-                    <li>Your documents are not shared with other users or third parties</li>
-                    <li>Users may delete their documents and reports at any time after processing</li>
-                  </ul>
                 </section>
 
                 <section className="mb-8">
@@ -149,28 +156,23 @@ export default function PrivacyPolicy() {
                   <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                     <li>Encryption of data in transit (HTTPS/TLS)</li>
                     <li>Secure cloud infrastructure with access controls</li>
-                    <li>Regular security assessments and updates</li>
+                    <li>Regular security assessments</li>
                     <li>Employee training on data protection</li>
-                    <li>Incident response procedures</li>
                   </ul>
                 </section>
 
                 <section className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">7. Third-Party Services</h2>
-                  <p className="text-muted-foreground mb-4">
-                    We use trusted third-party services to operate our platform:
+                  <h2 className="text-2xl font-bold mb-4">7. Data Retention</h2>
+                  <p className="text-muted-foreground">
+                    We retain your data for as long as necessary to provide our services and comply with 
+                    legal obligations:
                   </p>
-                  <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                    <li><strong>Payment Processors:</strong> To securely process payments (card details are handled directly by payment providers)</li>
-                    <li><strong>Cloud Hosting:</strong> To store and serve our application and data</li>
-                    <li><strong>Email Services:</strong> To send transactional and notification emails</li>
-                    <li><strong>Push Notification Services:</strong> To deliver browser and mobile notifications</li>
-                    <li><strong>Analytics:</strong> To understand how users interact with our service</li>
+                  <ul className="list-disc pl-6 text-muted-foreground mt-4 space-y-2">
+                    <li><strong>Account data:</strong> Retained until account deletion request</li>
+                    <li><strong>Document data:</strong> Retained until user deletion or 30 days after processing</li>
+                    <li><strong>Transaction records:</strong> Retained as required by law (typically 7 years)</li>
+                    <li><strong>Analysis reports:</strong> Retained until user deletion</li>
                   </ul>
-                  <p className="text-muted-foreground mt-4">
-                    These third parties are contractually obligated to protect your data and use it only 
-                    for the purposes we specify.
-                  </p>
                 </section>
 
                 <section className="mb-8">
@@ -181,29 +183,15 @@ export default function PrivacyPolicy() {
                   <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                     <li><strong>Right of Access:</strong> Request a copy of your personal data</li>
                     <li><strong>Right to Rectification:</strong> Request correction of inaccurate data</li>
-                    <li><strong>Right to Erasure:</strong> Request deletion of your data ("right to be forgotten")</li>
+                    <li><strong>Right to Erasure:</strong> Request deletion of your data</li>
                     <li><strong>Right to Restrict Processing:</strong> Request limitation of data processing</li>
                     <li><strong>Right to Data Portability:</strong> Request transfer of your data</li>
                     <li><strong>Right to Object:</strong> Object to certain types of processing</li>
                   </ul>
-                  <p className="text-muted-foreground mt-4">
-                    Users may delete their uploaded files at any time after processing is completed. 
-                    This permanently removes the document and associated reports from our systems.
-                  </p>
                 </section>
 
                 <section className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">9. Data Retention</h2>
-                  <p className="text-muted-foreground">
-                    We retain your data for as long as necessary to provide our services and comply with 
-                    legal obligations. Account data is retained until you request deletion. Transaction 
-                    records may be retained for accounting and legal purposes as required by law. Credit 
-                    validity and expiration records are maintained for audit purposes.
-                  </p>
-                </section>
-
-                <section className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">10. Cookies</h2>
+                  <h2 className="text-2xl font-bold mb-4">9. Cookies</h2>
                   <p className="text-muted-foreground">
                     We use essential cookies to maintain your session and provide core functionality. 
                     We may also use analytics cookies to understand how users interact with our service. 
@@ -212,7 +200,7 @@ export default function PrivacyPolicy() {
                 </section>
 
                 <section className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">11. International Transfers</h2>
+                  <h2 className="text-2xl font-bold mb-4">10. International Transfers</h2>
                   <p className="text-muted-foreground">
                     Your data may be transferred to and processed in countries outside your country of 
                     residence. We ensure appropriate safeguards are in place for such transfers in 
@@ -221,7 +209,7 @@ export default function PrivacyPolicy() {
                 </section>
 
                 <section className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">12. Changes to This Policy</h2>
+                  <h2 className="text-2xl font-bold mb-4">11. Changes to This Policy</h2>
                   <p className="text-muted-foreground">
                     We may update this Privacy Policy from time to time. We will notify you of significant 
                     changes by posting the new policy on our website and updating the "Last updated" date.
@@ -229,13 +217,14 @@ export default function PrivacyPolicy() {
                 </section>
 
                 <section>
-                  <h2 className="text-2xl font-bold mb-4">13. Contact Us</h2>
+                  <h2 className="text-2xl font-bold mb-4">12. Contact Us</h2>
                   <p className="text-muted-foreground">
                     For questions about this Privacy Policy or to exercise your rights, please contact us at:
                   </p>
                   <p className="text-muted-foreground mt-4">
                     <strong>Email:</strong> support@plagaiscans.com<br />
                     <strong>Data Controller:</strong> Plagaiscans Technologies Ltd<br />
+                    <strong>Registration:</strong> 16998013<br />
                     <strong>Country:</strong> United Kingdom
                   </p>
                 </section>
