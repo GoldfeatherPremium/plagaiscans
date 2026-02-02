@@ -59,17 +59,27 @@ const Footer = () => {
                 {get('nav_brand', 'Plagaiscans')}
               </span>
             </Link>
-            <p className="text-muted-foreground max-w-sm mb-4">
-              {get('footer_description', 'Professional document similarity and AI content detection services for academic integrity.')}
+            <p className="text-muted-foreground max-w-sm mb-4 text-sm">
+              A subscription-based software-as-a-service platform that provides text similarity 
+              and originality analysis for editors, educators, publishers, and content teams.
             </p>
             <p className="text-xs text-muted-foreground mb-4">
-              {get('footer_disclaimer', 'This service is provided for informational and research purposes only.')}
+              Plagaiscans provides informational analysis only. It does not make academic, legal, 
+              employment, or disciplinary determinations.
             </p>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Mail className="h-4 w-4" />
-              <a href={`mailto:${get('contact_email', 'support@plagaiscans.com')}`} className="hover:text-primary transition-colors">
-                {get('contact_email', 'support@plagaiscans.com')}
-              </a>
+            <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                <a href="mailto:support@plagaiscans.com" className="hover:text-primary transition-colors">
+                  support@plagaiscans.com
+                </a>
+              </div>
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                <a href="mailto:billing@plagaiscans.com" className="hover:text-primary transition-colors">
+                  billing@plagaiscans.com
+                </a>
+              </div>
             </div>
           </div>
 
@@ -142,16 +152,17 @@ const Footer = () => {
                   <path d="M12 11.85C12.9 11.85 13.7 12.15 14.35 12.75L15.75 11.35C14.55 10.25 13.4 9.8 12 9.8C10 9.8 8.25 10.9 7.35 12.65L9.1 14C9.5 12.75 10.65 11.85 12 11.85Z" fill="#EA4335"/>
                 </svg>
               </div>
-              {/* Crypto (USDT) */}
-              <div className="bg-background border border-border rounded px-3 py-1.5 flex items-center justify-center min-w-[50px]">
-                <svg viewBox="0 0 48 32" className="h-6 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect width="48" height="32" rx="4" fill="white"/>
-                  <circle cx="24" cy="16" r="9" fill="#26A17B"/>
-                  <path d="M25.5 15.2V13.5H28.5V11.5H19.5V13.5H22.5V15.2C19.9 15.35 18 15.9 18 16.55C18 17.2 19.9 17.75 22.5 17.9V22H25.5V17.9C28.1 17.75 30 17.2 30 16.55C30 15.9 28.1 15.35 25.5 15.2ZM25.5 17.35V17.35C25.35 17.35 24.95 17.4 24 17.4C23.2 17.4 22.7 17.35 22.5 17.3V17.3C20.35 17.15 18.8 16.75 18.8 16.25C18.8 15.8 20.15 15.4 22.5 15.25V16.8C22.7 16.85 23.25 16.9 24.05 16.9C25 16.9 25.4 16.85 25.5 16.8V15.25C27.85 15.4 29.2 15.8 29.2 16.25C29.2 16.75 27.65 17.15 25.5 17.35Z" fill="white"/>
-                </svg>
-              </div>
             </div>
           </div>
+        </div>
+
+        {/* Footer Disclaimer */}
+        <div className="pt-6 border-t border-border mb-6">
+          <p className="text-xs text-muted-foreground text-center max-w-3xl mx-auto">
+            Plagaiscans is an informational software tool. Outputs are advisory only and must be reviewed by a human. 
+            The service does not replace professional, academic, or legal judgment. The company does not offer legal, 
+            academic, or regulatory advisory services.
+          </p>
         </div>
 
         {/* Bottom */}

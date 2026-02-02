@@ -39,8 +39,8 @@ export default function Contact() {
     <>
       <SEO
         title="Contact Support"
-        description="Get in touch with PlagaiScans support team. We're here to help with account issues, document processing, refunds, and technical support."
-        keywords="contact support, plagiarism checker help, customer service, technical support"
+        description="Get in touch with Plagaiscans support team. We're here to help with account issues, document processing, refunds, and technical support."
+        keywords="contact support, customer service, technical support"
         canonicalUrl="/contact"
         structuredData={generateWebPageSchema('Contact Support', 'Get in touch with our support team', '/contact')}
       />
@@ -49,10 +49,10 @@ export default function Contact() {
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container-width flex h-16 items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <FileCheck className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-display font-bold text-lg">PlagaiScans</span>
+            <span className="font-display font-bold text-lg">Plagaiscans</span>
           </Link>
           <Link to="/">
             <Button variant="ghost" size="sm">
@@ -69,10 +69,10 @@ export default function Contact() {
           {/* Hero Section */}
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
-              Contact <span className="text-primary">Support</span>
+              Contact Support
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Have questions or need assistance? Our support team is here to help.
+              Have questions or need assistance? Our support team is available via email.
             </p>
           </div>
 
@@ -101,8 +101,27 @@ export default function Contact() {
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
-                    <div className="h-12 w-12 rounded-lg bg-[#25D366]/10 flex items-center justify-center flex-shrink-0">
-                      <MessageCircle className="h-6 w-6 text-[#25D366]" />
+                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Mail className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg mb-1">Billing Inquiries</h3>
+                      <p className="text-muted-foreground text-sm mb-2">
+                        For payment and billing questions
+                      </p>
+                      <a href="mailto:billing@plagaiscans.com" className="text-primary hover:underline font-medium">
+                        billing@plagaiscans.com
+                      </a>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <MessageCircle className="h-6 w-6 text-primary" />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-bold text-lg mb-1">WhatsApp Support</h3>
@@ -112,7 +131,7 @@ export default function Contact() {
                       <p className="font-medium mb-3">+44 7360 536649</p>
                       <Button 
                         onClick={() => openWhatsAppSupport()}
-                        className="bg-[#25D366] hover:bg-[#128C7E] text-white"
+                        variant="outline"
                         size="sm"
                       >
                         <MessageCircle className="h-4 w-4 mr-2" />
@@ -126,8 +145,8 @@ export default function Contact() {
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
-                    <div className="h-12 w-12 rounded-lg bg-secondary/10 flex items-center justify-center flex-shrink-0">
-                      <Clock className="h-6 w-6 text-secondary" />
+                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Clock className="h-6 w-6 text-primary" />
                     </div>
                     <div>
                       <h3 className="font-bold text-lg mb-1">Response Time</h3>
@@ -153,7 +172,7 @@ export default function Contact() {
                         <li>• Document processing issues</li>
                         <li>• Technical support</li>
                         <li>• Refund requests</li>
-                        <li>• Feature requests</li>
+                        <li>• Service inquiries</li>
                       </ul>
                     </div>
                   </div>
@@ -164,7 +183,7 @@ export default function Contact() {
                 <CardContent className="p-6">
                   <p className="text-sm text-muted-foreground">
                     <strong>Before contacting support:</strong> Please check if your question is 
-                    answered in our Terms & Conditions or Privacy Policy pages. This can help 
+                    answered in our Terms of Service or Privacy Policy pages. This can help 
                     you get answers faster.
                   </p>
                 </CardContent>
@@ -243,11 +262,14 @@ export default function Contact() {
           </div>
 
           {/* Company Info */}
-          <Card className="mt-12 bg-primary/5 border-primary/20">
+          <Card className="mt-12 bg-muted/50 border-border">
             <CardContent className="p-8 text-center">
               <h2 className="text-xl font-bold mb-2">Plagaiscans Technologies Ltd</h2>
-              <p className="text-muted-foreground">
-                Operating as PlagaiScans • United Kingdom
+              <p className="text-muted-foreground mb-4">
+                UK-registered limited company providing software services
+              </p>
+              <p className="text-sm text-muted-foreground">
+                The company does not offer legal, academic, or regulatory advisory services.
               </p>
             </CardContent>
           </Card>

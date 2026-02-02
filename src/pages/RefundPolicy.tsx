@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { FileCheck, ArrowLeft, Mail, Shield, Loader2, Clock, Calendar, CheckCircle2, AlertCircle } from 'lucide-react';
+import { FileCheck, ArrowLeft, Mail, Shield, Loader2, Clock, Calendar, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -60,7 +60,7 @@ export default function RefundPolicy() {
       console.error('Error submitting refund request:', error);
       toast({
         title: "Failed to submit request",
-        description: "Please try again or email us directly.",
+        description: "Please try again or email us directly at support@plagaiscans.com.",
         variant: "destructive",
       });
     } finally {
@@ -84,7 +84,7 @@ export default function RefundPolicy() {
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                 <FileCheck className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="font-display font-bold text-lg">PlagaiScans</span>
+              <span className="font-display font-bold text-lg">Plagaiscans</span>
             </Link>
             <Link to="/">
               <Button variant="ghost" size="sm">
@@ -98,7 +98,7 @@ export default function RefundPolicy() {
         <main className="container-width px-4 py-16">
           <div className="max-w-4xl mx-auto">
             <h1 className="text-4xl font-display font-bold mb-4">Refund Policy</h1>
-            <p className="text-muted-foreground mb-8">Last updated: January 2025</p>
+            <p className="text-muted-foreground mb-8">Last updated: February 2025</p>
 
             {/* Service Delivery Statement */}
             <Alert className="mb-8 border-border bg-muted/50">
@@ -106,40 +106,41 @@ export default function RefundPolicy() {
               <AlertDescription>
                 <h2 className="text-lg font-bold mb-2 text-foreground">Service Delivery Statement</h2>
                 <p className="text-muted-foreground">
-                  Credits and access to document analysis services are delivered instantly upon 
+                  Credits and access to text analysis services are delivered instantly upon 
                   payment confirmation. This is a digital service with immediate delivery.
                 </p>
               </AlertDescription>
             </Alert>
 
-            {/* 14-Day Refund Window Notice */}
-            <Card className="mb-8 border-border">
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <Calendar className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
-                  <div>
-                    <h2 className="text-xl font-bold mb-2">14-Day Refund Window</h2>
-                    <p className="text-muted-foreground mb-3">
-                      We offer a <strong>14-day refund window</strong> from the date of purchase. If you have not used any of your purchased credits within this period, you are eligible to request a refund.
-                    </p>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                        Request must be made within 14 days of purchase
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                        Credits must be unused (0 credits consumed)
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                        Refund to your original payment method
-                      </li>
-                    </ul>
+            {/* Refund Windows */}
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+              <Card className="border-border">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <Calendar className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
+                    <div>
+                      <h2 className="text-xl font-bold mb-2">Monthly Subscriptions</h2>
+                      <p className="text-muted-foreground text-sm mb-3">
+                        Refund requests accepted within <strong>7 days</strong> of purchase if usage is minimal.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+              <Card className="border-border">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <Calendar className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
+                    <div>
+                      <h2 className="text-xl font-bold mb-2">Annual Subscriptions</h2>
+                      <p className="text-muted-foreground text-sm mb-3">
+                        Prorated refunds accepted within <strong>14 days</strong> of purchase.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Review Process Notice */}
             <Card className="mb-8 border-border">
@@ -154,7 +155,7 @@ export default function RefundPolicy() {
                     <div className="grid sm:grid-cols-3 gap-4 mt-4">
                       <div className="text-center p-3 bg-muted/50 rounded-lg">
                         <div className="text-2xl font-bold text-primary">1</div>
-                        <div className="text-sm text-muted-foreground">Submit your request</div>
+                        <div className="text-sm text-muted-foreground">Submit request via email</div>
                       </div>
                       <div className="text-center p-3 bg-muted/50 rounded-lg">
                         <div className="text-2xl font-bold text-primary">2</div>
@@ -178,21 +179,28 @@ export default function RefundPolicy() {
                     You may be eligible for a refund in the following situations:
                   </p>
                   <div className="bg-muted/50 border border-border rounded-lg p-4 mb-4">
-                    <h3 className="font-semibold mb-2">Eligible for Refund</h3>
+                    <h3 className="font-semibold mb-2 flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                      Eligible for Refund
+                    </h3>
                     <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                      <li><strong>14-day window:</strong> Request made within 14 days of purchase with no credits used</li>
+                      <li><strong>Monthly subscriptions:</strong> Request within 7 days with minimal usage</li>
+                      <li><strong>Annual subscriptions:</strong> Prorated refund within 14 days</li>
                       <li><strong>Technical errors:</strong> System failures that prevented service delivery</li>
                       <li><strong>Duplicate charges:</strong> You were accidentally charged twice for the same purchase</li>
                     </ul>
                   </div>
                   <div className="bg-muted/50 border border-border rounded-lg p-4">
-                    <h3 className="font-semibold mb-2">Not Eligible for Refund</h3>
+                    <h3 className="font-semibold mb-2 flex items-center gap-2">
+                      <XCircle className="h-4 w-4 text-muted-foreground" />
+                      Not Eligible for Refund
+                    </h3>
                     <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+                      <li>Accounts suspended due to policy violations</li>
                       <li>Credits have already been used (even partially)</li>
-                      <li>Request made after 14 days from purchase date</li>
+                      <li>Request made after eligibility window</li>
                       <li>Change of mind after service delivery</li>
                       <li>Expired credits</li>
-                      <li>Account terminated for Terms violation</li>
                     </ul>
                   </div>
                 </section>
@@ -212,7 +220,7 @@ export default function RefundPolicy() {
                 <section className="mb-8">
                   <h2 className="text-2xl font-bold mb-4">3. Refund Request Process</h2>
                   <p className="text-muted-foreground mb-4">
-                    To request a refund review, submit a request with:
+                    Refund requests must be submitted via email with:
                   </p>
                   <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                     <li>Your account email address</li>
@@ -252,6 +260,7 @@ export default function RefundPolicy() {
                   </p>
                   <p className="text-muted-foreground mt-4">
                     <strong>Email:</strong> support@plagaiscans.com<br />
+                    <strong>Billing:</strong> billing@plagaiscans.com<br />
                     <strong>Response Time:</strong> 24-48 business hours<br />
                     <strong>Legal Entity:</strong> Plagaiscans Technologies Ltd<br />
                     <strong>Registration:</strong> 16998013<br />
