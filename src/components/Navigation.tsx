@@ -37,8 +37,8 @@ const Navigation = () => {
 
   const navLinks = [
     { href: "/how-it-works", label: t('nav.howItWorks'), isRoute: true },
+    { href: "/use-cases", label: "Use Cases", isRoute: true },
     { href: "/faq", label: t('nav.faq'), isRoute: true },
-    { href: "/resources", label: t('nav.resources'), isRoute: true },
     { href: "/pricing", label: t('nav.pricing'), isRoute: true },
   ];
 
@@ -47,11 +47,11 @@ const Navigation = () => {
       <div className="container-width px-6 md:px-12">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group" aria-label="Plagaiscans home">
-            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+          <Link to="/" className="flex items-center gap-2" aria-label="Plagaiscans home">
+            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
               <FileText className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-xl md:text-2xl font-display font-bold gradient-text">
+            <span className="text-xl md:text-2xl font-display font-bold text-foreground">
               Plagaiscans
             </span>
           </Link>
@@ -94,8 +94,8 @@ const Navigation = () => {
               <span className="sr-only">{t('nav.toggleTheme')}</span>
             </Button>
             <Link to="/auth">
-              <Button variant="hero" size="sm">
-                {t('nav.getStarted')}
+              <Button variant="default" size="sm">
+                Sign Up
               </Button>
             </Link>
           </div>
@@ -153,8 +153,8 @@ const Navigation = () => {
                 </Button>
               </Link>
               <Link to="/auth" onClick={() => setIsOpen(false)}>
-                <Button variant="hero" className="w-full mt-2">
-                  {t('nav.getStarted')}
+                <Button variant="default" className="w-full mt-2">
+                  Sign Up
                 </Button>
               </Link>
               <div className="mt-4 flex justify-center">
