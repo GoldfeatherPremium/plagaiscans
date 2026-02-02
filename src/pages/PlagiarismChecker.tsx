@@ -39,9 +39,9 @@ export default function PlagiarismChecker() {
   return (
     <>
       <SEO
-        title="Plagiarism Checker"
-        description="Check your academic documents for similarity and originality. Get detailed reports with source attribution to support academic integrity and ethical writing."
-        keywords="plagiarism checker, similarity analysis, originality verification, academic writing review, document analysis, academic integrity"
+        title="Text Similarity Review"
+        description="Upload documents to generate similarity reports. Compare your text against indexed sources for content review purposes. Reports are for informational use only."
+        keywords="text similarity, content review, document analysis, similarity report"
         canonicalUrl="/plagiarism-checker"
         ogImage="/og-plagiarism-checker.png"
         structuredData={serviceSchema}
@@ -166,9 +166,9 @@ export default function PlagiarismChecker() {
                   {t('plagiarismChecker.ctaDesc')}
                 </p>
                 <Link to="/auth">
-                  <Button variant="hero" size="lg" className="group">
+                  <Button variant="default" size="lg">
                     {t('plagiarismChecker.ctaButton')}
-                    <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="h-5 w-5 ml-2" />
                   </Button>
                 </Link>
               </CardContent>

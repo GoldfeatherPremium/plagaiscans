@@ -97,7 +97,7 @@ export default function Article() {
       <SEO
         title={loading ? 'Loading...' : title}
         description={`Learn about ${title.toLowerCase()}. ${article.category} article from PlagaiScans resources.`}
-        keywords={`${article.slug.replace(/-/g, ' ')}, academic writing, plagiarism detection, ${article.category.toLowerCase()}`}
+        keywords={`${article.slug.replace(/-/g, ' ')}, content review, document analysis, ${article.category.toLowerCase()}`}
         canonicalUrl={`/resources/${slug}`}
         ogType="article"
         structuredData={articleSchema}
@@ -216,12 +216,12 @@ export default function Article() {
             <CardContent className="p-6 md:p-8 text-center">
               <h2 className="text-xl font-bold mb-3">Ready to Check Your Document?</h2>
               <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-                Apply what you've learned and verify your document's originality with Plagaiscans.
+                Upload your document to generate a similarity report for your review.
               </p>
               <Link to="/auth">
-                <Button variant="hero" size="lg" className="group">
+                <Button variant="default" size="lg">
                   Get Started
-                  <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="h-5 w-5 ml-2" />
                 </Button>
               </Link>
             </CardContent>

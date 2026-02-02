@@ -651,7 +651,7 @@ export default function BuyCredits() {
                           </li>
                           <li className="flex items-center gap-2">
                             <CheckCircle className="h-4 w-4 text-orange-500 flex-shrink-0" />
-                            <span>AI detection included</span>
+                            <span>Content analysis included</span>
                           </li>
                         </>
                       )}

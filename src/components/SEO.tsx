@@ -13,9 +13,9 @@ interface SEOProps {
 
 const defaultSEO = {
   siteName: 'PlagaiScans',
-  title: 'PlagaiScans - Plagiarism & AI Detection for Academic Integrity',
-  description: 'Professional plagiarism detection and AI content analysis for students, researchers, and educators. Get detailed similarity reports and AI detection with fast processing.',
-  keywords: 'plagiarism checker, plagiarism detection, AI detection, similarity report, academic integrity, document analysis, content verification',
+  title: 'PlagaiScans - Text Similarity Review and Content Analysis',
+  description: 'A text similarity review and content analysis service providing informational reports. Compare documents against indexed sources for your content review process.',
+  keywords: 'text similarity, content analysis, document review, similarity report, content review, document comparison',
   ogImage: '/og-image.png',
   siteUrl: 'https://plagaiscans.com',
 };
@@ -111,12 +111,12 @@ export const generateWebPageSchema = (title: string, description: string, url: s
 export const generateServiceSchema = () => ({
   '@context': 'https://schema.org',
   '@type': 'Service',
-  name: 'Plagiarism Detection Service',
+  name: 'Text Similarity Review Service',
   provider: {
     '@type': 'Organization',
     name: 'Plagaiscans',
   },
-  description: 'Professional similarity analysis and AI content indicators for academic documents.',
+  description: 'A text similarity review and content analysis service providing informational reports.',
   serviceType: 'Document Analysis',
   areaServed: 'Worldwide',
 });
@@ -155,9 +155,9 @@ export const generateSoftwareApplicationSchema = () => ({
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
   name: 'Plagaiscans',
-  applicationCategory: 'EducationalApplication',
+  applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web Browser',
-  description: 'Academic integrity platform for similarity analysis and originality verification.',
+  description: 'A text similarity review and content analysis service providing informational reports.',
   offers: {
     '@type': 'Offer',
     price: '2.00',

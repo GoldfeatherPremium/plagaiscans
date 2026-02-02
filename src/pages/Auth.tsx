@@ -516,7 +516,7 @@ export default function Auth() {
     <>
       <SEO
         title={t('login.title')}
-        description="Log in or create an account to access Plagaiscans plagiarism detection and AI content analysis tools."
+        description="Log in or create an account to access PlagaiScans document analysis and content review tools."
         noIndex={true}
       />
       <div className="min-h-screen bg-background flex items-center justify-center p-4">

@@ -116,9 +116,9 @@ const ContactSection = () => {
             {/* CTA Button */}
             <div className="mt-10">
               <Link to="/auth">
-                <Button variant="hero" size="lg" className="group">
-                  Start Checking Now
-                  <Send className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                <Button variant="default" size="lg">
+                  Get Started
+                  <Send className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
             </div>
@@ -164,7 +164,7 @@ const ContactSection = () => {
                 </label>
                 <Textarea
                   id="message"
-                  placeholder="How can we help you with plagiarism checking?"
+                  placeholder="How can we help you?"
                   value={formData.message}
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   className="bg-muted/50 border-border/50 focus:border-primary min-h-[150px] resize-none"
@@ -172,7 +172,7 @@ const ContactSection = () => {
                 />
               </div>
 
-              <Button type="submit" variant="hero" size="lg" className="w-full group" disabled={isSubmitting}>
+              <Button type="submit" variant="default" size="lg" className="w-full" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />

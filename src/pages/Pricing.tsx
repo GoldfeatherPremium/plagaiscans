@@ -100,10 +100,10 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing"
-        description="Simple, transparent pricing for plagiarism detection. Pay per document with no hidden fees. Credits never expire. Starting at $2 per document check."
-        keywords="plagiarism checker pricing, document check cost, academic integrity pricing, AI detection cost"
+        description="Credit packages for text similarity review and content analysis. Simple usage-based pricing with defined validity periods."
+        keywords="document analysis pricing, credit packages, content review pricing"
         canonicalUrl="/pricing"
-        structuredData={generateWebPageSchema('Pricing', 'Simple, transparent pricing for plagiarism detection', '/pricing')}
+        structuredData={generateWebPageSchema('Pricing', 'Credit packages for text similarity review', '/pricing')}
       />
       <div className="min-h-screen bg-background">
       {/* Navigation */}

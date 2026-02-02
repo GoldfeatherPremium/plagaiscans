@@ -42,7 +42,7 @@ const WorkSection = () => {
             </span>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold">
               Featured
-              <span className="gradient-text"> Projects</span>
+              <span className="text-primary"> Projects</span>
             </h2>
           </div>
           <a
@@ -78,7 +78,7 @@ const WorkSection = () => {
                 <span className="text-primary text-sm font-medium mb-2">
                   {project.category}
                 </span>
-                <h3 className="text-2xl md:text-3xl font-display font-bold group-hover:gradient-text transition-all duration-300">
+                <h3 className="text-2xl md:text-3xl font-display font-bold group-hover:text-primary transition-all duration-300">
                   {project.title}
                 </h3>
               </div>

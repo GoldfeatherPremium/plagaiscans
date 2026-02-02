@@ -475,7 +475,7 @@ export default function MyDocuments() {
                 <ul className="text-sm list-disc list-inside">
                   <li>The original uploaded file</li>
                   <li>The similarity report</li>
-                  <li>The AI detection report</li>
+                  <li>The content analysis report</li>
                   <li>All associated data and tags</li>
                 </ul>
               </AlertDialogDescription>

@@ -1,4 +1,4 @@
-import { FileText, Search, BookCheck, Bot, Shield, Zap } from "lucide-react";
+import { FileText, Search, BookCheck, BarChart2, Shield, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const ServicesSection = () => {
@@ -7,47 +7,46 @@ const ServicesSection = () => {
   const services = [
     {
       icon: Search,
-      title: "Detailed Similarity Reports",
-      description: "View highlighted matches, similarity percentages, and matched sources to understand how content overlaps with existing materials.",
-      highlight: "Source Insights",
+      title: "Similarity Reports",
+      description: "View matched text segments, similarity percentages, and source references to support your content review process.",
+      highlight: "Text Comparison",
     },
     {
       icon: FileText,
-      title: "Identify Overlapping Text",
-      description: "Easily locate repeated or similar content and improve originality before submission.",
-      highlight: "Improve Originality",
+      title: "Source References",
+      description: "Reports include references to indexed sources where text matches are found, for your manual review.",
+      highlight: "Reference Review",
     },
     {
       icon: BookCheck,
-      title: "Citation & Reference Checks",
-      description: "Support academic compliance by reviewing citation patterns and references in your documents.",
-      highlight: "Academic Compliance",
+      title: "Citation Review",
+      description: "Review citation patterns in your documents as part of your content analysis process.",
+      highlight: "Citation Support",
     },
     {
-      icon: Bot,
-      title: "AI-Content Detection Indicators",
-      description: "Analyze text for potential AI-generated patterns to support responsible academic use. Indicators are advisory and should not be considered definitive.",
-      highlight: "AI Detection",
+      icon: BarChart2,
+      title: "Content Indicators",
+      description: "Reports include content analysis indicators for informational purposes. These indicators are advisory only and require human interpretation.",
+      highlight: "Advisory Indicators",
     },
     {
       icon: Shield,
-      title: "Privacy-First Plagiarism Scanning",
-      description: "Uploaded documents remain private and are processed securely. Your data is never shared with third parties.",
-      highlight: "Secure & Private",
+      title: "Secure Document Handling",
+      description: "Documents are processed securely. Users may delete documents after processing. Documents are not shared with other users.",
+      highlight: "Secure Processing",
     },
     {
-      icon: Zap,
-      title: "Fast & Reliable Processing",
-      description: "Get your detailed reports back within minutes, not hours. Quick turnaround without compromising accuracy.",
-      highlight: "Fast Results",
+      icon: Clock,
+      title: "Standard Processing",
+      description: "Documents are typically processed within a reasonable timeframe. Processing times may vary based on system load.",
+      highlight: "Processing",
     },
   ];
 
   return (
     <section id="services" className="section-padding relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-secondary/10 rounded-full blur-[120px]" />
-      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-primary/10 rounded-full blur-[100px]" />
+      {/* Background */}
+      <div className="absolute inset-0 bg-muted/20" />
 
       <div className="container-width relative z-10">
         {/* Section Header */}
@@ -55,25 +54,25 @@ const ServicesSection = () => {
           <span className="text-primary font-medium text-sm tracking-wider uppercase mb-4 block">
             {t('services.title')}
           </span>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-6">
+          <h2 className="text-3xl md:text-4xl font-display font-bold mb-6">
             {t('services.subtitle')}
           </h2>
         </div>
 
         {/* Services Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {services.map((service, index) => (
             <div
               key={index}
-              className="group p-8 rounded-2xl glass hover:bg-card/70 transition-all duration-500 border border-transparent hover:border-primary/20 hover:-translate-y-1"
+              className="p-8 rounded-2xl bg-card border border-border"
             >
               {/* Icon */}
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-all duration-500">
-                <service.icon className="w-7 h-7 text-primary" />
+              <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center mb-6">
+                <service.icon className="w-7 h-7 text-muted-foreground" />
               </div>
 
               {/* Content */}
-              <div className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-3">
+              <div className="inline-block px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium mb-3">
                 {service.highlight}
               </div>
               <h3 className="text-xl font-display font-semibold mb-3">{service.title}</h3>
@@ -82,6 +81,14 @@ const ServicesSection = () => {
               </p>
             </div>
           ))}
+        </div>
+
+        {/* Disclaimer */}
+        <div className="mt-12 text-center">
+          <p className="text-sm text-muted-foreground italic max-w-2xl mx-auto">
+            Reports are provided for informational purposes only. Results depend on available indexed sources. 
+            Users are responsible for reviewing and interpreting all results.
+          </p>
         </div>
       </div>
     </section>

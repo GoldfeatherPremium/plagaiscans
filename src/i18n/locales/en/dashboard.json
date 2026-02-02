@@ -186,7 +186,7 @@
   },
   "uploadSimilarity": {
     "title": "Similarity Check Only",
-    "subtitle": "Upload documents for plagiarism/similarity detection only (no AI detection)",
+    "subtitle": "Upload documents for similarity checking only (text comparison against indexed sources)",
     "similarityCredits": "Similarity Credits",
     "buyMore": "Buy More Credits",
     "uploadComplete": "Upload Complete",
