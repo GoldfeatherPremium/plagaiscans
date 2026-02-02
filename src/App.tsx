@@ -89,6 +89,8 @@ const AIContentDetection = lazy(() => import("./pages/AIContentDetection"));
 const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess"));
 const SubscriptionManagement = lazy(() => import("./pages/SubscriptionManagement"));
 const AdminStripePayments = lazy(() => import("./pages/AdminStripePayments"));
+const AdminStripeDisputes = lazy(() => import("./pages/AdminStripeDisputes"));
+const AdminStripeRefunds = lazy(() => import("./pages/AdminStripeRefunds"));
 const AdminReferrals = lazy(() => import("./pages/AdminReferrals"));
 const AdminWebhookLogs = lazy(() => import("./pages/AdminWebhookLogs"));
 const AdminUnifiedPayments = lazy(() => import("./pages/AdminUnifiedPayments"));
@@ -321,6 +323,8 @@ const AppRoutes = () => (
       <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['admin']}><AdminReferrals /></ProtectedRoute>} />
         <Route path="/dashboard/refund-requests" element={<ProtectedRoute allowedRoles={['admin']}><AdminRefundRequests /></ProtectedRoute>} />
         <Route path="/dashboard/stripe-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminStripePayments /></ProtectedRoute>} />
+        <Route path="/dashboard/stripe-disputes" element={<ProtectedRoute allowedRoles={['admin']}><AdminStripeDisputes /></ProtectedRoute>} />
+        <Route path="/dashboard/stripe-refunds" element={<ProtectedRoute allowedRoles={['admin']}><AdminStripeRefunds /></ProtectedRoute>} />
         <Route path="/dashboard/admin-invoices" element={<ProtectedRoute allowedRoles={['admin']}><AdminInvoices /></ProtectedRoute>} />
         <Route path="/dashboard/bank-statements" element={<ProtectedRoute allowedRoles={['admin']}><AdminBankStatements /></ProtectedRoute>} />
         <Route path="/dashboard/webhook-logs" element={<ProtectedRoute allowedRoles={['admin']}><AdminWebhookLogs /></ProtectedRoute>} />

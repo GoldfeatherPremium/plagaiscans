@@ -2123,6 +2123,53 @@ export type Database = {
         }
         Relationships: []
       }
+      stripe_disputes: {
+        Row: {
+          amount_cents: number
+          charge_id: string
+          created_at: string | null
+          dispute_id: string
+          evidence_due_by: string | null
+          id: string
+          reason: string | null
+          resolved_at: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          charge_id: string
+          created_at?: string | null
+          dispute_id: string
+          evidence_due_by?: string | null
+          id?: string
+          reason?: string | null
+          resolved_at?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          charge_id?: string
+          created_at?: string | null
+          dispute_id?: string
+          evidence_due_by?: string | null
+          id?: string
+          reason?: string | null
+          resolved_at?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_disputes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stripe_payments: {
         Row: {
           amount_usd: number
@@ -2167,6 +2214,84 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      stripe_rate_limits: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      stripe_refunds: {
+        Row: {
+          amount_cents: number
+          created_at: string | null
+          credits_deducted: number | null
+          id: string
+          payment_intent_id: string
+          processed_at: string | null
+          processed_by: string | null
+          reason: string | null
+          refund_id: string
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string | null
+          credits_deducted?: number | null
+          id?: string
+          payment_intent_id: string
+          processed_at?: string | null
+          processed_by?: string | null
+          reason?: string | null
+          refund_id: string
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string | null
+          credits_deducted?: number | null
+          id?: string
+          payment_intent_id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          reason?: string | null
+          refund_id?: string
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_refunds_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_refunds_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stripe_webhook_logs: {
         Row: {

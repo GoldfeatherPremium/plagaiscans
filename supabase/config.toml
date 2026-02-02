@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.extension-api]
 verify_jwt = false
+
+[functions.process-stripe-refund]
+verify_jwt = false
