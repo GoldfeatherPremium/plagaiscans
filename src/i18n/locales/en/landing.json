@@ -1,121 +1,116 @@
 {
   "nav": {
     "howItWorks": "How It Works",
+    "useCases": "Use Cases",
     "faq": "FAQ",
     "pricing": "Pricing",
     "login": "Login",
-    "getStarted": "Get Started",
+    "signUp": "Sign Up",
     "dashboard": "Dashboard"
   },
   "hero": {
-    "badge": "Trusted by 10,000+ academics & researchers",
-    "titleLine1": "Plagiarism & Similarity Check",
-    "titleLine2": "for Academic Integrity",
-    "subtitle": "Plagaiscans helps students, researchers, and educators verify originality, identify overlapping content, and understand similarity results through clear and easy-to-read reports.",
-    "ctaPrimary": "Check Document",
+    "titleLine1": "Text Similarity Checking",
+    "titleLine2": "and Content Review",
+    "subtitle": "A document analysis platform that compares your text against indexed sources and generates similarity indicators for your review.",
+    "ctaPrimary": "Create Account",
     "ctaSecondary": "How It Works",
-    "feature1": "Detailed Similarity Reports",
-    "feature2": "AI Content Indicators",
-    "feature3": "Privacy-First Scanning",
-    "stat1Value": "1B+",
-    "stat1Label": "Sources Checked",
-    "stat2Value": "99%",
-    "stat2Label": "Accuracy Rate",
-    "stat3Value": "10K+",
-    "stat3Label": "Happy Users"
+    "disclaimer": "Reports are provided for informational purposes only. Results depend on available indexed sources. Final responsibility for content review lies with the user."
   },
   "features": {
-    "title": "Comprehensive Document Analysis",
-    "subtitle": "Professional similarity checking tools for students, researchers, and universities",
-    "detailedReports": "Detailed Similarity Reports",
-    "detailedReportsDesc": "View highlighted matches, similarity percentages, and matched sources to understand content overlap with existing materials",
-    "aiIndicators": "AI Content Indicators",
-    "aiIndicatorsDesc": "Analyze text for potential AI-generated patterns to support responsible academic use. Indicators are advisory, not definitive.",
-    "fastProcessing": "Fast Processing",
-    "fastProcessingDesc": "Get your detailed analysis reports back within minutes, not hours",
-    "privacyFirst": "Privacy-First Architecture",
-    "privacyFirstDesc": "Your documents are processed securely and never stored, reused, or shared"
+    "title": "Document Analysis Features",
+    "subtitle": "Tools to support your content review process",
+    "detailedReports": "Similarity Reports",
+    "detailedReportsDesc": "Reports highlight potential text overlap for your manual review. View matched segments and source references.",
+    "contentIndicators": "Content Analysis Indicators",
+    "contentIndicatorsDesc": "Indicators are provided for informational purposes only. Results should be reviewed alongside human judgment.",
+    "standardProcessing": "Standard Processing Times",
+    "standardProcessingDesc": "Documents are typically processed within a reasonable timeframe. Processing times may vary.",
+    "secureHandling": "Secure Document Handling",
+    "secureHandlingDesc": "Documents are processed in a secure environment. Users may delete their documents after processing."
   },
   "steps": {
     "title": "How It Works",
-    "subtitle": "Get your document checked in four simple steps",
+    "subtitle": "A straightforward process for document analysis",
     "step1Title": "Create Account",
     "step1Desc": "Sign up with your email and password",
     "step2Title": "Purchase Credits",
-    "step2Desc": "Buy credits to check your documents",
+    "step2Desc": "Buy credits to analyse your documents",
     "step3Title": "Upload Document",
     "step3Desc": "Upload your file (1 credit per document)",
-    "step4Title": "Get Reports",
-    "step4Desc": "Download similarity and AI indicator reports"
+    "step4Title": "Review Report",
+    "step4Desc": "Download and manually review the findings"
   },
   "pricingCta": {
-    "title": "Simple, Transparent Pricing",
-    "subtitle": "Pay per document with no hidden fees. Choose from one-time packages or subscription plans.",
-    "button": "View Pricing Plans"
+    "title": "Credit Packages Available",
+    "subtitle": "Purchase credits to use our document analysis service. Credit packages have defined validity periods.",
+    "button": "View Pricing"
   },
   "cta": {
-    "title": "Ready to Check Your Documents?",
-    "subtitle": "Join thousands of users who trust Plagaiscans for accurate originality verification.",
-    "button": "Get Started Free"
+    "title": "Ready to Review Your Documents?",
+    "subtitle": "Create an account to access our document analysis tools.",
+    "disclaimer": "This service does not verify, approve, or certify content for any purpose. Users are responsible for final decisions.",
+    "button": "Create Account"
   },
   "about": {
-    "label": "About Plagaiscans",
-    "title": "Academic Integrity Platform for",
-    "titleGradient": "Originality Verification",
-    "paragraph1": "Plagaiscans is an academic integrity platform designed to support plagiarism detection and similarity analysis for educational and research use. Our system helps users understand content originality by highlighting overlapping text, source references, and similarity percentages in a clear and structured format.",
-    "paragraph2": "Plagaiscans prioritizes privacy, transparency, and usability—ensuring users can verify originality with confidence.",
-    "feature1Title": "Similarity Detection",
-    "feature1Desc": "View highlighted matches, similarity percentages, and matched sources to understand content overlap.",
-    "feature2Title": "Citation & Reference Checks",
-    "feature2Desc": "Support academic compliance by reviewing citation patterns and references.",
-    "feature3Title": "AI Content Indicators",
-    "feature3Desc": "Analyze text for potential AI-generated patterns to support responsible academic use.",
-    "feature4Title": "Privacy-First Scanning",
-    "feature4Desc": "Uploaded documents remain private and are processed securely."
+    "label": "About PlagaiScans",
+    "title": "Document Analysis Platform for",
+    "titleGradient": "Content Review",
+    "paragraph1": "PlagaiScans is a document analysis platform that compares submitted text against indexed sources to generate similarity indicators.",
+    "paragraph2": "Reports are provided for informational purposes only and should be used as a reference tool alongside human review.",
+    "feature1Title": "Similarity Indicators",
+    "feature1Desc": "View matched text segments and source references for your review.",
+    "feature2Title": "Source References",
+    "feature2Desc": "Reports include references to matched sources where available.",
+    "feature3Title": "Content Indicators",
+    "feature3Desc": "Advisory indicators to support your content review process.",
+    "feature4Title": "Secure Processing",
+    "feature4Desc": "Documents are processed securely. Users may delete their documents after processing."
   },
   "services": {
     "title": "Our Services",
-    "subtitle": "Comprehensive document analysis tools"
+    "subtitle": "Document analysis tools"
   },
   "howItWorks": {
     "title": "How",
-    "titleSuffix": "Works",
-    "subtitle": "A simple, transparent process to verify document originality and maintain academic integrity.",
+    "titleSuffix": "It Works",
+    "subtitle": "A simple process for document analysis and content review.",
     "backToHome": "Back to Home",
-    "whyChoose": "Why Choose Plagaiscans?",
-    "readyToCheck": "Ready to Check Your Document?",
-    "ctaDescription": "Join thousands of students, researchers, and educators who trust Plagaiscans for accurate originality verification.",
-    "getStarted": "Get Started Now",
-    "step1Title": "Upload Document",
-    "step1Desc": "Upload your document in PDF, DOC, or DOCX format",
-    "step2Title": "Analysis",
-    "step2Desc": "Our system analyzes your document for similarity and AI content",
-    "step3Title": "Get Report",
-    "step3Desc": "Receive a detailed report with highlighted matches and sources"
+    "whyChoose": "Service Features",
+    "readyToCheck": "Ready to Analyse Your Document?",
+    "ctaDescription": "Create an account to access our document analysis tools.",
+    "getStarted": "Create Account",
+    "step1Title": "Create Account & Upload",
+    "step1Desc": "Sign up and upload your document in a supported format (PDF, DOC, DOCX, TXT).",
+    "step2Title": "Content Comparison",
+    "step2Desc": "Your text is compared against available indexed sources to identify potential overlaps.",
+    "step3Title": "Report Generation",
+    "step3Desc": "A report is generated showing similarity indicators and matched text segments.",
+    "step4Title": "Review & Download",
+    "step4Desc": "Download and manually review the findings. Interpretation is your responsibility."
   },
   "faq": {
     "title": "Frequently Asked",
     "titleHighlight": "Questions",
-    "subtitle": "Find answers to common questions about Plagaiscans and our academic integrity services.",
+    "subtitle": "Find answers to common questions about our document analysis service.",
     "backToHome": "Back to Home",
     "stillHaveQuestions": "Still have questions?",
-    "supportTeamReady": "Our support team is ready to help you with any additional inquiries.",
+    "supportTeamReady": "Our support team is available to help with additional inquiries.",
     "contactSupport": "Contact Support"
   },
   "pricing": {
-    "title": "Simple, Transparent Pricing",
-    "subtitle": "Choose the plan that fits your needs. One-time purchases, subscriptions, or limited-time offers.",
+    "title": "Pricing",
+    "subtitle": "Credit packages for document analysis. Packages have defined validity periods.",
     "tabs": {
       "creditPacks": "Credit Packs",
       "subscriptions": "Subscriptions",
       "limitedTime": "Limited Time"
     },
-    "bestValue": "Best Value",
+    "bestValue": "Popular",
     "validFor": "Valid for {{days}} days",
     "getStarted": "Get Started",
     "customPlan": {
       "title": "Custom Plan",
-      "description": "Need more credits? Get a personalized quote for bulk purchases.",
+      "description": "Need more credits? Contact us for bulk pricing.",
       "fullName": "Full Name",
       "namePlaceholder": "Your name",
       "email": "Email",
@@ -124,47 +119,47 @@
       "phonePlaceholder": "+1234567890",
       "credits": "Credits Needed",
       "creditsPlaceholder": "e.g., 50",
-      "submit": "Get Quote Price",
-      "note": "Minimum 20 credits for custom pricing. We'll respond within 24 hours."
+      "submit": "Request Quote",
+      "note": "Minimum 20 credits for custom pricing. We will respond within 24 hours."
     },
     "features": {
-      "title": "What's Included",
+      "title": "Service Information",
       "fast": {
-        "title": "Fast Processing",
-        "description": "Most documents processed within minutes"
+        "title": "Processing Times",
+        "description": "Documents are typically processed within a reasonable timeframe"
       },
       "secure": {
-        "title": "Secure & Private",
-        "description": "Your documents are handled securely and can be deleted anytime"
+        "title": "Document Security",
+        "description": "Documents are handled securely and can be deleted by users"
       },
-      "noExpiry": {
-        "title": "Credits Never Expire",
-        "description": "Use your credits whenever you need them"
+      "validity": {
+        "title": "Credit Validity",
+        "description": "Credits have defined validity periods as stated in each package"
       }
     },
     "faq": {
       "title": "Frequently Asked Questions",
       "nonRepo": {
         "question": "What is a Non-Repository check?",
-        "answer": "Your documents are checked for similarity without being stored in any permanent database. This means your content remains private and won't appear in future checks."
+        "answer": "Documents are compared against indexed sources without being permanently stored in a public database."
       },
       "payment": {
         "question": "What payment methods do you accept?",
-        "answer": "We accept all major credit/debit cards, PayPal, and select cryptocurrency options through our secure payment processor."
+        "answer": "We accept major credit/debit cards and PayPal through our payment processors."
       },
       "refund": {
-        "question": "Can I get a refund?",
-        "answer": "Yes! We offer a 14-day money-back guarantee on all purchases. See our",
+        "question": "What is your refund policy?",
+        "answer": "Refund requests are reviewed within 14 days of purchase for unused credits. See our",
         "link": "Refund Policy"
       },
       "processing": {
         "question": "How long does processing take?",
-        "answer": "Most documents are processed within minutes. Priority processing is available with bulk credit packages."
+        "answer": "Processing times vary depending on document length and system load."
       }
     },
     "disclaimer": {
-      "label": "Disclaimer:",
-      "text": "This service is provided for informational and research purposes only. Results are based on algorithmic analysis and should be used as a reference tool. PlagaiScans does not guarantee any specific outcomes."
+      "label": "Important Notice:",
+      "text": "This service is provided for informational purposes only. Results are generated by automated analysis and should be used as a reference tool. We do not guarantee detection accuracy or completeness. Users are responsible for final content review and decisions."
     }
   },
   "contact": {

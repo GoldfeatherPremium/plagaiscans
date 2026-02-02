@@ -343,9 +343,9 @@ export default function Pricing() {
               </Card>
               <Card className="text-center p-6">
                 <Clock className="h-10 w-10 text-primary mx-auto mb-4" />
-                <h3 className="font-bold mb-2">{t('pricing.features.noExpiry.title')}</h3>
+                <h3 className="font-bold mb-2">{t('pricing.features.validity.title')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  {t('pricing.features.noExpiry.description')}
+                  {t('pricing.features.validity.description')}
                 </p>
               </Card>
             </div>
