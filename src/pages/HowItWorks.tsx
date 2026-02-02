@@ -16,29 +16,29 @@ export default function HowItWorks() {
     {
       number: 1,
       icon: Upload,
-      title: "Create Account & Upload",
-      description: "Sign up and upload your document in a supported format (PDF, DOC, DOCX, TXT).",
+      title: "Users Submit Text",
+      description: "Users submit text through the platform in a supported format (PDF, DOC, DOCX, TXT).",
       details: ["Create an account with email", "Purchase credits as needed", "Upload your document securely"]
     },
     {
       number: 2,
       icon: Search,
-      title: "Content Comparison",
-      description: "Your text is compared against available indexed sources to identify potential overlaps.",
-      details: ["Document text is extracted", "Compared against indexed sources", "Potential matches identified"]
+      title: "Automated Processing",
+      description: "Automated systems process the text to identify similarity indicators.",
+      details: ["Document text is extracted", "Compared against indexed sources", "Similarity patterns identified"]
     },
     {
       number: 3,
       icon: FileText,
       title: "Report Generation",
       description: "A report is generated showing similarity indicators and matched text segments.",
-      details: ["Similarity percentage calculated", "Matched segments highlighted", "Source references included"]
+      details: ["Similarity percentage calculated", "Overlap indicators highlighted", "Source references included"]
     },
     {
       number: 4,
       icon: Download,
-      title: "Review & Download",
-      description: "Download and manually review the findings. Interpretation is your responsibility.",
+      title: "User Reviews Results",
+      description: "User reviews results manually. All interpretation and judgment is the user's responsibility.",
       details: ["Download PDF reports", "Review matched segments", "Make your own assessment"]
     }
   ];
@@ -57,7 +57,7 @@ export default function HowItWorks() {
     {
       icon: FileText,
       title: "Report Format",
-      description: "Reports are provided in PDF format for download and review."
+      description: "Reports are provided in PDF format for download and review. All outputs are advisory indicators."
     }
   ];
 
@@ -65,11 +65,11 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works"
-        description="Learn how PlagaiScans document analysis works. Upload your document, receive a similarity report, and review the findings."
-        keywords="document analysis process, similarity checking steps, how to use PlagaiScans"
+        description="Learn how Plagaiscans text analysis works. Submit text, receive similarity indicators, and review the findings manually."
+        keywords="text analysis process, similarity checking steps, how to use Plagaiscans"
         canonicalUrl="/how-it-works"
         ogImage="/og-how-it-works.png"
-        structuredData={generateWebPageSchema('How It Works', 'Simple process for document analysis', '/how-it-works')}
+        structuredData={generateWebPageSchema('How It Works', 'Simple process for text analysis', '/how-it-works')}
       />
       <div className="min-h-screen bg-background">
         {/* Navigation */}
@@ -79,7 +79,7 @@ export default function HowItWorks() {
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                 <FileText className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="font-display font-bold text-lg">PlagaiScans</span>
+              <span className="font-display font-bold text-lg">Plagaiscans</span>
             </Link>
             <Link to="/">
               <Button variant="ghost" size="sm">
@@ -99,10 +99,10 @@ export default function HowItWorks() {
             {/* Hero Section */}
             <div className="text-center mb-12">
               <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
-                {t('howItWorks.title')} <span className="text-primary">PlagaiScans</span> {t('howItWorks.titleSuffix')}
+                How the Service Works
               </h1>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                {t('howItWorks.subtitle')}
+                A simple process for text similarity analysis and content review.
               </p>
             </div>
 
@@ -110,8 +110,8 @@ export default function HowItWorks() {
             <Alert className="mb-12 border-border bg-muted/50">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-sm">
-                Reports are provided for informational purposes only. Results depend on available indexed sources and may not be exhaustive. 
-                Final responsibility for content review and interpretation lies with the user.
+                <strong>Important:</strong> Reports are provided for informational purposes only. Results depend on available indexed sources and may not be exhaustive. 
+                Final responsibility for content review and interpretation lies with the user. This service does not make academic, legal, or disciplinary determinations.
               </AlertDescription>
             </Alert>
 
@@ -152,10 +152,20 @@ export default function HowItWorks() {
               ))}
             </div>
 
+            {/* Processing Note */}
+            <Card className="mb-12 border-border bg-muted/50">
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground text-center">
+                  Processing is limited to the purpose of delivering the service. User-submitted content is processed 
+                  solely to deliver analysis results and is not sold or shared with third parties.
+                </p>
+              </CardContent>
+            </Card>
+
             {/* Features */}
             <div className="mb-16">
               <h2 className="text-3xl font-display font-bold text-center mb-10">
-                {t('howItWorks.whyChoose')}
+                Service Features
               </h2>
               <div className="grid md:grid-cols-3 gap-6">
                 {features.map((feature, index) => (
@@ -175,16 +185,16 @@ export default function HowItWorks() {
             {/* CTA */}
             <Card className="bg-muted/50 border-border">
               <CardContent className="p-8 text-center">
-                <h2 className="text-2xl font-bold mb-4">{t('howItWorks.readyToCheck')}</h2>
+                <h2 className="text-2xl font-bold mb-4">Ready to Get Started?</h2>
                 <p className="text-muted-foreground mb-4 max-w-xl mx-auto">
-                  {t('howItWorks.ctaDescription')}
+                  Create an account to access our text analysis tools.
                 </p>
                 <p className="text-sm text-muted-foreground mb-6">
-                  This service is provided for informational purposes only.
+                  This service is provided for informational purposes only. All outputs are advisory and require human review.
                 </p>
                 <Link to="/auth">
                   <Button size="lg" className="rounded-full">
-                    {t('howItWorks.getStarted')}
+                    Create Account
                     <ArrowRight className="h-5 w-5 ml-2" />
                   </Button>
                 </Link>

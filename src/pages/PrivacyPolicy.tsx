@@ -11,7 +11,7 @@ export default function PrivacyPolicy() {
     <>
       <SEO
         title="Privacy Policy"
-        description="Learn how PlagaiScans collects, uses, and protects your personal data. GDPR compliant privacy policy."
+        description="Learn how Plagaiscans collects, uses, and protects your personal data. GDPR compliant privacy policy."
         keywords="privacy policy, data protection, GDPR, document privacy"
         canonicalUrl="/privacy-policy"
         structuredData={generateWebPageSchema('Privacy Policy', 'How we protect your data', '/privacy-policy')}
@@ -23,7 +23,7 @@ export default function PrivacyPolicy() {
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                 <FileCheck className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="font-display font-bold text-lg">PlagaiScans</span>
+              <span className="font-display font-bold text-lg">Plagaiscans</span>
             </Link>
             <Link to="/">
               <Button variant="ghost" size="sm">
@@ -37,14 +37,14 @@ export default function PrivacyPolicy() {
         <main className="container-width px-4 py-16">
           <div className="max-w-4xl mx-auto">
             <h1 className="text-4xl font-display font-bold mb-4">Privacy Policy</h1>
-            <p className="text-muted-foreground mb-8">Last updated: January 2025</p>
+            <p className="text-muted-foreground mb-8">Last updated: February 2025</p>
 
             <Card>
               <CardContent className="p-8 prose prose-neutral dark:prose-invert max-w-none">
                 <section className="mb-8">
                   <h2 className="text-2xl font-bold mb-4">1. Data Controller</h2>
                   <p className="text-muted-foreground">
-                    <strong>Plagaiscans Technologies Ltd</strong> (United Kingdom, Company No. 16998013), operating as PlagaiScans, 
+                    <strong>Plagaiscans Technologies Ltd</strong> (United Kingdom, Company No. 16998013), operating as Plagaiscans, 
                     is the data controller responsible for your personal data. This privacy policy 
                     explains how we collect, use, and protect your information.
                   </p>
@@ -86,24 +86,24 @@ export default function PrivacyPolicy() {
                 </section>
 
                 <section className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">3. Document Handling</h2>
+                  <h2 className="text-2xl font-bold mb-4">3. Data Handling and Privacy</h2>
                   <p className="text-muted-foreground mb-4">
-                    <strong>How Your Documents Are Processed:</strong>
+                    <strong>How Your Content Is Processed:</strong>
                   </p>
                   <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                    <li>Documents are uploaded to our secure servers for analysis</li>
-                    <li>Content is compared against indexed sources</li>
-                    <li>Reports are generated based on this comparison</li>
-                    <li>Documents may be retained for up to 30 days after processing unless deleted earlier by the user</li>
+                    <li>User-submitted content is processed solely to deliver analysis results</li>
+                    <li>Content is not sold or shared with third parties</li>
+                    <li>Data retention is limited to operational requirements</li>
+                    <li>Users may request data deletion at any time</li>
                   </ul>
                   
                   <p className="text-muted-foreground mt-4 mb-4">
-                    <strong>Document Deletion:</strong>
+                    <strong>Document Retention:</strong>
                   </p>
                   <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+                    <li>Documents may be retained for up to 30 days after processing unless deleted earlier by the user</li>
                     <li>Users may delete their documents at any time after processing</li>
                     <li>Deletion removes the document and associated reports from our systems</li>
-                    <li>We do not retain document content after deletion</li>
                   </ul>
 
                   <p className="text-muted-foreground mt-4 mb-4">
@@ -120,7 +120,7 @@ export default function PrivacyPolicy() {
                   <h2 className="text-2xl font-bold mb-4">4. How We Use Your Information</h2>
                   <p className="text-muted-foreground mb-4">We use your information to:</p>
                   <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                    <li>Provide and maintain our document analysis services</li>
+                    <li>Provide and maintain our text analysis services</li>
                     <li>Process your transactions and manage your account</li>
                     <li>Manage credit balances and validity periods</li>
                     <li>Send service-related notifications</li>
@@ -159,6 +159,9 @@ export default function PrivacyPolicy() {
                     <li>Regular security assessments</li>
                     <li>Employee training on data protection</li>
                   </ul>
+                  <p className="text-muted-foreground mt-4">
+                    Plagaiscans follows applicable data protection standards.
+                  </p>
                 </section>
 
                 <section className="mb-8">
@@ -223,6 +226,7 @@ export default function PrivacyPolicy() {
                   </p>
                   <p className="text-muted-foreground mt-4">
                     <strong>Email:</strong> support@plagaiscans.com<br />
+                    <strong>Billing:</strong> billing@plagaiscans.com<br />
                     <strong>Data Controller:</strong> Plagaiscans Technologies Ltd<br />
                     <strong>Registration:</strong> 16998013<br />
                     <strong>Country:</strong> United Kingdom
