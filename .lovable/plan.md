@@ -1,398 +1,242 @@
 
-# Complete Website Rebuild Plan for Payment Gateway Compliance
+# Homepage Design Overhaul for Human-Built Appearance
 
-## Current Website Analysis
+## Problem Analysis
 
-### Critical Issues Identified
+Payment platforms are flagging the site as AI-generated due to several design patterns commonly associated with AI-generated templates:
 
-**1. Marketing Language Problems**
-- Hero badge: "Trusted by 10,000+ academics & researchers" - unverifiable claim
-- "99% Accuracy Rate" - explicit accuracy claim (HIGH RISK)
-- "1B+ Sources Checked" - unverifiable claim
-- "Advanced algorithms" - AI/tech hype language
-- "Comprehensive Document Analysis" - marketing fluff
-- "Accurate Results" - direct accuracy claim in benefits section
+### Current AI-Generated Signals Identified
 
-**2. Academic Positioning Risks**
-- Title: "Plagiarism & Similarity Check for Academic Integrity"
-- Targeting "students, researchers, and universities"
-- "Verify originality" - implies guarantee
-- "academic integrity services" - institutional approval signal
-
-**3. Design Issues**
-- Gradient text effects (AI-generated appearance)
-- Animated trust badges with sparkles
-- Floating decorative backgrounds
-- Pulsing animations
-- "Hero" button variants
-
-**4. Missing/Broken Pages**
-- /about returns 404
-- /privacy returns 404
-- /terms returns 404 (different URL structure)
-
-**5. Legal Page Weaknesses**
-- Terms lack strong "informational only" disclaimer
-- No explicit "no academic guarantee" clause
-- Privacy Policy missing Airwallex disclosure
-- Refund Policy acceptable but needs minor tweaks
+| Issue | Location | Why It Triggers AI Detection |
+|-------|----------|------------------------------|
+| Glass morphism effects | Navigation, cards (`glass` class) | Trendy AI template aesthetic |
+| Animated gradient shifts | AboutSection marquee (`animate-gradient-shift`) | Common AI demo pattern |
+| Floating glow blurs | WorkSection, ContactSection (`blur-[150px]`) | AI tool landing page cliche |
+| Staggered fade animations | Features grid (`stagger-children`) | Template generator pattern |
+| Hover translate/scale | Cards (`hover:-translate-y-1`, `group-hover:scale-110`) | Overused in AI demos |
+| Rounded pill badges | Hero features (`rounded-full`) | Generic template look |
+| Portfolio "projects" section | WorkSection | Irrelevant to the service |
+| Marquee text strip | AboutSection (`SCAN DETECT VERIFY`) | AI landing page cliche |
+| Large dramatic headings | 5xl-6xl sizes | Over-designed template feel |
+| Excessive color accents | Primary/secondary/accent colors | AI template rainbow palette |
 
 ---
 
-## Rebuild Strategy
+## Redesign Strategy
 
-### Phase 1: Content & Language Overhaul
+Transform to a **conservative enterprise SaaS** appearance similar to established business software (Stripe Dashboard, Notion, Linear).
 
-#### Home Page (Landing.tsx + landing.json)
-
-**Current Hero:**
-```
-"Trusted by 10,000+ academics & researchers"
-"Plagiarism & Similarity Check for Academic Integrity"
-```
-
-**Proposed Replacement:**
-```
-Title: "Text Similarity Checking and Content Review"
-Subtitle: "A document analysis platform that compares your text against indexed sources 
-and generates similarity indicators for your review."
-
-- Remove trust badge entirely
-- Remove all stats (10K users, 1B sources, 99% accuracy)
-- Remove "AI Content Indicators" from hero features
-```
-
-**Features Section Rewrite:**
-| Current | Proposed |
-|---------|----------|
-| "Detailed Similarity Reports" | "Similarity Reports" |
-| "AI Content Indicators" | "Content Analysis Indicators" |
-| "Fast Processing" | "Standard Processing Times" |
-| "Privacy-First Architecture" | "Secure Document Handling" |
-
-**Descriptions to Remove:**
-- "Comprehensive source checking"
-- "Advanced algorithms ensure thorough and reliable similarity detection"
-- "Accurate Results"
-
-**Descriptions to Add:**
-- "Reports highlight potential text overlap for your manual review"
-- "Indicators are provided for informational purposes only"
-- "Final responsibility for content review lies with the user"
+### Design Principles
+1. **Static layouts** - No floating elements or animations
+2. **Single accent color** - Remove secondary/accent color variety
+3. **Solid backgrounds** - No glass, blur, or transparency
+4. **Standard corners** - Use `rounded-lg` not `rounded-2xl`
+5. **Simple typography** - Smaller, more readable heading sizes
+6. **Functional content** - No decorative sections
 
 ---
 
-#### How It Works Page (HowItWorks.tsx)
+## Component Changes
 
-**Current Issues:**
-- Animated demo with gradient colors
-- "billions of academic sources" claim
-- "Accurate Results" in benefits
+### 1. Index.tsx
+- Remove WorkSection completely (irrelevant portfolio projects)
+- Reorder sections: Hero, Services, About, Contact
 
-**Proposed Changes:**
-1. Remove ProcessDemo animation component entirely
-2. Rewrite steps to emphasize user responsibility:
+### 2. HeroSection.tsx
+- Remove background blur/gradient
+- Reduce heading sizes (4xl max)
+- Remove pill badges with icons
+- Simplify to plain text feature list
+- Remove decorative "About This Service" box
+- Use standard button styling
 
-```
-Step 1: "Create Account & Upload"
-- "Sign up and upload your document in a supported format (PDF, DOC, DOCX, TXT)."
+### 3. AboutSection.tsx
+- Remove marquee text strip entirely
+- Remove glass effect from cards
+- Remove hover animations
+- Remove stagger animation delays
+- Remove gradient icon backgrounds
+- Use solid muted backgrounds
+- Reduce heading sizes
 
-Step 2: "Content Comparison"
-- "Your text is compared against available indexed sources to identify potential overlaps."
+### 4. ServicesSection.tsx
+- Remove background overlay
+- Simplify card styling (solid borders, no rounded-2xl)
+- Remove highlight badges
+- Use simpler icon containers
 
-Step 3: "Report Generation"  
-- "A report is generated showing similarity indicators and matched text segments."
+### 5. ContactSection.tsx
+- Remove floating glow background
+- Remove glass effect
+- Remove hover scale animations
+- Use solid card background
 
-Step 4: "Review & Download"
-- "Download and manually review the findings. Interpretation is your responsibility."
-```
+### 6. Navigation.tsx
+- Remove glass effect
+- Use solid background with subtle border
 
-3. Benefits section rewrite:
-   - Remove "Accurate Results"
-   - Change to: "Indicator Reports", "Standard Processing", "Privacy Controls"
+### 7. Footer.tsx
+- Keep mostly as-is (already professional)
+- Ensure no glass effects
 
----
-
-#### Use Cases Page (New Page: UseCases.tsx)
-
-Create a new page with responsibly framed use cases:
-
-**Students:**
-```
-"Students can use similarity reports to review their own work before submission. 
-This tool helps identify areas that may need additional citation or rephrasing. 
-Results are advisory and do not guarantee acceptance by any institution."
-```
-
-**Freelancers & Content Writers:**
-```
-"Freelance writers can check client deliverables against indexed web content 
-to identify potential overlap before delivery. This is a reference tool, not 
-a content approval system."
-```
-
-**Content Editors:**
-```
-"Editorial teams can use similarity indicators as one part of their review process. 
-Human review and judgment remain essential."
-```
-
-**Agencies:**
-```
-"Marketing and content agencies can use this tool as part of internal quality checks. 
-Results should be combined with manual review."
-```
-
-**Disclaimer at bottom:**
-```
-"This service does not verify, approve, or certify content for any purpose. 
-Results are informational indicators only. Users are responsible for final decisions."
-```
+### 8. index.css
+- Remove glow animations
+- Remove floating animations
+- Simplify hover effects
+- Remove glass utilities or make them solid
 
 ---
 
-#### Pricing Page (Pricing.tsx + landing.json)
+## Specific Code Changes
 
-**Current Issues:**
-- "Credits Never Expire" (contradicts package terms with validity_days)
-- Marketing-style card animations
-- "Best Value" badge
+### HeroSection.tsx - Complete Rewrite
 
-**Proposed Changes:**
-1. Remove "Credits Never Expire" feature
-2. Simplify card styling (remove hover animations, rings)
-3. Change "Best Value" to neutral text
-4. Add clear disclaimer:
+```text
+Before:
+- min-h-[80vh] with centered content
+- bg-muted/30 background
+- 6xl headings with primary color span
+- Pill badges with CheckCircle icons
+- Decorative box with FileText icon
 
+After:
+- min-h-auto with adequate padding
+- Plain bg-background
+- 3xl-4xl headings, no colored spans
+- Simple bullet point list
+- No decorative elements
 ```
-"Credit packages have defined validity periods. Unused credits expire as stated. 
-No refunds for expired credits. See Terms of Service for details."
+
+### AboutSection.tsx - Simplification
+
+```text
+Remove:
+- Marquee text section (lines 71-81)
+- hover:-translate-y-1 animation
+- group-hover:scale-110 on icons
+- glass class on cards
+- bg-gradient-to-br on icon containers
+- stagger-children class
+- animationDelay styling
+
+Replace with:
+- bg-card solid backgrounds
+- Static hover states (color only)
+- Solid bg-muted icon containers
 ```
+
+### ServicesSection.tsx - Already decent, minor tweaks
+
+```text
+Remove:
+- rounded-2xl (use rounded-lg)
+- rounded-xl on icons (use rounded-md)
+
+Keep:
+- Current straightforward layout
+```
+
+### ContactSection.tsx - Remove decorative elements
+
+```text
+Remove:
+- Floating glow blur background
+- glass class on form container
+- group-hover:scale-110 on icons
+- icon arrow animations
+
+Replace with:
+- Solid bg-card on form
+- Standard hover:text-primary states
+```
+
+### Navigation.tsx - Professional header
+
+```text
+Remove:
+- glass class
+- link-underline animated class
+
+Replace with:
+- bg-background/95 backdrop-blur-sm border-b border-border
+- Simple text color transitions
+```
+
+### index.css - Cleanup
+
+```text
+Remove or simplify:
+- .glass (make it solid)
+- .hover-lift
+- .hover-glow
+- .glow-pulse
+- .float animation
+- btn-glow effects
+- gradient utilities
+```
+
+### tailwind.config.ts - No changes needed
+
+The config defines available animations but components will stop using them.
 
 ---
 
-#### About Us Page (AboutUs.tsx)
+## Color Simplification
 
-**Rewrite entirely for compliance:**
+Current palette uses:
+- Primary (blue)
+- Secondary (green)
+- Accent (orange)
 
-```
-Title: "About Our Service"
-
-Body:
-"PlagaiScans is a text similarity checking platform operated by Plagaiscans Technologies Ltd, 
-a company registered in the United Kingdom (Company No. 16998013).
-
-Our service compares submitted documents against indexed web and academic sources to generate 
-similarity indicators. These reports are provided for informational purposes only and should 
-be used as a reference tool alongside human review.
-
-What We Do:
-- Compare text against available indexed sources
-- Generate similarity percentage indicators
-- Provide reports showing matched text segments
-- Process documents in a secure environment
-
-What We Do Not Guarantee:
-- Accuracy or completeness of similarity detection
-- Acceptance by any academic institution or employer
-- Detection of all potential overlaps
-- Verification of content originality or authorship
-
-Our reports are advisory tools. Final responsibility for content review, interpretation, 
-and any resulting decisions lies entirely with the user."
-
-Company Information:
-- Legal Name: Plagaiscans Technologies Ltd
-- Trading Name: PlagaiScans
-- Country: United Kingdom
-- Registration: 16998013
-- Contact: support@plagaiscans.com
-```
+New approach:
+- Primary (blue) - only for interactive elements
+- Muted - for backgrounds
+- Foreground - for text
+- Remove secondary/accent from homepage
 
 ---
 
-### Phase 2: Legal Pages Overhaul
+## Typography Changes
 
-#### Terms of Service (TermsAndConditions.tsx)
-
-**Add new section immediately after Introduction:**
-
-```
-"IMPORTANT SERVICE DISCLAIMER
-
-This service is provided for INFORMATIONAL PURPOSES ONLY. PlagaiScans:
-- Does NOT guarantee the accuracy, completeness, or reliability of any report
-- Does NOT verify, approve, or certify content for academic or professional purposes
-- Does NOT provide any guarantee of institutional acceptance
-- Is NOT affiliated with or endorsed by any educational institution
-- Does NOT constitute legal, academic, or professional advice
-
-Users acknowledge that:
-- All reports are advisory indicators only
-- Final responsibility for content review lies with the user
-- Results depend on currently indexed sources and may not be exhaustive
-- No warranty is made regarding detection accuracy
-
-PROHIBITED USES:
-Users may NOT use this service to:
-- Facilitate academic misconduct or plagiarism
-- Represent reports as institutional approvals
-- Circumvent academic integrity requirements
-- Misrepresent report findings to third parties
-"
-```
-
-**Update Service Description:**
-```
-"PlagaiScans provides text similarity checking and content analysis services. 
-We compare submitted documents against indexed sources to generate similarity 
-indicators. This is a reference tool intended to support, not replace, human review."
-```
-
----
-
-#### Privacy Policy (PrivacyPolicy.tsx)
-
-**Add Document Processing Section:**
-
-```
-"DOCUMENT HANDLING
-
-How Your Documents Are Processed:
-- Documents are uploaded to our secure servers for analysis
-- Content is compared against indexed sources
-- Reports are generated based on this comparison
-- Documents may be retained for up to 30 days after processing unless deleted earlier by the user
-
-Document Deletion:
-- Users may delete their documents at any time after processing
-- Deletion removes the document and associated reports from our systems
-- We do not retain document content after deletion
-
-Data Retention:
-- Account data: Retained until account deletion request
-- Document data: Retained until user deletion or 30 days after processing
-- Transaction records: Retained as required by law (typically 7 years)
-- Analysis reports: Retained until user deletion
-
-Third-Party Disclosure:
-- Documents are NOT shared with other users
-- Documents are NOT added to any public database
-- Analysis may use third-party APIs (no document storage by third parties)
-"
-```
-
-**Add Payment Processor Disclosure:**
-```
-"PAYMENT PROCESSING
-
-Payments are processed by third-party payment processors including:
-- Stripe (card payments)
-- PayPal 
-- Airwallex
-- Other providers as indicated at checkout
-
-These processors handle payment information directly. We do not store complete 
-payment card details on our servers."
-```
-
----
-
-#### Refund Policy (RefundPolicy.tsx)
-
-**Current policy is reasonable. Minor additions:**
-
-```
-"SERVICE DELIVERY STATEMENT
-
-Credits and access to document analysis services are delivered instantly upon 
-payment confirmation. This is a digital service with immediate delivery.
-
-Refund Eligibility:
-- Within 14 days of purchase
-- No credits have been used
-- Request submitted via support email
-
-Non-Refundable Circumstances:
-- Credits have been used (even partially)
-- More than 14 days since purchase
-- Expired credits
-- Account terminated for Terms violation
-- Change of mind after service delivery
-"
-```
-
----
-
-### Phase 3: Design Simplification
-
-#### Remove From All Pages:
-1. Gradient text effects (`gradient-text` class)
-2. Animated floating backgrounds
-3. Sparkle icons with pulse animations
-4. "Hero" button variants (use "default" or "outline")
-5. Trust badges
-6. Hover scale/translate animations on cards
-7. Ring highlights on "popular" cards
-
-#### Navigation Changes:
-- Remove "Get Started" CTA button styling
-- Use neutral "Sign Up" or "Create Account"
-- Add "Use Cases" to navigation
-
-#### Footer Updates:
-- Remove "Trusted by X users" if present
-- Keep simple business information
-- Ensure all legal page links work
-
----
-
-### Phase 4: Translation Files Update
-
-Update all locale files (en, es, fr, de, ru, zh, ar) with:
-- Neutral, professional language
-- Removed accuracy claims
-- Added disclaimer text
-- Updated feature descriptions
+| Element | Current | New |
+|---------|---------|-----|
+| Hero H1 | text-3xl to text-6xl | text-2xl to text-4xl |
+| Section H2 | text-3xl to text-5xl | text-2xl to text-3xl |
+| Card H3 | text-lg to text-xl | text-base to text-lg |
+| Body text | text-lg | text-base |
+| Labels | text-sm uppercase tracking-wider | text-sm normal |
 
 ---
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/pages/Landing.tsx` | Remove animations, rewrite hero, update features |
-| `src/pages/HowItWorks.tsx` | Remove ProcessDemo, rewrite steps/benefits |
-| `src/pages/Pricing.tsx` | Simplify design, add disclaimer, fix "never expire" |
-| `src/pages/AboutUs.tsx` | Complete rewrite with company info and disclaimers |
-| `src/pages/PrivacyPolicy.tsx` | Add document handling, payment processor sections |
-| `src/pages/TermsAndConditions.tsx` | Add strong disclaimer section at top |
-| `src/pages/RefundPolicy.tsx` | Add service delivery statement |
-| `src/pages/Contact.tsx` | Simplify, ensure professional tone |
-| `src/i18n/locales/en/landing.json` | Complete content rewrite |
-| `src/i18n/locales/*/landing.json` | Update all 6 other languages |
-| `src/components/Footer.tsx` | Remove any trust claims |
-| `src/App.tsx` | Add route for /use-cases |
-
-## New Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/pages/UseCases.tsx` | Responsibly framed use cases page |
+| File | Type of Changes |
+|------|-----------------|
+| `src/pages/Index.tsx` | Remove WorkSection import and usage |
+| `src/components/HeroSection.tsx` | Complete simplification |
+| `src/components/AboutSection.tsx` | Remove animations, marquee, glass effects |
+| `src/components/ServicesSection.tsx` | Minor corner radius adjustments |
+| `src/components/ContactSection.tsx` | Remove glow, glass, animations |
+| `src/components/Navigation.tsx` | Solid background instead of glass |
+| `src/index.css` | Simplify or remove decorative utilities |
 
 ---
 
-## Expected Outcomes
+## Files to Delete
 
-After implementation:
-1. Website appears clearly human-written and professional
-2. No accuracy or guarantee claims anywhere
-3. Strong disclaimers on all relevant pages
-4. Service positioned as informational tool only
-5. User responsibility emphasized throughout
-6. Clean, minimal design without AI-generated aesthetics
-7. All legal pages accessible and compliant
-8. Payment processor disclosure added
-9. Academic misconduct clearly prohibited in Terms
-10. Suitable for manual review by Stripe, Wise, Mollie, Airwallex, Viva
+| File | Reason |
+|------|--------|
+| `src/components/WorkSection.tsx` | Irrelevant portfolio section |
+
+---
+
+## Expected Outcome
+
+The homepage will appear as a straightforward enterprise software website:
+- Clean, static layouts
+- Professional typography
+- Functional content only
+- No trendy design patterns
+- Suitable for financial services review
+- Indistinguishable from human-designed business software
 
