@@ -61,8 +61,8 @@ export default function AcademicIntegrity() {
     <>
       <SEO
         title="Academic Integrity"
-        description="Learn about academic integrity principles, proper citation practices, and how plagiarism detection tools support ethical scholarship and honest research."
-        keywords="academic integrity, plagiarism prevention, citation best practices, scholarly ethics, academic honesty, research integrity"
+        description="Learn about academic integrity principles, proper citation practices, and how similarity checking tools support ethical scholarship and responsible content creation."
+        keywords="academic integrity, citation best practices, scholarly ethics, academic honesty, research integrity, content review"
         canonicalUrl="/academic-integrity"
         structuredData={pageSchema}
       />
@@ -196,9 +196,9 @@ export default function AcademicIntegrity() {
                 {t('academicIntegrity.ctaDesc')}
               </p>
               <Link to="/auth">
-                <Button variant="hero" size="lg" className="group">
+                <Button variant="default" size="lg">
                   {t('academicIntegrity.ctaButton')}
-                  <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="h-5 w-5 ml-2" />
                 </Button>
               </Link>
             </CardContent>
