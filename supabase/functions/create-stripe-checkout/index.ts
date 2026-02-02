@@ -12,6 +12,68 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-STRIPE-CHECKOUT] ${step}${detailsStr}`);
 };
 
+// Rate limiting configuration
+const RATE_LIMIT = 5; // Max requests
+const RATE_WINDOW_MINUTES = 60; // Per hour
+
+async function checkRateLimit(supabase: any, userId: string): Promise<boolean> {
+  const windowStart = new Date(Date.now() - RATE_WINDOW_MINUTES * 60 * 1000);
+  
+  const { count } = await supabase
+    .from('stripe_rate_limits')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('action', 'checkout')
+    .gte('created_at', windowStart.toISOString());
+    
+  return (count || 0) < RATE_LIMIT;
+}
+
+async function recordRateLimit(supabase: any, userId: string) {
+  await supabase
+    .from('stripe_rate_limits')
+    .insert({ user_id: userId, action: 'checkout' });
+}
+
+// Input validation
+function validateInput(data: any): { valid: boolean; error?: string } {
+  const { priceId, credits, amount, mode, creditType } = data;
+  
+  // Must have either priceId or amount
+  if (!priceId && !amount) {
+    return { valid: false, error: "Price ID or amount is required" };
+  }
+  
+  // Credits must be positive
+  if (!credits || credits <= 0) {
+    return { valid: false, error: "Credits amount must be positive" };
+  }
+  
+  // Amount validation if provided
+  if (amount !== undefined) {
+    if (typeof amount !== 'number' || amount <= 0 || amount > 99999999) {
+      return { valid: false, error: "Invalid amount" };
+    }
+  }
+  
+  // Mode validation
+  if (mode && !['payment', 'subscription'].includes(mode)) {
+    return { valid: false, error: "Invalid payment mode" };
+  }
+  
+  // Credit type validation
+  if (creditType && !['full', 'similarity_only'].includes(creditType)) {
+    return { valid: false, error: "Invalid credit type" };
+  }
+  
+  // Sanitize priceId if provided
+  if (priceId && (typeof priceId !== 'string' || !priceId.startsWith('price_'))) {
+    return { valid: false, error: "Invalid price ID format" };
+  }
+  
+  return { valid: true };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -19,7 +81,7 @@ serve(async (req) => {
 
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
   );
 
   try {
@@ -38,11 +100,34 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { priceId, credits, amount, mode = "payment", creditType = "full" } = await req.json();
+    // Check rate limit
+    const withinRateLimit = await checkRateLimit(supabaseClient, user.id);
+    if (!withinRateLimit) {
+      logStep("Rate limit exceeded", { userId: user.id });
+      return new Response(JSON.stringify({ 
+        error: "Too many checkout attempts. Please wait before trying again." 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 429,
+      });
+    }
+
+    const requestBody = await req.json();
+    const { priceId, credits, amount, mode = "payment", creditType = "full" } = requestBody;
     logStep("Request body parsed", { priceId, credits, amount, mode, creditType });
 
-    if (!priceId && !amount) throw new Error("Price ID or amount is required");
-    if (!credits) throw new Error("Credits amount is required");
+    // Validate input
+    const validation = validateInput(requestBody);
+    if (!validation.valid) {
+      logStep("Validation failed", { error: validation.error });
+      return new Response(JSON.stringify({ error: validation.error }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    // Record rate limit attempt
+    await recordRateLimit(supabaseClient, user.id);
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
@@ -56,13 +141,18 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://fyssbzgmhnolazjfwafm.lovableproject.com";
     
-    // Build line items - use priceId if provided, otherwise use dynamic price_data
+    // Get client info for fraud prevention
+    const clientIp = req.headers.get("x-forwarded-for")?.split(',')[0]?.trim() || 
+                     req.headers.get("x-real-ip") || 
+                     "unknown";
+    const userAgent = req.headers.get("user-agent") || "unknown";
+    
+    // Build line items
     let lineItems: Stripe.Checkout.SessionCreateParams.LineItem[];
     
     if (priceId) {
       lineItems = [{ price: priceId, quantity: 1 }];
     } else {
-      // Dynamic pricing using price_data
       const creditLabel = creditType === "similarity_only" ? "Similarity" : "AI Scan";
       lineItems = [{
         price_data: {
@@ -71,7 +161,7 @@ serve(async (req) => {
             name: `${credits} ${creditLabel} Credits`,
             description: `Purchase of ${credits} ${creditLabel.toLowerCase()} credits`,
           },
-          unit_amount: amount, // amount in cents
+          unit_amount: amount,
         },
         quantity: 1,
       }];
@@ -89,6 +179,18 @@ serve(async (req) => {
         credits: credits?.toString() || "0",
         credit_type: creditType,
       },
+      // Fraud prevention metadata on payment intent
+      ...(mode === "payment" && {
+        payment_intent_data: {
+          metadata: {
+            user_id: user.id,
+            credits: credits?.toString() || "0",
+            credit_type: creditType,
+            client_ip: clientIp.substring(0, 100), // Limit length
+            user_agent: userAgent.substring(0, 200), // Limit length
+          },
+        },
+      }),
     };
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
