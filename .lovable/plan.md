@@ -1,242 +1,292 @@
 
-# Homepage Design Overhaul for Human-Built Appearance
+# Full Stripe Integration Enhancement Plan
 
-## Problem Analysis
+## Current State Analysis
 
-Payment platforms are flagging the site as AI-generated due to several design patterns commonly associated with AI-generated templates:
+Your site already has a solid Stripe foundation with:
+- Checkout session creation (one-time + subscription)
+- Webhook handling with signature verification
+- Idempotency protection
+- Customer portal access
+- Webhook logging
+- Payment records and transaction logging
 
-### Current AI-Generated Signals Identified
+## Enhancement Overview
 
-| Issue | Location | Why It Triggers AI Detection |
-|-------|----------|------------------------------|
-| Glass morphism effects | Navigation, cards (`glass` class) | Trendy AI template aesthetic |
-| Animated gradient shifts | AboutSection marquee (`animate-gradient-shift`) | Common AI demo pattern |
-| Floating glow blurs | WorkSection, ContactSection (`blur-[150px]`) | AI tool landing page cliche |
-| Staggered fade animations | Features grid (`stagger-children`) | Template generator pattern |
-| Hover translate/scale | Cards (`hover:-translate-y-1`, `group-hover:scale-110`) | Overused in AI demos |
-| Rounded pill badges | Hero features (`rounded-full`) | Generic template look |
-| Portfolio "projects" section | WorkSection | Irrelevant to the service |
-| Marquee text strip | AboutSection (`SCAN DETECT VERIFY`) | AI landing page cliche |
-| Large dramatic headings | 5xl-6xl sizes | Over-designed template feel |
-| Excessive color accents | Primary/secondary/accent colors | AI template rainbow palette |
+This plan adds comprehensive security, refunds, disputes, subscription management, and fraud prevention to create a production-grade payment system.
 
 ---
 
-## Redesign Strategy
+## Phase 1: Enhanced Webhook Handler
 
-Transform to a **conservative enterprise SaaS** appearance similar to established business software (Stripe Dashboard, Notion, Linear).
+### Add Missing Event Types
 
-### Design Principles
-1. **Static layouts** - No floating elements or animations
-2. **Single accent color** - Remove secondary/accent color variety
-3. **Solid backgrounds** - No glass, blur, or transparency
-4. **Standard corners** - Use `rounded-lg` not `rounded-2xl`
-5. **Simple typography** - Smaller, more readable heading sizes
-6. **Functional content** - No decorative sections
+Update `supabase/functions/stripe-webhook/index.ts` to handle:
+
+| Event | Purpose |
+|-------|---------|
+| `charge.refunded` | Process refunds and deduct credits |
+| `charge.dispute.created` | Alert admin of chargebacks |
+| `charge.dispute.closed` | Update dispute status |
+| `customer.subscription.updated` | Handle plan changes |
+| `customer.subscription.deleted` | Handle cancellations |
+| `invoice.payment_failed` | Notify user of payment failure |
+| `payment_intent.payment_failed` | Track failed payments |
+
+### Database Changes
+
+Create new tables:
+- `stripe_refunds` - Track all refunds with credit adjustments
+- `stripe_disputes` - Monitor chargebacks and dispute status
+
+```sql
+CREATE TABLE stripe_refunds (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id),
+  payment_intent_id TEXT NOT NULL,
+  refund_id TEXT UNIQUE NOT NULL,
+  amount_cents INTEGER NOT NULL,
+  credits_deducted INTEGER DEFAULT 0,
+  reason TEXT,
+  status TEXT DEFAULT 'pending',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE stripe_disputes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id),
+  charge_id TEXT NOT NULL,
+  dispute_id TEXT UNIQUE NOT NULL,
+  amount_cents INTEGER NOT NULL,
+  reason TEXT,
+  status TEXT DEFAULT 'open',
+  evidence_due_by TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ
+);
+```
 
 ---
 
-## Component Changes
+## Phase 2: Admin Refund Capability
 
-### 1. Index.tsx
-- Remove WorkSection completely (irrelevant portfolio projects)
-- Reorder sections: Hero, Services, About, Contact
+### New Edge Function: `process-stripe-refund`
 
-### 2. HeroSection.tsx
-- Remove background blur/gradient
-- Reduce heading sizes (4xl max)
-- Remove pill badges with icons
-- Simplify to plain text feature list
-- Remove decorative "About This Service" box
-- Use standard button styling
+Allow admins to issue refunds directly:
+- Partial or full refunds
+- Automatic credit deduction
+- Creates transaction record
+- Sends user notification
 
-### 3. AboutSection.tsx
-- Remove marquee text strip entirely
-- Remove glass effect from cards
-- Remove hover animations
-- Remove stagger animation delays
-- Remove gradient icon backgrounds
-- Use solid muted backgrounds
-- Reduce heading sizes
+### Frontend Component
 
-### 4. ServicesSection.tsx
-- Remove background overlay
-- Simplify card styling (solid borders, no rounded-2xl)
-- Remove highlight badges
-- Use simpler icon containers
-
-### 5. ContactSection.tsx
-- Remove floating glow background
-- Remove glass effect
-- Remove hover scale animations
-- Use solid card background
-
-### 6. Navigation.tsx
-- Remove glass effect
-- Use solid background with subtle border
-
-### 7. Footer.tsx
-- Keep mostly as-is (already professional)
-- Ensure no glass effects
-
-### 8. index.css
-- Remove glow animations
-- Remove floating animations
-- Simplify hover effects
-- Remove glass utilities or make them solid
+Add refund button to `AdminStripePayments.tsx`:
+- Dialog to select refund amount
+- Reason selection (duplicate, fraudulent, requested_by_customer)
+- Preview of credits to be deducted
+- Confirmation step
 
 ---
 
-## Specific Code Changes
+## Phase 3: Security Enhancements
 
-### HeroSection.tsx - Complete Rewrite
+### Rate Limiting
 
-```text
-Before:
-- min-h-[80vh] with centered content
-- bg-muted/30 background
-- 6xl headings with primary color span
-- Pill badges with CheckCircle icons
-- Decorative box with FileText icon
+Create `supabase/functions/_shared/rate-limiter.ts`:
+- Limit checkout creation to 5 per user per hour
+- Limit refund requests to 3 per user per day
+- Store rate limits in `stripe_rate_limits` table
 
-After:
-- min-h-auto with adequate padding
-- Plain bg-background
-- 3xl-4xl headings, no colored spans
-- Simple bullet point list
-- No decorative elements
+### Input Validation
+
+Add strict validation to checkout creation:
+- Sanitize metadata fields
+- Validate amount ranges
+- Check user eligibility
+- Prevent negative amounts
+
+### Fraud Prevention
+
+Add to checkout session creation:
+```typescript
+payment_intent_data: {
+  capture_method: 'automatic',
+  setup_future_usage: null,
+  metadata: {
+    user_id: user.id,
+    ip_address: req.headers.get('x-forwarded-for'),
+    user_agent: req.headers.get('user-agent'),
+  }
+}
 ```
-
-### AboutSection.tsx - Simplification
-
-```text
-Remove:
-- Marquee text section (lines 71-81)
-- hover:-translate-y-1 animation
-- group-hover:scale-110 on icons
-- glass class on cards
-- bg-gradient-to-br on icon containers
-- stagger-children class
-- animationDelay styling
-
-Replace with:
-- bg-card solid backgrounds
-- Static hover states (color only)
-- Solid bg-muted icon containers
-```
-
-### ServicesSection.tsx - Already decent, minor tweaks
-
-```text
-Remove:
-- rounded-2xl (use rounded-lg)
-- rounded-xl on icons (use rounded-md)
-
-Keep:
-- Current straightforward layout
-```
-
-### ContactSection.tsx - Remove decorative elements
-
-```text
-Remove:
-- Floating glow blur background
-- glass class on form container
-- group-hover:scale-110 on icons
-- icon arrow animations
-
-Replace with:
-- Solid bg-card on form
-- Standard hover:text-primary states
-```
-
-### Navigation.tsx - Professional header
-
-```text
-Remove:
-- glass class
-- link-underline animated class
-
-Replace with:
-- bg-background/95 backdrop-blur-sm border-b border-border
-- Simple text color transitions
-```
-
-### index.css - Cleanup
-
-```text
-Remove or simplify:
-- .glass (make it solid)
-- .hover-lift
-- .hover-glow
-- .glow-pulse
-- .float animation
-- btn-glow effects
-- gradient utilities
-```
-
-### tailwind.config.ts - No changes needed
-
-The config defines available animations but components will stop using them.
 
 ---
 
-## Color Simplification
+## Phase 4: Subscription Lifecycle Management
 
-Current palette uses:
-- Primary (blue)
-- Secondary (green)
-- Accent (orange)
+### Enhanced Webhook Handling
 
-New approach:
-- Primary (blue) - only for interactive elements
-- Muted - for backgrounds
-- Foreground - for text
-- Remove secondary/accent from homepage
+Handle subscription events:
+- **Updated**: Adjust credits if plan changes
+- **Deleted**: Remove subscription benefits
+- **Trial ending**: Send reminder email
+- **Payment failed**: Send notification with retry link
+
+### Auto-Credit on Renewal
+
+When subscription renews:
+1. Detect `invoice.paid` event
+2. Check if subscription invoice
+3. Add monthly credits automatically
+4. Send confirmation email
+
+---
+
+## Phase 5: Admin Dashboard Enhancements
+
+### New Admin Page: `AdminStripeDisputes.tsx`
+
+Display all disputes with:
+- Dispute status and reason
+- Amount at risk
+- Evidence deadline
+- Quick actions (respond, accept)
+
+### Enhanced `AdminStripePayments.tsx`
+
+Add:
+- Refund button per payment
+- Payment status badges
+- Receipt URL links
+- Customer Stripe ID link
+- Filter by status (completed, refunded, disputed)
+
+### New Admin Page: `AdminStripeRefunds.tsx`
+
+Track all refunds:
+- Original payment reference
+- Refund amount and reason
+- Credits deducted
+- Processing date
 
 ---
 
-## Typography Changes
+## Phase 6: Customer Features
 
-| Element | Current | New |
-|---------|---------|-----|
-| Hero H1 | text-3xl to text-6xl | text-2xl to text-4xl |
-| Section H2 | text-3xl to text-5xl | text-2xl to text-3xl |
-| Card H3 | text-lg to text-xl | text-base to text-lg |
-| Body text | text-lg | text-base |
-| Labels | text-sm uppercase tracking-wider | text-sm normal |
+### Payment History Enhancement
+
+Update `src/pages/PaymentHistory.tsx`:
+- Show refund status
+- Display Stripe receipt links
+- Download transaction history
+
+### Failed Payment Recovery
+
+New component in dashboard:
+- Alert banner for failed payments
+- One-click retry via Stripe hosted page
+- Link to update payment method
 
 ---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `supabase/functions/process-stripe-refund/index.ts` | Admin refund processing |
+| `src/pages/AdminStripeDisputes.tsx` | Dispute management |
+| `src/pages/AdminStripeRefunds.tsx` | Refund tracking |
+| `src/components/FailedPaymentBanner.tsx` | Payment recovery UI |
 
 ## Files to Modify
 
-| File | Type of Changes |
-|------|-----------------|
-| `src/pages/Index.tsx` | Remove WorkSection import and usage |
-| `src/components/HeroSection.tsx` | Complete simplification |
-| `src/components/AboutSection.tsx` | Remove animations, marquee, glass effects |
-| `src/components/ServicesSection.tsx` | Minor corner radius adjustments |
-| `src/components/ContactSection.tsx` | Remove glow, glass, animations |
-| `src/components/Navigation.tsx` | Solid background instead of glass |
-| `src/index.css` | Simplify or remove decorative utilities |
+| File | Changes |
+|------|---------|
+| `supabase/functions/stripe-webhook/index.ts` | Add refund, dispute, subscription events |
+| `supabase/functions/create-stripe-checkout/index.ts` | Add rate limiting, validation, fraud metadata |
+| `src/pages/AdminStripePayments.tsx` | Add refund capability, enhanced filtering |
+| `src/pages/AdminSettings.tsx` | Add Stripe webhook URL display |
+| `src/App.tsx` | Add new admin routes |
 
 ---
 
-## Files to Delete
+## Technical Details
 
-| File | Reason |
-|------|--------|
-| `src/components/WorkSection.tsx` | Irrelevant portfolio section |
+### Webhook Event Handler Additions
+
+```typescript
+// Refund handling
+case "charge.refunded": {
+  const charge = event.data.object as Stripe.Charge;
+  // Find user from payment records
+  // Calculate credits to deduct
+  // Update user balance
+  // Create refund record
+  // Notify user
+  break;
+}
+
+// Dispute handling
+case "charge.dispute.created": {
+  const dispute = event.data.object as Stripe.Dispute;
+  // Create dispute record
+  // Notify admins immediately
+  // Flag user account
+  break;
+}
+
+// Subscription updated
+case "customer.subscription.updated": {
+  const subscription = event.data.object as Stripe.Subscription;
+  // Check if plan changed
+  // Adjust credits if needed
+  // Update subscription record
+  break;
+}
+```
+
+### Rate Limiter Implementation
+
+```typescript
+async function checkRateLimit(userId: string, action: string, limit: number, windowMinutes: number): Promise<boolean> {
+  const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000);
+  
+  const { count } = await supabase
+    .from('stripe_rate_limits')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('action', action)
+    .gte('created_at', windowStart.toISOString());
+    
+  return (count || 0) < limit;
+}
+```
 
 ---
 
-## Expected Outcome
+## Security Checklist
 
-The homepage will appear as a straightforward enterprise software website:
-- Clean, static layouts
-- Professional typography
-- Functional content only
-- No trendy design patterns
-- Suitable for financial services review
-- Indistinguishable from human-designed business software
+| Feature | Implementation |
+|---------|----------------|
+| Webhook signature verification | Already in place |
+| Idempotency protection | Already in place |
+| Rate limiting | New - checkout and refunds |
+| Input validation | New - amount and metadata |
+| Fraud metadata tracking | New - IP, user agent |
+| Admin-only refunds | New - role check required |
+| Dispute alerts | New - immediate admin notification |
+| Secure error handling | Enhanced - no sensitive data in responses |
 
+---
+
+## Implementation Order
+
+1. **Database migrations** - Create new tables
+2. **Webhook enhancements** - Add all event handlers
+3. **Rate limiting** - Protect checkout endpoint
+4. **Admin refund capability** - Backend + frontend
+5. **Dispute monitoring** - New admin page
+6. **Customer recovery** - Failed payment UI
+7. **Testing** - End-to-end verification
+
+This comprehensive implementation will provide enterprise-grade Stripe integration with full security, refund handling, dispute management, and subscription lifecycle support.
