@@ -14,7 +14,7 @@ const Footer = () => {
       title: t('footer.platform'),
       links: [
         { label: t('footer.howItWorks'), to: "/how-it-works" },
-        { label: t('footer.plagiarismChecker'), to: "/plagiarism-checker" },
+        { label: "Use Cases", to: "/use-cases" },
         { label: t('footer.pricing'), to: "/pricing" },
         { label: t('footer.faq'), to: "/faq" },
       ],
@@ -51,11 +51,11 @@ const Footer = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <Link to="/" className="flex items-center gap-2 mb-4 group">
-              <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+            <Link to="/" className="flex items-center gap-2 mb-4">
+              <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
                 <FileText className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="text-2xl font-display font-bold gradient-text">
+              <span className="text-2xl font-display font-bold text-foreground">
                 {get('nav_brand', 'Plagaiscans')}
               </span>
             </Link>
