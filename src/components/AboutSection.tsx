@@ -28,37 +28,35 @@ const AboutSection = () => {
   ];
 
   return (
-    <section id="about" className="section-padding relative">
+    <section id="about" className="section-padding bg-muted/30">
       <div className="container-width">
         {/* Section Header */}
-        <div className="max-w-3xl mb-16">
-          <span className="text-primary font-medium text-sm tracking-wider uppercase mb-4 block">
-            {t('about.label')}
-          </span>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-6">
-            {t('about.title')}
-            <span className="text-primary"> {t('about.titleGradient')}</span>
+        <div className="max-w-2xl mb-12">
+          <p className="text-sm text-muted-foreground mb-3">
+            About the Service
+          </p>
+          <h2 className="text-2xl md:text-3xl font-display font-bold mb-4 text-foreground">
+            {t('about.title')} {t('about.titleGradient')}
           </h2>
-          <p className="text-lg text-muted-foreground leading-relaxed">
+          <p className="text-base text-muted-foreground leading-relaxed">
             {t('about.paragraph1')}
           </p>
-          <p className="text-lg text-muted-foreground leading-relaxed mt-4">
+          <p className="text-base text-muted-foreground leading-relaxed mt-3">
             {t('about.paragraph2')}
           </p>
         </div>
 
         {/* Features Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, index) => (
             <div
               key={index}
-              className="group p-6 rounded-2xl glass hover:bg-card/70 transition-all duration-500 hover:-translate-y-1"
-              style={{ animationDelay: `${index * 0.1}s` }}
+              className="p-6 rounded-lg bg-card border border-border"
             >
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                <feature.icon className="w-6 h-6 text-primary" />
+              <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center mb-4">
+                <feature.icon className="w-5 h-5 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-display font-semibold mb-2">
+              <h3 className="text-base font-display font-semibold mb-2 text-foreground">
                 {t(feature.titleKey)}
               </h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
@@ -66,18 +64,6 @@ const AboutSection = () => {
               </p>
             </div>
           ))}
-        </div>
-
-        {/* Large Text Marquee Effect */}
-        <div className="mt-24 overflow-hidden">
-          <div className="flex gap-8 text-6xl md:text-8xl lg:text-9xl font-display font-bold text-muted/20 whitespace-nowrap animate-gradient-shift">
-            <span>SCAN</span>
-            <span className="text-primary/20">•</span>
-            <span>DETECT</span>
-            <span className="text-secondary/20">•</span>
-            <span>VERIFY</span>
-            <span className="text-accent/20">•</span>
-          </div>
         </div>
       </div>
     </section>
