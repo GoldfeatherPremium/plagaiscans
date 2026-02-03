@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useWhatsApp } from '@/hooks/useWhatsApp';
 import { usePromoCode } from '@/hooks/usePromoCode';
+import { StripeEmbeddedCheckout } from '@/components/StripeEmbeddedCheckout';
 
 interface PaymentDetails {
   paymentId: string;
@@ -83,6 +84,7 @@ export default function Checkout() {
   
   // Stripe payment state
   const [creatingStripePayment, setCreatingStripePayment] = useState(false);
+  const [showStripeEmbeddedCheckout, setShowStripeEmbeddedCheckout] = useState(false);
 
   const [creatingDodoPayment, setCreatingDodoPayment] = useState(false);
   const [creatingPaypalPayment, setCreatingPaypalPayment] = useState(false);
@@ -374,43 +376,8 @@ export default function Checkout() {
       return;
     }
 
-    setCreatingStripePayment(true);
-    try {
-      const totalCredits = getCartCredits();
-      const totalAmount = Math.round(calculateTotalWithFee('stripe') * 100); // Convert to cents
-      
-      // Get the session token
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
-
-      const response = await supabase.functions.invoke('create-stripe-checkout', {
-        body: {
-          priceId: null, // We'll use dynamic pricing
-          credits: totalCredits,
-          amount: totalAmount,
-          mode: 'payment',
-          creditType: getCartCreditType() || 'full',
-        },
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      const data = response.data;
-      if (!data.url) {
-        throw new Error(data.error || 'Failed to create checkout session');
-      }
-
-      toast.success('Redirecting to Stripe checkout...');
-      clearCart();
-      window.open(data.url, '_blank');
-    } catch (error: any) {
-      console.error('Stripe payment error:', error);
-      toast.error(error.message || 'Failed to create Stripe payment');
-    } finally {
-      setCreatingStripePayment(false);
-    }
+    // Open embedded checkout dialog instead of redirecting
+    setShowStripeEmbeddedCheckout(true);
   };
 
   const createDodoPayment = async () => {
@@ -1126,6 +1093,19 @@ export default function Checkout() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Stripe Embedded Checkout Dialog */}
+      <StripeEmbeddedCheckout
+        open={showStripeEmbeddedCheckout}
+        onClose={() => setShowStripeEmbeddedCheckout(false)}
+        credits={getCartCredits()}
+        amount={Math.round(calculateTotalWithFee('stripe') * 100)}
+        creditType={(getCartCreditType() || 'full') as 'full' | 'similarity_only'}
+        onSuccess={() => {
+          clearCart();
+          navigate('/dashboard/payment-success');
+        }}
+      />
     </DashboardLayout>
   );
 }
