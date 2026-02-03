@@ -688,26 +688,102 @@ serve(async (req) => {
 
         case "payment_intent.succeeded": {
           const paymentIntent = event.data.object as Stripe.PaymentIntent;
-          logStep("Payment intent succeeded", { 
+          
+          // STRICT 3DS VERIFICATION - Log authentication status
+          const charge = paymentIntent.latest_charge as Stripe.Charge | null;
+          let threeDSecureStatus = 'unknown';
+          let threeDSecureVersion = null;
+          let authenticationFlow = null;
+          
+          if (charge && typeof charge !== 'string') {
+            const threeDSecureDetails = charge.payment_method_details?.card?.three_d_secure;
+            threeDSecureStatus = threeDSecureDetails?.result || 'not_supported';
+            threeDSecureVersion = threeDSecureDetails?.version || null;
+            authenticationFlow = threeDSecureDetails?.authentication_flow || null;
+          }
+          
+          logStep("Payment intent succeeded with 3DS verification", { 
             id: paymentIntent.id,
             amount: paymentIntent.amount,
-            metadata: paymentIntent.metadata
+            metadata: paymentIntent.metadata,
+            threeDSecureStatus,
+            threeDSecureVersion,
+            authenticationFlow,
+            // Security: Log if 3DS was properly enforced
+            threeDSecureEnforced: threeDSecureStatus === 'authenticated' || threeDSecureStatus === 'attempt_acknowledged'
           });
+          
+          // SECURITY WARNING: Log if payment succeeded without proper 3DS
+          if (threeDSecureStatus === 'not_supported') {
+            logStep("⚠️ SECURITY WARNING: Payment succeeded without 3DS support", {
+              paymentIntentId: paymentIntent.id,
+              threeDSecureStatus,
+              // This should not happen with proper Radar rules in place
+              recommendation: "Verify Stripe Radar rule: Block if :three_d_secure: = 'not_supported'"
+            });
+          }
+          break;
+        }
+
+        case "payment_intent.requires_action": {
+          // This event fires when 3DS authentication is required
+          const paymentIntent = event.data.object as Stripe.PaymentIntent;
+          logStep("Payment requires 3DS authentication action", { 
+            id: paymentIntent.id,
+            amount: paymentIntent.amount,
+            status: paymentIntent.status,
+            nextAction: paymentIntent.next_action?.type,
+            userId: paymentIntent.metadata?.user_id
+          });
+          
+          // Optionally notify user that 3DS is required
+          const userId = paymentIntent.metadata?.user_id;
+          if (userId) {
+            await createUserNotification(userId, "Authentication Required 🔐",
+              "Your payment requires additional authentication. Please complete the 3D Secure verification to proceed.");
+          }
           break;
         }
 
         case "payment_intent.payment_failed": {
           const paymentIntent = event.data.object as Stripe.PaymentIntent;
+          
+          // Determine if failure was due to 3DS
+          const errorCode = paymentIntent.last_payment_error?.code;
+          const errorMessage = paymentIntent.last_payment_error?.message;
+          const declineCode = paymentIntent.last_payment_error?.decline_code;
+          
+          // Check for 3DS-specific failures
+          const is3DSFailure = 
+            errorCode === 'authentication_required' ||
+            errorCode === 'card_declined' && declineCode === 'authentication_required' ||
+            errorMessage?.toLowerCase().includes('3d secure') ||
+            errorMessage?.toLowerCase().includes('authentication');
+          
           logStep("Payment failed", { 
             id: paymentIntent.id,
-            error: paymentIntent.last_payment_error?.message
+            errorCode,
+            errorMessage,
+            declineCode,
+            is3DSFailure,
+            // Log if this was an expected rejection (card doesn't support 3DS)
+            rejectionReason: is3DSFailure ? '3DS authentication failed or not supported' : 'Other payment failure'
           });
 
-          // Try to notify user
+          // Try to notify user with specific 3DS guidance
           const userId = paymentIntent.metadata?.user_id;
           if (userId) {
-            await createUserNotification(userId, "Payment Failed ⚠️",
-              `Your payment attempt failed: ${paymentIntent.last_payment_error?.message || 'Unknown error'}. Please try again.`);
+            if (is3DSFailure) {
+              await createUserNotification(userId, "Payment Authentication Failed ⚠️",
+                `Your payment could not be authenticated. This may be because your card doesn't support 3D Secure, or the authentication was cancelled. Please try a different card that supports 3D Secure authentication.`);
+              
+              await sendPushNotification(userId, 'Payment Authentication Failed ⚠️',
+                'Your card may not support 3D Secure. Try a different card.', 
+                { type: 'payment_failed', url: '/dashboard/credits' });
+            } else {
+              await createUserNotification(userId, "Payment Failed ⚠️",
+                `Your payment attempt failed: ${errorMessage || 'Unknown error'}. Please try again.`);
+            }
           }
           break;
         }

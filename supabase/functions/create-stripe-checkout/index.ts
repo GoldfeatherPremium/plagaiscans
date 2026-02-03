@@ -167,6 +167,9 @@ serve(async (req) => {
       }];
     }
 
+    // STRICT 3D SECURE ENFORCEMENT
+    // request_three_d_secure: "any" forces 3DS authentication for ALL cards
+    // Cards that don't support 3DS will be rejected
     const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
@@ -179,6 +182,12 @@ serve(async (req) => {
         credits: credits?.toString() || "0",
         credit_type: creditType,
       },
+      // MANDATORY 3DS enforcement on all card payments
+      payment_method_options: {
+        card: {
+          request_three_d_secure: "any", // Force 3DS on ALL transactions - no exceptions
+        },
+      },
       // Fraud prevention metadata on payment intent
       ...(mode === "payment" && {
         payment_intent_data: {
@@ -188,6 +197,7 @@ serve(async (req) => {
             credit_type: creditType,
             client_ip: clientIp.substring(0, 100), // Limit length
             user_agent: userAgent.substring(0, 200), // Limit length
+            three_d_secure_required: "true", // Flag for tracking 3DS enforcement
           },
         },
       }),

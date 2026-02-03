@@ -132,7 +132,12 @@ serve(async (req) => {
     
     const creditLabel = creditType === "similarity_only" ? "Similarity" : "AI Scan";
     
-    // Create embedded checkout session
+    // STRICT 3D SECURE ENFORCEMENT
+    // request_three_d_secure: "any" forces 3DS authentication for ALL cards
+    // Cards that don't support 3DS will be rejected - no fallback allowed
+    logStep("Creating embedded checkout with mandatory 3DS enforcement");
+    
+    // Create embedded checkout session with MANDATORY 3DS
     const session = await stripe.checkout.sessions.create({
       ui_mode: "embedded",
       customer: customerId,
@@ -155,6 +160,12 @@ serve(async (req) => {
         credits: credits?.toString() || "0",
         credit_type: creditType,
       },
+      // MANDATORY 3DS enforcement - non-negotiable security requirement
+      payment_method_options: {
+        card: {
+          request_three_d_secure: "any", // Force 3DS on ALL transactions - cards without 3DS will be rejected
+        },
+      },
       payment_intent_data: {
         metadata: {
           user_id: user.id,
@@ -162,6 +173,7 @@ serve(async (req) => {
           credit_type: creditType,
           client_ip: clientIp.substring(0, 100),
           user_agent: userAgent.substring(0, 200),
+          three_d_secure_required: "true", // Flag for tracking 3DS enforcement
         },
       },
     });

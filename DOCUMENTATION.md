@@ -509,6 +509,75 @@ VITE_SUPABASE_PROJECT_ID=<project_id>
 
 ---
 
+## Stripe Payment Security (3D Secure Enforcement)
+
+### Overview
+The platform enforces **strict 3D Secure (3DS) authentication** for all card payments. Cards that do not support 3DS will be rejected.
+
+### Implementation Details
+
+#### Backend Configuration
+All Stripe checkout sessions are created with mandatory 3DS enforcement:
+
+```javascript
+payment_method_options: {
+  card: {
+    request_three_d_secure: "any" // Forces 3DS on ALL transactions
+  }
+}
+```
+
+#### Webhook Events Handled
+| Event | Purpose |
+|-------|---------|
+| `payment_intent.requires_action` | Notifies user when 3DS authentication is required |
+| `payment_intent.succeeded` | Logs 3DS verification status and processes payment |
+| `payment_intent.payment_failed` | Handles failed payments with specific 3DS error messaging |
+
+### Stripe Radar Rules (REQUIRED)
+
+**IMPORTANT**: To enforce 3DS at the Stripe level, you MUST configure these Radar rules in your Stripe Dashboard:
+
+1. Go to: **Stripe Dashboard → Radar → Rules**
+
+2. Add the following **Block** rule:
+```
+Block if :three_d_secure: = 'not_supported'
+```
+
+3. (Optional) For stricter enforcement, add:
+```
+Block if :three_d_secure: != 'authenticated'
+```
+
+### Testing 3DS Implementation
+
+Use these Stripe test cards to verify behavior:
+
+| Card Number | Expected Behavior |
+|-------------|-------------------|
+| `4000 0027 6000 3184` | ✅ Triggers 3DS - should succeed after authentication |
+| `4242 4242 4242 4242` | ❌ Should FAIL (no 3DS support, blocked by Radar) |
+| `4000 0000 0000 3055` | ❌ Should FAIL (3DS authentication failure) |
+| `4000 0000 0000 3220` | ✅ Triggers 3DS2 modal - should succeed |
+
+### Security Notes
+
+- **Security is prioritized over conversion rate** - cards without 3DS support are intentionally rejected
+- Webhook logs include 3DS status for audit purposes
+- Failed 3DS attempts are tracked with specific error codes
+- Users receive notifications for authentication requirements
+
+### Monitoring 3DS in Logs
+
+Check webhook logs for these 3DS-related fields:
+- `threeDSecureStatus`: 'authenticated' | 'attempt_acknowledged' | 'not_supported'
+- `threeDSecureVersion`: '1.0.2' | '2.1.0' | '2.2.0'
+- `authenticationFlow`: 'frictionless' | 'challenge'
+- `threeDSecureEnforced`: boolean indicating proper 3DS completion
+
+---
+
 ## Legal Information
 
 **Trading Name**: PlagaiScans  
@@ -520,5 +589,5 @@ VITE_SUPABASE_PROJECT_ID=<project_id>
 ---
 
 **Platform**: PlagaiScans v1.0  
-**Last Updated**: December 2024  
+**Last Updated**: February 2026  
 **Built with**: Lovable Cloud
