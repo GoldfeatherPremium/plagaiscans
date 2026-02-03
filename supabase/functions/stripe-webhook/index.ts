@@ -240,7 +240,21 @@ serve(async (req) => {
             completed_at: new Date().toISOString(),
           });
 
-          // Auto-generate invoice
+          // Get charge ID for receipt records
+          let chargeId: string | null = null;
+          if (session.payment_intent) {
+            try {
+              const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent as string, {
+                expand: ['latest_charge'],
+              });
+              const charge = paymentIntent.latest_charge as Stripe.Charge;
+              chargeId = charge?.id || null;
+            } catch (e) {
+              logStep("Could not retrieve charge ID", { error: e });
+            }
+          }
+
+          // Auto-generate invoice with Stripe receipt URL
           try {
             await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/create-invoice`, {
               method: 'POST',
@@ -258,14 +272,15 @@ serve(async (req) => {
                 customer_email: session.customer_email || profile?.email,
                 description: `${credits} Document Check Credits`,
                 currency: (session.currency || 'usd').toUpperCase(),
-                status: 'paid'
+                status: 'paid',
+                stripe_receipt_url: receiptUrl,
               }),
             });
           } catch (invoiceError) {
             logStep("Error creating invoice", { error: invoiceError });
           }
 
-          // Auto-generate receipt
+          // Auto-generate receipt with Stripe receipt URL and charge ID
           try {
             await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/create-receipt`, {
               method: 'POST',
@@ -290,6 +305,8 @@ serve(async (req) => {
                 transactionId: session.payment_intent as string || null,
                 paymentId: session.id,
                 credits: credits,
+                stripe_receipt_url: receiptUrl,
+                stripe_charge_id: chargeId,
               }),
             });
           } catch (receiptError) {
@@ -527,6 +544,148 @@ serve(async (req) => {
           break;
         }
 
+        case "invoice.paid": {
+          const invoice = event.data.object as Stripe.Invoice;
+          logStep("Invoice paid", { 
+            invoiceId: invoice.id, 
+            subscriptionId: invoice.subscription,
+            amountPaid: invoice.amount_paid,
+            hostedUrl: invoice.hosted_invoice_url
+          });
+
+          // Only process subscription invoices
+          if (!invoice.subscription) {
+            logStep("Skipping non-subscription invoice");
+            break;
+          }
+
+          // Get user from customer email
+          const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+          if (!customerId) {
+            logStep("No customer ID in invoice");
+            break;
+          }
+
+          const customer = await stripe.customers.retrieve(customerId);
+          if (!('email' in customer) || !customer.email) {
+            logStep("No email found for customer");
+            break;
+          }
+
+          const userEmail = customer.email;
+          const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("id, email, full_name")
+            .eq("email", userEmail)
+            .single();
+
+          if (!profile) {
+            logStep("No profile found for email", { email: userEmail });
+            break;
+          }
+
+          // Get subscription metadata for credits
+          const subscriptionId = typeof invoice.subscription === 'string' 
+            ? invoice.subscription 
+            : invoice.subscription?.id;
+          
+          let subscriptionCredits = 0;
+          if (subscriptionId) {
+            try {
+              const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+              subscriptionCredits = parseInt(subscription.metadata?.credits || "0");
+            } catch (e) {
+              logStep("Could not retrieve subscription", { error: e });
+            }
+          }
+
+          const amountPaid = (invoice.amount_paid || 0) / 100;
+
+          // Create invoice with Stripe URLs
+          try {
+            await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/create-invoice`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              },
+              body: JSON.stringify({
+                user_id: profile.id,
+                amount_usd: amountPaid,
+                credits: subscriptionCredits,
+                payment_type: 'stripe_subscription',
+                payment_id: invoice.id,
+                transaction_id: invoice.charge as string || null,
+                customer_email: userEmail,
+                customer_name: profile.full_name || customer.name,
+                description: `Subscription renewal - ${subscriptionCredits} credits`,
+                currency: (invoice.currency || 'usd').toUpperCase(),
+                status: 'paid',
+                stripe_invoice_id: invoice.id,
+                stripe_invoice_url: invoice.hosted_invoice_url || null,
+                stripe_receipt_url: null, // Subscription invoices use invoice URL instead
+              }),
+            });
+            logStep("Invoice created for subscription payment");
+          } catch (invoiceError) {
+            logStep("Error creating invoice for subscription", { error: invoiceError });
+          }
+
+          // Create receipt with Stripe charge receipt URL
+          let chargeReceiptUrl: string | null = null;
+          if (invoice.charge) {
+            try {
+              const chargeId = typeof invoice.charge === 'string' ? invoice.charge : invoice.charge.id;
+              const chargeData = await stripe.charges.retrieve(chargeId);
+              chargeReceiptUrl = chargeData.receipt_url || null;
+            } catch (e) {
+              logStep("Could not retrieve charge receipt URL", { error: e });
+            }
+          }
+
+          try {
+            await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/create-receipt`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              },
+              body: JSON.stringify({
+                userId: profile.id,
+                customerName: profile.full_name || customer.name,
+                customerEmail: userEmail,
+                description: `Subscription renewal - ${subscriptionCredits} credits`,
+                quantity: subscriptionCredits || 1,
+                unitPrice: subscriptionCredits > 0 ? amountPaid / subscriptionCredits : amountPaid,
+                subtotal: amountPaid,
+                vatRate: 0,
+                vatAmount: 0,
+                amountPaid: amountPaid,
+                currency: (invoice.currency || 'usd').toUpperCase(),
+                paymentMethod: 'Stripe Subscription',
+                transactionId: invoice.charge as string || null,
+                paymentId: invoice.id,
+                credits: subscriptionCredits,
+                stripe_receipt_url: chargeReceiptUrl,
+                stripe_charge_id: invoice.charge as string || null,
+              }),
+            });
+            logStep("Receipt created for subscription payment");
+          } catch (receiptError) {
+            logStep("Error creating receipt for subscription", { error: receiptError });
+          }
+
+          // Notify user
+          await createUserNotification(profile.id, "Subscription Payment Successful 🎉",
+            `Your subscription payment of $${amountPaid.toFixed(2)} was successful.${subscriptionCredits > 0 ? ` ${subscriptionCredits} credits have been renewed.` : ''}`);
+
+          await sendPushNotification(profile.id, 'Subscription Renewed 🎉',
+            `Your subscription payment was successful.`, { type: 'subscription_renewed', url: '/dashboard/subscription' });
+
+          logStep("Subscription invoice processed", { userId: profile.id, amountPaid, credits: subscriptionCredits });
+          break;
+        }
+
         case "payment_intent.succeeded": {
           const paymentIntent = event.data.object as Stripe.PaymentIntent;
           logStep("Payment intent succeeded", { 
@@ -567,6 +726,20 @@ serve(async (req) => {
               .from("stripe_payments")
               .update({ receipt_url: charge.receipt_url })
               .eq("payment_intent_id", charge.payment_intent as string);
+          }
+
+          // Also update receipts table with Stripe receipt URL
+          if (charge.receipt_url) {
+            await supabaseAdmin
+              .from("receipts")
+              .update({ 
+                stripe_receipt_url: charge.receipt_url,
+                stripe_charge_id: charge.id 
+              })
+              .eq("transaction_id", charge.payment_intent as string)
+              .is("stripe_receipt_url", null);
+            
+            logStep("Updated receipts with Stripe receipt URL", { chargeId: charge.id });
           }
           break;
         }
