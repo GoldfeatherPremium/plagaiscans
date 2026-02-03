@@ -96,8 +96,9 @@ serve(async (req) => {
     const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
     if (webhookSecret && signature) {
       try {
-        event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-        logStep("Webhook signature verified");
+        // IMPORTANT: Use constructEventAsync for Deno environments
+        event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+        logStep("Webhook signature verified successfully");
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         logStep("Webhook signature verification failed", { error: errorMessage });
