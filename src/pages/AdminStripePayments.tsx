@@ -380,90 +380,92 @@ export default function AdminStripePayments() {
                 <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Credits</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Receipt</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTransactions?.length === 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        No transactions found
-                      </TableCell>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Credits</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Receipt</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ) : (
-                    filteredTransactions?.map((t) => {
-                      const profile = t.profiles as any;
-                      return (
-                        <TableRow key={t.id}>
-                          <TableCell className="font-medium">
-                            {format(new Date(t.created_at), 'MMM dd, yyyy HH:mm')}
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{profile?.full_name || 'Unknown'}</p>
-                              <p className="text-xs text-muted-foreground">{profile?.email}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-semibold">${t.amount_usd?.toFixed(2)}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                              +{t.credits} credits
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{getStatusBadge(t.status)}</TableCell>
-                          <TableCell>
-                            {t.receipt_url ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => window.open(t.receipt_url, '_blank')}
-                                className="gap-1"
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                                View
-                              </Button>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {t.status === 'completed' && t.payment_intent_id && (
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setSelectedPayment(t)}
-                                    className="gap-1"
-                                  >
-                                    <RotateCcw className="h-4 w-4" />
-                                    Refund
-                                  </Button>
-                                </DialogTrigger>
-                                {selectedPayment?.id === t.id && (
-                                  <RefundDialog 
-                                    payment={selectedPayment} 
-                                    onClose={() => setSelectedPayment(null)} 
-                                  />
-                                )}
-                              </Dialog>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTransactions?.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          No transactions found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredTransactions?.map((t) => {
+                        const profile = t.profiles as any;
+                        return (
+                          <TableRow key={t.id}>
+                            <TableCell className="font-medium whitespace-nowrap">
+                              {format(new Date(t.created_at), 'MMM dd, yyyy HH:mm')}
+                            </TableCell>
+                            <TableCell>
+                              <div className="min-w-[120px]">
+                                <p className="font-medium">{profile?.full_name || 'Unknown'}</p>
+                                <p className="text-xs text-muted-foreground">{profile?.email}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-semibold whitespace-nowrap">${t.amount_usd?.toFixed(2)}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 whitespace-nowrap">
+                                +{t.credits} credits
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{getStatusBadge(t.status)}</TableCell>
+                            <TableCell>
+                              {t.receipt_url ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => window.open(t.receipt_url, '_blank')}
+                                  className="gap-1"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  View
+                                </Button>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {t.status === 'completed' && t.payment_intent_id && (
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setSelectedPayment(t)}
+                                      className="gap-1"
+                                    >
+                                      <RotateCcw className="h-4 w-4" />
+                                      Refund
+                                    </Button>
+                                  </DialogTrigger>
+                                  {selectedPayment?.id === t.id && (
+                                    <RefundDialog 
+                                      payment={selectedPayment} 
+                                      onClose={() => setSelectedPayment(null)} 
+                                    />
+                                  )}
+                                </Dialog>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
