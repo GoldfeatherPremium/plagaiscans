@@ -42,6 +42,8 @@ serve(async (req) => {
       paymentId,
       credits,
       receiptDate,
+      stripe_receipt_url,
+      stripe_charge_id,
     } = await req.json();
 
     logStep('Receipt data received', { userId, amountPaid, credits, paymentMethod });
@@ -70,6 +72,8 @@ serve(async (req) => {
       payment_id: paymentId,
       credits: credits,
       receipt_date: receiptDate || new Date().toISOString(),
+      stripe_receipt_url: stripe_receipt_url || null,
+      stripe_charge_id: stripe_charge_id || null,
     };
 
     const { data: receipt, error: receiptError } = await supabase

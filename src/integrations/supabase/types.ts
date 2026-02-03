@@ -1226,6 +1226,9 @@ export type Database = {
           pdf_path: string | null
           quantity: number | null
           status: string
+          stripe_invoice_id: string | null
+          stripe_invoice_url: string | null
+          stripe_receipt_url: string | null
           subtotal: number | null
           transaction_id: string | null
           unit_price: number | null
@@ -1256,6 +1259,9 @@ export type Database = {
           pdf_path?: string | null
           quantity?: number | null
           status?: string
+          stripe_invoice_id?: string | null
+          stripe_invoice_url?: string | null
+          stripe_receipt_url?: string | null
           subtotal?: number | null
           transaction_id?: string | null
           unit_price?: number | null
@@ -1286,6 +1292,9 @@ export type Database = {
           pdf_path?: string | null
           quantity?: number | null
           status?: string
+          stripe_invoice_id?: string | null
+          stripe_invoice_url?: string | null
+          stripe_receipt_url?: string | null
           subtotal?: number | null
           transaction_id?: string | null
           unit_price?: number | null
@@ -1869,6 +1878,8 @@ export type Database = {
           quantity: number | null
           receipt_date: string
           receipt_number: string
+          stripe_charge_id: string | null
+          stripe_receipt_url: string | null
           subtotal: number | null
           transaction_id: string | null
           unit_price: number | null
@@ -1894,6 +1905,8 @@ export type Database = {
           quantity?: number | null
           receipt_date?: string
           receipt_number: string
+          stripe_charge_id?: string | null
+          stripe_receipt_url?: string | null
           subtotal?: number | null
           transaction_id?: string | null
           unit_price?: number | null
@@ -1919,6 +1932,8 @@ export type Database = {
           quantity?: number | null
           receipt_date?: string
           receipt_number?: string
+          stripe_charge_id?: string | null
+          stripe_receipt_url?: string | null
           subtotal?: number | null
           transaction_id?: string | null
           unit_price?: number | null
