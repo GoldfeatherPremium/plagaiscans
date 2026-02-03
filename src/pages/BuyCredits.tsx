@@ -764,7 +764,7 @@ export default function BuyCredits() {
                         variant="outline"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => updateCartQuantity(item.package.id, item.quantity - 1)}
+                        onClick={() => updateCartQuantity(item.package.id, -1)}
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
@@ -773,7 +773,7 @@ export default function BuyCredits() {
                         variant="outline"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => updateCartQuantity(item.package.id, item.quantity + 1)}
+                        onClick={() => updateCartQuantity(item.package.id, 1)}
                       >
                         <Plus className="h-3 w-3" />
                       </Button>
