@@ -266,6 +266,7 @@ export const useDocuments = () => {
         balance_before: currentBalance,
         balance_after: newBalance,
         transaction_type: 'deduction',
+        credit_type: 'full',
         description: `Document upload: ${file.name}`,
         performed_by: user.id,
       });
@@ -406,6 +407,7 @@ export const useDocuments = () => {
           balance_before: currentBalance,
           balance_after: newBalance,
           transaction_type: 'deduction',
+          credit_type: 'full',
           description: `Document upload: ${file.name}`,
           performed_by: user.id,
         });
