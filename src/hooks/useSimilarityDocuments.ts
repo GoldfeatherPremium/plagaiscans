@@ -117,6 +117,22 @@ export const useSimilarityDocuments = () => {
       throw new Error('Insufficient similarity credits');
     }
 
+    // Check if user has non-expired credit validity records with remaining credits
+    const { data: validCredits } = await supabase
+      .from('credit_validity')
+      .select('remaining_credits')
+      .eq('user_id', user.id)
+      .eq('expired', false)
+      .eq('credit_type', 'similarity')
+      .gt('expires_at', new Date().toISOString())
+      .gt('remaining_credits', 0);
+
+    const totalValidCredits = validCredits?.reduce((sum, v) => sum + v.remaining_credits, 0) ?? 0;
+
+    if (totalValidCredits < 1 && (validCredits?.length ?? 0) > 0) {
+      throw new Error('Your similarity credits have expired. Please purchase new credits to continue.');
+    }
+
     // Upload file to storage
     const filePath = `${user.id}/${Date.now()}_${file.name}`;
     const { error: uploadError } = await supabase.storage

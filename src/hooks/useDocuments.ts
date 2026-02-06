@@ -214,6 +214,22 @@ export const useDocuments = () => {
         return fail('Insufficient Credits', `You need ${requiredCredits} credit to upload this document.`, null);
       }
 
+      // Check if user has non-expired credit validity records with remaining credits
+      const { data: validCredits } = await supabase
+        .from('credit_validity')
+        .select('remaining_credits')
+        .eq('user_id', user.id)
+        .eq('expired', false)
+        .eq('credit_type', 'full')
+        .gt('expires_at', new Date().toISOString())
+        .gt('remaining_credits', 0);
+
+      const totalValidCredits = validCredits?.reduce((sum, v) => sum + v.remaining_credits, 0) ?? 0;
+
+      if (totalValidCredits < requiredCredits && (validCredits?.length ?? 0) > 0) {
+        return fail('Credits Expired', 'Your credits have expired. Please purchase new credits to continue.', null);
+      }
+
       const fileExt = file.name.split('.').pop();
       const safeExt = fileExt ? fileExt : 'bin';
       const fileName = `${Date.now()}.${safeExt}`;
