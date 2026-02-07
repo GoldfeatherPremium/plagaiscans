@@ -156,12 +156,14 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* Footer Disclaimer */}
+        {/* Paddle MoR Statement */}
         <div className="pt-6 border-t border-border mb-6">
+          <p className="text-xs text-muted-foreground text-center max-w-3xl mx-auto mb-2">
+            Payments are securely processed by Paddle. Paddle is the Merchant of Record for all transactions.
+          </p>
           <p className="text-xs text-muted-foreground text-center max-w-3xl mx-auto">
             Plagaiscans is an informational software tool. Outputs are advisory only and must be reviewed by a human. 
-            The service does not replace professional, academic, or legal judgment. The company does not offer legal, 
-            academic, or regulatory advisory services.
+            The service does not replace professional, academic, or legal judgment.
           </p>
         </div>
 
