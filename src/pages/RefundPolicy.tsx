@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { FileCheck, ArrowLeft, Mail, Shield, Loader2, Clock, Calendar, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
+import { FileCheck, ArrowLeft, Mail, Shield, Loader2, Clock, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -72,8 +72,8 @@ export default function RefundPolicy() {
     <>
       <SEO
         title="Refund Policy"
-        description="Learn about our refund policy. All refund requests are reviewed by our team on a case-by-case basis."
-        keywords="refund policy, credit refunds"
+        description="Plagaiscans refund policy. Learn about eligibility, process, and timelines for refund requests."
+        keywords="refund policy, credit refunds, cancellation"
         canonicalUrl="/refund-policy"
         structuredData={generateWebPageSchema('Refund Policy', 'Our refund and cancellation policy', '/refund-policy')}
       />
@@ -98,64 +98,34 @@ export default function RefundPolicy() {
         <main className="container-width px-4 py-16">
           <div className="max-w-4xl mx-auto">
             <h1 className="text-4xl font-display font-bold mb-4">Refund Policy</h1>
-            <p className="text-muted-foreground mb-8">Last updated: February 2025</p>
+            <p className="text-muted-foreground mb-8">Last updated: February 2026</p>
 
             {/* Service Delivery Statement */}
             <Alert className="mb-8 border-border bg-muted/50">
               <AlertCircle className="h-5 w-5" />
               <AlertDescription>
-                <h2 className="text-lg font-bold mb-2 text-foreground">Service Delivery Statement</h2>
+                <h2 className="text-lg font-bold mb-2 text-foreground">Digital Service — Instant Delivery</h2>
                 <p className="text-muted-foreground">
-                  Credits and access to text analysis services are delivered instantly upon 
-                  payment confirmation. This is a digital service with immediate delivery.
+                  Plagaiscans is a digital credit-based service. Credits and access to text analysis services are 
+                  delivered instantly upon payment confirmation.
                 </p>
               </AlertDescription>
             </Alert>
 
-            {/* Refund Windows */}
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
-              <Card className="border-border">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <Calendar className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
-                    <div>
-                      <h2 className="text-xl font-bold mb-2">Monthly Subscriptions</h2>
-                      <p className="text-muted-foreground text-sm mb-3">
-                        Refund requests accepted within <strong>7 days</strong> of purchase if usage is minimal.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-border">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <Calendar className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
-                    <div>
-                      <h2 className="text-xl font-bold mb-2">Annual Subscriptions</h2>
-                      <p className="text-muted-foreground text-sm mb-3">
-                        Prorated refunds accepted within <strong>14 days</strong> of purchase.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Review Process Notice */}
+            {/* Review Process */}
             <Card className="mb-8 border-border">
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
                   <Shield className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
                   <div>
-                    <h2 className="text-xl font-bold mb-2">Review Process</h2>
+                    <h2 className="text-xl font-bold mb-2">Refund Review Process</h2>
                     <p className="text-muted-foreground mb-3">
-                      All refund requests are reviewed by our team to ensure fair and consistent handling.
+                      All refund requests are reviewed by our team to ensure fair handling.
                     </p>
                     <div className="grid sm:grid-cols-3 gap-4 mt-4">
                       <div className="text-center p-3 bg-muted/50 rounded-lg">
                         <div className="text-2xl font-bold text-primary">1</div>
-                        <div className="text-sm text-muted-foreground">Submit request via email</div>
+                        <div className="text-sm text-muted-foreground">Submit your request</div>
                       </div>
                       <div className="text-center p-3 bg-muted/50 rounded-lg">
                         <div className="text-2xl font-bold text-primary">2</div>
@@ -176,7 +146,7 @@ export default function RefundPolicy() {
                 <section className="mb-8">
                   <h2 className="text-2xl font-bold mb-4">1. Refund Eligibility</h2>
                   <p className="text-muted-foreground mb-4">
-                    You may be eligible for a refund in the following situations:
+                    Refund requests must be submitted within <strong>7 days</strong> of purchase.
                   </p>
                   <div className="bg-muted/50 border border-border rounded-lg p-4 mb-4">
                     <h3 className="font-semibold mb-2 flex items-center gap-2">
@@ -184,10 +154,9 @@ export default function RefundPolicy() {
                       Eligible for Refund
                     </h3>
                     <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                      <li><strong>Monthly subscriptions:</strong> Request within 7 days with minimal usage</li>
-                      <li><strong>Annual subscriptions:</strong> Prorated refund within 14 days</li>
-                      <li><strong>Technical errors:</strong> System failures that prevented service delivery</li>
-                      <li><strong>Duplicate charges:</strong> You were accidentally charged twice for the same purchase</li>
+                      <li><strong>Technical failure:</strong> System errors that prevented service delivery</li>
+                      <li><strong>Duplicate charge:</strong> You were accidentally charged twice for the same purchase</li>
+                      <li><strong>Service not delivered:</strong> Credits were purchased but not applied to your account</li>
                     </ul>
                   </div>
                   <div className="bg-muted/50 border border-border rounded-lg p-4">
@@ -196,31 +165,19 @@ export default function RefundPolicy() {
                       Not Eligible for Refund
                     </h3>
                     <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                      <li>Accounts suspended due to policy violations</li>
-                      <li>Credits have already been used (even partially)</li>
-                      <li>Request made after eligibility window</li>
-                      <li>Change of mind after service delivery</li>
+                      <li>Credits have been fully used</li>
+                      <li>Request made after the 7-day window</li>
+                      <li>Change of mind after service has been delivered</li>
                       <li>Expired credits</li>
+                      <li>Accounts suspended due to policy violations</li>
                     </ul>
                   </div>
                 </section>
 
                 <section className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">2. Credit Validity</h2>
+                  <h2 className="text-2xl font-bold mb-4">2. How to Request a Refund</h2>
                   <p className="text-muted-foreground mb-4">
-                    Credit packages have defined validity periods as stated at purchase:
-                  </p>
-                  <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                    <li>Credits expire after the specified validity period</li>
-                    <li>You will receive notifications before credits expire</li>
-                    <li>Expired credits cannot be refunded or restored</li>
-                  </ul>
-                </section>
-
-                <section className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">3. Refund Request Process</h2>
-                  <p className="text-muted-foreground mb-4">
-                    Refund requests must be submitted via email with:
+                    To request a refund, please provide:
                   </p>
                   <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                     <li>Your account email address</li>
@@ -229,24 +186,24 @@ export default function RefundPolicy() {
                     <li>Reason for the refund request</li>
                   </ul>
                   <p className="text-muted-foreground mt-4">
-                    Our team will review your request and respond within 24-48 business hours.
+                    Submit your request via email to <strong>support@plagaiscans.com</strong> or use the form below.
                   </p>
                 </section>
 
                 <section className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">4. Refund Processing</h2>
+                  <h2 className="text-2xl font-bold mb-4">3. Refund Processing</h2>
                   <p className="text-muted-foreground mb-4">
                     If your refund is approved:
                   </p>
                   <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                    <li>Credit/Debit Card: 5-10 business days</li>
-                    <li>Bank Transfer: 7-14 business days</li>
-                    <li>Processing times depend on your financial institution</li>
+                    <li>Refunds are processed back to your original payment method</li>
+                    <li><strong>Paddle</strong> handles all refund processing as the Merchant of Record</li>
+                    <li>Processing typically takes 5-10 business days depending on your financial institution</li>
                   </ul>
                 </section>
 
                 <section className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4">5. Disputes and Chargebacks</h2>
+                  <h2 className="text-2xl font-bold mb-4">4. Disputes and Chargebacks</h2>
                   <p className="text-muted-foreground">
                     Before initiating a chargeback with your bank, please contact us first. We are committed to 
                     resolving issues fairly and promptly. Unauthorized chargebacks may result in account suspension.
@@ -254,16 +211,15 @@ export default function RefundPolicy() {
                 </section>
 
                 <section>
-                  <h2 className="text-2xl font-bold mb-4">6. Contact Us</h2>
+                  <h2 className="text-2xl font-bold mb-4">5. Contact Us</h2>
                   <p className="text-muted-foreground">
-                    For refund inquiries or to submit a refund request:
+                    For refund inquiries:
                   </p>
                   <p className="text-muted-foreground mt-4">
                     <strong>Email:</strong> support@plagaiscans.com<br />
                     <strong>Billing:</strong> billing@plagaiscans.com<br />
                     <strong>Response Time:</strong> 24-48 business hours<br />
                     <strong>Legal Entity:</strong> Plagaiscans Technologies Ltd<br />
-                    <strong>Registration:</strong> 16998013<br />
                     <strong>Country:</strong> United Kingdom
                   </p>
                 </section>
@@ -276,7 +232,7 @@ export default function RefundPolicy() {
                 <div className="flex items-center gap-3">
                   <Clock className="h-8 w-8 text-muted-foreground" />
                   <div>
-                    <h3 className="font-bold text-lg">Need to Request a Review?</h3>
+                    <h3 className="font-bold text-lg">Need to Request a Refund?</h3>
                     <p className="text-muted-foreground text-sm">Our team will review your case within 24-48 hours</p>
                   </div>
                 </div>

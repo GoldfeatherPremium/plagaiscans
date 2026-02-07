@@ -263,13 +263,22 @@ export default function Contact() {
 
           {/* Company Info */}
           <Card className="mt-12 bg-muted/50 border-border">
-            <CardContent className="p-8 text-center">
-              <h2 className="text-xl font-bold mb-2">Plagaiscans Technologies Ltd</h2>
-              <p className="text-muted-foreground mb-4">
-                UK-registered limited company providing software services
-              </p>
-              <p className="text-sm text-muted-foreground">
-                The company does not offer legal, academic, or regulatory advisory services.
+            <CardContent className="p-8">
+              <h2 className="text-xl font-bold mb-4 text-center">Business Information</h2>
+              <div className="grid sm:grid-cols-2 gap-4 text-sm text-muted-foreground">
+                <div>
+                  <p><strong>Business Name:</strong> Plagaiscans Technologies Ltd</p>
+                  <p className="mt-1"><strong>Company No:</strong> 16998013</p>
+                  <p className="mt-1"><strong>Country:</strong> United Kingdom</p>
+                </div>
+                <div>
+                  <p><strong>Registered Address:</strong> Office 7513ci, 182-184 High Street North, Area 1/1, East Ham, London, E6 2JA</p>
+                  <p className="mt-1"><strong>Support Email:</strong> support@plagaiscans.com</p>
+                  <p className="mt-1"><strong>Billing Email:</strong> billing@plagaiscans.com</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground text-center mt-4">
+                Payments are securely processed by Paddle. Paddle is the Merchant of Record for all transactions.
               </p>
             </CardContent>
           </Card>
