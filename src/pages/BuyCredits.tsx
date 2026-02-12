@@ -4,14 +4,12 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  CreditCard, CheckCircle, Loader2, ShoppingCart, Plus, Minus, Trash2, 
+  CreditCard, CheckCircle, Loader2, 
   Sparkles, Zap, Star, RefreshCw, Clock, Calendar, Crown, ArrowRight, FileText,
-  ScanSearch, Bot
+  ScanSearch
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -61,16 +59,12 @@ export default function BuyCredits() {
   const { t } = useTranslation('dashboard');
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const { cart, addToCart, updateCartQuantity, removeFromCart, clearCart, getCartTotal, getCartCredits } = useCart();
   
   const [packages, setPackages] = useState<PricingPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<PackageType>('one_time');
   const [creditTypeTab, setCreditTypeTab] = useState<CreditType>('full');
   const [subscribing, setSubscribing] = useState<string | null>(null);
-  
-  // Cart dialog state
-  const [showCartDialog, setShowCartDialog] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -86,10 +80,8 @@ export default function BuyCredits() {
     fetchData();
   }, []);
 
-  const handleAddToCart = (plan: PricingPackage) => {
-    addToCart({ id: plan.id, credits: plan.credits, price: plan.price, credit_type: plan.credit_type });
-    const creditLabel = plan.credit_type === 'similarity_only' ? 'Similarity' : 'AI Scan';
-    toast.success(`Added ${plan.credits} ${creditLabel} credits to cart`);
+  const handleBuyNow = (plan: PricingPackage) => {
+    navigate(`/dashboard/checkout?packageId=${plan.id}`);
   };
 
   const handleSubscribe = async (plan: PricingPackage) => {
@@ -123,7 +115,6 @@ export default function BuyCredits() {
 
   const handleBuyTimeLimited = async (plan: PricingPackage) => {
     if (plan.stripe_price_id) {
-      // Use Stripe checkout
       setSubscribing(plan.id);
       try {
         const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
@@ -146,17 +137,8 @@ export default function BuyCredits() {
         setSubscribing(null);
       }
     } else {
-      // Add to cart like regular package
-      handleAddToCart(plan);
+      handleBuyNow(plan);
     }
-  };
-
-  const handleCheckout = () => {
-    if (cart.length === 0) {
-      toast.error('Please add items to your cart first');
-      return;
-    }
-    navigate('/dashboard/checkout');
   };
 
   const getPackagesByType = (type: PackageType) => 
@@ -168,7 +150,6 @@ export default function BuyCredits() {
     time_limited: packages.filter(p => p.package_type === 'time_limited' && (p.credit_type || 'full') === creditTypeTab).length,
   });
 
-  // Helper to get credit type styling and icon
   const getCreditTypeConfig = (creditType: CreditType) => {
     if (creditType === 'similarity_only') {
       return {
@@ -190,12 +171,10 @@ export default function BuyCredits() {
 
   const counts = getPackageCounts();
 
-  // Determine which tabs have packages
   const availableTabs = (Object.keys(PACKAGE_TYPE_CONFIG) as PackageType[]).filter(
     type => counts[type] > 0
   );
 
-  // Set initial tab to first available
   useEffect(() => {
     if (availableTabs.length > 0 && !availableTabs.includes(activeTab)) {
       setActiveTab(availableTabs[0]);
@@ -240,16 +219,9 @@ export default function BuyCredits() {
                   <p className="text-2xl font-bold">{profile?.similarity_credit_balance || 0}</p>
                 </div>
               </div>
-              {cart.length > 0 && (
-                <Badge variant="secondary" className="text-sm px-3 py-1">
-                  <ShoppingCart className="h-3 w-3 mr-1" />
-                  {getCartCredits()} in cart
-                </Badge>
-              )}
             </div>
           </CardContent>
         </Card>
-
 
         {/* Credit Type Selector */}
         <Tabs value={creditTypeTab} onValueChange={(v) => setCreditTypeTab(v as CreditType)} className="w-full">
@@ -264,37 +236,6 @@ export default function BuyCredits() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-
-        {/* Cart Summary Bar */}
-        {cart.length > 0 && (
-          <Card className="border-2 border-primary/30 bg-primary/5">
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <ShoppingCart className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-lg">{getCartCredits()} Credits</p>
-                    <p className="text-muted-foreground">Total: ${getCartTotal()}</p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => setShowCartDialog(true)}>
-                    View Cart ({cart.length})
-                  </Button>
-                  <Button 
-                    onClick={handleCheckout}
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Checkout
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Package Type Tabs */}
         {availableTabs.length > 1 && (
@@ -324,7 +265,6 @@ export default function BuyCredits() {
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {getPackagesByType('one_time').map((plan, index) => {
-                const cartItem = cart.find(item => item.package.id === plan.id);
                 const isPopular = index === getPackagesByType('one_time').length - 1;
                 const creditConfig = getCreditTypeConfig((plan.credit_type || 'full') as CreditType);
                 const CreditIcon = creditConfig.icon;
@@ -346,17 +286,10 @@ export default function BuyCredits() {
                       </div>
                     )}
                     
-                    {cartItem && (
-                      <Badge className="absolute -top-1 -left-1 bg-secondary text-secondary-foreground shadow-lg">
-                        {cartItem.quantity} in cart
-                      </Badge>
-                    )}
-                    
                     <CardHeader className="text-center pb-2">
                       <div className={`mx-auto h-12 w-12 rounded-xl flex items-center justify-center mb-2 ${isPopular ? 'bg-primary text-primary-foreground' : creditConfig.bgColor + ' ' + creditConfig.textColor}`}>
                         {isPopular ? <Star className="h-5 w-5" /> : <CreditIcon className="h-5 w-5" />}
                       </div>
-                      {/* Credit type badge */}
                       <Badge variant="outline" className={`mx-auto mb-2 text-xs ${creditConfig.textColor}`}>
                         {creditConfig.label}
                       </Badge>
@@ -415,11 +348,10 @@ export default function BuyCredits() {
 
                       <Button
                         className="w-full"
-                        variant={cartItem ? "secondary" : "default"}
-                        onClick={() => handleAddToCart(plan)}
+                        onClick={() => handleBuyNow(plan)}
                       >
-                        <Plus className="h-4 w-4 mr-2" />
-                        {cartItem ? 'Add Another' : 'Add to Cart'}
+                        <CreditCard className="h-4 w-4 mr-2" />
+                        Buy Now
                       </Button>
                     </CardContent>
                   </Card>
@@ -465,7 +397,6 @@ export default function BuyCredits() {
                       <div className="mx-auto h-12 w-12 rounded-xl bg-green-500/10 flex items-center justify-center mb-2">
                         <CreditIcon className="h-5 w-5 text-green-600" />
                       </div>
-                      {/* Credit type badge */}
                       <Badge variant="outline" className={`mx-auto mb-2 text-xs ${creditConfig.textColor}`}>
                         {creditConfig.label}
                       </Badge>
@@ -562,7 +493,6 @@ export default function BuyCredits() {
                       <div className="mx-auto h-12 w-12 rounded-xl bg-orange-500/10 flex items-center justify-center mb-2">
                         <CreditIcon className="h-5 w-5 text-orange-600" />
                       </div>
-                      {/* Credit type badge */}
                       <Badge variant="outline" className={`mx-auto mb-2 text-xs ${creditConfig.textColor}`}>
                         {creditConfig.label}
                       </Badge>
@@ -645,97 +575,6 @@ export default function BuyCredits() {
         )}
 
       </div>
-
-      {/* Cart Dialog */}
-      <Dialog open={showCartDialog} onOpenChange={setShowCartDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5" />
-              Your Cart
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            {cart.length === 0 ? (
-              <p className="text-center text-muted-foreground py-4">Your cart is empty</p>
-            ) : (
-              <>
-                {cart.map((item) => (
-                  <div key={item.package.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium">{item.package.credits} Credits</p>
-                      <p className="text-sm text-muted-foreground">${item.package.price} × {item.quantity}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => updateCartQuantity(item.package.id, -1)}
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-8 text-center">{item.quantity}</span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => updateCartQuantity(item.package.id, 1)}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive"
-                        onClick={() => removeFromCart(item.package.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-
-                <div className="border-t pt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Total Credits</span>
-                    <span className="font-medium">{getCartCredits()}</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Total</span>
-                    <span className="text-primary">${getCartTotal()}</span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <Button 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={() => {
-                      clearCart();
-                      setShowCartDialog(false);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Clear
-                  </Button>
-                  <Button 
-                    className="flex-1"
-                    onClick={() => {
-                      setShowCartDialog(false);
-                      handleCheckout();
-                    }}
-                  >
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Checkout
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </DashboardLayout>
   );
 }
