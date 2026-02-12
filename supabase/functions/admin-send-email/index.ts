@@ -34,83 +34,32 @@ interface Recipient {
 }
 
 // Rate limiting: max emails per minute
-const DELAY_BETWEEN_EMAILS_MS = 1000; // 1 second between emails for better deliverability
+const DELAY_BETWEEN_EMAILS_MS = 500;
 
-// Get SendPulse API access token
-async function getSendPulseToken(): Promise<string> {
-  const apiKey = Deno.env.get("SENDPLUS_API_KEY");
-  const apiSecret = Deno.env.get("SENDPLUS_API_SECRET");
-
-  if (!apiKey || !apiSecret) {
-    throw new Error("SendPulse API credentials not configured");
-  }
-
-  const response = await fetch("https://api.sendpulse.com/oauth/access_token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grant_type: "client_credentials",
-      client_id: apiKey,
-      client_secret: apiSecret
-    })
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error("SendPulse auth error:", error);
-    throw new Error("Failed to authenticate with SendPulse");
-  }
-
-  const data = await response.json();
-  return data.access_token;
-}
-
-// Send a SINGLE email to ONE recipient (privacy-safe)
+// Send a SINGLE email to ONE recipient using Resend
 async function sendSingleEmail(
-  token: string,
+  apiKey: string,
   recipient: Recipient,
   subject: string,
   htmlContent: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Encode HTML content to base64 for SendPulse API
-    const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
-    
-    // Create plain text version
-    const textContent = htmlContent
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    const response = await fetch("https://api.sendpulse.com/smtp/emails", {
+    const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
+        "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        email: {
-          html: htmlBase64,
-          text: textContent,
-          subject: subject,
-          from: {
-            name: EMAIL_CONFIG.FROM_NAME,
-            email: EMAIL_CONFIG.FROM_EMAIL
-          },
-          // CRITICAL: Only ONE recipient per email for privacy
-          to: [{ 
-            email: recipient.email,
-            name: recipient.email.split('@')[0]
-          }],
-          // Reply-to for support inquiries
-          reply_to: EMAIL_CONFIG.REPLY_TO
-        }
+        from: `${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`,
+        to: [recipient.email],
+        subject: subject,
+        html: htmlContent,
+        reply_to: EMAIL_CONFIG.REPLY_TO
       })
     });
 
     if (response.ok) {
-      const result = await response.json();
       console.log(`Email sent to recipient ${recipient.id.substring(0, 8)}...`);
       return { success: true };
     } else {
@@ -262,8 +211,11 @@ const handler = async (req: Request): Promise<Response> => {
       custom: '📧'
     };
 
-    // Get SendPulse token once
-    const token = await getSendPulseToken();
+    // Get Resend API key
+    const apiKey = Deno.env.get("RESEND_API_KEY");
+    if (!apiKey) {
+      throw new Error("RESEND_API_KEY is not configured");
+    }
     
     let successCount = 0;
     let failedCount = 0;
@@ -335,7 +287,7 @@ const handler = async (req: Request): Promise<Response> => {
         </html>
       `;
 
-      const result = await sendSingleEmail(token, recipient, subject, htmlContent);
+      const result = await sendSingleEmail(apiKey, recipient, subject, htmlContent);
       
       // Log individual send result (privacy-safe - no email addresses)
       if (logId) {
