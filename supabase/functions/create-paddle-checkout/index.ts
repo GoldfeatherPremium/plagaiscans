@@ -27,14 +27,14 @@ serve(async (req) => {
     const paddleApiKey = Deno.env.get("PADDLE_API_KEY");
     if (!paddleApiKey) throw new Error("PADDLE_API_KEY is not set");
 
-    // Get Paddle environment from settings
+    // Get Paddle environment from settings table
     const { data: envSetting } = await supabaseClient
-      .from("site_content")
-      .select("content_value")
-      .eq("content_key", "paddle_environment")
+      .from("settings")
+      .select("value")
+      .eq("key", "paddle_environment")
       .single();
 
-    const paddleEnv = envSetting?.content_value || "sandbox";
+    const paddleEnv = envSetting?.value || "sandbox";
     const paddleBaseUrl = paddleEnv === "production"
       ? "https://api.paddle.com"
       : "https://sandbox-api.paddle.com";
