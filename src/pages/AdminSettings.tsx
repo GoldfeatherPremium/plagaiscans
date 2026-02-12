@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench, Mail, FileText, Chrome, Eye, EyeOff, Zap, Bird } from 'lucide-react';
+import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench, Mail, FileText, Chrome, Eye, EyeOff, Zap, Bird, Sailboat } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -50,6 +50,13 @@ export default function AdminSettings() {
   const [savingPaypal, setSavingPaypal] = useState(false);
   const [showPaypalSecret, setShowPaypalSecret] = useState(false);
   
+  // Paddle settings
+  const [paddleEnabled, setPaddleEnabled] = useState(false);
+  const [paddleFee, setPaddleFee] = useState('0');
+  const [paddleClientToken, setPaddleClientToken] = useState('');
+  const [paddleEnvironment, setPaddleEnvironment] = useState('sandbox');
+  const [savingPaddle, setSavingPaddle] = useState(false);
+
   // Push notification settings
   const [vapidPublicKey, setVapidPublicKey] = useState('');
   const [savingVapid, setSavingVapid] = useState(false);
@@ -107,7 +114,11 @@ export default function AdminSettings() {
       'google_oauth_enabled',
       'paypal_client_id',
       'paypal_client_secret',
-      'paypal_environment'
+      'paypal_environment',
+      'payment_paddle_enabled',
+      'fee_paddle',
+      'paddle_client_token',
+      'paddle_environment'
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
@@ -155,6 +166,16 @@ export default function AdminSettings() {
       if (paypalClientIdSetting) setPaypalClientId(paypalClientIdSetting.value);
       if (paypalClientSecretSetting) setPaypalClientSecret(paypalClientSecretSetting.value);
       if (paypalEnvironmentSetting) setPaypalEnvironment(paypalEnvironmentSetting.value);
+      
+      // Paddle settings
+      const paddlePayment = data.find(s => s.key === 'payment_paddle_enabled');
+      const feePaddle = data.find(s => s.key === 'fee_paddle');
+      const paddleClientTokenSetting = data.find(s => s.key === 'paddle_client_token');
+      const paddleEnvironmentSetting = data.find(s => s.key === 'paddle_environment');
+      setPaddleEnabled(paddlePayment?.value === 'true');
+      if (feePaddle) setPaddleFee(feePaddle.value);
+      if (paddleClientTokenSetting) setPaddleClientToken(paddleClientTokenSetting.value);
+      if (paddleEnvironmentSetting) setPaddleEnvironment(paddleEnvironmentSetting.value);
       
       const vapidKey = data.find(s => s.key === 'vapid_public_key');
       if (vapidKey) setVapidPublicKey(vapidKey.value);
@@ -232,9 +253,13 @@ export default function AdminSettings() {
       .from('settings')
       .upsert({ key: 'payment_paypal_enabled', value: paypalEnabled.toString() }, { onConflict: 'key' });
     
+    const { error: error8 } = await supabase
+      .from('settings')
+      .upsert({ key: 'payment_paddle_enabled', value: paddleEnabled.toString() }, { onConflict: 'key' });
+    
     setSavingPaymentMethods(false);
     
-    if (error1 || error2 || error3 || error4 || error5 || error6 || error7) {
+    if (error1 || error2 || error3 || error4 || error5 || error6 || error7 || error8) {
       toast({ title: 'Error', description: 'Failed to save payment settings', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Payment methods updated' });
@@ -284,6 +309,7 @@ export default function AdminSettings() {
       supabase.from('settings').upsert({ key: 'fee_stripe', value: stripeFee }, { onConflict: 'key' }),
       supabase.from('settings').upsert({ key: 'fee_dodo', value: dodoFee }, { onConflict: 'key' }),
       supabase.from('settings').upsert({ key: 'fee_paypal', value: paypalFee }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'fee_paddle', value: paddleFee }, { onConflict: 'key' }),
     ];
     
     const results = await Promise.all(updates);
@@ -428,6 +454,26 @@ export default function AdminSettings() {
       toast({ title: 'Error', description: 'Failed to save Google OAuth settings', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Google OAuth settings updated' });
+    }
+  };
+
+  const savePaddleSettings = async () => {
+    setSavingPaddle(true);
+    
+    const updates = [
+      supabase.from('settings').upsert({ key: 'paddle_client_token', value: paddleClientToken }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'paddle_environment', value: paddleEnvironment }, { onConflict: 'key' }),
+    ];
+    
+    const results = await Promise.all(updates);
+    const hasError = results.some(r => r.error);
+    
+    setSavingPaddle(false);
+    
+    if (hasError) {
+      toast({ title: 'Error', description: 'Failed to save Paddle settings', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: 'Paddle settings updated' });
     }
   };
 
@@ -644,6 +690,21 @@ export default function AdminSettings() {
                 onCheckedChange={setPaypalEnabled}
               />
             </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg border-[#FFC439]/30 bg-[#FFC439]/5">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-[#FFC439]/10 flex items-center justify-center">
+                  <Sailboat className="h-5 w-5 text-[#FFC439]" />
+                </div>
+                <div>
+                  <p className="font-medium">Paddle</p>
+                  <p className="text-sm text-muted-foreground">Merchant of Record — cards, PayPal, Apple Pay & more</p>
+                </div>
+              </div>
+              <Switch
+                checked={paddleEnabled}
+                onCheckedChange={setPaddleEnabled}
+              />
+            </div>
             <Button onClick={savePaymentMethods} disabled={savingPaymentMethods}>
               {savingPaymentMethods ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Payment Settings
@@ -774,11 +835,104 @@ export default function AdminSettings() {
                   onChange={(e) => setPaypalFee(e.target.value)}
                 />
               </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Sailboat className="h-4 w-4 text-[#FFC439]" />
+                  Paddle Fee (%)
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.1"
+                  placeholder="0"
+                  value={paddleFee}
+                  onChange={(e) => setPaddleFee(e.target.value)}
+                />
+              </div>
             </div>
             
             <Button onClick={savePaymentFees} disabled={savingFees}>
               {savingFees ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Payment Fees
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Paddle Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sailboat className="h-5 w-5 text-[#FFC439]" />
+              Paddle Configuration
+            </CardTitle>
+            <CardDescription>Configure your Paddle checkout settings (Merchant of Record)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="paddleClientToken">Client-Side Token</Label>
+              <Input
+                id="paddleClientToken"
+                placeholder="Enter your Paddle client-side token"
+                value={paddleClientToken}
+                onChange={(e) => setPaddleClientToken(e.target.value)}
+                className="font-mono text-xs"
+              />
+              <p className="text-xs text-muted-foreground">
+                From Paddle Dashboard → Developer Tools → Authentication
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="paddleEnvironment">Environment</Label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paddleEnvironment"
+                    value="sandbox"
+                    checked={paddleEnvironment === 'sandbox'}
+                    onChange={(e) => setPaddleEnvironment(e.target.value)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Sandbox (Testing)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paddleEnvironment"
+                    value="production"
+                    checked={paddleEnvironment === 'production'}
+                    onChange={(e) => setPaddleEnvironment(e.target.value)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Production (Live)</span>
+                </label>
+              </div>
+            </div>
+            
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Webhook URL:</strong> Configure this in your Paddle Dashboard → Developer Tools → Notifications:
+                <code className="block mt-1 text-xs bg-muted px-2 py-1 rounded break-all">
+                  {import.meta.env.VITE_SUPABASE_URL}/functions/v1/paddle-webhook
+                </code>
+                <span className="block mt-1">Events: transaction.completed, transaction.payment_failed, subscription.created, subscription.updated, subscription.canceled</span>
+              </AlertDescription>
+            </Alert>
+            
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>API Key & Webhook Secret:</strong> These are stored as secure secrets (PADDLE_API_KEY, PADDLE_WEBHOOK_SECRET). 
+                They were configured during setup.
+              </AlertDescription>
+            </Alert>
+            
+            <Button onClick={savePaddleSettings} disabled={savingPaddle}>
+              {savingPaddle ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Paddle Settings
             </Button>
           </CardContent>
         </Card>
