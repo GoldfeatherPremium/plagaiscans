@@ -1492,6 +1492,129 @@ export type Database = {
         }
         Relationships: []
       }
+      paddle_payments: {
+        Row: {
+          amount_usd: number
+          completed_at: string | null
+          created_at: string
+          credit_type: string
+          credits: number
+          customer_email: string | null
+          id: string
+          paddle_customer_id: string | null
+          receipt_url: string | null
+          status: string
+          transaction_id: string
+          user_id: string
+        }
+        Insert: {
+          amount_usd: number
+          completed_at?: string | null
+          created_at?: string
+          credit_type?: string
+          credits: number
+          customer_email?: string | null
+          id?: string
+          paddle_customer_id?: string | null
+          receipt_url?: string | null
+          status?: string
+          transaction_id: string
+          user_id: string
+        }
+        Update: {
+          amount_usd?: number
+          completed_at?: string | null
+          created_at?: string
+          credit_type?: string
+          credits?: number
+          customer_email?: string | null
+          id?: string
+          paddle_customer_id?: string | null
+          receipt_url?: string | null
+          status?: string
+          transaction_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      paddle_subscriptions: {
+        Row: {
+          canceled_at: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          paddle_customer_id: string | null
+          price_id: string | null
+          product_id: string | null
+          status: string
+          subscription_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          paddle_customer_id?: string | null
+          price_id?: string | null
+          product_id?: string | null
+          status?: string
+          subscription_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          paddle_customer_id?: string | null
+          price_id?: string | null
+          product_id?: string | null
+          status?: string
+          subscription_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      paddle_webhook_logs: {
+        Row: {
+          error_message: string | null
+          event_id: string
+          event_type: string
+          id: string
+          payload: Json
+          processed: boolean
+          processed_at: string | null
+          received_at: string
+        }
+        Insert: {
+          error_message?: string | null
+          event_id: string
+          event_type: string
+          id?: string
+          payload: Json
+          processed?: boolean
+          processed_at?: string | null
+          received_at?: string
+        }
+        Update: {
+          error_message?: string | null
+          event_id?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed?: boolean
+          processed_at?: string | null
+          received_at?: string
+        }
+        Relationships: []
+      }
       payment_idempotency_keys: {
         Row: {
           created_at: string
@@ -1616,6 +1739,7 @@ export type Database = {
           is_active: boolean
           name: string | null
           package_type: string
+          paddle_price_id: string | null
           price: number
           stripe_price_id: string | null
           stripe_product_id: string | null
@@ -1634,6 +1758,7 @@ export type Database = {
           is_active?: boolean
           name?: string | null
           package_type?: string
+          paddle_price_id?: string | null
           price: number
           stripe_price_id?: string | null
           stripe_product_id?: string | null
@@ -1652,6 +1777,7 @@ export type Database = {
           is_active?: boolean
           name?: string | null
           package_type?: string
+          paddle_price_id?: string | null
           price?: number
           stripe_price_id?: string | null
           stripe_product_id?: string | null
