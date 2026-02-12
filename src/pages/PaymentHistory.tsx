@@ -3,7 +3,7 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet, Clock, CheckCircle, XCircle, Loader2, CreditCard, Bitcoin, ExternalLink } from 'lucide-react';
+import { Wallet, Clock, CheckCircle, XCircle, Loader2, CreditCard, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import {
@@ -30,66 +30,49 @@ interface ManualPayment {
   verified_at: string | null;
 }
 
-interface CryptoPayment {
+interface PaddlePayment {
   id: string;
   amount_usd: number;
   credits: number;
   status: string;
-  pay_currency: string | null;
-  pay_amount: number | null;
-  created_at: string;
-}
-
-interface StripePayment {
-  id: string;
-  session_id: string;
-  amount_usd: number;
-  credits: number;
-  status: string;
+  transaction_id: string;
   receipt_url: string | null;
   created_at: string;
   completed_at: string | null;
+  credit_type: string;
 }
 
 export default function PaymentHistory() {
   const { t } = useTranslation('dashboard');
   const { user } = useAuth();
   const [manualPayments, setManualPayments] = useState<ManualPayment[]>([]);
-  const [cryptoPayments, setCryptoPayments] = useState<CryptoPayment[]>([]);
-  const [stripePayments, setStripePayments] = useState<StripePayment[]>([]);
+  const [paddlePayments, setPaddlePayments] = useState<PaddlePayment[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPayments = async () => {
       if (!user) return;
 
-      const [manualRes, cryptoRes, stripeRes] = await Promise.all([
+      const [manualRes, paddleRes] = await Promise.all([
         supabase
           .from('manual_payments')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
         supabase
-          .from('crypto_payments')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('stripe_payments')
-          .select('id, session_id, amount_usd, credits, status, receipt_url, created_at, completed_at')
+          .from('paddle_payments')
+          .select('id, amount_usd, credits, status, transaction_id, receipt_url, created_at, completed_at, credit_type')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
       ]);
 
       if (manualRes.data) setManualPayments(manualRes.data);
-      if (cryptoRes.data) setCryptoPayments(cryptoRes.data);
-      if (stripeRes.data) setStripePayments(stripeRes.data as StripePayment[]);
+      if (paddleRes.data) setPaddlePayments(paddleRes.data as PaddlePayment[]);
       setLoading(false);
     };
 
     fetchPayments();
 
-    // Real-time subscription
     if (user) {
       const manualChannel = supabase
         .channel('manual-payments-history')
@@ -113,45 +96,23 @@ export default function PaymentHistory() {
         )
         .subscribe();
 
-      const cryptoChannel = supabase
-        .channel('crypto-payments-history')
+      const paddleChannel = supabase
+        .channel('paddle-payments-history')
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
-            table: 'crypto_payments',
+            table: 'paddle_payments',
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
             if (payload.eventType === 'UPDATE') {
-              setCryptoPayments(prev =>
-                prev.map(p => p.id === payload.new.id ? payload.new as CryptoPayment : p)
+              setPaddlePayments(prev =>
+                prev.map(p => p.id === payload.new.id ? payload.new as PaddlePayment : p)
               );
             } else if (payload.eventType === 'INSERT') {
-              setCryptoPayments(prev => [payload.new as CryptoPayment, ...prev]);
-            }
-          }
-        )
-        .subscribe();
-
-      const stripeChannel = supabase
-        .channel('stripe-payments-history')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'stripe_payments',
-            filter: `user_id=eq.${user.id}`,
-          },
-          (payload) => {
-            if (payload.eventType === 'UPDATE') {
-              setStripePayments(prev =>
-                prev.map(p => p.id === payload.new.id ? payload.new as StripePayment : p)
-              );
-            } else if (payload.eventType === 'INSERT') {
-              setStripePayments(prev => [payload.new as StripePayment, ...prev]);
+              setPaddlePayments(prev => [payload.new as PaddlePayment, ...prev]);
             }
           }
         )
@@ -159,8 +120,7 @@ export default function PaymentHistory() {
 
       return () => {
         supabase.removeChannel(manualChannel);
-        supabase.removeChannel(cryptoChannel);
-        supabase.removeChannel(stripeChannel);
+        supabase.removeChannel(paddleChannel);
       };
     }
   }, [user]);
@@ -209,17 +169,14 @@ export default function PaymentHistory() {
   };
 
   const pendingManualCount = manualPayments.filter(p => p.status === 'pending').length;
+  const completedPaddleCount = paddlePayments.filter(p => p.status === 'completed').length;
   const verifiedManualCount = manualPayments.filter(p => p.status === 'verified').length;
-  const completedStripeCount = stripePayments.filter(p => p.status === 'completed').length;
-  
-  const totalCreditsEarned = 
+
+  const totalCreditsEarned =
     manualPayments
       .filter(p => p.status === 'verified')
       .reduce((sum, p) => sum + p.credits, 0) +
-    cryptoPayments
-      .filter(p => p.status === 'finished' || p.status === 'confirmed')
-      .reduce((sum, p) => sum + p.credits, 0) +
-    stripePayments
+    paddlePayments
       .filter(p => p.status === 'completed')
       .reduce((sum, p) => sum + p.credits, 0);
 
@@ -266,7 +223,7 @@ export default function PaymentHistory() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Completed</p>
-                  <p className="text-2xl font-bold">{verifiedManualCount + completedStripeCount}</p>
+                  <p className="text-2xl font-bold">{verifiedManualCount + completedPaddleCount}</p>
                 </div>
               </div>
             </CardContent>
@@ -288,7 +245,7 @@ export default function PaymentHistory() {
 
         {/* Payment Tabs */}
         <Card>
-          <Tabs defaultValue="stripe" className="w-full">
+          <Tabs defaultValue="paddle" className="w-full">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -296,28 +253,24 @@ export default function PaymentHistory() {
                   <CardDescription>View your payment history by method</CardDescription>
                 </div>
                 <TabsList className="flex-wrap">
-                  <TabsTrigger value="stripe" className="gap-2">
+                  <TabsTrigger value="paddle" className="gap-2">
                     <CreditCard className="h-4 w-4" />
-                    Stripe
+                    Paddle
                   </TabsTrigger>
                   <TabsTrigger value="binance" className="gap-2">
                     <Wallet className="h-4 w-4" />
                     Binance
                   </TabsTrigger>
-                  <TabsTrigger value="crypto" className="gap-2">
-                    <Bitcoin className="h-4 w-4" />
-                    USDT
-                  </TabsTrigger>
                 </TabsList>
               </div>
             </CardHeader>
             <CardContent>
-              {/* Stripe Payments Tab */}
-              <TabsContent value="stripe" className="mt-0">
-                {stripePayments.length === 0 ? (
+              {/* Paddle Payments Tab */}
+              <TabsContent value="paddle" className="mt-0">
+                {paddlePayments.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <CreditCard className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No Stripe transactions yet</p>
+                    <p>No Paddle transactions yet</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -327,13 +280,13 @@ export default function PaymentHistory() {
                           <TableHead>Date</TableHead>
                           <TableHead>Credits</TableHead>
                           <TableHead>Amount</TableHead>
-                          <TableHead>Session ID</TableHead>
+                          <TableHead>Type</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Receipt</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {stripePayments.map((payment) => (
+                        {paddlePayments.map((payment) => (
                           <TableRow key={payment.id}>
                             <TableCell>
                               <div className="text-sm">
@@ -346,9 +299,9 @@ export default function PaymentHistory() {
                             <TableCell className="font-semibold text-green-600">+{payment.credits}</TableCell>
                             <TableCell>${payment.amount_usd}</TableCell>
                             <TableCell>
-                              <code className="text-xs bg-muted px-2 py-1 rounded">
-                                {payment.session_id.substring(0, 20)}...
-                              </code>
+                              <Badge variant="secondary" className="capitalize">
+                                {payment.credit_type}
+                              </Badge>
                             </TableCell>
                             <TableCell>{getStatusBadge(payment.status)}</TableCell>
                             <TableCell>
@@ -374,6 +327,7 @@ export default function PaymentHistory() {
                 )}
               </TabsContent>
 
+              {/* Binance Pay Tab */}
               <TabsContent value="binance" className="mt-0">
                 {manualPayments.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
@@ -428,53 +382,6 @@ export default function PaymentHistory() {
                                 <span className="text-muted-foreground">-</span>
                               )}
                             </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="crypto" className="mt-0">
-                {cryptoPayments.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Bitcoin className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No USDT transactions yet</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Credits</TableHead>
-                          <TableHead>Amount USD</TableHead>
-                          <TableHead>Crypto Amount</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {cryptoPayments.map((payment) => (
-                          <TableRow key={payment.id}>
-                            <TableCell>
-                              <div className="text-sm">
-                                <div>{format(new Date(payment.created_at), 'MMM dd, yyyy')}</div>
-                                <div className="text-muted-foreground">
-                                  {format(new Date(payment.created_at), 'HH:mm')}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-semibold">{payment.credits}</TableCell>
-                            <TableCell>${payment.amount_usd}</TableCell>
-                            <TableCell>
-                              {payment.pay_amount ? (
-                                <span>{payment.pay_amount} {payment.pay_currency}</span>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>{getStatusBadge(payment.status)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
