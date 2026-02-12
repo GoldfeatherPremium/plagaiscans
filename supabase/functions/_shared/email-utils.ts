@@ -29,7 +29,7 @@ export async function sendEmailViaSenderNet(
         from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
         subject,
         html: htmlContent,
-        reply_to: EMAIL_CONFIG.REPLY_TO,
+        reply_to: { email: EMAIL_CONFIG.REPLY_TO, name: EMAIL_CONFIG.FROM_NAME },
       }),
     });
 
