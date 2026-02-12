@@ -9,9 +9,6 @@ const EMAIL_CONFIG = {
   SITE_URL: "https://plagaiscans.com",
 };
 
-const SENDPULSE_API_KEY = Deno.env.get("SENDPLUS_API_KEY");
-const SENDPULSE_API_SECRET = Deno.env.get("SENDPLUS_API_SECRET");
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -27,84 +24,38 @@ interface EmailRequest {
   retryLogId?: string;
 }
 
-// Get SendPulse access token
-async function getSendPulseToken(): Promise<string> {
-  const response = await fetch("https://api.sendpulse.com/oauth/access_token", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      grant_type: "client_credentials",
-      client_id: SENDPULSE_API_KEY,
-      client_secret: SENDPULSE_API_SECRET,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("SendPulse auth error:", errorText);
-    throw new Error("Failed to authenticate with SendPulse");
-  }
-
-  const data = await response.json();
-  return data.access_token;
-}
-
-// Send email via SendPulse SMTP API with improved deliverability
-async function sendEmailViaSendPulse(
-  token: string,
+// Send email via Sender.net API
+async function sendEmail(
+  apiKey: string,
   to: { email: string; name?: string },
   subject: string,
   htmlContent: string
 ): Promise<{ success: boolean; response?: any; error?: string }> {
   try {
-    // Encode HTML content to Base64
-    const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
-    
-    // Create plain text version for better deliverability
-    const textContent = htmlContent
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    const response = await fetch("https://api.sendpulse.com/smtp/emails", {
+    const response = await fetch("https://api.sender.net/v2/message/send", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        "Accept": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        email: {
-          html: htmlBase64,
-          text: textContent,
-          subject: subject,
-          from: {
-            name: EMAIL_CONFIG.FROM_NAME,
-            email: EMAIL_CONFIG.FROM_EMAIL,
-          },
-          to: [
-            {
-              email: to.email,
-              name: to.name || to.email.split('@')[0],
-            },
-          ],
-          reply_to: EMAIL_CONFIG.REPLY_TO,
-        },
+        to: { email: to.email, name: to.name || to.email.split('@')[0] },
+        from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
+        subject,
+        html: htmlContent,
+        reply_to: EMAIL_CONFIG.REPLY_TO,
       }),
     });
 
     const result = await response.json();
-    console.log("SendPulse response:", result);
-
     if (!response.ok) {
+      console.error("Sender.net error:", result);
       return { success: false, response: result, error: `HTTP ${response.status}` };
     }
-
     return { success: true, response: result };
   } catch (error: any) {
-    console.error("SendPulse send error:", error);
+    console.error("Sender.net send error:", error);
     return { success: false, error: error?.message || 'Unknown error' };
   }
 }
@@ -221,7 +172,6 @@ async function incrementWarmupCounter(supabase: any): Promise<void> {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -231,23 +181,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending completion email for document:", documentId, "userId:", userId, "fileName:", fileName, "retryLogId:", retryLogId);
 
-    // Check if SendPulse credentials are configured
-    if (!SENDPULSE_API_KEY || !SENDPULSE_API_SECRET) {
-      console.error("SendPulse credentials not configured");
-      throw new Error("Email service is not configured");
+    const apiKey = Deno.env.get("SENDER_NET_API_KEY");
+    if (!apiKey) {
+      throw new Error("SENDER_NET_API_KEY not configured");
     }
 
-    // Create Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check if document completion emails are enabled
     const isEnabled = await isEmailEnabled(supabase, "document_completion");
     if (!isEnabled) {
       console.log("Document completion emails are disabled by admin, skipping");
       
-      // Log skipped email
       const { data: profile } = await supabase
         .from("profiles")
         .select("email, full_name")
@@ -273,7 +219,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get user email from profiles
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("email, full_name, email_unsubscribed")
@@ -285,7 +230,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("User profile not found");
     }
 
-    // Check if user has unsubscribed from emails
     if (profile.email_unsubscribed) {
       console.log("User has unsubscribed from emails, skipping");
       if (!retryLogId) {
@@ -309,9 +253,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     const userName = profile.full_name || "Customer";
     const subject = "Your Document Has Been Processed - Plagaiscans";
-
-    // Get SendPulse token
-    const token = await getSendPulseToken();
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -377,14 +318,13 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    const result = await sendEmailViaSendPulse(
-      token,
+    const result = await sendEmail(
+      apiKey,
       { email: profile.email, name: userName },
       subject,
       htmlContent
     );
 
-    // Log or update email result
     if (retryLogId) {
       await updateEmailLog(supabase, retryLogId, {
         status: result.success ? 'sent' : 'failed',
@@ -406,12 +346,11 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Increment warmup counter on success
     if (result.success) {
       await incrementWarmupCounter(supabase);
     }
 
-    // Send push notification to the user (background delivery)
+    // Send push notification
     try {
       const pushRes = await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
         method: 'POST',
@@ -441,19 +380,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
     console.error("Error in send-completion-email function:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };

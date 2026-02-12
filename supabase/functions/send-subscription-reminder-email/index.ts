@@ -9,52 +9,30 @@ const EMAIL_CONFIG = {
   SITE_URL: "https://plagaiscans.com",
 };
 
-const SENDPULSE_API_KEY = Deno.env.get("SENDPLUS_API_KEY");
-const SENDPULSE_API_SECRET = Deno.env.get("SENDPLUS_API_SECRET");
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function getSendPulseToken(): Promise<string> {
-  const response = await fetch("https://api.sendpulse.com/oauth/access_token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grant_type: "client_credentials",
-      client_id: SENDPULSE_API_KEY,
-      client_secret: SENDPULSE_API_SECRET,
-    }),
-  });
-  if (!response.ok) throw new Error("Failed to authenticate with SendPulse");
-  const data = await response.json();
-  return data.access_token;
-}
-
-async function sendEmail(token: string, to: { email: string; name?: string }, subject: string, htmlContent: string) {
-  const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
-  const textContent = htmlContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-
-  const response = await fetch("https://api.sendpulse.com/smtp/emails", {
+async function sendEmail(apiKey: string, to: { email: string; name?: string }, subject: string, htmlContent: string) {
+  const response = await fetch("https://api.sender.net/v2/message/send", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      "Accept": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      email: {
-        html: htmlBase64,
-        text: textContent,
-        subject,
-        from: { name: EMAIL_CONFIG.FROM_NAME, email: EMAIL_CONFIG.FROM_EMAIL },
-        to: [{ email: to.email, name: to.name || to.email.split('@')[0] }],
-        reply_to: EMAIL_CONFIG.REPLY_TO,
-      },
+      to: { email: to.email, name: to.name || to.email.split('@')[0] },
+      from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
+      subject,
+      html: htmlContent,
+      reply_to: EMAIL_CONFIG.REPLY_TO,
     }),
   });
 
-  return { success: response.ok, response: await response.json() };
+  const result = await response.json();
+  return { success: response.ok, response: result };
 }
 
 serve(async (req) => {
@@ -75,22 +53,20 @@ serve(async (req) => {
 
     console.log("Checking for subscriptions renewing soon...");
 
-    // Get all active subscriptions
     const subscriptions = await stripe.subscriptions.list({
       status: 'active',
       limit: 100,
     });
 
     const now = new Date();
-    const in3Days = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-    const token = await getSendPulseToken();
+    const apiKey = Deno.env.get("SENDER_NET_API_KEY");
+    if (!apiKey) throw new Error("SENDER_NET_API_KEY not configured");
     let sentCount = 0;
 
     for (const subscription of subscriptions.data) {
       const renewalDate = new Date(subscription.current_period_end * 1000);
       const daysUntilRenewal = Math.ceil((renewalDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
 
-      // Send reminder 3 days before renewal
       if (daysUntilRenewal <= 3 && daysUntilRenewal > 0) {
         const customer = await stripe.customers.retrieve(subscription.customer as string);
         if (!customer || customer.deleted) continue;
@@ -98,7 +74,6 @@ serve(async (req) => {
         const email = (customer as Stripe.Customer).email;
         if (!email) continue;
 
-        // Check if user is in our system
         const { data: profile } = await supabase
           .from("profiles")
           .select("id, full_name, email_unsubscribed")
@@ -176,13 +151,12 @@ serve(async (req) => {
           </html>
         `;
 
-        const result = await sendEmail(token, { email, name: userName }, subject, htmlContent);
+        const result = await sendEmail(apiKey, { email, name: userName }, subject, htmlContent);
 
         if (result.success) {
           sentCount++;
           console.log(`Sent subscription renewal reminder to ${email}`);
 
-          // Send push notification
           try {
             await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push-notification`, {
               method: 'POST',

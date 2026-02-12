@@ -1,6 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Email configuration constants
 const EMAIL_CONFIG = {
   FROM_NAME: "Plagaiscans Support",
   FROM_EMAIL: "support@plagaiscans.com",
@@ -8,90 +7,48 @@ const EMAIL_CONFIG = {
   SITE_URL: "https://plagaiscans.com",
 };
 
-const SENDPULSE_API_KEY = Deno.env.get("SENDPLUS_API_KEY");
-const SENDPULSE_API_SECRET = Deno.env.get("SENDPLUS_API_SECRET");
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Get SendPulse access token
-async function getSendPulseToken(): Promise<string> {
-  const response = await fetch("https://api.sendpulse.com/oauth/access_token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grant_type: "client_credentials",
-      client_id: SENDPULSE_API_KEY,
-      client_secret: SENDPULSE_API_SECRET,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("SendPulse auth error:", errorText);
-    throw new Error("Failed to authenticate with SendPulse");
-  }
-
-  const data = await response.json();
-  return data.access_token;
-}
-
-// Send email via SendPulse
-async function sendEmailViaSendPulse(
-  token: string,
+// Send email via Sender.net API
+async function sendEmail(
+  apiKey: string,
   to: { email: string; name?: string },
   subject: string,
   htmlContent: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
-    const textContent = htmlContent
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    const response = await fetch("https://api.sendpulse.com/smtp/emails", {
+    const response = await fetch("https://api.sender.net/v2/message/send", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        "Accept": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        email: {
-          html: htmlBase64,
-          text: textContent,
-          subject: subject,
-          from: {
-            name: EMAIL_CONFIG.FROM_NAME,
-            email: EMAIL_CONFIG.FROM_EMAIL,
-          },
-          to: [
-            {
-              email: to.email,
-              name: to.name || to.email.split("@")[0],
-            },
-          ],
-          reply_to: EMAIL_CONFIG.REPLY_TO,
-        },
+        to: { email: to.email, name: to.name || to.email.split('@')[0] },
+        from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
+        subject,
+        html: htmlContent,
+        reply_to: EMAIL_CONFIG.REPLY_TO,
       }),
     });
 
-    const result = await response.json();
     if (!response.ok) {
+      const error = await response.text();
+      console.error("Sender.net error:", error);
       return { success: false, error: `HTTP ${response.status}` };
     }
     return { success: true };
   } catch (error: any) {
-    console.error("SendPulse send error:", error);
+    console.error("Sender.net send error:", error);
     return { success: false, error: error?.message || "Unknown error" };
   }
 }
 
-// Sleep helper
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -108,7 +65,6 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check if this feature is enabled
     const { data: enabledSetting } = await supabase
       .from("settings")
       .select("value")
@@ -123,7 +79,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get the threshold time in minutes (default 15)
     const { data: thresholdSetting } = await supabase
       .from("settings")
       .select("value")
@@ -133,10 +88,8 @@ Deno.serve(async (req) => {
     const thresholdMinutes = thresholdSetting ? parseInt(thresholdSetting.value) : 15;
     console.log(`Threshold: ${thresholdMinutes} minutes`);
 
-    // Calculate cutoff time
     const cutoffTime = new Date(Date.now() - thresholdMinutes * 60 * 1000).toISOString();
 
-    // Find pending documents that haven't been picked up and haven't had a reminder sent
     const { data: pendingDocuments, error: fetchError } = await supabase
       .from("documents")
       .select("id, file_name, user_id, uploaded_at, pending_reminder_sent_at")
@@ -160,7 +113,6 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${pendingDocuments.length} pending documents to notify about`);
 
-    // Get admin users
     const { data: adminRoles } = await supabase
       .from("user_roles")
       .select("user_id")
@@ -176,7 +128,6 @@ Deno.serve(async (req) => {
 
     const adminIds = adminRoles.map((r) => r.user_id);
 
-    // Get admin emails
     const { data: adminProfiles } = await supabase
       .from("profiles")
       .select("id, email, full_name")
@@ -190,16 +141,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if SendPulse is configured
-    if (!SENDPULSE_API_KEY || !SENDPULSE_API_SECRET) {
-      console.error("SendPulse credentials not configured");
-      throw new Error("Email service is not configured");
+    const apiKey = Deno.env.get("SENDER_NET_API_KEY");
+    if (!apiKey) {
+      throw new Error("SENDER_NET_API_KEY not configured");
     }
 
-    // Get SendPulse token
-    const token = await getSendPulseToken();
-
-    // Build document list for email
     const documentList = pendingDocuments
       .map((doc) => {
         const uploadedAt = new Date(doc.uploaded_at);
@@ -275,11 +221,10 @@ Deno.serve(async (req) => {
     let successCount = 0;
     let failedCount = 0;
 
-    // Send email to each admin
     for (const admin of adminProfiles) {
       console.log(`Sending notification to admin: ${admin.email}`);
-      const result = await sendEmailViaSendPulse(
-        token,
+      const result = await sendEmail(
+        apiKey,
         { email: admin.email, name: admin.full_name || "Admin" },
         subject,
         htmlContent
@@ -293,11 +238,9 @@ Deno.serve(async (req) => {
         console.error(`Failed to send to ${admin.email}:`, result.error);
       }
 
-      // Delay between emails
       await sleep(500);
     }
 
-    // Mark documents as having had their reminder sent
     const documentIds = pendingDocuments.map((d) => d.id);
     await supabase
       .from("documents")
@@ -306,7 +249,6 @@ Deno.serve(async (req) => {
 
     console.log(`Notification complete: ${successCount} sent, ${failedCount} failed`);
 
-    // Log to transactional_email_logs
     await supabase.from("transactional_email_logs").insert({
       email_type: "pending_document_alert",
       recipient_email: adminProfiles.map((a) => a.email).join(", "),
