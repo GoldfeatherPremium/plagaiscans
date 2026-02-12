@@ -262,8 +262,8 @@ export default function Dashboard() {
         </div>
         )}
 
-        {/* Similarity Only Queue Section - Show for customers, admins, or staff with similarity access */}
-        {(role === 'customer' || role === 'admin' || (role === 'staff' && canAccessSimilarity)) && (
+        {/* Similarity Only Queue Section - Show for admins, staff with similarity access, or customers WITH similarity credits */}
+        {(role === 'admin' || (role === 'staff' && canAccessSimilarity) || (role === 'customer' && (profile?.similarity_credit_balance || 0) > 0)) && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold flex items-center gap-2">
