@@ -322,6 +322,37 @@ serve(async (req) => {
           await sendPushNotification(userId, 'Payment Successful! 💳', 
             `${credits} credits have been added to your account.`, { type: 'payment_success', url: '/dashboard' });
 
+          // --- Credit Validity Record ---
+          try {
+            let validityDays = 365;
+            // Try to find package by stripe_price_id from session line_items or by credits+credit_type
+            const { data: pkg } = await supabaseAdmin
+              .from("pricing_packages")
+              .select("id, validity_days")
+              .eq("credits", credits)
+              .eq("credit_type", creditType)
+              .eq("is_active", true)
+              .limit(1)
+              .maybeSingle();
+
+            if (pkg?.validity_days) validityDays = pkg.validity_days;
+
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + validityDays);
+
+            await supabaseAdmin.from("credit_validity").insert({
+              user_id: userId,
+              credits_amount: credits,
+              remaining_credits: credits,
+              expires_at: expiresAt.toISOString(),
+              credit_type: creditType,
+              package_id: pkg?.id || null,
+            });
+            logStep("Credit validity record created", { validityDays, expiresAt });
+          } catch (cvError) {
+            logStep("Failed to create credit validity record", { error: cvError });
+          }
+
           logStep("Credits added successfully via webhook", { userId, credits, newBalance });
           break;
         }

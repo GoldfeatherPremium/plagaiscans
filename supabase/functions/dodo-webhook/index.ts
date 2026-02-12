@@ -222,6 +222,51 @@ Deno.serve(async (req) => {
         console.error('Failed to send push notification:', pushError);
       }
 
+      // --- Credit Validity Record ---
+      try {
+        let validityDays = 365;
+        // Try matching by dodo_product_id first, then by credits+credit_type
+        let pkg = null;
+        if (metadata.dodo_product_id) {
+          const { data } = await supabase
+            .from('pricing_packages')
+            .select('id, validity_days')
+            .eq('dodo_product_id', metadata.dodo_product_id)
+            .eq('is_active', true)
+            .limit(1)
+            .maybeSingle();
+          pkg = data;
+        }
+        if (!pkg) {
+          const { data } = await supabase
+            .from('pricing_packages')
+            .select('id, validity_days')
+            .eq('credits', credits)
+            .eq('credit_type', creditType)
+            .eq('is_active', true)
+            .limit(1)
+            .maybeSingle();
+          pkg = data;
+        }
+
+        if (pkg?.validity_days) validityDays = pkg.validity_days;
+
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + validityDays);
+
+        await supabase.from('credit_validity').insert({
+          user_id: userId,
+          credits_amount: credits,
+          remaining_credits: credits,
+          expires_at: expiresAt.toISOString(),
+          credit_type: creditType,
+          package_id: pkg?.id || null,
+        });
+        console.log('Credit validity record created', { validityDays });
+      } catch (cvError) {
+        console.error('Failed to create credit validity record:', cvError);
+      }
+
       console.log('Payment processed successfully:', { paymentId, userId, credits });
 
       return new Response(

@@ -142,6 +142,37 @@ serve(async (req) => {
             description: `Stripe payment - Session: ${sessionId.slice(-8)}`,
           });
 
+          // --- Credit Validity Record ---
+          try {
+            const creditType = session.metadata?.credit_type || "full";
+            let validityDays = 365;
+            const { data: pkg } = await supabaseClient
+              .from("pricing_packages")
+              .select("id, validity_days")
+              .eq("credits", credits)
+              .eq("credit_type", creditType)
+              .eq("is_active", true)
+              .limit(1)
+              .maybeSingle();
+
+            if (pkg?.validity_days) validityDays = pkg.validity_days;
+
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + validityDays);
+
+            await supabaseClient.from("credit_validity").insert({
+              user_id: userId,
+              credits_amount: credits,
+              remaining_credits: credits,
+              expires_at: expiresAt.toISOString(),
+              credit_type: creditType,
+              package_id: pkg?.id || null,
+            });
+            logStep("Credit validity record created", { validityDays });
+          } catch (cvError) {
+            logStep("Failed to create credit validity record", { error: cvError });
+          }
+
           logStep("Credits added", { credits, newBalance });
 
           // Get user email for notification
