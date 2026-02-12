@@ -1,76 +1,141 @@
 
+# Paddle Checkout Integration Plan
 
-# Fix: Credit Expiration Incorrectly Deducting Used Credits
+## Overview
+Integrate Paddle as a payment processor alongside existing payment methods (Stripe, PayPal, Viva, USDT, Binance, Dodo). Your legal pages already reference Paddle as the Merchant of Record -- this plan adds the actual checkout functionality.
 
-## The Problem
+## Prerequisites -- Secrets Needed
+Before implementation, you'll need to provide:
+- **PADDLE_API_KEY** -- Your Paddle API key (from Paddle dashboard > Developer Tools > Authentication)
+- **PADDLE_WEBHOOK_SECRET** -- For verifying webhook signatures (from Paddle dashboard > Developer Tools > Notifications)
+- **PADDLE_CLIENT_TOKEN** -- Client-side token for Paddle.js (from Paddle dashboard > Developer Tools > Authentication)
+- **PADDLE_ENVIRONMENT** -- "sandbox" or "production"
 
-When a customer buys credits with an expiry date, the system tracks them in a `credit_validity` table with a `remaining_credits` field. However, **when credits are actually used (documents scanned), the `remaining_credits` field is never updated**. It stays at the original purchase amount forever.
+## Implementation Steps
 
-So when the expiration function runs, it sees the original `remaining_credits` value (e.g., 50) and deducts that from the user's current balance -- even though those credits were already consumed. This effectively steals credits from a newer purchase.
+### Step 1: Database Schema
+Create new tables and update settings for Paddle:
 
-**Example of the bug:**
-- Day 1: Buy 50 credits (30-day expiry) -> `remaining_credits = 50`
-- Day 1-15: Use all 50 credits -> `remaining_credits` still shows `50` (never updated)
-- Day 10: Buy 100 more credits (30-day expiry) -> balance = 100
-- Day 30: First batch expires -> system sees 50 "remaining" and deducts 50 from balance -> balance drops to 50 instead of staying at 100
+- **paddle_payments** -- Track Paddle transactions
+  - id, user_id, transaction_id, paddle_customer_id, amount_usd, credits, credit_type, status, customer_email, receipt_url, completed_at, created_at
+- **paddle_subscriptions** -- Track Paddle subscriptions
+  - id, user_id, subscription_id, paddle_customer_id, product_id, price_id, status, current_period_start, current_period_end, canceled_at, created_at, updated_at
+- **paddle_webhook_logs** -- Store raw webhook events for debugging
+  - id, event_id (unique), event_type, payload, processed, error_message, created_at
 
-## The Solution
+All tables will have RLS enabled with appropriate policies (users see their own records, admins see all).
 
-Create a database trigger that automatically decrements `remaining_credits` in `credit_validity` whenever credits are consumed. The trigger fires on credit transaction inserts with negative amounts (usage/deduction) and applies FIFO (First In, First Out) -- consuming from the oldest expiring batch first.
+Add new settings keys: `payment_paddle_enabled`, `fee_paddle`, `paddle_environment`.
 
-### Step 1: Database Migration
+Add `paddle_price_id` column to **pricing_packages** table for mapping packages to Paddle price IDs.
 
-Create a PostgreSQL function + trigger:
+### Step 2: Backend Edge Functions
 
-- **Function `deduct_credit_validity()`**: Triggered after a credit transaction with a negative amount is inserted. It:
-  1. Determines the credit type from the transaction
-  2. Finds all active (non-expired, with remaining credits) `credit_validity` records for that user and credit type, ordered by `expires_at` ASC (FIFO)
-  3. Loops through batches, decrementing `remaining_credits` until the usage amount is fully accounted for
-  4. If a batch reaches 0 remaining, it stays as-is (the expire function will clean it up)
+**create-paddle-checkout** (new edge function)
+- Accepts: user auth token, credits, amount, credit_type, price_id
+- Creates a Paddle transaction using the Paddle API
+- Returns a transaction ID for the client-side overlay checkout
+- Includes rate limiting and input validation (same pattern as existing Stripe checkout)
 
-- **Trigger**: `AFTER INSERT ON credit_transactions` when `amount < 0`
+**paddle-webhook** (new edge function)
+- Receives Paddle webhook events
+- Verifies webhook signature using PADDLE_WEBHOOK_SECRET
+- Handles these event types:
+  - `transaction.completed` -- Add credits, create invoice/receipt, notify user
+  - `subscription.created` -- Record subscription
+  - `subscription.updated` -- Update subscription status
+  - `subscription.canceled` -- Mark subscription canceled
+  - `transaction.payment_failed` -- Notify user of failure
+- Uses idempotency keys (same pattern as Stripe webhook) to prevent duplicate credit additions
+- Logs all events to paddle_webhook_logs
 
-### Step 2: Fix the Expire Function
+### Step 3: Frontend -- Checkout Page Update
+Update `src/pages/Checkout.tsx`:
+- Add Paddle as a payment method option (alongside Stripe, PayPal, etc.)
+- Load Paddle.js SDK via script tag when Paddle is enabled
+- Initialize Paddle with client token and environment setting
+- When user clicks "Pay with Paddle":
+  1. Call `create-paddle-checkout` edge function to get transaction details
+  2. Open Paddle checkout overlay using `Paddle.Checkout.open()`
+  3. Handle success/close callbacks
+- Read `payment_paddle_enabled` and `fee_paddle` from settings (already fetched in the existing settings query)
 
-Update `supabase/functions/expire-credits/index.ts` to use the now-accurate `remaining_credits` value. The current logic is actually correct once `remaining_credits` is properly maintained -- it only deducts `remaining_credits` from the user's balance. No changes needed to this function.
+### Step 4: Frontend -- Admin Settings Update
+Update `src/pages/AdminSettings.tsx`:
+- Add Paddle toggle (enable/disable) in payment settings section
+- Add Paddle fee percentage input
+- Add Paddle environment selector (Sandbox/Production)
+- Add fields for Paddle Client Token (stored in settings table, not secrets -- it's a publishable client-side token)
 
-### Step 3: Backfill Existing Data
+### Step 5: Frontend -- BuyCredits Subscription Support
+Update `src/pages/BuyCredits.tsx`:
+- When Paddle is enabled and a package has a `paddle_price_id`, use Paddle for subscription checkout
+- The overlay checkout handles subscription creation automatically
 
-Run a one-time data correction to fix `remaining_credits` for all existing `credit_validity` records based on historical usage. This involves:
-- For each user with credit_validity records, calculate total credits used during each batch's validity period
-- Update `remaining_credits` accordingly
+### Step 6: Frontend -- Subscription Management
+Update `src/pages/SubscriptionManagement.tsx`:
+- Show Paddle subscriptions alongside Stripe subscriptions
+- Add "Cancel Subscription" button that calls Paddle API via edge function
+- Display billing history from paddle_payments table
 
-### Step 4: Handle Edge Cases in the Trigger
+### Step 7: Admin Pricing Page
+Update `src/pages/AdminPricing.tsx`:
+- Add `paddle_price_id` field when creating/editing pricing packages
+- This maps each package to a Paddle price for checkout
 
-- Credits added by admin (positive amounts) should NOT affect `remaining_credits`
-- Only usage-type transactions (negative amounts) should trigger the deduction
-- If no `credit_validity` records exist for a user (credits without expiry), the trigger does nothing
+### Step 8: Config Updates
+- Add `[functions.create-paddle-checkout]` and `[functions.paddle-webhook]` entries to `supabase/config.toml` with `verify_jwt = false`
 
 ## Technical Details
 
+### Paddle.js Integration (Client-Side)
 ```text
-credit_transactions INSERT (amount < 0)
-           |
-           v
-  deduct_credit_validity() trigger
-           |
-           v
-  Find oldest non-expired credit_validity
-  records for this user + credit_type
-           |
-           v
-  FIFO loop: decrement remaining_credits
-  from oldest batch first
-           |
-           v
-  Credits properly tracked per batch
+1. Script loaded dynamically: https://cdn.paddle.com/paddle/v2/paddle.js
+2. Initialized with: Paddle.Environment.set("sandbox" or "production")
+3. Paddle.Setup({ token: clientToken })
+4. Checkout opened with: Paddle.Checkout.open({ transactionId })
 ```
 
-### Files to modify:
-1. **New migration**: Create `deduct_credit_validity` function and trigger
-2. **No edge function changes needed**: The expire-credits function already correctly uses `remaining_credits`
+### Webhook Flow
+```text
+Paddle Server --> paddle-webhook edge function
+  --> Verify signature (using H-Signature header + PADDLE_WEBHOOK_SECRET)
+  --> Parse event type
+  --> Check idempotency (payment_idempotency_keys table)
+  --> Add credits to user profile
+  --> Log transaction in paddle_payments
+  --> Create invoice + receipt
+  --> Send notification to user
+```
 
-### Risk mitigation:
-- The trigger only fires on negative-amount transactions, so purchases and admin additions are unaffected
-- FIFO ordering ensures the soonest-expiring credits are consumed first, which is the fairest approach for customers
+### Payment Method Selection (Checkout Page)
+```text
+Existing methods: Stripe | PayPal | Viva | USDT | Binance | WhatsApp | Dodo
+New addition:     Paddle (card icon, shows overlay checkout)
+```
 
+### Security
+- Webhook signature verification using Paddle's notification secret
+- Idempotency keys prevent duplicate credit additions
+- Rate limiting on checkout creation (same 5/hour pattern as Stripe)
+- Input validation with sanitized parameters
+- RLS policies on all new tables
+
+## Files to Create
+- `supabase/functions/create-paddle-checkout/index.ts`
+- `supabase/functions/paddle-webhook/index.ts`
+
+## Files to Modify
+- `supabase/config.toml` -- Add function entries
+- `src/pages/Checkout.tsx` -- Add Paddle payment option
+- `src/pages/AdminSettings.tsx` -- Add Paddle configuration
+- `src/pages/AdminPricing.tsx` -- Add paddle_price_id field
+- `src/pages/BuyCredits.tsx` -- Paddle subscription support
+- `src/pages/SubscriptionManagement.tsx` -- Show Paddle subscriptions
+- `src/pages/Index.tsx` -- Update FAQ payment methods mention
+- Database migration for new tables and columns
+
+## Important Notes
+- Paddle acts as MoR, so it handles VAT/tax automatically -- no extra tax logic needed on your side
+- Paddle supports trials, coupons, and multi-currency natively
+- The existing `pricing_packages` table will gain a `paddle_price_id` column so admins can map packages to both Stripe and Paddle prices
