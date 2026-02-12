@@ -113,3 +113,9 @@ verify_jwt = false
 
 [functions.create-stripe-embedded-checkout]
 verify_jwt = false
+
+[functions.create-paddle-checkout]
+verify_jwt = false
+
+[functions.paddle-webhook]
+verify_jwt = false

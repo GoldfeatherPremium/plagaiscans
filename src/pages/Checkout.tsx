@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, CreditCard, Loader2, Bitcoin, Copy, ExternalLink, 
   RefreshCw, Wallet, ShoppingCart, Plus, Minus, Trash2, Globe, 
-  CheckCircle, MessageCircle, AlertCircle, Zap, Tag, X, Shield
+  CheckCircle, MessageCircle, AlertCircle, Zap, Tag, X, Shield, Store
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
@@ -54,10 +54,11 @@ export default function Checkout() {
   const [stripeEnabled, setStripeEnabled] = useState(false);
   const [dodoEnabled, setDodoEnabled] = useState(false);
   const [paypalEnabled, setPaypalEnabled] = useState(false);
+  const [paddleEnabled, setPaddleEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
   
   // Payment fees
-  const [fees, setFees] = useState<{ whatsapp: number; usdt: number; binance: number; viva: number; stripe: number; dodo: number; paypal: number }>({
+  const [fees, setFees] = useState<{ whatsapp: number; usdt: number; binance: number; viva: number; stripe: number; dodo: number; paypal: number; paddle: number }>({
     whatsapp: 0,
     usdt: 0,
     binance: 0,
@@ -65,6 +66,7 @@ export default function Checkout() {
     stripe: 0,
     dodo: 0,
     paypal: 0,
+    paddle: 0,
   });
   
   // Payment processing states
@@ -88,9 +90,12 @@ export default function Checkout() {
 
   const [creatingDodoPayment, setCreatingDodoPayment] = useState(false);
   const [creatingPaypalPayment, setCreatingPaypalPayment] = useState(false);
+  const [creatingPaddlePayment, setCreatingPaddlePayment] = useState(false);
+  const [paddleClientToken, setPaddleClientToken] = useState('');
+  const [paddleEnvironment, setPaddleEnvironment] = useState('sandbox');
 
   // Calculate total with fee and promo discount
-  const calculateTotalWithFee = (method: 'whatsapp' | 'usdt' | 'binance' | 'viva' | 'stripe' | 'dodo' | 'paypal') => {
+  const calculateTotalWithFee = (method: 'whatsapp' | 'usdt' | 'binance' | 'viva' | 'stripe' | 'dodo' | 'paypal' | 'paddle') => {
     const baseTotal = getCartTotal();
     const discountedTotal = calculateDiscountedTotal(baseTotal);
     const feePercent = fees[method] || 0;
@@ -108,10 +113,16 @@ export default function Checkout() {
         .from('settings')
         .select('key, value')
         .in('key', [
-          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled', 'payment_paypal_enabled',
+          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled', 'payment_paypal_enabled', 'payment_paddle_enabled',
           'binance_pay_id',
-          'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe', 'fee_dodo', 'fee_paypal'
+          'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe', 'fee_dodo', 'fee_paypal', 'fee_paddle'
         ]);
+
+      // Also fetch paddle settings from site_content
+      const { data: paddleSettings } = await supabase
+        .from('site_content')
+        .select('content_key, content_value')
+        .in('content_key', ['payment_paddle_enabled', 'fee_paddle', 'paddle_client_token', 'paddle_environment']);
 
       if (settings) {
         const whatsapp = settings.find(s => s.key === 'payment_whatsapp_enabled');
@@ -140,8 +151,23 @@ export default function Checkout() {
         setDodoEnabled(dodo?.value === 'true');
         setPaypalEnabled(paypal?.value === 'true');
         if (binanceId) setBinancePayId(binanceId.value);
+
+        // Paddle settings from site_content
+        if (paddleSettings) {
+          const paddleEnabledSetting = paddleSettings.find(s => s.content_key === 'payment_paddle_enabled');
+          const feePaddleSetting = paddleSettings.find(s => s.content_key === 'fee_paddle');
+          const paddleTokenSetting = paddleSettings.find(s => s.content_key === 'paddle_client_token');
+          const paddleEnvSetting = paddleSettings.find(s => s.content_key === 'paddle_environment');
+          
+          setPaddleEnabled(paddleEnabledSetting?.content_value === 'true');
+          setPaddleClientToken(paddleTokenSetting?.content_value || '');
+          setPaddleEnvironment(paddleEnvSetting?.content_value || 'sandbox');
+          
+          setFees(prev => ({ ...prev, paddle: parseFloat(feePaddleSetting?.content_value || '0') || 0 }));
+        }
         
-        setFees({
+        setFees(prev => ({
+          ...prev,
           whatsapp: parseFloat(feeWhatsapp?.value || '0') || 0,
           usdt: parseFloat(feeUsdt?.value || '0') || 0,
           binance: parseFloat(feeBinance?.value || '0') || 0,
@@ -149,7 +175,7 @@ export default function Checkout() {
           stripe: parseFloat(feeStripe?.value || '0') || 0,
           dodo: parseFloat(feeDodo?.value || '0') || 0,
           paypal: parseFloat(feePaypal?.value || '0') || 0,
-        });
+        }));
       }
       setLoading(false);
     };
@@ -467,6 +493,93 @@ export default function Checkout() {
     }
   };
 
+  // Load Paddle.js script
+  useEffect(() => {
+    if (!paddleEnabled || !paddleClientToken) return;
+    
+    // Check if already loaded
+    if ((window as any).Paddle) return;
+
+    const script = document.createElement('script');
+    script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js';
+    script.async = true;
+    script.onload = () => {
+      const Paddle = (window as any).Paddle;
+      if (Paddle) {
+        if (paddleEnvironment === 'sandbox') {
+          Paddle.Environment.set('sandbox');
+        }
+        Paddle.Initialize({ token: paddleClientToken });
+      }
+    };
+    document.head.appendChild(script);
+  }, [paddleEnabled, paddleClientToken, paddleEnvironment]);
+
+  const createPaddlePayment = async () => {
+    if (!user || cart.length === 0) {
+      toast.error('Please login and add items to cart');
+      return;
+    }
+
+    const Paddle = (window as any).Paddle;
+    if (!Paddle) {
+      toast.error('Paddle checkout is loading, please try again in a moment');
+      return;
+    }
+
+    setCreatingPaddlePayment(true);
+    try {
+      const totalCredits = getCartCredits();
+      const creditType = getCartCreditType() || 'full';
+
+      // Get the first cart item's package to find paddle_price_id
+      const firstItem = cart[0];
+      const { data: pkg } = await supabase
+        .from('pricing_packages')
+        .select('paddle_price_id')
+        .eq('id', firstItem.package.id)
+        .single();
+
+      if (!pkg?.paddle_price_id) {
+        toast.error('This package is not configured for Paddle checkout');
+        return;
+      }
+
+      const response = await supabase.functions.invoke('create-paddle-checkout', {
+        body: {
+          priceId: pkg.paddle_price_id,
+          credits: totalCredits,
+          amount: Math.round(calculateTotalWithFee('paddle') * 100),
+          creditType,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const data = response.data;
+      if (!data.transactionId) {
+        throw new Error(data.error || 'Failed to create Paddle checkout');
+      }
+
+      // Open Paddle overlay checkout
+      Paddle.Checkout.open({
+        transactionId: data.transactionId,
+        settings: {
+          successUrl: `${window.location.origin}/dashboard/payment-success?provider=paddle`,
+        },
+      });
+
+      clearCart();
+    } catch (error: any) {
+      console.error('Paddle payment error:', error);
+      toast.error(error.message || 'Failed to create Paddle payment');
+    } finally {
+      setCreatingPaddlePayment(false);
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -777,7 +890,47 @@ export default function Checkout() {
                   </div>
                 )}
 
-                {/* Viva.com Card Payment */}
+                {/* Paddle Payment */}
+                {paddleEnabled && (
+                  <div className="border rounded-lg p-4 hover:border-primary transition-colors border-[#0E1F3F]/30 bg-[#0E1F3F]/5">
+                    <div className="flex items-start gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-[#0E1F3F]/10 flex items-center justify-center flex-shrink-0">
+                        <Store className="h-6 w-6 text-[#0E1F3F]" />
+                      </div>
+                      <div className="flex-1 space-y-3">
+                        <div>
+                          <h3 className="font-semibold flex items-center gap-2">
+                            Paddle Checkout
+                            <Badge variant="secondary" className="text-xs">${calculateTotalWithFee('paddle').toFixed(2)}</Badge>
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Pay securely with cards, PayPal, Apple Pay & more
+                            {fees.paddle > 0 && <span className="text-amber-600"> (+{fees.paddle}% fee)</span>}
+                          </p>
+                        </div>
+                        <Button 
+                          className="w-full bg-[#0E1F3F] hover:bg-[#0E1F3F]/90"
+                          onClick={createPaddlePayment}
+                          disabled={creatingPaddlePayment}
+                        >
+                          {creatingPaddlePayment ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <Store className="h-4 w-4 mr-2" />
+                              Pay with Paddle
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+
                 {vivaEnabled && (
                   <div className="border rounded-lg p-4 hover:border-primary transition-colors">
                     <div className="flex items-start gap-4">
@@ -905,7 +1058,7 @@ export default function Checkout() {
                   </div>
                 )}
 
-                {!stripeEnabled && !vivaEnabled && !binanceEnabled && !usdtEnabled && !whatsappEnabled && (
+                {!stripeEnabled && !vivaEnabled && !binanceEnabled && !usdtEnabled && !whatsappEnabled && !paddleEnabled && (
                   <div className="text-center py-8">
                     <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">No payment methods are currently available. Please contact support.</p>
