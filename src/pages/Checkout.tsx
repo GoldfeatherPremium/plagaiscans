@@ -754,298 +754,229 @@ export default function Checkout() {
                 <CardDescription>All transactions are secure and encrypted</CardDescription>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
-                {/* Stripe Card Payment - Premium Style */}
+                {/* Stripe Card Payment */}
                 {stripeEnabled && (
-                  <div className="relative group">
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-[#635BFF] to-[#8B5CF6] rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300" />
-                    <div className="relative border-2 border-[#635BFF]/30 rounded-xl p-5 bg-gradient-to-br from-[#635BFF]/5 to-transparent hover:border-[#635BFF]/50 transition-all duration-300">
-                      <div className="flex items-start gap-4">
-                        <div className="h-14 w-14 rounded-xl bg-[#635BFF] flex items-center justify-center flex-shrink-0 shadow-lg shadow-[#635BFF]/30">
-                          <CreditCard className="h-7 w-7 text-white" />
+                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-[#635BFF]/10 flex items-center justify-center flex-shrink-0">
+                          <CreditCard className="h-5 w-5 text-[#635BFF]" />
                         </div>
-                        <div className="flex-1 space-y-4">
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-bold text-lg">Credit / Debit Card</h3>
-                              <Badge className="bg-[#635BFF] text-white border-0">Recommended</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Visa, Mastercard, American Express, Apple Pay, Google Pay
-                              {fees.stripe > 0 && <span className="text-amber-600 ml-1">(+{fees.stripe}% fee)</span>}
-                            </p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/Visa.svg" alt="Visa" className="h-6" />
-                              <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-6" />
-                              <span className="text-xs text-muted-foreground">& more</span>
-                            </div>
-                          </div>
-                          <Button 
-                            className="w-full h-12 text-base bg-[#635BFF] hover:bg-[#5851DB] shadow-lg shadow-[#635BFF]/20"
-                            onClick={createStripePayment}
-                            disabled={creatingStripePayment}
-                          >
-                            {creatingStripePayment ? (
-                              <>
-                                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                                Processing...
-                              </>
-                            ) : (
-                              <>
-                                <Zap className="h-5 w-5 mr-2" />
-                                Pay ${calculateTotalWithFee('stripe')} Now
-                              </>
-                            )}
-                          </Button>
+                        <div>
+                          <h3 className="font-semibold text-sm">Credit / Debit Card</h3>
+                          <p className="text-xs text-muted-foreground">
+                            Visa, Mastercard, Apple Pay
+                            {fees.stripe > 0 && <span className="text-amber-600"> (+{fees.stripe}%)</span>}
+                          </p>
                         </div>
                       </div>
+                      <Button 
+                        onClick={createStripePayment}
+                        disabled={creatingStripePayment}
+                        size="sm"
+                      >
+                        {creatingStripePayment ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          `Pay $${calculateTotalWithFee('stripe')}`
+                        )}
+                      </Button>
                     </div>
                   </div>
                 )}
 
-                {/* Card Payment / Google Pay / Apple Pay */}
+                {/* Card / Google Pay / Apple Pay */}
                 {dodoEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary transition-colors">
-                    <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-[#4F46E5]/10 flex items-center justify-center flex-shrink-0">
-                        <CreditCard className="h-6 w-6 text-[#4F46E5]" />
-                      </div>
-                      <div className="flex-1 space-y-3">
+                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-[#4F46E5]/10 flex items-center justify-center flex-shrink-0">
+                          <CreditCard className="h-5 w-5 text-[#4F46E5]" />
+                        </div>
                         <div>
-                          <h3 className="font-semibold flex items-center gap-2">
-                            Card / Google Pay / Apple Pay
-                            <Badge variant="secondary" className="text-xs">${calculateTotalWithFee('dodo').toFixed(2)}</Badge>
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            Pay securely with cards, Google Pay, or Apple Pay
-                            {fees.dodo > 0 && <span className="text-amber-600"> (+{fees.dodo}% fee)</span>}
+                          <h3 className="font-semibold text-sm">Card / Google Pay / Apple Pay</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {fees.dodo > 0 && <span className="text-amber-600">(+{fees.dodo}%)</span>}
                           </p>
                         </div>
-                        <Button 
-                          className="w-full bg-[#4F46E5] hover:bg-[#4338CA]"
-                          onClick={createDodoPayment}
-                          disabled={creatingDodoPayment}
-                        >
-                          {creatingDodoPayment ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <CreditCard className="h-4 w-4 mr-2" />
-                              Pay ${calculateTotalWithFee('dodo')} with Card
-                            </>
-                          )}
-                        </Button>
                       </div>
+                      <Button 
+                        onClick={createDodoPayment}
+                        disabled={creatingDodoPayment}
+                        size="sm"
+                      >
+                        {creatingDodoPayment ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          `Pay $${calculateTotalWithFee('dodo').toFixed(2)}`
+                        )}
+                      </Button>
                     </div>
                   </div>
                 )}
 
-                {/* PayPal Payment */}
+                {/* PayPal */}
                 {paypalEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary transition-colors border-[#003087]/30 bg-[#003087]/5">
-                    <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-[#003087]/10 flex items-center justify-center flex-shrink-0">
-                        <Wallet className="h-6 w-6 text-[#003087]" />
-                      </div>
-                      <div className="flex-1 space-y-3">
+                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-[#003087]/10 flex items-center justify-center flex-shrink-0">
+                          <Wallet className="h-5 w-5 text-[#003087]" />
+                        </div>
                         <div>
-                          <h3 className="font-semibold flex items-center gap-2">
-                            PayPal
-                            <Badge variant="secondary" className="text-xs">${calculateTotalWithFee('paypal').toFixed(2)}</Badge>
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            PayPal, Venmo, Pay Later
-                            {fees.paypal > 0 && <span className="text-amber-600"> (+{fees.paypal}% fee)</span>}
+                          <h3 className="font-semibold text-sm">PayPal</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {fees.paypal > 0 && <span className="text-amber-600">(+{fees.paypal}%)</span>}
                           </p>
                         </div>
-                        <Button 
-                          className="w-full bg-[#003087] hover:bg-[#002060]"
-                          onClick={createPaypalPayment}
-                          disabled={creatingPaypalPayment}
-                        >
-                          {creatingPaypalPayment ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <Wallet className="h-4 w-4 mr-2" />
-                              Pay with PayPal
-                            </>
-                          )}
-                        </Button>
                       </div>
+                      <Button 
+                        onClick={createPaypalPayment}
+                        disabled={creatingPaypalPayment}
+                        size="sm"
+                      >
+                        {creatingPaypalPayment ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          `Pay $${calculateTotalWithFee('paypal').toFixed(2)}`
+                        )}
+                      </Button>
                     </div>
                   </div>
                 )}
 
-                {/* Paddle Payment */}
+                {/* Paddle */}
                 {paddleEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary transition-colors border-[#0E1F3F]/30 bg-[#0E1F3F]/5">
-                    <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-[#0E1F3F]/10 flex items-center justify-center flex-shrink-0">
-                        <Store className="h-6 w-6 text-[#0E1F3F]" />
-                      </div>
-                      <div className="flex-1 space-y-3">
+                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-[#0E1F3F]/10 flex items-center justify-center flex-shrink-0">
+                          <Store className="h-5 w-5 text-[#0E1F3F]" />
+                        </div>
                         <div>
-                          <h3 className="font-semibold flex items-center gap-2">
-                            Paddle Checkout
-                            <Badge variant="secondary" className="text-xs">${calculateTotalWithFee('paddle').toFixed(2)}</Badge>
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            Pay securely with cards, PayPal, Apple Pay & more
-                            {fees.paddle > 0 && <span className="text-amber-600"> (+{fees.paddle}% fee)</span>}
+                          <h3 className="font-semibold text-sm">Paddle</h3>
+                          <p className="text-xs text-muted-foreground">
+                            Cards, PayPal, Apple Pay
+                            {fees.paddle > 0 && <span className="text-amber-600"> (+{fees.paddle}%)</span>}
                           </p>
                         </div>
-                        <Button 
-                          className="w-full bg-[#0E1F3F] hover:bg-[#0E1F3F]/90"
-                          onClick={createPaddlePayment}
-                          disabled={creatingPaddlePayment}
-                        >
-                          {creatingPaddlePayment ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <Store className="h-4 w-4 mr-2" />
-                              Pay with Paddle
-                            </>
-                          )}
-                        </Button>
                       </div>
+                      <Button 
+                        onClick={createPaddlePayment}
+                        disabled={creatingPaddlePayment}
+                        size="sm"
+                      >
+                        {creatingPaddlePayment ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          `Pay $${calculateTotalWithFee('paddle').toFixed(2)}`
+                        )}
+                      </Button>
                     </div>
                   </div>
                 )}
 
 
                 {vivaEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary transition-colors">
-                    <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-[#1A1F71]/10 flex items-center justify-center flex-shrink-0">
-                        <Globe className="h-6 w-6 text-[#1A1F71]" />
-                      </div>
-                      <div className="flex-1 space-y-3">
+                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-[#1A1F71]/10 flex items-center justify-center flex-shrink-0">
+                          <Globe className="h-5 w-5 text-[#1A1F71]" />
+                        </div>
                         <div>
-                          <h3 className="font-semibold flex items-center gap-2">
-                            Card Payment (Viva.com)
-                            <Badge variant="secondary" className="text-xs">Recommended</Badge>
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            Pay securely with Visa, Mastercard, or other debit/credit cards
-                            {fees.viva > 0 && <span className="text-amber-600"> (+{fees.viva}% fee)</span>}
+                          <h3 className="font-semibold text-sm">Card (Viva.com)</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {fees.viva > 0 && <span className="text-amber-600">(+{fees.viva}%)</span>}
                           </p>
                         </div>
-                        <Button 
-                          className="w-full bg-[#1A1F71] hover:bg-[#1A1F71]/90"
-                          onClick={createVivaPayment}
-                          disabled={creatingVivaPayment}
-                        >
-                          {creatingVivaPayment ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <CreditCard className="h-4 w-4 mr-2" />
-                              Pay ${calculateTotalWithFee('viva')} with Card
-                            </>
-                          )}
-                        </Button>
                       </div>
+                      <Button 
+                        onClick={createVivaPayment}
+                        disabled={creatingVivaPayment}
+                        size="sm"
+                      >
+                        {creatingVivaPayment ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          `Pay $${calculateTotalWithFee('viva')}`
+                        )}
+                      </Button>
                     </div>
                   </div>
                 )}
 
                 {/* Binance Pay */}
                 {binanceEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary transition-colors">
-                    <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-[#F0B90B]/10 flex items-center justify-center flex-shrink-0">
-                        <Wallet className="h-6 w-6 text-[#F0B90B]" />
-                      </div>
-                      <div className="flex-1 space-y-3">
-                        <div>
-                          <h3 className="font-semibold">Binance Pay</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Pay instantly using your Binance wallet
-                          </p>
+                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-[#F0B90B]/10 flex items-center justify-center flex-shrink-0">
+                          <Wallet className="h-5 w-5 text-[#F0B90B]" />
                         </div>
-                        <Button 
-                          className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
-                          onClick={openBinancePayment}
-                        >
-                          <Wallet className="h-4 w-4 mr-2" />
-                          Pay with Binance Pay
-                        </Button>
+                        <div>
+                          <h3 className="font-semibold text-sm">Binance Pay</h3>
+                        </div>
                       </div>
+                      <Button 
+                        onClick={openBinancePayment}
+                        size="sm"
+                        variant="outline"
+                      >
+                        Pay with Binance
+                      </Button>
                     </div>
                   </div>
                 )}
 
-                {/* USDT Payment */}
+                {/* USDT */}
                 {usdtEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary transition-colors">
-                    <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                        <Bitcoin className="h-6 w-6 text-green-500" />
-                      </div>
-                      <div className="flex-1 space-y-3">
-                        <div>
-                          <h3 className="font-semibold">USDT (TRC20)</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Pay with USDT cryptocurrency on TRC20 network
-                          </p>
+                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                          <Bitcoin className="h-5 w-5 text-green-500" />
                         </div>
-                        <Button 
-                          className="w-full bg-green-600 hover:bg-green-700"
-                          onClick={createCryptoPayment}
-                          disabled={creatingPayment === 'usdt'}
-                        >
-                          {creatingPayment === 'usdt' ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Creating Payment...
-                            </>
-                          ) : (
-                            <>
-                              <Bitcoin className="h-4 w-4 mr-2" />
-                              Pay with USDT
-                            </>
-                          )}
-                        </Button>
+                        <div>
+                          <h3 className="font-semibold text-sm">USDT (TRC20)</h3>
+                        </div>
                       </div>
+                      <Button 
+                        onClick={createCryptoPayment}
+                        disabled={creatingPayment === 'usdt'}
+                        size="sm"
+                        variant="outline"
+                      >
+                        {creatingPayment === 'usdt' ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          'Pay with USDT'
+                        )}
+                      </Button>
                     </div>
                   </div>
                 )}
 
-                {/* WhatsApp Payment */}
+                {/* WhatsApp */}
                 {whatsappEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary transition-colors">
-                    <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-[#25D366]/10 flex items-center justify-center flex-shrink-0">
-                        <MessageCircle className="h-6 w-6 text-[#25D366]" />
-                      </div>
-                      <div className="flex-1 space-y-3">
-                        <div>
-                          <h3 className="font-semibold">WhatsApp Support</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Contact us on WhatsApp for manual payment assistance
-                          </p>
+                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-[#25D366]/10 flex items-center justify-center flex-shrink-0">
+                          <MessageCircle className="h-5 w-5 text-[#25D366]" />
                         </div>
-                        <Button 
-                          className="w-full bg-[#25D366] hover:bg-[#1DA851]"
-                          onClick={handleWhatsAppPayment}
-                        >
-                          <MessageCircle className="h-4 w-4 mr-2" />
-                          Pay via WhatsApp
-                        </Button>
+                        <div>
+                          <h3 className="font-semibold text-sm">WhatsApp</h3>
+                          <p className="text-xs text-muted-foreground">Manual payment</p>
+                        </div>
                       </div>
+                      <Button 
+                        onClick={handleWhatsAppPayment}
+                        size="sm"
+                        variant="outline"
+                      >
+                        Contact Us
+                      </Button>
                     </div>
                   </div>
                 )}
