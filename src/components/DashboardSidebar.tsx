@@ -390,6 +390,7 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/bank-statements', icon: FileText, label: 'Bank Statements' },
         { to: '/dashboard/pricing', icon: CreditCard, label: 'Pricing' },
         { to: '/dashboard/stripe-payments', icon: CreditCard, label: 'Stripe' },
+        { to: '/dashboard/paddle-payments', icon: CreditCard, label: 'Paddle' },
         { to: '/dashboard/webhook-logs', icon: Activity, label: 'Webhook Logs' },
         { to: '/dashboard/promo-codes', icon: Ticket, label: 'Promo Codes' },
         { to: '/dashboard/promo-analytics', icon: PieChart, label: 'Promo Analytics' },

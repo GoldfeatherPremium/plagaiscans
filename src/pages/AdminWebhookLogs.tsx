@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -28,8 +28,9 @@ const AdminWebhookLogs: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [eventTypeFilter, setEventTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'stripe' | 'paddle'>('all');
 
-  const { data: logs, isLoading, refetch } = useQuery({
+  const { data: stripeLogs, isLoading: stripeLoading, refetch: refetchStripe } = useQuery({
     queryKey: ['stripe-webhook-logs'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -39,9 +40,31 @@ const AdminWebhookLogs: React.FC = () => {
         .limit(50000);
 
       if (error) throw error;
-      return data as WebhookLog[];
+      return (data || []).map(d => ({ ...d, source: 'stripe' as const }));
     },
   });
+
+  const { data: paddleLogs, isLoading: paddleLoading, refetch: refetchPaddle } = useQuery({
+    queryKey: ['paddle-webhook-logs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('paddle_webhook_logs')
+        .select('*')
+        .order('received_at', { ascending: false })
+        .limit(50000);
+
+      if (error) throw error;
+      return (data || []).map(d => ({ ...d, source: 'paddle' as const }));
+    },
+  });
+
+  const isLoading = stripeLoading || paddleLoading;
+  const refetch = () => { refetchStripe(); refetchPaddle(); };
+
+  const logs = useMemo(() => {
+    const all = [...(stripeLogs || []), ...(paddleLogs || [])];
+    return all.sort((a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime());
+  }, [stripeLogs, paddleLogs]);
 
   const eventTypes = Array.from(new Set(logs?.map(log => log.event_type) || []));
 
@@ -53,7 +76,8 @@ const AdminWebhookLogs: React.FC = () => {
       (statusFilter === 'processed' && log.processed) ||
       (statusFilter === 'failed' && !log.processed && log.error_message) ||
       (statusFilter === 'pending' && !log.processed && !log.error_message);
-    return matchesSearch && matchesType && matchesStatus;
+    const matchesSource = sourceFilter === 'all' || log.source === sourceFilter;
+    return matchesSearch && matchesType && matchesStatus && matchesSource;
   });
 
   const stats = {
@@ -77,8 +101,8 @@ const AdminWebhookLogs: React.FC = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-display font-bold">Stripe Webhook Logs</h1>
-          <p className="text-muted-foreground mt-1">Monitor and debug Stripe webhook events</p>
+          <h1 className="text-3xl font-display font-bold">Webhook Logs</h1>
+          <p className="text-muted-foreground mt-1">Monitor and debug Stripe & Paddle webhook events</p>
         </div>
       <div className="space-y-6">
         {/* Stats */}
@@ -181,6 +205,16 @@ const AdminWebhookLogs: React.FC = () => {
                   <SelectItem value="pending">Pending</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v as any)}>
+                <SelectTrigger className="w-full md:w-[150px]">
+                  <SelectValue placeholder="Source" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sources</SelectItem>
+                  <SelectItem value="stripe">Stripe</SelectItem>
+                  <SelectItem value="paddle">Paddle</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {isLoading ? (
@@ -192,6 +226,7 @@ const AdminWebhookLogs: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Source</TableHead>
                       <TableHead>Event ID</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
@@ -201,7 +236,10 @@ const AdminWebhookLogs: React.FC = () => {
                   </TableHeader>
                   <TableBody>
                     {filteredLogs?.map((log) => (
-                      <TableRow key={log.id}>
+                        <TableRow key={`${(log as any).source}-${log.id}`}>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs capitalize">{(log as any).source}</Badge>
+                        </TableCell>
                         <TableCell className="font-mono text-xs">{log.event_id.slice(0, 20)}...</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="font-mono text-xs">
