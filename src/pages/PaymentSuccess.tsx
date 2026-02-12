@@ -218,6 +218,49 @@ const PaymentSuccess = () => {
     } else if (provider === 'dodo') {
       setPaymentProvider('dodo');
       verifyDodoPayment();
+    } else if (provider === 'paddle') {
+      setPaymentProvider('paddle');
+      // Paddle webhook already processed the payment, just show success
+      const showPaddleSuccess = async () => {
+        try {
+          await refreshProfile();
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) { setStatus('error'); setErrorMessage("Not authenticated"); return; }
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('credit_balance, full_name, email')
+            .eq('id', session.user.id)
+            .single();
+          const { data: paddlePayment } = await supabase
+            .from('paddle_payments')
+            .select('credits, amount_usd, completed_at, transaction_id')
+            .eq('user_id', session.user.id)
+            .eq('status', 'completed')
+            .order('completed_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          setPaymentDetails({
+            creditsAdded: paddlePayment?.credits || 0,
+            newBalance: profileData?.credit_balance || 0,
+            transactionId: (paddlePayment?.transaction_id || '').slice(-12).toUpperCase(),
+            paymentDate: paddlePayment?.completed_at || new Date().toISOString(),
+            customerEmail: profileData?.email || user?.email || '',
+            customerName: profileData?.full_name || profile?.full_name || 'Customer',
+            amountPaid: paddlePayment?.amount_usd,
+          });
+          setStatus('success');
+        } catch (err) {
+          console.error('Error fetching Paddle payment details:', err);
+          setPaymentDetails({
+            creditsAdded: 0, newBalance: profile?.credit_balance || 0,
+            transactionId: 'PADDLE', paymentDate: new Date().toISOString(),
+            customerEmail: user?.email || '', customerName: profile?.full_name || 'Customer',
+          });
+          setStatus('success');
+          await refreshProfile();
+        }
+      };
+      showPaddleSuccess();
     } else if (sessionId) {
       setPaymentProvider('stripe');
       verifyStripePayment();
@@ -358,7 +401,7 @@ Visit us at: ${window.location.origin}
                       <CreditCard className="h-4 w-4" />
                       <span>{t('paymentSuccess.paymentMethod')}</span>
                     </div>
-                    <span className="font-medium">{paymentProvider === 'dodo' ? 'Dodo Payments' : paymentProvider === 'paypal' ? 'PayPal' : 'Stripe'}</span>
+                    <span className="font-medium">{paymentProvider === 'dodo' ? 'Dodo Payments' : paymentProvider === 'paypal' ? 'PayPal' : paymentProvider === 'paddle' ? 'Card Payment' : 'Stripe'}</span>
                   </div>
                 </div>
 
