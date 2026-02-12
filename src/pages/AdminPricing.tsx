@@ -41,6 +41,7 @@ interface PricingPackage {
   stripe_price_id: string | null;
   stripe_product_id: string | null;
   dodo_product_id: string | null;
+  paddle_price_id: string | null;
   name: string | null;
   description: string | null;
   features: string[];
@@ -108,6 +109,7 @@ export default function AdminPricing() {
     stripe_price_id: '',
     stripe_product_id: '',
     dodo_product_id: '',
+    paddle_price_id: '',
     description: '',
     features: '',
     credit_type: 'full' as CreditType,
@@ -144,6 +146,7 @@ export default function AdminPricing() {
       stripe_price_id: '',
       stripe_product_id: '',
       dodo_product_id: '',
+      paddle_price_id: '',
       description: '',
       features: '',
       credit_type: 'full',
@@ -163,6 +166,7 @@ export default function AdminPricing() {
       stripe_price_id: pkg.stripe_price_id || '',
       stripe_product_id: pkg.stripe_product_id || '',
       dodo_product_id: pkg.dodo_product_id || '',
+      paddle_price_id: (pkg as any).paddle_price_id || '',
       description: pkg.description || '',
       features: pkg.features?.join('\n') || '',
       credit_type: pkg.credit_type || 'full',
@@ -192,6 +196,7 @@ export default function AdminPricing() {
       stripe_price_id: formData.stripe_price_id || null,
       stripe_product_id: formData.stripe_product_id || null,
       dodo_product_id: formData.dodo_product_id || null,
+      paddle_price_id: formData.paddle_price_id || null,
       description: formData.description || null,
       features: formData.features.split('\n').filter(f => f.trim()),
       credit_type: formData.credit_type,
@@ -477,6 +482,15 @@ export default function AdminPricing() {
                         className="mt-1"
                       />
                     </div>
+                    <div>
+                      <Label>Paddle Price ID (Optional)</Label>
+                      <Input
+                        value={formData.paddle_price_id}
+                        onChange={(e) => setFormData(prev => ({ ...prev, paddle_price_id: e.target.value }))}
+                        placeholder="pri_..."
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -513,6 +527,15 @@ export default function AdminPricing() {
                         value={formData.dodo_product_id}
                         onChange={(e) => setFormData(prev => ({ ...prev, dodo_product_id: e.target.value }))}
                         placeholder="pdt_..."
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Paddle Price ID (Optional)</Label>
+                      <Input
+                        value={formData.paddle_price_id}
+                        onChange={(e) => setFormData(prev => ({ ...prev, paddle_price_id: e.target.value }))}
+                        placeholder="pri_..."
                         className="mt-1"
                       />
                     </div>
