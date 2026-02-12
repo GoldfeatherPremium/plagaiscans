@@ -118,6 +118,8 @@ export default function AdminEmailDeliveryLogs() {
           functionName = 'send-completion-email';
           payload = {
             documentId: log.document_id,
+            userId: log.recipient_id,
+            fileName: log.metadata?.fileName || 'Document',
             retryLogId: log.id,
           };
           break;
@@ -192,7 +194,7 @@ export default function AdminEmailDeliveryLogs() {
         switch (log.email_type) {
           case 'document_completion':
             functionName = 'send-completion-email';
-            payload = { documentId: log.document_id, retryLogId: log.id };
+            payload = { documentId: log.document_id, userId: log.recipient_id, fileName: log.metadata?.fileName || 'Document', retryLogId: log.id };
             break;
           case 'welcome':
             functionName = 'send-welcome-email';
