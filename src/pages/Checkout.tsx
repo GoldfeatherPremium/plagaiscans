@@ -734,9 +734,9 @@ export default function Checkout() {
                           <Store className="h-5 w-5 text-[#0E1F3F]" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-sm">Paddle</h3>
+                          <h3 className="font-semibold text-sm">Card Payment</h3>
                           <p className="text-xs text-muted-foreground">
-                            Cards, PayPal, Apple Pay
+                            Visa, Mastercard, Google Pay, Apple Pay
                             {fees.paddle > 0 && <span className="text-amber-600"> (+{fees.paddle}%)</span>}
                           </p>
                         </div>
