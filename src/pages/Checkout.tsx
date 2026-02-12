@@ -115,14 +115,9 @@ export default function Checkout() {
         .in('key', [
           'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled', 'payment_paypal_enabled', 'payment_paddle_enabled',
           'binance_pay_id',
-          'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe', 'fee_dodo', 'fee_paypal', 'fee_paddle'
+          'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe', 'fee_dodo', 'fee_paypal', 'fee_paddle',
+          'paddle_client_token', 'paddle_environment'
         ]);
-
-      // Also fetch paddle settings from site_content
-      const { data: paddleSettings } = await supabase
-        .from('site_content')
-        .select('content_key, content_value')
-        .in('content_key', ['payment_paddle_enabled', 'fee_paddle', 'paddle_client_token', 'paddle_environment']);
 
       if (settings) {
         const whatsapp = settings.find(s => s.key === 'payment_whatsapp_enabled');
@@ -152,19 +147,15 @@ export default function Checkout() {
         setPaypalEnabled(paypal?.value === 'true');
         if (binanceId) setBinancePayId(binanceId.value);
 
-        // Paddle settings from site_content
-        if (paddleSettings) {
-          const paddleEnabledSetting = paddleSettings.find(s => s.content_key === 'payment_paddle_enabled');
-          const feePaddleSetting = paddleSettings.find(s => s.content_key === 'fee_paddle');
-          const paddleTokenSetting = paddleSettings.find(s => s.content_key === 'paddle_client_token');
-          const paddleEnvSetting = paddleSettings.find(s => s.content_key === 'paddle_environment');
-          
-          setPaddleEnabled(paddleEnabledSetting?.content_value === 'true');
-          setPaddleClientToken(paddleTokenSetting?.content_value || '');
-          setPaddleEnvironment(paddleEnvSetting?.content_value || 'sandbox');
-          
-          setFees(prev => ({ ...prev, paddle: parseFloat(feePaddleSetting?.content_value || '0') || 0 }));
-        }
+        // Paddle settings from settings table
+        const paddlePayment = settings.find(s => s.key === 'payment_paddle_enabled');
+        const feePaddleSetting = settings.find(s => s.key === 'fee_paddle');
+        const paddleTokenSetting = settings.find(s => s.key === 'paddle_client_token');
+        const paddleEnvSetting = settings.find(s => s.key === 'paddle_environment');
+        
+        setPaddleEnabled(paddlePayment?.value === 'true');
+        setPaddleClientToken(paddleTokenSetting?.value || '');
+        setPaddleEnvironment(paddleEnvSetting?.value || 'sandbox');
         
         setFees(prev => ({
           ...prev,
@@ -175,6 +166,7 @@ export default function Checkout() {
           stripe: parseFloat(feeStripe?.value || '0') || 0,
           dodo: parseFloat(feeDodo?.value || '0') || 0,
           paypal: parseFloat(feePaypal?.value || '0') || 0,
+          paddle: parseFloat(feePaddleSetting?.value || '0') || 0,
         }));
       }
       setLoading(false);
