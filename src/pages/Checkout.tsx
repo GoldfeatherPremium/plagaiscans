@@ -6,12 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, CreditCard, Loader2, Bitcoin, Copy, ExternalLink, 
-  RefreshCw, Wallet, ShoppingCart, Plus, Minus, Trash2, Globe, 
-  CheckCircle, MessageCircle, AlertCircle, Zap, Tag, X, Shield, Store
+  RefreshCw, Wallet, Globe, 
+  CheckCircle, MessageCircle, AlertCircle, Tag, X, Shield, Store
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
@@ -29,12 +28,19 @@ interface PaymentDetails {
   status: string;
 }
 
+interface SelectedPackage {
+  id: string;
+  credits: number;
+  price: number;
+  credit_type: string;
+  name: string | null;
+}
+
 export default function Checkout() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { profile, user } = useAuth();
   const { openWhatsAppCustom } = useWhatsApp();
-  const { cart, updateCartQuantity, removeFromCart, clearCart, getCartTotal, getCartCredits, getCartCreditType } = useCart();
   const { 
     validatingPromo, 
     appliedPromo, 
@@ -46,6 +52,7 @@ export default function Checkout() {
   } = usePromoCode();
   
   const [loading, setLoading] = useState(true);
+  const [selectedPackage, setSelectedPackage] = useState<SelectedPackage | null>(null);
   const [promoInput, setPromoInput] = useState('');
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
   const [usdtEnabled, setUsdtEnabled] = useState(true);
@@ -57,47 +64,35 @@ export default function Checkout() {
   const [paddleEnabled, setPaddleEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
   
-  // Payment fees
   const [fees, setFees] = useState<{ whatsapp: number; usdt: number; binance: number; viva: number; stripe: number; dodo: number; paypal: number; paddle: number }>({
-    whatsapp: 0,
-    usdt: 0,
-    binance: 0,
-    viva: 0,
-    stripe: 0,
-    dodo: 0,
-    paypal: 0,
-    paddle: 0,
+    whatsapp: 0, usdt: 0, binance: 0, viva: 0, stripe: 0, dodo: 0, paypal: 0, paddle: 0,
   });
   
-  // Payment processing states
   const [creatingPayment, setCreatingPayment] = useState<string | null>(null);
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
   
-  // Binance payment states
   const [showBinanceDialog, setShowBinanceDialog] = useState(false);
   const [showOrderIdStep, setShowOrderIdStep] = useState(false);
   const [binanceOrderId, setBinanceOrderId] = useState('');
   const [submittingBinance, setSubmittingBinance] = useState(false);
   
-  // Viva payment state
   const [creatingVivaPayment, setCreatingVivaPayment] = useState(false);
-  
-  // Stripe payment state
   const [creatingStripePayment, setCreatingStripePayment] = useState(false);
   const [showStripeEmbeddedCheckout, setShowStripeEmbeddedCheckout] = useState(false);
-
   const [creatingDodoPayment, setCreatingDodoPayment] = useState(false);
   const [creatingPaypalPayment, setCreatingPaypalPayment] = useState(false);
   const [creatingPaddlePayment, setCreatingPaddlePayment] = useState(false);
   const [paddleClientToken, setPaddleClientToken] = useState('');
   const [paddleEnvironment, setPaddleEnvironment] = useState('sandbox');
 
-  // Calculate total with fee and promo discount
+  const packagePrice = selectedPackage?.price || 0;
+  const packageCredits = selectedPackage?.credits || 0;
+  const packageCreditType = (selectedPackage?.credit_type || 'full') as 'full' | 'similarity_only';
+
   const calculateTotalWithFee = (method: 'whatsapp' | 'usdt' | 'binance' | 'viva' | 'stripe' | 'dodo' | 'paypal' | 'paddle') => {
-    const baseTotal = getCartTotal();
-    const discountedTotal = calculateDiscountedTotal(baseTotal);
+    const discountedTotal = calculateDiscountedTotal(packagePrice);
     const feePercent = fees[method] || 0;
     const feeAmount = discountedTotal * (feePercent / 100);
     return Math.round((discountedTotal + feeAmount) * 100) / 100;
@@ -106,6 +101,33 @@ export default function Checkout() {
   const handleApplyPromo = async () => {
     await validatePromoCode(promoInput);
   };
+
+  // Load package from URL param
+  useEffect(() => {
+    const loadPackage = async () => {
+      const packageId = searchParams.get('packageId');
+      if (!packageId) {
+        navigate('/dashboard/credits');
+        return;
+      }
+
+      const { data: pkg } = await supabase
+        .from('pricing_packages')
+        .select('id, credits, price, credit_type, name')
+        .eq('id', packageId)
+        .eq('is_active', true)
+        .single();
+
+      if (!pkg) {
+        toast.error('Package not found');
+        navigate('/dashboard/credits');
+        return;
+      }
+
+      setSelectedPackage(pkg);
+    };
+    loadPackage();
+  }, [searchParams, navigate]);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -129,7 +151,6 @@ export default function Checkout() {
         const paypal = settings.find(s => s.key === 'payment_paypal_enabled');
         const binanceId = settings.find(s => s.key === 'binance_pay_id');
         
-        // Get fees
         const feeWhatsapp = settings.find(s => s.key === 'fee_whatsapp');
         const feeUsdt = settings.find(s => s.key === 'fee_usdt');
         const feeBinance = settings.find(s => s.key === 'fee_binance');
@@ -147,7 +168,6 @@ export default function Checkout() {
         setPaypalEnabled(paypal?.value === 'true');
         if (binanceId) setBinancePayId(binanceId.value);
 
-        // Paddle settings from settings table
         const paddlePayment = settings.find(s => s.key === 'payment_paddle_enabled');
         const feePaddleSetting = settings.find(s => s.key === 'fee_paddle');
         const paddleTokenSetting = settings.find(s => s.key === 'paddle_client_token');
@@ -157,8 +177,7 @@ export default function Checkout() {
         setPaddleClientToken(paddleTokenSetting?.value || '');
         setPaddleEnvironment(paddleEnvSetting?.value || 'sandbox');
         
-        setFees(prev => ({
-          ...prev,
+        setFees({
           whatsapp: parseFloat(feeWhatsapp?.value || '0') || 0,
           usdt: parseFloat(feeUsdt?.value || '0') || 0,
           binance: parseFloat(feeBinance?.value || '0') || 0,
@@ -167,25 +186,15 @@ export default function Checkout() {
           dodo: parseFloat(feeDodo?.value || '0') || 0,
           paypal: parseFloat(feePaypal?.value || '0') || 0,
           paddle: parseFloat(feePaddleSetting?.value || '0') || 0,
-        }));
+        });
       }
       setLoading(false);
     };
     fetchSettings();
   }, []);
 
-  // Redirect if cart is empty
-  useEffect(() => {
-    if (!loading && cart.length === 0) {
-      navigate('/dashboard/credits');
-    }
-  }, [cart.length, loading, navigate]);
-
   const createCryptoPayment = async () => {
-    if (!user) {
-      toast.error('Please login to make a payment');
-      return;
-    }
+    if (!user || !selectedPackage) return;
 
     setCreatingPayment('usdt');
     try {
@@ -195,24 +204,19 @@ export default function Checkout() {
       const response = await supabase.functions.invoke('nowpayments?action=create', {
         body: {
           userId: user.id,
-          credits: getCartCredits(),
+          credits: packageCredits,
           amountUsd: totalWithFee,
           orderId,
         },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
+      if (response.error) throw new Error(response.error.message);
 
       const data = response.data;
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to create payment');
-      }
+      if (!data.success) throw new Error(data.error || 'Failed to create payment');
 
       setPaymentDetails(data.payment);
       setShowPaymentDialog(true);
-      clearCart();
       toast.success('Payment created! Send USDT to the address shown.');
     } catch (error: any) {
       console.error('Payment error:', error);
@@ -267,24 +271,14 @@ export default function Checkout() {
 
   const validateBinanceOrderId = (orderId: string): { isValid: boolean; error: string } => {
     const trimmed = orderId.trim();
-    
-    if (!trimmed) {
-      return { isValid: false, error: 'Order ID is required' };
-    }
-    
-    if (!/^\d+$/.test(trimmed)) {
-      return { isValid: false, error: 'Order ID should contain only numbers' };
-    }
-    
-    if (trimmed.length < 15 || trimmed.length > 25) {
-      return { isValid: false, error: 'Order ID should be 15-25 digits long' };
-    }
-    
+    if (!trimmed) return { isValid: false, error: 'Order ID is required' };
+    if (!/^\d+$/.test(trimmed)) return { isValid: false, error: 'Order ID should contain only numbers' };
+    if (trimmed.length < 15 || trimmed.length > 25) return { isValid: false, error: 'Order ID should be 15-25 digits long' };
     return { isValid: true, error: '' };
   };
 
   const submitBinancePayment = async () => {
-    if (!user || cart.length === 0) return;
+    if (!user || !selectedPackage) return;
     
     const validation = validateBinanceOrderId(binanceOrderId);
     if (!validation.isValid) {
@@ -293,7 +287,6 @@ export default function Checkout() {
     }
 
     const totalWithFee = calculateTotalWithFee('binance');
-    const totalCredits = getCartCredits();
     
     setSubmittingBinance(true);
     try {
@@ -301,10 +294,10 @@ export default function Checkout() {
         user_id: user.id,
         payment_method: 'binance_pay',
         amount_usd: totalWithFee,
-        credits: totalCredits,
+        credits: packageCredits,
         status: 'pending',
         transaction_id: binanceOrderId.trim(),
-        notes: `Cart: ${cart.map(item => `${item.package.credits}x${item.quantity}`).join(', ')}`,
+        notes: `Package: ${selectedPackage.name || selectedPackage.credits + ' credits'}`,
       });
 
       if (error) throw error;
@@ -318,7 +311,7 @@ export default function Checkout() {
         const notifications = adminRoles.map(admin => ({
           user_id: admin.user_id,
           title: '🔔 New Binance Pay Payment',
-          message: `New payment of $${totalWithFee} for ${totalCredits} credits.\nOrder ID: ${binanceOrderId.trim()}\nUser: ${profile?.email || user.email}\nPlease verify in Admin Panel.`,
+          message: `New payment of $${totalWithFee} for ${packageCredits} credits.\nOrder ID: ${binanceOrderId.trim()}\nUser: ${profile?.email || user.email}\nPlease verify in Admin Panel.`,
           created_by: user.id,
         }));
 
@@ -329,7 +322,6 @@ export default function Checkout() {
       setShowBinanceDialog(false);
       setBinanceOrderId('');
       setShowOrderIdStep(false);
-      clearCart();
       navigate('/dashboard/payments');
     } catch (error: any) {
       console.error('Binance payment error:', error);
@@ -340,21 +332,17 @@ export default function Checkout() {
   };
 
   const createVivaPayment = async () => {
-    if (!user || cart.length === 0) {
-      toast.error('Please login and add items to cart');
-      return;
-    }
+    if (!user || !selectedPackage) return;
 
     setCreatingVivaPayment(true);
     try {
-      const totalCredits = getCartCredits();
       const totalWithFee = calculateTotalWithFee('viva');
       const orderId = `viva_${Date.now()}_${user.id.slice(0, 8)}`;
 
       const response = await supabase.functions.invoke('viva-payments?action=create', {
         body: {
           userId: user.id,
-          credits: totalCredits,
+          credits: packageCredits,
           amountUsd: totalWithFee,
           orderId,
           customerEmail: profile?.email || user.email,
@@ -362,17 +350,12 @@ export default function Checkout() {
         },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
+      if (response.error) throw new Error(response.error.message);
 
       const data = response.data;
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to create payment');
-      }
+      if (!data.success) throw new Error(data.error || 'Failed to create payment');
 
       toast.success('Redirecting to payment page...');
-      clearCart();
       window.location.href = data.checkoutUrl;
     } catch (error: any) {
       console.error('Viva payment error:', error);
@@ -384,98 +367,72 @@ export default function Checkout() {
 
   const handleWhatsAppPayment = () => {
     const totalWithFee = calculateTotalWithFee('whatsapp');
-    const message = `Hi, I want to buy ${getCartCredits()} credits for $${totalWithFee}. Please help me with the payment.`;
+    const message = `Hi, I want to buy ${packageCredits} credits for $${totalWithFee}. Please help me with the payment.`;
     openWhatsAppCustom(message);
   };
 
   const createStripePayment = async () => {
-    if (!user || cart.length === 0) {
-      toast.error('Please login and add items to cart');
-      return;
-    }
-
-    // Open embedded checkout dialog instead of redirecting
+    if (!user || !selectedPackage) return;
     setShowStripeEmbeddedCheckout(true);
   };
 
   const createDodoPayment = async () => {
-    if (!user || cart.length === 0) {
-      toast.error('Please login and add items to cart');
-      return;
-    }
+    if (!user || !selectedPackage) return;
 
     setCreatingDodoPayment(true);
     try {
-      const totalCredits = getCartCredits();
       const totalAmount = Math.round(calculateTotalWithFee('dodo') * 100);
-
-      // Build cart items for the checkout
-      const cartItems = cart.map(item => ({
-        packageId: item.package.id,
-        credits: item.package.credits,
-        quantity: item.quantity,
-        creditType: item.package.credit_type || 'full',
-      }));
 
       const response = await supabase.functions.invoke('create-dodo-checkout', {
         body: {
-          credits: totalCredits,
+          credits: packageCredits,
           amount: totalAmount,
-          creditType: getCartCreditType() || 'full',
-          cartItems,
+          creditType: packageCreditType,
+          cartItems: [{
+            packageId: selectedPackage.id,
+            credits: selectedPackage.credits,
+            quantity: 1,
+            creditType: packageCreditType,
+          }],
         },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
+      if (response.error) throw new Error(response.error.message);
 
       const data = response.data;
-      if (!data.url) {
-        throw new Error(data.error || 'Failed to create Dodo checkout');
-      }
+      if (!data.url) throw new Error(data.error || 'Failed to create Dodo checkout');
 
-      toast.success('Redirecting to Dodo checkout...');
-      clearCart();
+      toast.success('Redirecting to checkout...');
       window.location.href = data.url;
     } catch (error: any) {
       console.error('Dodo payment error:', error);
-      toast.error(error.message || 'Failed to create Dodo payment');
+      toast.error(error.message || 'Failed to create payment');
     } finally {
       setCreatingDodoPayment(false);
     }
   };
 
   const createPaypalPayment = async () => {
-    if (!user || cart.length === 0) {
-      toast.error('Please login and add items to cart');
-      return;
-    }
+    if (!user || !selectedPackage) return;
 
     setCreatingPaypalPayment(true);
     try {
-      const totalCredits = getCartCredits();
       const totalAmount = Math.round(calculateTotalWithFee('paypal') * 100);
 
       const response = await supabase.functions.invoke('create-paypal-checkout', {
         body: {
-          credits: totalCredits,
+          credits: packageCredits,
           amount: totalAmount,
-          creditType: getCartCreditType() || 'full',
+          creditType: packageCreditType,
         },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
+      if (response.error) throw new Error(response.error.message);
 
       const data = response.data;
-      if (!data.approvalUrl) {
-        throw new Error(data.error || 'Failed to create PayPal checkout');
-      }
+      if (!data.approvalUrl) throw new Error(data.error || 'Failed to create PayPal checkout');
 
       toast.success('Redirecting to PayPal...');
-      clearCart();
       window.location.href = data.approvalUrl;
     } catch (error: any) {
       console.error('PayPal payment error:', error);
@@ -488,8 +445,6 @@ export default function Checkout() {
   // Load Paddle.js script
   useEffect(() => {
     if (!paddleEnabled || !paddleClientToken) return;
-    
-    // Check if already loaded
     if ((window as any).Paddle) return;
 
     const script = document.createElement('script');
@@ -508,10 +463,7 @@ export default function Checkout() {
   }, [paddleEnabled, paddleClientToken, paddleEnvironment]);
 
   const createPaddlePayment = async () => {
-    if (!user || cart.length === 0) {
-      toast.error('Please login and add items to cart');
-      return;
-    }
+    if (!user || !selectedPackage) return;
 
     const Paddle = (window as any).Paddle;
     if (!Paddle) {
@@ -521,15 +473,10 @@ export default function Checkout() {
 
     setCreatingPaddlePayment(true);
     try {
-      const totalCredits = getCartCredits();
-      const creditType = getCartCreditType() || 'full';
-
-      // Get the first cart item's package to find paddle_price_id
-      const firstItem = cart[0];
       const { data: pkg } = await supabase
         .from('pricing_packages')
         .select('paddle_price_id')
-        .eq('id', firstItem.package.id)
+        .eq('id', selectedPackage.id)
         .single();
 
       if (!pkg?.paddle_price_id) {
@@ -540,30 +487,23 @@ export default function Checkout() {
       const response = await supabase.functions.invoke('create-paddle-checkout', {
         body: {
           priceId: pkg.paddle_price_id,
-          credits: totalCredits,
+          credits: packageCredits,
           amount: Math.round(calculateTotalWithFee('paddle') * 100),
-          creditType,
+          creditType: packageCreditType,
         },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
+      if (response.error) throw new Error(response.error.message);
 
       const data = response.data;
-      if (!data.transactionId) {
-        throw new Error(data.error || 'Failed to create Paddle checkout');
-      }
+      if (!data.transactionId) throw new Error(data.error || 'Failed to create Paddle checkout');
 
-      // Open Paddle overlay checkout
       Paddle.Checkout.open({
         transactionId: data.transactionId,
         settings: {
           successUrl: `${window.location.origin}/dashboard/payment-success?provider=paddle`,
         },
       });
-
-      clearCart();
     } catch (error: any) {
       console.error('Paddle payment error:', error);
       toast.error(error.message || 'Failed to create Paddle payment');
@@ -572,7 +512,7 @@ export default function Checkout() {
     }
   };
 
-  if (loading) {
+  if (loading || !selectedPackage) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
@@ -582,14 +522,10 @@ export default function Checkout() {
     );
   }
 
-  if (cart.length === 0) {
-    return null;
-  }
-
   return (
     <DashboardLayout>
       <div className="max-w-5xl mx-auto space-y-8">
-        {/* Premium Header */}
+        {/* Header */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 p-6 md:p-8">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           <div className="relative flex items-center gap-4">
@@ -599,7 +535,7 @@ export default function Checkout() {
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-1">
                 <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center">
-                  <ShoppingCart className="h-5 w-5 text-primary" />
+                  <CreditCard className="h-5 w-5 text-primary" />
                 </div>
                 <h1 className="text-2xl md:text-3xl font-display font-bold">Secure Checkout</h1>
               </div>
@@ -618,46 +554,18 @@ export default function Checkout() {
             <Card className="sticky top-4">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5" />
+                  <CreditCard className="h-5 w-5" />
                   Order Summary
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {cart.map((item) => (
-                  <div key={item.package.id} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/50">
-                    <div className="flex-1">
-                      <p className="font-medium">{item.package.credits} Credits</p>
-                      <p className="text-sm text-muted-foreground">${item.package.price} each</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => updateCartQuantity(item.package.id, -1)}
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-8 text-center font-medium">{item.quantity}</span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => updateCartQuantity(item.package.id, 1)}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => removeFromCart(item.package.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <p className="font-medium">{selectedPackage.name || `${packageCredits} Credits`}</p>
+                  <p className="text-sm text-muted-foreground">{packageCredits} credits • ${packagePrice}</p>
+                  <Badge variant="outline" className="mt-1 text-xs">
+                    {packageCreditType === 'similarity_only' ? 'Similarity Only' : 'AI Scan'}
+                  </Badge>
+                </div>
 
                 <Separator />
 
@@ -707,9 +615,9 @@ export default function Checkout() {
 
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Total Credits</span>
+                    <span className="text-muted-foreground">Credits</span>
                     <span className="font-medium">
-                      {getCartCredits()}
+                      {packageCredits}
                       {getTotalBonusCredits() > 0 && (
                         <span className="text-green-600 ml-1">+{getTotalBonusCredits()}</span>
                       )}
@@ -719,17 +627,17 @@ export default function Checkout() {
                     <>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Subtotal</span>
-                        <span className="line-through text-muted-foreground">${getCartTotal()}</span>
+                        <span className="line-through text-muted-foreground">${packagePrice}</span>
                       </div>
                       <div className="flex justify-between text-sm text-green-600">
                         <span>Discount ({appliedPromo.discountPercentage}%)</span>
-                        <span>-${(getCartTotal() - calculateDiscountedTotal(getCartTotal())).toFixed(2)}</span>
+                        <span>-${(packagePrice - calculateDiscountedTotal(packagePrice)).toFixed(2)}</span>
                       </div>
                     </>
                   )}
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span className="text-primary">${calculateDiscountedTotal(getCartTotal())}</span>
+                    <span className="text-primary">${calculateDiscountedTotal(packagePrice)}</span>
                   </div>
                 </div>
 
@@ -754,7 +662,6 @@ export default function Checkout() {
                 <CardDescription>All transactions are secure and encrypted</CardDescription>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
-                {/* Stripe Card Payment */}
                 {stripeEnabled && (
                   <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
                     <div className="flex items-center justify-between gap-4">
@@ -770,22 +677,13 @@ export default function Checkout() {
                           </p>
                         </div>
                       </div>
-                      <Button 
-                        onClick={createStripePayment}
-                        disabled={creatingStripePayment}
-                        size="sm"
-                      >
-                        {creatingStripePayment ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          `Pay $${calculateTotalWithFee('stripe')}`
-                        )}
+                      <Button onClick={createStripePayment} disabled={creatingStripePayment} size="sm">
+                        {creatingStripePayment ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pay $${calculateTotalWithFee('stripe')}`}
                       </Button>
                     </div>
                   </div>
                 )}
 
-                {/* Card / Google Pay / Apple Pay */}
                 {dodoEnabled && (
                   <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
                     <div className="flex items-center justify-between gap-4">
@@ -800,22 +698,13 @@ export default function Checkout() {
                           </p>
                         </div>
                       </div>
-                      <Button 
-                        onClick={createDodoPayment}
-                        disabled={creatingDodoPayment}
-                        size="sm"
-                      >
-                        {creatingDodoPayment ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          `Pay $${calculateTotalWithFee('dodo').toFixed(2)}`
-                        )}
+                      <Button onClick={createDodoPayment} disabled={creatingDodoPayment} size="sm">
+                        {creatingDodoPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pay $${calculateTotalWithFee('dodo').toFixed(2)}`}
                       </Button>
                     </div>
                   </div>
                 )}
 
-                {/* PayPal */}
                 {paypalEnabled && (
                   <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
                     <div className="flex items-center justify-between gap-4">
@@ -830,22 +719,13 @@ export default function Checkout() {
                           </p>
                         </div>
                       </div>
-                      <Button 
-                        onClick={createPaypalPayment}
-                        disabled={creatingPaypalPayment}
-                        size="sm"
-                      >
-                        {creatingPaypalPayment ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          `Pay $${calculateTotalWithFee('paypal').toFixed(2)}`
-                        )}
+                      <Button onClick={createPaypalPayment} disabled={creatingPaypalPayment} size="sm">
+                        {creatingPaypalPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pay $${calculateTotalWithFee('paypal').toFixed(2)}`}
                       </Button>
                     </div>
                   </div>
                 )}
 
-                {/* Paddle */}
                 {paddleEnabled && (
                   <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
                     <div className="flex items-center justify-between gap-4">
@@ -861,21 +741,12 @@ export default function Checkout() {
                           </p>
                         </div>
                       </div>
-                      <Button 
-                        onClick={createPaddlePayment}
-                        disabled={creatingPaddlePayment}
-                        size="sm"
-                      >
-                        {creatingPaddlePayment ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          `Pay $${calculateTotalWithFee('paddle').toFixed(2)}`
-                        )}
+                      <Button onClick={createPaddlePayment} disabled={creatingPaddlePayment} size="sm">
+                        {creatingPaddlePayment ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pay $${calculateTotalWithFee('paddle').toFixed(2)}`}
                       </Button>
                     </div>
                   </div>
                 )}
-
 
                 {vivaEnabled && (
                   <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
@@ -891,22 +762,13 @@ export default function Checkout() {
                           </p>
                         </div>
                       </div>
-                      <Button 
-                        onClick={createVivaPayment}
-                        disabled={creatingVivaPayment}
-                        size="sm"
-                      >
-                        {creatingVivaPayment ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          `Pay $${calculateTotalWithFee('viva')}`
-                        )}
+                      <Button onClick={createVivaPayment} disabled={creatingVivaPayment} size="sm">
+                        {creatingVivaPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pay $${calculateTotalWithFee('viva')}`}
                       </Button>
                     </div>
                   </div>
                 )}
 
-                {/* Binance Pay */}
                 {binanceEnabled && (
                   <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
                     <div className="flex items-center justify-between gap-4">
@@ -918,18 +780,11 @@ export default function Checkout() {
                           <h3 className="font-semibold text-sm">Binance Pay</h3>
                         </div>
                       </div>
-                      <Button 
-                        onClick={openBinancePayment}
-                        size="sm"
-                        variant="outline"
-                      >
-                        Pay with Binance
-                      </Button>
+                      <Button onClick={openBinancePayment} size="sm" variant="outline">Pay with Binance</Button>
                     </div>
                   </div>
                 )}
 
-                {/* USDT */}
                 {usdtEnabled && (
                   <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
                     <div className="flex items-center justify-between gap-4">
@@ -941,23 +796,13 @@ export default function Checkout() {
                           <h3 className="font-semibold text-sm">USDT (TRC20)</h3>
                         </div>
                       </div>
-                      <Button 
-                        onClick={createCryptoPayment}
-                        disabled={creatingPayment === 'usdt'}
-                        size="sm"
-                        variant="outline"
-                      >
-                        {creatingPayment === 'usdt' ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          'Pay with USDT'
-                        )}
+                      <Button onClick={createCryptoPayment} disabled={creatingPayment === 'usdt'} size="sm" variant="outline">
+                        {creatingPayment === 'usdt' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Pay with USDT'}
                       </Button>
                     </div>
                   </div>
                 )}
 
-                {/* WhatsApp */}
                 {whatsappEnabled && (
                   <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
                     <div className="flex items-center justify-between gap-4">
@@ -970,13 +815,7 @@ export default function Checkout() {
                           <p className="text-xs text-muted-foreground">Manual payment</p>
                         </div>
                       </div>
-                      <Button 
-                        onClick={handleWhatsAppPayment}
-                        size="sm"
-                        variant="outline"
-                      >
-                        Contact Us
-                      </Button>
+                      <Button onClick={handleWhatsAppPayment} size="sm" variant="outline">Contact Us</Button>
                     </div>
                   </div>
                 )}
@@ -1011,15 +850,11 @@ export default function Checkout() {
               <div className="space-y-2">
                 <Label>Amount to Send (USDT TRC20)</Label>
                 <div className="flex items-center gap-2">
-                  <Input 
-                    value={paymentDetails.payAmount.toFixed(6)} 
-                    readOnly 
-                    className="font-mono text-lg"
-                  />
-                      <Button variant="outline" size="icon" onClick={() => {
-                        navigator.clipboard.writeText(paymentDetails.payAmount.toString());
-                        toast.success('Amount copied');
-                      }}>
+                  <Input value={paymentDetails.payAmount.toFixed(6)} readOnly className="font-mono text-lg" />
+                  <Button variant="outline" size="icon" onClick={() => {
+                    navigator.clipboard.writeText(paymentDetails.payAmount.toString());
+                    toast.success('Amount copied');
+                  }}>
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
@@ -1028,11 +863,7 @@ export default function Checkout() {
               <div className="space-y-2">
                 <Label>Wallet Address</Label>
                 <div className="flex items-center gap-2">
-                  <Input 
-                    value={paymentDetails.payAddress} 
-                    readOnly 
-                    className="font-mono text-xs"
-                  />
+                  <Input value={paymentDetails.payAddress} readOnly className="font-mono text-xs" />
                   <Button variant="outline" size="icon" onClick={copyAddress}>
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -1047,17 +878,8 @@ export default function Checkout() {
               </div>
 
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={checkPaymentStatus}
-                  disabled={checkingStatus}
-                >
-                  {checkingStatus ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                  )}
+                <Button variant="outline" className="flex-1" onClick={checkPaymentStatus} disabled={checkingStatus}>
+                  {checkingStatus ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                   Check Status
                 </Button>
               </div>
@@ -1079,18 +901,15 @@ export default function Checkout() {
               Binance Pay
             </DialogTitle>
             <DialogDescription>
-              {!showOrderIdStep 
-                ? 'Follow these steps to complete your payment'
-                : 'Enter your Binance Pay Order ID'
-              }
+              {!showOrderIdStep ? 'Follow these steps to complete your payment' : 'Enter your Binance Pay Order ID'}
             </DialogDescription>
           </DialogHeader>
           
           {!showOrderIdStep ? (
             <div className="space-y-4">
               <div className="p-4 bg-muted rounded-lg space-y-3">
-                <p className="font-medium">Total: ${getCartTotal()}</p>
-                <p className="text-sm text-muted-foreground">For {getCartCredits()} credits</p>
+                <p className="font-medium">Total: ${packagePrice}</p>
+                <p className="text-sm text-muted-foreground">For {packageCredits} credits</p>
               </div>
 
               <ol className="space-y-3 text-sm">
@@ -1101,15 +920,11 @@ export default function Checkout() {
                 <li className="flex gap-3">
                   <span className="h-6 w-6 rounded-full bg-[#F0B90B] text-black flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
                   <div>
-                    <span>Send ${getCartTotal()} to Pay ID: </span>
-                    <Button 
-                      variant="link" 
-                      className="p-0 h-auto text-primary"
-                      onClick={() => {
-                        navigator.clipboard.writeText(binancePayId);
-                        toast.success('Pay ID copied');
-                      }}
-                    >
+                    <span>Send ${packagePrice} to Pay ID: </span>
+                    <Button variant="link" className="p-0 h-auto text-primary" onClick={() => {
+                      navigator.clipboard.writeText(binancePayId);
+                      toast.success('Pay ID copied');
+                    }}>
                       {binancePayId}
                       <Copy className="h-3 w-3 ml-1" />
                     </Button>
@@ -1121,10 +936,7 @@ export default function Checkout() {
                 </li>
               </ol>
 
-              <Button 
-                className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
-                onClick={proceedToOrderId}
-              >
+              <Button className="w-full bg-[#F0B90B] hover:bg-[#D4A50A] text-black" onClick={proceedToOrderId}>
                 I've Made the Payment
               </Button>
             </div>
@@ -1139,29 +951,17 @@ export default function Checkout() {
                   onChange={(e) => setBinanceOrderId(e.target.value)}
                   className="font-mono"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Find this in your Binance Pay transaction history
-                </p>
+                <p className="text-xs text-muted-foreground">Find this in your Binance Pay transaction history</p>
               </div>
 
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => setShowOrderIdStep(false)}
-                >
-                  Back
-                </Button>
+                <Button variant="outline" className="flex-1" onClick={() => setShowOrderIdStep(false)}>Back</Button>
                 <Button 
                   className="flex-1 bg-[#F0B90B] hover:bg-[#D4A50A] text-black"
                   onClick={submitBinancePayment}
                   disabled={submittingBinance || !binanceOrderId.trim()}
                 >
-                  {submittingBinance ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                  )}
+                  {submittingBinance ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
                   Submit
                 </Button>
               </div>
@@ -1174,11 +974,10 @@ export default function Checkout() {
       <StripeEmbeddedCheckout
         open={showStripeEmbeddedCheckout}
         onClose={() => setShowStripeEmbeddedCheckout(false)}
-        credits={getCartCredits()}
+        credits={packageCredits}
         amount={Math.round(calculateTotalWithFee('stripe') * 100)}
-        creditType={(getCartCreditType() || 'full') as 'full' | 'similarity_only'}
+        creditType={packageCreditType}
         onSuccess={() => {
-          clearCart();
           navigate('/dashboard/payment-success');
         }}
       />

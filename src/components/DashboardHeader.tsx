@@ -1,17 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Moon, Sun, Coins, ShoppingCart, Search } from 'lucide-react';
+import { Moon, Sun, Coins, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCart } from '@/contexts/CartContext';
 import { useNavigate } from 'react-router-dom';
 
 export const DashboardHeader: React.FC = () => {
   const { user, profile, role } = useAuth();
-  const { getCartCount } = useCart();
   const navigate = useNavigate();
-  const cartCount = getCartCount();
   
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -79,23 +76,6 @@ export const DashboardHeader: React.FC = () => {
             </div>
           )}
 
-          {/* Cart Icon for customers */}
-          {role === 'customer' && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard/credits')}
-              className="rounded-full hover:bg-muted relative"
-              aria-label="Shopping cart"
-            >
-              <ShoppingCart className="h-5 w-5" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-secondary text-secondary-foreground text-xs font-bold flex items-center justify-center">
-                  {cartCount > 9 ? '9+' : cartCount}
-                </span>
-              )}
-            </Button>
-          )}
 
           {/* Language Switcher */}
           <LanguageSwitcher />
