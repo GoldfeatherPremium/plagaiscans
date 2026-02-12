@@ -126,6 +126,36 @@ export default function AdminManualPayments() {
         performed_by: user?.id,
       });
 
+      // --- Credit Validity Record ---
+      try {
+        let validityDays = 365;
+        const { data: pkg } = await supabase
+          .from('pricing_packages')
+          .select('id, validity_days')
+          .eq('credits', payment.credits)
+          .eq('credit_type', 'full')
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle();
+
+        if (pkg?.validity_days) validityDays = pkg.validity_days;
+
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + validityDays);
+
+        await supabase.from('credit_validity').insert({
+          user_id: payment.user_id,
+          credits_amount: payment.credits,
+          remaining_credits: payment.credits,
+          expires_at: expiresAt.toISOString(),
+          credit_type: 'full',
+          package_id: pkg?.id || null,
+        });
+        console.log('Credit validity record created', { validityDays });
+      } catch (cvError) {
+        console.error('Failed to create credit validity record:', cvError);
+      }
+
       // Send email notification to user
       try {
         await supabase.functions.invoke('send-payment-verified-email', {

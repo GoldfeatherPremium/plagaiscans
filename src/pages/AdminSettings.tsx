@@ -27,6 +27,7 @@ export default function AdminSettings() {
   const [dodoEnabled, setDodoEnabled] = useState(false);
   const [paypalEnabled, setPaypalEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
+  const [binanceDiscount, setBinanceDiscount] = useState('0');
   const [savingBinance, setSavingBinance] = useState(false);
   
   // Viva.com settings
@@ -96,6 +97,7 @@ export default function AdminSettings() {
       'payment_dodo_enabled',
       'payment_paypal_enabled',
       'binance_pay_id',
+      'binance_discount_percent',
       'viva_source_code',
       'fee_whatsapp',
       'fee_usdt',
@@ -150,6 +152,8 @@ export default function AdminSettings() {
       setDodoEnabled(dodoPayment?.value === 'true');
       setPaypalEnabled(paypalPayment?.value === 'true');
       if (binanceId) setBinancePayId(binanceId.value);
+      const binanceDiscountSetting = data.find(s => s.key === 'binance_discount_percent');
+      if (binanceDiscountSetting) setBinanceDiscount(binanceDiscountSetting.value);
       if (vivaSource) setVivaSourceCode(vivaSource.value);
       if (feeWhatsapp) setWhatsappFee(feeWhatsapp.value);
       if (feeUsdt) setUsdtFee(feeUsdt.value);
@@ -269,16 +273,18 @@ export default function AdminSettings() {
   const saveBinanceSettings = async () => {
     setSavingBinance(true);
     
-    const { error } = await supabase
-      .from('settings')
-      .upsert({ key: 'binance_pay_id', value: binancePayId }, { onConflict: 'key' });
+    const results = await Promise.all([
+      supabase.from('settings').upsert({ key: 'binance_pay_id', value: binancePayId }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'binance_discount_percent', value: binanceDiscount }, { onConflict: 'key' }),
+    ]);
     
     setSavingBinance(false);
+    const hasError = results.some(r => r.error);
     
-    if (error) {
-      toast({ title: 'Error', description: 'Failed to save Binance Pay ID', variant: 'destructive' });
+    if (hasError) {
+      toast({ title: 'Error', description: 'Failed to save Binance settings', variant: 'destructive' });
     } else {
-      toast({ title: 'Success', description: 'Binance Pay ID updated' });
+      toast({ title: 'Success', description: 'Binance Pay settings updated' });
     }
   };
 
@@ -1086,6 +1092,21 @@ export default function AdminSettings() {
               />
               <p className="text-xs text-muted-foreground">
                 Customers will send payments to this Binance Pay ID
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="binanceDiscount">Binance Pay Discount (%)</Label>
+              <Input
+                id="binanceDiscount"
+                type="number"
+                min="0"
+                max="100"
+                placeholder="e.g. 10"
+                value={binanceDiscount}
+                onChange={(e) => setBinanceDiscount(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Percentage discount applied when customers pay via Binance Pay. Set to 0 for no discount.
               </p>
             </div>
             <Button onClick={saveBinanceSettings} disabled={savingBinance}>

@@ -63,7 +63,7 @@ export default function Checkout() {
   const [paypalEnabled, setPaypalEnabled] = useState(false);
   const [paddleEnabled, setPaddleEnabled] = useState(false);
   const [binancePayId, setBinancePayId] = useState('');
-  
+  const [binanceDiscount, setBinanceDiscount] = useState(0);
   const [fees, setFees] = useState<{ whatsapp: number; usdt: number; binance: number; viva: number; stripe: number; dodo: number; paypal: number; paddle: number }>({
     whatsapp: 0, usdt: 0, binance: 0, viva: 0, stripe: 0, dodo: 0, paypal: 0, paddle: 0,
   });
@@ -136,7 +136,7 @@ export default function Checkout() {
         .select('key, value')
         .in('key', [
           'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled', 'payment_paypal_enabled', 'payment_paddle_enabled',
-          'binance_pay_id',
+          'binance_pay_id', 'binance_discount_percent',
           'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe', 'fee_dodo', 'fee_paypal', 'fee_paddle',
           'paddle_client_token', 'paddle_environment'
         ]);
@@ -167,6 +167,8 @@ export default function Checkout() {
         setDodoEnabled(dodo?.value === 'true');
         setPaypalEnabled(paypal?.value === 'true');
         if (binanceId) setBinancePayId(binanceId.value);
+        const binanceDiscountSetting = settings.find(s => s.key === 'binance_discount_percent');
+        if (binanceDiscountSetting) setBinanceDiscount(parseFloat(binanceDiscountSetting.value) || 0);
 
         const paddlePayment = settings.find(s => s.key === 'payment_paddle_enabled');
         const feePaddleSetting = settings.find(s => s.key === 'fee_paddle');
@@ -286,14 +288,17 @@ export default function Checkout() {
       return;
     }
 
-    const totalWithFee = calculateTotalWithFee('binance');
+    const baseTotal = calculateTotalWithFee('binance');
+    const totalWithDiscount = binanceDiscount > 0 
+      ? Math.round(calculateDiscountedTotal(packagePrice) * (1 - binanceDiscount / 100) * 100) / 100
+      : baseTotal;
     
     setSubmittingBinance(true);
     try {
       const { error } = await supabase.from('manual_payments').insert({
         user_id: user.id,
         payment_method: 'binance_pay',
-        amount_usd: totalWithFee,
+        amount_usd: totalWithDiscount,
         credits: packageCredits,
         status: 'pending',
         transaction_id: binanceOrderId.trim(),
@@ -311,7 +316,7 @@ export default function Checkout() {
         const notifications = adminRoles.map(admin => ({
           user_id: admin.user_id,
           title: '🔔 New Binance Pay Payment',
-          message: `New payment of $${totalWithFee} for ${packageCredits} credits.\nOrder ID: ${binanceOrderId.trim()}\nUser: ${profile?.email || user.email}\nPlease verify in Admin Panel.`,
+          message: `New payment of $${totalWithDiscount} for ${packageCredits} credits.\nOrder ID: ${binanceOrderId.trim()}\nUser: ${profile?.email || user.email}\nPlease verify in Admin Panel.`,
           created_by: user.id,
         }));
 
@@ -778,9 +783,24 @@ export default function Checkout() {
                         </div>
                         <div>
                           <h3 className="font-semibold text-sm">Binance Pay</h3>
+                          {binanceDiscount > 0 && (
+                            <p className="text-xs text-green-600 font-medium">
+                              {binanceDiscount}% discount applied!
+                            </p>
+                          )}
                         </div>
                       </div>
-                      <Button onClick={openBinancePayment} size="sm" variant="outline">Pay with Binance</Button>
+                      <div className="flex items-center gap-2">
+                        {binanceDiscount > 0 && (
+                          <span className="text-xs line-through text-muted-foreground">${calculateDiscountedTotal(packagePrice).toFixed(2)}</span>
+                        )}
+                        <Button onClick={openBinancePayment} size="sm" variant="outline">
+                          Pay ${binanceDiscount > 0 
+                            ? (calculateDiscountedTotal(packagePrice) * (1 - binanceDiscount / 100)).toFixed(2)
+                            : calculateTotalWithFee('binance').toFixed(2)
+                          }
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -908,7 +928,17 @@ export default function Checkout() {
           {!showOrderIdStep ? (
             <div className="space-y-4">
               <div className="p-4 bg-muted rounded-lg space-y-3">
-                <p className="font-medium">Total: ${packagePrice}</p>
+                {binanceDiscount > 0 ? (
+                  <>
+                    <p className="font-medium">
+                      Total: <span className="line-through text-muted-foreground">${calculateDiscountedTotal(packagePrice).toFixed(2)}</span>{' '}
+                      <span className="text-green-600">${(calculateDiscountedTotal(packagePrice) * (1 - binanceDiscount / 100)).toFixed(2)}</span>
+                    </p>
+                    <Badge className="bg-green-600 text-white">{binanceDiscount}% Binance Discount</Badge>
+                  </>
+                ) : (
+                  <p className="font-medium">Total: ${calculateTotalWithFee('binance').toFixed(2)}</p>
+                )}
                 <p className="text-sm text-muted-foreground">For {packageCredits} credits</p>
               </div>
 
@@ -920,7 +950,10 @@ export default function Checkout() {
                 <li className="flex gap-3">
                   <span className="h-6 w-6 rounded-full bg-[#F0B90B] text-black flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
                   <div>
-                    <span>Send ${packagePrice} to Pay ID: </span>
+                    <span>Send ${binanceDiscount > 0 
+                      ? (calculateDiscountedTotal(packagePrice) * (1 - binanceDiscount / 100)).toFixed(2)
+                      : calculateTotalWithFee('binance').toFixed(2)
+                    } to Pay ID: </span>
                     <Button variant="link" className="p-0 h-auto text-primary" onClick={() => {
                       navigator.clipboard.writeText(binancePayId);
                       toast.success('Pay ID copied');
