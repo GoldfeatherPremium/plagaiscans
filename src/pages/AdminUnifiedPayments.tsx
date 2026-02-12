@@ -13,7 +13,7 @@ import { Search, Download, RefreshCw, CreditCard, Wallet, DollarSign, TrendingUp
 
 interface UnifiedPayment {
   id: string;
-  type: 'stripe' | 'crypto' | 'manual' | 'dodo';
+  type: 'stripe' | 'crypto' | 'manual' | 'dodo' | 'paddle';
   user_id: string;
   user_email?: string;
   user_name?: string;
@@ -75,6 +75,19 @@ const AdminUnifiedPayments: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('dodo_payments')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch Paddle payments
+  const { data: paddlePayments } = useQuery({
+    queryKey: ['paddle-payments-admin'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('paddle_payments')
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -170,8 +183,24 @@ const AdminUnifiedPayments: React.FC = () => {
       });
     });
 
+    paddlePayments?.forEach(p => {
+      payments.push({
+        id: p.id,
+        type: 'paddle',
+        user_id: p.user_id,
+        user_email: p.customer_email || profileMap[p.user_id]?.email,
+        user_name: profileMap[p.user_id]?.name,
+        amount_usd: Number(p.amount_usd),
+        credits: p.credits,
+        status: p.status,
+        created_at: p.created_at,
+        completed_at: p.completed_at,
+        reference: p.transaction_id?.slice(-12),
+      });
+    });
+
     return payments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [stripePayments, cryptoPayments, manualPayments, dodoPayments, profileMap]);
+  }, [stripePayments, cryptoPayments, manualPayments, dodoPayments, paddlePayments, profileMap]);
 
   const filteredPayments = unifiedPayments.filter(p => {
     const matchesSearch = 
@@ -194,6 +223,7 @@ const AdminUnifiedPayments: React.FC = () => {
       stripeCount: unifiedPayments.filter(p => p.type === 'stripe').length,
       cryptoCount: unifiedPayments.filter(p => p.type === 'crypto').length,
       manualCount: unifiedPayments.filter(p => p.type === 'manual').length,
+      paddleCount: unifiedPayments.filter(p => p.type === 'paddle').length,
     };
   }, [unifiedPayments]);
 
@@ -207,6 +237,8 @@ const AdminUnifiedPayments: React.FC = () => {
         return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20"><DollarSign className="h-3 w-3 mr-1" />Manual</Badge>;
       case 'dodo':
         return <Badge className="bg-indigo-500/10 text-indigo-500 border-indigo-500/20"><CreditCard className="h-3 w-3 mr-1" />Dodo</Badge>;
+      case 'paddle':
+        return <Badge className="bg-teal-500/10 text-teal-500 border-teal-500/20"><CreditCard className="h-3 w-3 mr-1" />Paddle</Badge>;
       default:
         return <Badge variant="outline">{type}</Badge>;
     }
@@ -256,7 +288,7 @@ const AdminUnifiedPayments: React.FC = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-display font-bold">Unified Payments</h1>
-          <p className="text-muted-foreground mt-1">View all payments across Stripe, Crypto, and Manual methods</p>
+          <p className="text-muted-foreground mt-1">View all payments across Stripe, Paddle, Crypto, and Manual methods</p>
         </div>
       <div className="space-y-6">
         {/* Stats */}
@@ -346,6 +378,7 @@ const AdminUnifiedPayments: React.FC = () => {
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="stripe">Stripe</SelectItem>
+                  <SelectItem value="paddle">Paddle</SelectItem>
                   <SelectItem value="crypto">Crypto</SelectItem>
                   <SelectItem value="manual">Manual</SelectItem>
                   <SelectItem value="dodo">Dodo</SelectItem>
