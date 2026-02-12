@@ -38,37 +38,56 @@ async function sendSingleEmail(
   apiKey: string,
   recipient: Recipient,
   subject: string,
-  htmlContent: string
+  htmlContent: string,
+  maxRetries: number = 3
 ): Promise<{ success: boolean; error?: string }> {
-  try {
-    const response = await fetch("https://api.sender.net/v2/message/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        to: { email: recipient.email, name: recipient.email.split('@')[0] },
-        from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
-        subject: subject,
-        html: htmlContent,
-        reply_to: { email: EMAIL_CONFIG.REPLY_TO, name: EMAIL_CONFIG.FROM_NAME },
-      }),
-    });
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch("https://api.sender.net/v2/message/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          to: { email: recipient.email, name: recipient.email.split('@')[0] },
+          from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
+          subject: subject,
+          html: htmlContent,
+          reply_to: { email: EMAIL_CONFIG.REPLY_TO, name: EMAIL_CONFIG.FROM_NAME },
+        }),
+      });
 
-    if (response.ok) {
-      console.log(`Email sent to recipient ${recipient.id.substring(0, 8)}...`);
-      return { success: true };
-    } else {
+      if (response.ok) {
+        console.log(`Email sent to recipient ${recipient.id.substring(0, 8)}...`);
+        return { success: true };
+      }
+
       const error = await response.text();
+      const isRetryable = response.status >= 500 || response.status === 429;
+
+      if (isRetryable && attempt < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
+        console.warn(`Retryable error ${response.status} for ${recipient.id.substring(0, 8)}..., retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+        await sleep(delay);
+        continue;
+      }
+
       console.error(`Failed to send to ${recipient.id.substring(0, 8)}...:`, error);
-      return { success: false, error };
+      return { success: false, error: `HTTP ${response.status}` };
+    } catch (error: any) {
+      if (attempt < maxRetries) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
+        console.warn(`Network error for ${recipient.id.substring(0, 8)}..., retrying in ${delay}ms`);
+        await sleep(delay);
+        continue;
+      }
+      console.error(`Error sending to ${recipient.id.substring(0, 8)}...:`, error.message);
+      return { success: false, error: error.message };
     }
-  } catch (error: any) {
-    console.error(`Error sending to ${recipient.id.substring(0, 8)}...:`, error.message);
-    return { success: false, error: error.message };
   }
+  return { success: false, error: "Max retries exceeded" };
 }
 
 function sleep(ms: number): Promise<void> {
