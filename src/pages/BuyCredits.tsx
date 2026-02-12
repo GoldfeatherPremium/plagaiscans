@@ -225,49 +225,29 @@ export default function BuyCredits() {
           </p>
         </div>
 
-        {/* Current Balance Card */}
-        <Card className="overflow-hidden">
-          <div className="gradient-primary p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-6 text-primary-foreground">
-                <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-2xl bg-primary-foreground/20 backdrop-blur-sm flex items-center justify-center">
-                    <CreditCard className="h-7 w-7" />
-                  </div>
-                  <div>
-                    <p className="text-primary-foreground/80 text-xs font-medium">AI Scan Credits</p>
-                    <p className="text-3xl font-bold">{profile?.credit_balance || 0}</p>
-                  </div>
+        {/* Current Balance */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-6">
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">AI Scan</p>
+                  <p className="text-2xl font-bold">{profile?.credit_balance || 0}</p>
                 </div>
-                <div className="h-12 w-px bg-primary-foreground/20" />
-                <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-2xl bg-primary-foreground/20 backdrop-blur-sm flex items-center justify-center">
-                    <FileText className="h-7 w-7" />
-                  </div>
-                  <div>
-                    <p className="text-primary-foreground/80 text-xs font-medium">Similarity Credits</p>
-                    <p className="text-3xl font-bold">{profile?.similarity_credit_balance || 0}</p>
-                  </div>
+                <div className="h-8 w-px bg-border" />
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">Similarity</p>
+                  <p className="text-2xl font-bold">{profile?.similarity_credit_balance || 0}</p>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row items-center gap-3">
-                {cart.length > 0 && (
-                  <Badge variant="secondary" className="text-lg px-4 py-2 bg-primary-foreground/20 text-primary-foreground border-0">
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    {getCartCredits()} credits in cart
-                  </Badge>
-                )}
-                <Button 
-                  variant="secondary" 
-                  onClick={() => navigate('/dashboard/subscription')}
-                  className="gap-2"
-                >
-                  <Crown className="h-4 w-4" />
-                  Manage Subscription
-                </Button>
-              </div>
+              {cart.length > 0 && (
+                <Badge variant="secondary" className="text-sm px-3 py-1">
+                  <ShoppingCart className="h-3 w-3 mr-1" />
+                  {getCartCredits()} in cart
+                </Badge>
+              )}
             </div>
-          </div>
+          </CardContent>
         </Card>
 
 
@@ -664,54 +644,6 @@ export default function BuyCredits() {
           </Card>
         )}
 
-        {/* How it works */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">How to Purchase Credits</CardTitle>
-            <CardDescription>
-              Follow these simple steps to add credits to your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <span className="font-bold text-primary">1</span>
-                  </div>
-                  <h4 className="font-semibold">Choose a Plan</h4>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Select a one-time credit pack, subscription, or limited-time offer that suits your needs.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <span className="font-bold text-primary">2</span>
-                  </div>
-                  <h4 className="font-semibold">Checkout</h4>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Complete your purchase using Card, Crypto, or other available payment methods.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <span className="font-bold text-primary">3</span>
-                  </div>
-                  <h4 className="font-semibold">Get Credits</h4>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Your credits will be added to your account instantly after payment confirmation.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Cart Dialog */}

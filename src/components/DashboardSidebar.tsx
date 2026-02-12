@@ -310,12 +310,8 @@ export const DashboardSidebar: React.FC = () => {
     // Add remaining links
     links.push(
       { to: '/dashboard/documents', icon: FileText, label: t('sidebar.myDocuments') },
-      { to: '/dashboard/analytics', icon: PieChart, label: t('sidebar.analytics') },
       { to: '/dashboard/credits', icon: CreditCard, label: t('sidebar.buyCredits') },
-      { to: '/dashboard/subscription', icon: Crown, label: t('sidebar.subscription') },
       { to: '/dashboard/payments', icon: Receipt, label: t('sidebar.paymentHistory') },
-      { to: '/dashboard/invoices', icon: FileDown, label: t('sidebar.myInvoices') },
-      { to: '/dashboard/receipts', icon: Receipt, label: t('sidebar.myReceipts') },
       { to: '/dashboard/my-tickets', icon: MessageSquare, label: 'Support Tickets' },
       { to: '/dashboard/profile', icon: User, label: t('sidebar.profile') },
     );
