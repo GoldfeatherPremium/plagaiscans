@@ -17,6 +17,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
+import { toast } from '@/hooks/use-toast';
+import { Download } from 'lucide-react';
 
 interface ManualPayment {
   id: string;
@@ -42,18 +44,27 @@ interface PaddlePayment {
   credit_type: string;
 }
 
+interface ReceiptData {
+  id: string;
+  receipt_number: string;
+  transaction_id: string | null;
+  payment_id: string | null;
+}
+
 export default function PaymentHistory() {
   const { t } = useTranslation('dashboard');
   const { user } = useAuth();
   const [manualPayments, setManualPayments] = useState<ManualPayment[]>([]);
   const [paddlePayments, setPaddlePayments] = useState<PaddlePayment[]>([]);
+  const [receipts, setReceipts] = useState<ReceiptData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPayments = async () => {
       if (!user) return;
 
-      const [manualRes, paddleRes] = await Promise.all([
+      const [manualRes, paddleRes, receiptsRes] = await Promise.all([
         supabase
           .from('manual_payments')
           .select('*')
@@ -64,10 +75,15 @@ export default function PaymentHistory() {
           .select('id, amount_usd, credits, status, transaction_id, receipt_url, created_at, completed_at, credit_type')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('receipts')
+          .select('id, receipt_number, transaction_id, payment_id')
+          .eq('user_id', user.id),
       ]);
 
       if (manualRes.data) setManualPayments(manualRes.data);
       if (paddleRes.data) setPaddlePayments(paddleRes.data as PaddlePayment[]);
+      if (receiptsRes.data) setReceipts(receiptsRes.data as ReceiptData[]);
       setLoading(false);
     };
 
@@ -171,6 +187,32 @@ export default function PaymentHistory() {
   const pendingManualCount = manualPayments.filter(p => p.status === 'pending').length;
   const completedPaddleCount = paddlePayments.filter(p => p.status === 'completed').length;
   const verifiedManualCount = manualPayments.filter(p => p.status === 'verified').length;
+
+  const findReceiptForPayment = (transactionId: string) => {
+    return receipts.find(r => r.transaction_id === transactionId || r.payment_id === transactionId);
+  };
+
+  const handleDownloadReceipt = async (receiptId: string) => {
+    setDownloadingId(receiptId);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-receipt-pdf', {
+        body: { receiptId }
+      });
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error || 'Failed to generate receipt');
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(data.html);
+        printWindow.document.close();
+        printWindow.onload = () => printWindow.print();
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to download receipt';
+      toast({ title: "Error", description: errorMessage, variant: "destructive" });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const totalCreditsEarned =
     manualPayments
@@ -305,19 +347,41 @@ export default function PaymentHistory() {
                             </TableCell>
                             <TableCell>{getStatusBadge(payment.status)}</TableCell>
                             <TableCell>
-                              {payment.receipt_url ? (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => window.open(payment.receipt_url!, '_blank')}
-                                  className="gap-1"
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                  View
-                                </Button>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
+                              {(() => {
+                                const receipt = findReceiptForPayment(payment.transaction_id);
+                                if (receipt) {
+                                  return (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDownloadReceipt(receipt.id)}
+                                      disabled={downloadingId === receipt.id}
+                                      className="gap-1"
+                                    >
+                                      {downloadingId === receipt.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Download className="h-4 w-4" />
+                                      )}
+                                      Receipt
+                                    </Button>
+                                  );
+                                }
+                                if (payment.receipt_url) {
+                                  return (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => window.open(payment.receipt_url!, '_blank')}
+                                      className="gap-1"
+                                    >
+                                      <ExternalLink className="h-4 w-4" />
+                                      View
+                                    </Button>
+                                  );
+                                }
+                                return <span className="text-muted-foreground">-</span>;
+                              })()}
                             </TableCell>
                           </TableRow>
                         ))}
