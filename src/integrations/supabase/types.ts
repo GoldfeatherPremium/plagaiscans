@@ -2117,6 +2117,33 @@ export type Database = {
         }
         Relationships: []
       }
+      remark_presets: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          remark_text: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          remark_text: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          remark_text?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       settings: {
         Row: {
           id: string

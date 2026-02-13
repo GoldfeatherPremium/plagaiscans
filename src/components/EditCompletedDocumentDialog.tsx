@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RemarkSelector } from '@/components/RemarkSelector';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Download, Trash2, Loader2, Upload, FileText } from 'lucide-react';
 import { Document, DocumentStatus } from '@/hooks/useDocuments';
@@ -342,12 +343,10 @@ export const EditCompletedDocumentDialog: React.FC<EditCompletedDocumentDialogPr
 
           {/* Remarks */}
           <div className="space-y-2">
-            <Label>Remarks</Label>
-            <Textarea
-              placeholder="Optional remarks..."
+            <RemarkSelector
               value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              rows={3}
+              onChange={setRemarks}
+              label="Remarks"
             />
           </div>
         </div>

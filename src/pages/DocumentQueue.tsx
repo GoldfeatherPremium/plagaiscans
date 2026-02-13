@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RemarkSelector } from '@/components/RemarkSelector';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDocuments, Document } from '@/hooks/useDocuments';
@@ -886,12 +887,9 @@ export default function DocumentQueue() {
                 )}
               </div>
               <div>
-                <Label>Remarks (Optional)</Label>
-                <Textarea 
-                  placeholder="Add any remarks or notes about this document..."
+                <RemarkSelector
                   value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  rows={3}
+                  onChange={setRemarks}
                 />
               </div>
               
@@ -984,12 +982,12 @@ export default function DocumentQueue() {
                   </div>
                   
                   <div>
-                    <Label className="text-xs">Remarks (Optional)</Label>
-                    <Textarea 
-                      placeholder="Add remarks..."
+                    <RemarkSelector
                       value={data.remarks}
-                      onChange={(e) => updateBatchData(index, 'remarks', e.target.value)}
-                      rows={2}
+                      onChange={(val) => updateBatchData(index, 'remarks', val)}
+                      label="Remarks (Optional)"
+                      labelClassName="text-xs"
+                      compact
                     />
                   </div>
                   
