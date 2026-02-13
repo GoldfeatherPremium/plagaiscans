@@ -102,6 +102,7 @@ const AdminBankStatements = lazy(() => import("./pages/AdminBankStatements"));
 const AdminCreditValidity = lazy(() => import("./pages/AdminCreditValidity"));
 const AdminDeletedDocuments = lazy(() => import("./pages/AdminDeletedDocuments"));
 const AdminExtensionDownload = lazy(() => import("./pages/AdminExtensionDownload"));
+const BlogWhatIsPlagiarism = lazy(() => import("./pages/BlogWhatIsPlagiarism"));
 const queryClient = new QueryClient();
 
 // Loading skeleton component for Suspense fallback
@@ -260,6 +261,7 @@ const AppRoutes = () => (
         <Route path="/ai-content-detection" element={<AIContentDetection />} />
         <Route path="/resources" element={<Resources />} />
       <Route path="/resources/:slug" element={<Article />} />
+      <Route path="/blog/what-is-plagiarism" element={<BlogWhatIsPlagiarism />} />
       <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
       {/* Password reset page - bypasses auth checks to allow password change */}
       <Route path="/reset-password" element={<ResetPassword />} />
