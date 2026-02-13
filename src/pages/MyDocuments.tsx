@@ -9,7 +9,8 @@ import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/compo
 import { useTranslation } from 'react-i18next';
 
 import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
-import { FileText, Download, Loader2, DownloadCloud, Package, Trash2, Pencil, ChevronDown } from 'lucide-react';
+import { FileText, Download, Loader2, DownloadCloud, Package, Trash2, Pencil, ChevronDown, Info } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PushNotificationBanner } from '@/components/PushNotificationBanner';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -355,7 +356,7 @@ export default function MyDocuments() {
                             {doc.ai_percentage !== null && doc.ai_percentage !== undefined ? (
                               <span className="font-medium">{doc.ai_percentage}%</span>
                             ) : (
-                              <span className="text-muted-foreground">N/A</span>
+                              <span className="font-medium">*</span>
                             )}
                           </TableCell>
                           <TableCell className="text-center">
@@ -389,21 +390,38 @@ export default function MyDocuments() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {doc.status === 'cancelled' ? (
-                              <span className="text-sm text-destructive font-medium">
-                                {doc.cancellation_reason || 'Cancelled by admin'}
-                              </span>
-                            ) : doc.remarks ? (
-                              <span className="text-sm text-foreground">{doc.remarks}</span>
-                            ) : doc.error_message ? (
-                              <span className="text-sm text-destructive">{doc.error_message}</span>
-                            ) : doc.status === 'pending' ? (
-                              <span className="text-sm text-muted-foreground">In queue</span>
-                            ) : doc.status === 'in_progress' ? (
-                              <span className="text-sm text-muted-foreground">Processing...</span>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">-</span>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {doc.status === 'cancelled' ? (
+                                <span className="text-sm text-destructive font-medium">
+                                  {doc.cancellation_reason || 'Cancelled by admin'}
+                                </span>
+                              ) : doc.remarks ? (
+                                <span className="text-sm text-foreground">{doc.remarks}</span>
+                              ) : doc.error_message ? (
+                                <span className="text-sm text-destructive">{doc.error_message}</span>
+                              ) : doc.status === 'pending' ? (
+                                <span className="text-sm text-muted-foreground">In queue</span>
+                              ) : doc.status === 'in_progress' ? (
+                                <span className="text-sm text-muted-foreground">Processing...</span>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">-</span>
+                              )}
+                              {doc.status === 'completed' && (doc.ai_percentage === null || doc.ai_percentage === undefined) && (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full flex-shrink-0">
+                                      <Info className="h-3.5 w-3.5 text-primary" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-80 text-sm" side="top">
+                                    <p className="font-medium mb-1">AI % Note</p>
+                                    <p className="text-muted-foreground text-xs leading-relaxed">
+                                      AI % is in range between 1 to 19%. AI detection scores below 20% have a higher likelihood of false positives. In the updated version of the report, we no longer surface scores when the signal is below the 20% threshold to meet Turnitin's AI detection standards.
+                                    </p>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
+                            </div>
                           </TableCell>
                           {isAdmin && (
                             <TableCell className="text-center">
