@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench, Mail, FileText, Chrome, Eye, EyeOff, Zap, Bird, Sailboat } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AdminRemarkPresets } from '@/components/AdminRemarkPresets';
 
 export default function AdminSettings() {
   const { toast } = useToast();
@@ -1379,6 +1380,9 @@ export default function AdminSettings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Remark Presets */}
+        <AdminRemarkPresets />
       </div>
     </DashboardLayout>
   );

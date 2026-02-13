@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RemarkSelector } from '@/components/RemarkSelector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -1126,12 +1127,9 @@ const SimilarityQueue: React.FC = () => {
             </div>
 
             <div>
-              <Label>Remarks (Optional)</Label>
-              <Textarea
+              <RemarkSelector
                 value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                placeholder="Any additional notes..."
-                className="mt-1"
+                onChange={setRemarks}
               />
             </div>
 
@@ -1195,12 +1193,12 @@ const SimilarityQueue: React.FC = () => {
                 </div>
                 
                 <div>
-                  <Label className="text-xs">Remarks (Optional)</Label>
-                  <Textarea 
-                    placeholder="Add notes..."
+                  <RemarkSelector
                     value={data.remarks}
-                    onChange={(e) => updateBatchData(index, 'remarks', e.target.value)}
-                    rows={2}
+                    onChange={(val) => updateBatchData(index, 'remarks', val)}
+                    label="Remarks (Optional)"
+                    labelClassName="text-xs"
+                    compact
                   />
                 </div>
               </div>
