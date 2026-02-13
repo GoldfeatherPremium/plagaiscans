@@ -9,7 +9,7 @@ import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/compo
 import { useTranslation } from 'react-i18next';
 
 import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
-import { FileText, Download, Loader2, DownloadCloud, Package, Trash2, Pencil, ChevronDown, Info } from 'lucide-react';
+import { FileText, Download, Loader2, DownloadCloud, Package, Trash2, Pencil, ChevronDown, Info, MessageSquare } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PushNotificationBanner } from '@/components/PushNotificationBanner';
 import { supabase } from '@/integrations/supabase/client';
@@ -389,14 +389,23 @@ export default function MyDocuments() {
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
                               {doc.status === 'cancelled' ? (
                                 <span className="text-sm text-destructive font-medium">
                                   {doc.cancellation_reason || 'Cancelled by admin'}
                                 </span>
                               ) : doc.remarks ? (
-                                <span className="text-sm text-foreground">{doc.remarks}</span>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                      <MessageSquare className="h-4 w-4" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-80">
+                                    <p className="text-sm">{doc.remarks}</p>
+                                  </PopoverContent>
+                                </Popover>
                               ) : doc.error_message ? (
                                 <span className="text-sm text-destructive">{doc.error_message}</span>
                               ) : doc.status === 'pending' ? (
