@@ -39,8 +39,8 @@ export default function PlagiarismChecker() {
   return (
     <>
       <SEO
-        title="Text Similarity Review"
-        description="Upload documents to generate similarity reports. Compare your text against indexed sources for content review purposes. Reports are for informational use only."
+        title="Free Plagiarism Checker Tool – Scan Content Online"
+        description="Check plagiarism online using Plagaiscans fast and accurate plagiarism detection tool."
         keywords="text similarity, content review, document analysis, similarity report"
         canonicalUrl="/plagiarism-checker"
         ogImage="/og-plagiarism-checker.png"

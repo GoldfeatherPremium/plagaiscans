@@ -12,10 +12,10 @@ interface SEOProps {
 }
 
 const defaultSEO = {
-  siteName: 'PlagaiScans',
-  title: 'PlagaiScans - Text Similarity Review and Content Analysis',
-  description: 'A text similarity review and content analysis service providing informational reports. Compare documents against indexed sources for your content review process.',
-  keywords: 'text similarity, content analysis, document review, similarity report, content review, document comparison',
+  siteName: 'Plagaiscans',
+  title: 'Plagiarism Checker Online – Free & Accurate | Plagaiscans',
+  description: 'Plagaiscans is a free online plagiarism checker that detects duplicate content instantly with high accuracy.',
+  keywords: 'plagiarism checker, free plagiarism checker, online plagiarism checker, plagiarism detection, duplicate content checker, plagiarism scanner',
   ogImage: '/og-image.png',
   siteUrl: 'https://plagaiscans.com',
 };

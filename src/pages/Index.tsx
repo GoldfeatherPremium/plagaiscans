@@ -34,10 +34,27 @@ const Index = () => {
   return (
     <>
       <SEO
+        title="Plagiarism Checker Online – Free & Accurate"
+        description="Plagaiscans is a free online plagiarism checker that detects duplicate content instantly with high accuracy."
+        keywords="plagiarism checker, free plagiarism checker, online plagiarism checker, plagiarism detection, duplicate content checker, plagiarism scanner"
         canonicalUrl="/"
         structuredData={{
           '@context': 'https://schema.org',
-          '@graph': [generateOrganizationSchema(), generateServiceSchema(), generateSoftwareApplicationSchema()],
+          '@graph': [
+            generateOrganizationSchema(),
+            generateServiceSchema(),
+            generateSoftwareApplicationSchema(),
+            {
+              '@type': 'WebSite',
+              'name': 'Plagaiscans',
+              'url': 'https://plagaiscans.com',
+              'potentialAction': {
+                '@type': 'SearchAction',
+                'target': 'https://plagaiscans.com/?q={search_term_string}',
+                'query-input': 'required name=search_term_string'
+              }
+            }
+          ],
         }}
       />
       <div className="min-h-screen bg-background">
