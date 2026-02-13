@@ -26,7 +26,9 @@ import {
   XCircle,
   Trash2,
   Mail,
+  MessageSquare,
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Table,
   TableBody,
@@ -706,7 +708,16 @@ export default function GuestUpload() {
                                     {file.cancellation_reason || 'Cancelled by admin'}
                                   </span>
                                 ) : file.remarks ? (
-                                  <span className="text-sm text-foreground">{file.remarks}</span>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button variant="outline" size="sm">
+                                        <MessageSquare className="h-4 w-4" />
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-80">
+                                      <p className="text-sm">{file.remarks}</p>
+                                    </PopoverContent>
+                                  </Popover>
                                 ) : status === 'pending' ? (
                                   <span className="text-sm text-muted-foreground">In queue</span>
                                 ) : status === 'in_progress' ? (
