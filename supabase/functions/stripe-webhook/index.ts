@@ -239,6 +239,7 @@ serve(async (req) => {
             customer_email: session.customer_email || profile?.email,
             receipt_url: receiptUrl,
             completed_at: new Date().toISOString(),
+            currency: (session.currency || 'usd').toUpperCase(),
           });
 
           // Get charge ID for receipt records
