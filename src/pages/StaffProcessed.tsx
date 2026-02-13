@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { StatusBadge } from '@/components/StatusBadge';
-import { FileText, Download, Loader2, Edit, Upload } from 'lucide-react';
+import { FileText, Download, Loader2, Edit, Upload, MessageSquare } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -236,11 +237,20 @@ export default function StaffProcessed() {
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center">
                             {doc.remarks ? (
-                              <span className="text-sm">{doc.remarks}</span>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" size="sm">
+                                    <MessageSquare className="h-4 w-4" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80">
+                                  <p className="text-sm">{doc.remarks}</p>
+                                </PopoverContent>
+                              </Popover>
                             ) : (
-                              <span className="text-sm text-muted-foreground">-</span>
+                              <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
                           {canEdit && (
