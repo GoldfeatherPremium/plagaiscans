@@ -659,7 +659,7 @@ export default function GuestUpload() {
                                     {file.ai_percentage}%
                                   </Badge>
                                 ) : (
-                                  <span className="text-muted-foreground">N/A</span>
+                                  <span className="font-medium">*</span>
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
@@ -698,7 +698,8 @@ export default function GuestUpload() {
                                   <span className="text-muted-foreground">-</span>
                                 )}
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-1">
                                 {isDeleted ? (
                                   <span className="text-sm text-muted-foreground italic">
                                     Deleted {file.deleted_at ? formatDateTime(file.deleted_at).date : ''}
@@ -725,6 +726,22 @@ export default function GuestUpload() {
                                 ) : (
                                   <span className="text-sm text-muted-foreground">-</span>
                                 )}
+                                {status === 'completed' && (file.ai_percentage === null || file.ai_percentage === undefined) && file.similarity_report_path && file.ai_report_path && (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full flex-shrink-0">
+                                        <Info className="h-3.5 w-3.5 text-primary" />
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-80 text-sm" side="top">
+                                      <p className="font-medium mb-1">AI % Note</p>
+                                      <p className="text-muted-foreground text-xs leading-relaxed">
+                                        AI % is in range between 1 to 19%. AI detection scores below 20% have a higher likelihood of false positives. In the updated version of the report, we no longer surface scores when the signal is below the 20% threshold to meet Turnitin's AI detection standards.
+                                      </p>
+                                    </PopoverContent>
+                                  </Popover>
+                                )}
+                                </div>
                               </TableCell>
                               <TableCell className="text-center">
                                 {!isDeleted && status === 'completed' ? (
