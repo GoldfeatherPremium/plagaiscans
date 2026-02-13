@@ -188,8 +188,8 @@ export default function PaymentHistory() {
   const completedPaddleCount = paddlePayments.filter(p => p.status === 'completed').length;
   const verifiedManualCount = manualPayments.filter(p => p.status === 'verified').length;
 
-  const findReceiptForPayment = (transactionId: string) => {
-    return receipts.find(r => r.transaction_id === transactionId || r.payment_id === transactionId);
+  const findReceiptForPayment = (id: string, transactionId?: string | null) => {
+    return receipts.find(r => r.payment_id === id || (transactionId && r.transaction_id === transactionId));
   };
 
   const handleDownloadReceipt = async (receiptId: string) => {
@@ -348,7 +348,7 @@ export default function PaymentHistory() {
                             <TableCell>{getStatusBadge(payment.status)}</TableCell>
                             <TableCell>
                               {(() => {
-                                const receipt = findReceiptForPayment(payment.transaction_id);
+                                const receipt = findReceiptForPayment(payment.id, payment.transaction_id);
                                 if (receipt) {
                                   return (
                                     <Button
@@ -409,6 +409,7 @@ export default function PaymentHistory() {
                           <TableHead>Order ID</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Verified At</TableHead>
+                          <TableHead>Receipt</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -445,6 +446,30 @@ export default function PaymentHistory() {
                               ) : (
                                 <span className="text-muted-foreground">-</span>
                               )}
+                            </TableCell>
+                            <TableCell>
+                              {(() => {
+                                const receipt = findReceiptForPayment(payment.id, payment.transaction_id);
+                                if (receipt) {
+                                  return (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDownloadReceipt(receipt.id)}
+                                      disabled={downloadingId === receipt.id}
+                                      className="gap-1"
+                                    >
+                                      {downloadingId === receipt.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Download className="h-4 w-4" />
+                                      )}
+                                      Receipt
+                                    </Button>
+                                  );
+                                }
+                                return <span className="text-muted-foreground">-</span>;
+                              })()}
                             </TableCell>
                           </TableRow>
                         ))}

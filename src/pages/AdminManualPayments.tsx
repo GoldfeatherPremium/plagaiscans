@@ -156,6 +156,38 @@ export default function AdminManualPayments() {
         console.error('Failed to create credit validity record:', cvError);
       }
 
+      // Create receipt for Binance payment
+      try {
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('email, full_name')
+          .eq('id', payment.user_id)
+          .single();
+
+        await supabase.functions.invoke('create-receipt', {
+          body: {
+            userId: payment.user_id,
+            customerName: userProfile?.full_name || 'Customer',
+            customerEmail: userProfile?.email,
+            description: `Plagiarism & AI Content Analysis Service - ${payment.credits} Credits`,
+            quantity: payment.credits,
+            unitPrice: payment.amount_usd / payment.credits,
+            subtotal: payment.amount_usd,
+            vatRate: 0,
+            vatAmount: 0,
+            amountPaid: payment.amount_usd,
+            currency: 'USD',
+            paymentMethod: 'Binance Pay',
+            transactionId: payment.transaction_id || payment.id,
+            paymentId: payment.id,
+            credits: payment.credits,
+          },
+        });
+        console.log('Receipt created for Binance payment');
+      } catch (receiptError) {
+        console.error('Failed to create receipt:', receiptError);
+      }
+
       // Send email notification to user
       try {
         await supabase.functions.invoke('send-payment-verified-email', {
@@ -169,7 +201,6 @@ export default function AdminManualPayments() {
         console.log('Payment verified email sent');
       } catch (emailError) {
         console.error('Failed to send email:', emailError);
-        // Don't fail the whole operation if email fails
       }
 
       toast({ title: 'Success', description: `Payment verified and ${payment.credits} credits added to user account` });
