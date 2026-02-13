@@ -1,50 +1,63 @@
 
 
-## Add Credit Expiry to All Payment Providers
+## Remark Presets Management in Admin Settings
 
-Currently, only Paddle payments create credit expiry records. All other payment methods (Stripe, NOWPayments/Binance, Dodo, PayPal) add credits without tracking their validity period, meaning those credits never expire.
+### What will be built
 
-### What Will Change
+A new "Remark Presets" section in Admin Settings where you can:
+1. See all the existing remarks from the database listed out
+2. Toggle each one on/off to include it in the staff remarks selector
+3. Edit the text of any remark
+4. Add new custom remarks
+5. Delete remarks you don't want
 
-After each successful payment, the system will:
-1. Look up the purchased package's `validity_days` from the `pricing_packages` table
-2. Create a `credit_validity` record with the correct expiration date
-3. The existing `expire-credits` background function will automatically expire credits when the date passes
+Then in the Document Queue and Similarity Queue, the remarks text area will be replaced with a dropdown selector of the enabled presets (with an option to type a custom remark).
 
-### Payment Functions to Update (6 functions)
+### Step 1 - Database: Create a `remark_presets` table
 
-1. **stripe-webhook** - After adding credits on `checkout.session.completed`, insert a `credit_validity` record by looking up the package via `stripe_price_id` or credits amount
-2. **nowpayments** (Binance/USDT) - After the IPN confirms payment (`finished` status), insert a `credit_validity` record by looking up the package via credits amount
-3. **dodo-webhook** - After payment success, insert a `credit_validity` record by looking up the package via `dodo_product_id` or credits amount
-4. **paypal-webhook** - After `PAYMENT.CAPTURE.COMPLETED`, insert a `credit_validity` record by looking up the package via credits amount
-5. **verify-stripe-payment** - Fallback verification endpoint, add credit_validity after credits are added
-6. **verify-paypal-payment** - Fallback verification endpoint, add credit_validity after credits are added
-
-### Implementation Pattern (same for all)
-
-Each function will add a block like this after credits are successfully added:
+A new table to store configurable remark presets:
 
 ```text
-1. Query pricing_packages to find the matching package
-   - Match by provider-specific price ID (e.g., stripe_price_id, dodo_product_id)
-   - Fallback: match by credits amount and credit_type
-2. Get validity_days from the package (default to 365 if not found)
-3. Calculate expires_at = now + validity_days
-4. Insert into credit_validity table:
-   - user_id, credits_amount, remaining_credits, expires_at, credit_type
+remark_presets
+- id (uuid, PK)
+- remark_text (text, not null)
+- is_active (boolean, default true)
+- sort_order (integer, default 0)
+- created_at (timestamp)
+- updated_at (timestamp)
 ```
 
-### No Database Changes Required
+RLS: Admin can manage (ALL), Staff can view active presets (SELECT where is_active = true).
 
-The `credit_validity` table and `expire-credits` function already exist and work correctly. This is purely adding the missing credit_validity record creation to 6 edge functions.
+### Step 2 - Seed the table with all existing remarks
+
+Insert all 49 unique remarks from the database into `remark_presets` with `is_active = false` so you can review and enable the ones you want.
+
+### Step 3 - Admin Settings UI: "Remark Presets" section
+
+Add a new card in `AdminSettings.tsx` with:
+- A list of all remark presets showing the text, an active/inactive toggle, and edit/delete buttons
+- An "Add New Remark" button to create custom ones
+- Edit mode: inline text editing with save/cancel
+- Each preset can be toggled on/off individually
+
+### Step 4 - Update Document Queue remarks input
+
+In `DocumentQueue.tsx` and `SimilarityQueue.tsx`:
+- Replace the plain `Textarea` for remarks with a combo approach:
+  - A `Select` dropdown listing all active remark presets
+  - An "Other / Custom" option that reveals a text input for free-form remarks
+- Same treatment for the batch upload dialog remarks fields
+
+### Step 5 - Update EditCompletedDocumentDialog
+
+Same combo selector approach for the remarks field in the edit dialog.
 
 ### Technical Details
 
-- The Paddle webhook already implements this pattern (lines 275-295 in `paddle-webhook/index.ts`) and will serve as the reference implementation
-- Package lookup strategy varies by provider:
-  - **Stripe**: Match via session metadata `credits` + `credit_type`, or `stripe_price_id` if available
-  - **Dodo**: Match via `dodo_product_id` from metadata
-  - **PayPal/NOWPayments**: Match via `credits` amount + `credit_type`
-- Default validity of 365 days ensures credits still expire even if no package match is found
-- All insertions are wrapped in try/catch so a failure to create the validity record does not block the payment flow
+- The `remark_presets` table uses standard RLS with the existing `has_role()` function
+- Presets are fetched client-side and cached; staff see only active ones
+- The remarks selector will use the existing `Select` component from the UI library
+- When "Custom" is selected, a textarea appears for free-form input
+- The final remark value stored in `documents.remarks` remains a plain text string (no schema change to documents table)
 
