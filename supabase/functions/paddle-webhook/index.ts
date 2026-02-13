@@ -199,6 +199,7 @@ serve(async (req) => {
           });
 
           // Store in paddle_payments
+          const paddleCurrency = (eventData?.currency_code || 'USD').toUpperCase();
           await supabaseAdmin.from("paddle_payments").insert({
             user_id: userId,
             transaction_id: transactionId,
@@ -209,6 +210,7 @@ serve(async (req) => {
             status: "completed",
             customer_email: profile?.email,
             completed_at: new Date().toISOString(),
+            currency: paddleCurrency,
           });
 
           // Create invoice

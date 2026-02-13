@@ -241,7 +241,7 @@ export default function AdminRevenue() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-display font-bold">Revenue & Finance</h1>
-          <p className="text-muted-foreground mt-1">Track credit sales and financial metrics</p>
+          <p className="text-muted-foreground mt-1">Track credit sales and financial metrics (credit-based, currency-agnostic)</p>
         </div>
 
         {/* Key Metrics */}

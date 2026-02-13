@@ -1393,6 +1393,7 @@ export type Database = {
           amount_usd: number
           created_at: string
           credits: number
+          currency: string
           id: string
           notes: string | null
           payment_method: string
@@ -1406,6 +1407,7 @@ export type Database = {
           amount_usd: number
           created_at?: string
           credits: number
+          currency?: string
           id?: string
           notes?: string | null
           payment_method: string
@@ -1419,6 +1421,7 @@ export type Database = {
           amount_usd?: number
           created_at?: string
           credits?: number
+          currency?: string
           id?: string
           notes?: string | null
           payment_method?: string
@@ -1499,6 +1502,7 @@ export type Database = {
           created_at: string
           credit_type: string
           credits: number
+          currency: string
           customer_email: string | null
           id: string
           paddle_customer_id: string | null
@@ -1513,6 +1517,7 @@ export type Database = {
           created_at?: string
           credit_type?: string
           credits: number
+          currency?: string
           customer_email?: string | null
           id?: string
           paddle_customer_id?: string | null
@@ -1527,6 +1532,7 @@ export type Database = {
           created_at?: string
           credit_type?: string
           credits?: number
+          currency?: string
           customer_email?: string | null
           id?: string
           paddle_customer_id?: string | null
@@ -2317,6 +2323,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           credits: number
+          currency: string
           customer_email: string | null
           id: string
           invoice_url: string | null
@@ -2331,6 +2338,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           credits: number
+          currency?: string
           customer_email?: string | null
           id?: string
           invoice_url?: string | null
@@ -2345,6 +2353,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           credits?: number
+          currency?: string
           customer_email?: string | null
           id?: string
           invoice_url?: string | null

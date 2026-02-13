@@ -30,6 +30,7 @@ interface ManualPayment {
   notes: string | null;
   created_at: string;
   verified_at: string | null;
+  currency?: string;
 }
 
 interface PaddlePayment {
@@ -42,6 +43,7 @@ interface PaddlePayment {
   created_at: string;
   completed_at: string | null;
   credit_type: string;
+  currency?: string;
 }
 
 interface ReceiptData {
@@ -72,7 +74,7 @@ export default function PaymentHistory() {
           .order('created_at', { ascending: false }),
         supabase
           .from('paddle_payments')
-          .select('id, amount_usd, credits, status, transaction_id, receipt_url, created_at, completed_at, credit_type')
+          .select('id, amount_usd, credits, status, transaction_id, receipt_url, created_at, completed_at, credit_type, currency')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
         supabase
@@ -339,7 +341,15 @@ export default function PaymentHistory() {
                               </div>
                             </TableCell>
                             <TableCell className="font-semibold text-green-600">+{payment.credits}</TableCell>
-                            <TableCell>${payment.amount_usd}</TableCell>
+                            <TableCell>
+                              {payment.currency && payment.currency !== 'USD' ? (
+                                <div>
+                                  <div>{payment.amount_usd} {payment.currency}</div>
+                                </div>
+                              ) : (
+                                `$${payment.amount_usd}`
+                              )}
+                            </TableCell>
                             <TableCell>
                               <Badge variant="secondary" className="capitalize">
                                 {payment.credit_type}
@@ -424,7 +434,15 @@ export default function PaymentHistory() {
                               </div>
                             </TableCell>
                             <TableCell className="font-semibold">{payment.credits}</TableCell>
-                            <TableCell>${payment.amount_usd}</TableCell>
+                            <TableCell>
+                              {payment.currency && payment.currency !== 'USD' ? (
+                                <div>
+                                  <div>{payment.amount_usd} {payment.currency}</div>
+                                </div>
+                              ) : (
+                                `$${payment.amount_usd}`
+                              )}
+                            </TableCell>
                             <TableCell>
                               {payment.transaction_id ? (
                                 <code className="text-xs bg-muted px-2 py-1 rounded">

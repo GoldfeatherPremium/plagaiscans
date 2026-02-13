@@ -317,7 +317,9 @@ export default function AdminManualPayments() {
                             Binance Pay
                           </div>
                         </TableCell>
-                        <TableCell className="font-medium">${payment.amount_usd}</TableCell>
+                        <TableCell className="font-medium">
+                          {payment.amount_usd} USD
+                        </TableCell>
                         <TableCell>{payment.credits}</TableCell>
                         <TableCell>{getStatusBadge(payment.status)}</TableCell>
                         <TableCell className="text-muted-foreground">
