@@ -38,8 +38,8 @@ export default function Contact() {
   return (
     <>
       <SEO
-        title="Contact Support"
-        description="Get in touch with Plagaiscans support team. We're here to help with account issues, document processing, refunds, and technical support."
+        title="Contact Us"
+        description="Get in touch with Plagaiscans support team for help with plagiarism checking, account issues, and technical support."
         keywords="contact support, customer service, technical support"
         canonicalUrl="/contact"
         structuredData={generateWebPageSchema('Contact Support', 'Get in touch with our support team', '/contact')}

@@ -99,8 +99,8 @@ export default function Pricing() {
   return (
     <>
       <SEO
-        title="Pricing"
-        description="Credit packages for text similarity review and content analysis. Simple usage-based pricing with defined validity periods."
+        title="Affordable Plagiarism Checker Plans"
+        description="View affordable plagiarism checker pricing plans for students, writers, and businesses."
         keywords="document analysis pricing, credit packages, content review pricing"
         canonicalUrl="/pricing"
         structuredData={generateWebPageSchema('Pricing', 'Credit packages for text similarity review', '/pricing')}
