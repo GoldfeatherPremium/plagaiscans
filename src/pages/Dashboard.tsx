@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { useStaffScanTypes } from '@/hooks/useStaffScanTypes';
 import { supabase } from '@/integrations/supabase/client';
-import { FileText, Clock, CheckCircle, CreditCard, Upload, Download, Wallet, XCircle, BarChart3, ArrowRight } from 'lucide-react';
+import { FileText, Clock, CheckCircle, CreditCard, Upload, Download, Wallet, XCircle, BarChart3, ArrowRight, Info, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -13,6 +13,7 @@ import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { PushNotificationBanner } from '@/components/PushNotificationBanner';
 import { CreditExpirationCard } from '@/components/CreditExpirationCard';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { Shimmer } from '@/components/ui/shimmer';
 import { StatCardSkeleton } from '@/components/ui/page-skeleton';
@@ -460,10 +461,12 @@ export default function Dashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12 text-center">#</TableHead>
+                     <TableHead className="w-12 text-center">#</TableHead>
                       <TableHead>{t('documents.document')}</TableHead>
                       <TableHead>{t('documents.uploadTime')}</TableHead>
                       <TableHead className="text-center">{t('documents.status')}</TableHead>
+                      <TableHead className="text-center">Similarity %</TableHead>
+                      <TableHead className="text-center">AI %</TableHead>
                       <TableHead className="text-center">{t('documents.similarityReport')}</TableHead>
                       <TableHead className="text-center">{t('documents.aiReport')}</TableHead>
                       <TableHead>{t('documents.remarks')}</TableHead>
@@ -494,6 +497,20 @@ export default function Dashboard() {
                             <StatusBadge status={doc.status} />
                           </TableCell>
                           <TableCell className="text-center">
+                            {doc.similarity_percentage !== null && doc.similarity_percentage !== undefined ? (
+                              <span className="font-medium">{doc.similarity_percentage}%</span>
+                            ) : (
+                              <span className="text-muted-foreground">N/A</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {doc.ai_percentage !== null && doc.ai_percentage !== undefined ? (
+                              <span className="font-medium">{doc.ai_percentage}%</span>
+                            ) : (
+                              <span className="font-medium">*</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
                             {doc.similarity_report_path ? (
                               <Button
                                 variant="outline"
@@ -519,14 +536,48 @@ export default function Dashboard() {
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
-                          <TableCell>
-                            {doc.remarks ? (
-                              <span className="text-sm truncate max-w-[150px] block" title={doc.remarks}>
-                                {doc.remarks}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              {doc.status === 'cancelled' ? (
+                                <span className="text-sm text-destructive font-medium">
+                                  {doc.cancellation_reason || 'Cancelled by admin'}
+                                </span>
+                              ) : doc.remarks ? (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                      <MessageSquare className="h-4 w-4" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-80">
+                                    <p className="text-sm">{doc.remarks}</p>
+                                  </PopoverContent>
+                                </Popover>
+                              ) : doc.error_message ? (
+                                <span className="text-sm text-destructive">{doc.error_message}</span>
+                              ) : doc.status === 'pending' ? (
+                                <span className="text-sm text-muted-foreground">In queue</span>
+                              ) : doc.status === 'in_progress' ? (
+                                <span className="text-sm text-muted-foreground">Processing...</span>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">-</span>
+                              )}
+                              {doc.status === 'completed' && (doc.ai_percentage === null || doc.ai_percentage === undefined) && doc.scan_type === 'full' && doc.similarity_report_path && doc.ai_report_path && (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full flex-shrink-0">
+                                      <Info className="h-3.5 w-3.5 text-primary" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-80 text-sm" side="top">
+                                    <p className="font-medium mb-1">AI % Note</p>
+                                    <p className="text-muted-foreground text-xs leading-relaxed">
+                                      AI % is in range between 1 to 19%. AI detection scores below 20% have a higher likelihood of false positives. In the updated version of the report, we no longer surface scores when the signal is below the 20% threshold to meet Turnitin's AI detection standards.
+                                    </p>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
