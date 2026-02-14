@@ -99,11 +99,11 @@ export default function Pricing() {
   return (
     <>
       <SEO
-        title="Affordable Plagiarism Checker Plans"
-        description="View affordable plagiarism checker pricing plans for students, writers, and businesses."
-        keywords="document analysis pricing, credit packages, content review pricing"
+        title="Pricing Plans – PlagaiScans"
+        description="Explore PlagaiScans credit packages starting from just $2.20. Choose a plan that fits your needs — ideal for students, researchers, educators, and content teams."
+        keywords="plagiarism checker pricing, plagaiscans pricing, credit packages, document analysis pricing, affordable plagiarism checker"
         canonicalUrl="/pricing"
-        structuredData={generateWebPageSchema('Pricing', 'Credit packages for text similarity review', '/pricing')}
+        structuredData={generateWebPageSchema('Pricing', 'Credit packages for text similarity and AI content analysis', '/pricing')}
       />
       <div className="min-h-screen bg-background">
       {/* Navigation */}
