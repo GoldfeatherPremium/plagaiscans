@@ -19,6 +19,9 @@ export interface SimilarityDocument {
   assigned_staff_id: string | null;
   scan_type: 'similarity_only';
   is_favorite: boolean;
+  exclude_bibliography?: boolean;
+  exclude_quotes?: boolean;
+  exclude_small_sources?: boolean;
   profile?: {
     email: string;
     full_name: string | null;
@@ -99,7 +102,7 @@ export const useSimilarityDocuments = () => {
     }
   }, [user, role]);
 
-  const uploadSimilarityDocument = async (file: File): Promise<void> => {
+  const uploadSimilarityDocument = async (file: File, exclusions?: { exclude_bibliography?: boolean; exclude_quotes?: boolean; exclude_small_sources?: boolean }): Promise<void> => {
     if (!user) throw new Error('Not authenticated');
 
     // Check similarity credits
@@ -148,6 +151,9 @@ export const useSimilarityDocuments = () => {
       file_path: filePath,
       status: 'pending',
       scan_type: 'similarity_only',
+      exclude_bibliography: exclusions?.exclude_bibliography ?? true,
+      exclude_quotes: exclusions?.exclude_quotes ?? false,
+      exclude_small_sources: exclusions?.exclude_small_sources ?? false,
     });
 
     if (insertError) {

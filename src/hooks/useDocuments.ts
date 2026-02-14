@@ -35,6 +35,10 @@ export interface Document {
   automation_error?: string | null;
   automation_started_at?: string | null;
   automation_attempt_count?: number;
+  // Exclusion options
+  exclude_bibliography?: boolean;
+  exclude_quotes?: boolean;
+  exclude_small_sources?: boolean;
   profiles?: {
     email: string;
     full_name: string | null;
@@ -313,7 +317,7 @@ export const useDocuments = () => {
   const uploadDocuments = async (
     files: File[],
     onProgress?: (current: number, total: number) => void,
-    options?: { uploadType?: 'single' | 'bulk' }
+    options?: { uploadType?: 'single' | 'bulk'; exclusions?: { exclude_bibliography?: boolean; exclude_quotes?: boolean; exclude_small_sources?: boolean } }
   ): Promise<{ success: number; failed: number }> => {
     if (!user) return { success: 0, failed: files.length };
 
@@ -391,6 +395,9 @@ export const useDocuments = () => {
             file_name: file.name,
             file_path: filePath,
             status: 'pending',
+            exclude_bibliography: options?.exclusions?.exclude_bibliography ?? true,
+            exclude_quotes: options?.exclusions?.exclude_quotes ?? false,
+            exclude_small_sources: options?.exclusions?.exclude_small_sources ?? false,
           })
           .select()
           .single();

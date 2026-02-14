@@ -762,6 +762,9 @@ export type Database = {
           deleted_at: string | null
           deleted_by_user: boolean | null
           error_message: string | null
+          exclude_bibliography: boolean
+          exclude_quotes: boolean
+          exclude_small_sources: boolean
           file_name: string
           file_path: string
           files_cleaned_at: string | null
@@ -798,6 +801,9 @@ export type Database = {
           deleted_at?: string | null
           deleted_by_user?: boolean | null
           error_message?: string | null
+          exclude_bibliography?: boolean
+          exclude_quotes?: boolean
+          exclude_small_sources?: boolean
           file_name: string
           file_path: string
           files_cleaned_at?: string | null
@@ -834,6 +840,9 @@ export type Database = {
           deleted_at?: string | null
           deleted_by_user?: boolean | null
           error_message?: string | null
+          exclude_bibliography?: boolean
+          exclude_quotes?: boolean
+          exclude_small_sources?: boolean
           file_name?: string
           file_path?: string
           files_cleaned_at?: string | null

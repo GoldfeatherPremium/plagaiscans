@@ -586,6 +586,7 @@ export default function DocumentQueue() {
                       <TableHead>Document</TableHead>
                       <TableHead>Upload Time</TableHead>
                       <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-center">Exclusions</TableHead>
                       <TableHead className="text-center">Processing By</TableHead>
                       <TableHead className="text-center">Time Elapsed</TableHead>
                       <TableHead className="text-center">Actions</TableHead>
@@ -631,6 +632,22 @@ export default function DocumentQueue() {
                           </TableCell>
                           <TableCell className="text-center">
                             <StatusBadge status={doc.status} />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-2 text-xs">
+                              {doc.exclude_bibliography && (
+                                <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title="Exclude bibliography">Bib</span>
+                              )}
+                              {doc.exclude_quotes && (
+                                <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title="Exclude quotes">Quotes</span>
+                              )}
+                              {doc.exclude_small_sources && (
+                                <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title="Exclude small sources">Small</span>
+                              )}
+                              {!doc.exclude_bibliography && !doc.exclude_quotes && !doc.exclude_small_sources && (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             {isAssignedToMe ? (
