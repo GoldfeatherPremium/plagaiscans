@@ -1,9 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, X, FileText, AlertCircle, CheckCircle, Loader2, Coins, Search } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +25,9 @@ const UploadSimilarity: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadResults, setUploadResults] = useState<{ success: number; failed: number } | null>(null);
+  const [excludeBibliographic, setExcludeBibliographic] = useState(true);
+  const [excludeQuoted, setExcludeQuoted] = useState(false);
+  const [excludeSmallSources, setExcludeSmallSources] = useState(false);
 
   const creditBalance = profile?.credit_balance || 0;
   const similarityCreditBalance = profile?.similarity_credit_balance || 0;
@@ -124,7 +129,11 @@ const UploadSimilarity: React.FC = () => {
 
     for (let i = 0; i < selectedFiles.length; i++) {
       try {
-        await uploadSimilarityDocument(selectedFiles[i]);
+        await uploadSimilarityDocument(selectedFiles[i], {
+          exclude_bibliography: excludeBibliographic,
+          exclude_quotes: excludeQuoted,
+          exclude_small_sources: excludeSmallSources,
+        });
         success++;
       } catch (error) {
         failed++;
@@ -237,6 +246,46 @@ const UploadSimilarity: React.FC = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Options (exclusion) */}
+        <div className="space-y-4">
+          <Label className="text-base">Options (exclusion)</Label>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="sim-exclude-bibliographic" className="font-normal cursor-pointer">
+                Exclude bibliographic materials
+              </Label>
+              <Switch
+                id="sim-exclude-bibliographic"
+                checked={excludeBibliographic}
+                onCheckedChange={setExcludeBibliographic}
+                disabled={similarityCreditBalance === 0}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="sim-exclude-quoted" className="font-normal cursor-pointer">
+                Exclude quoted materials
+              </Label>
+              <Switch
+                id="sim-exclude-quoted"
+                checked={excludeQuoted}
+                onCheckedChange={setExcludeQuoted}
+                disabled={similarityCreditBalance === 0}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="sim-exclude-small" className="font-normal cursor-pointer">
+                Exclude small sources (Small match exclusion type)
+              </Label>
+              <Switch
+                id="sim-exclude-small"
+                checked={excludeSmallSources}
+                onCheckedChange={setExcludeSmallSources}
+                disabled={similarityCreditBalance === 0}
+              />
+            </div>
+          </div>
+        </div>
 
         {/* Drop Zone */}
         <Card>

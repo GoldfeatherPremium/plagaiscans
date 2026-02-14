@@ -176,7 +176,11 @@ export default function GuestUpload() {
     if (!selectedFile || !token) return;
 
     setUploading(true);
-    const success = await uploadFileWithMagicLink(token, selectedFile);
+    const success = await uploadFileWithMagicLink(token, selectedFile, {
+      exclude_bibliography: excludeBibliographic,
+      exclude_quotes: excludeQuoted,
+      exclude_small_sources: excludeSmallSources,
+    });
     setUploading(false);
 
     if (success) {

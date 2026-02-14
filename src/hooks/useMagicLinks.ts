@@ -213,7 +213,7 @@ export const useMagicLinks = () => {
     return data;
   };
 
-  const uploadFileWithMagicLink = async (token: string, file: File): Promise<boolean> => {
+  const uploadFileWithMagicLink = async (token: string, file: File, exclusions?: { exclude_bibliography?: boolean; exclude_quotes?: boolean; exclude_small_sources?: boolean }): Promise<boolean> => {
     try {
       // Validate the link first
       const link = await validateMagicLink(token);
@@ -257,6 +257,9 @@ export const useMagicLinks = () => {
           file_path: filePath,
           magic_link_id: link.id,
           status: 'pending',
+          exclude_bibliography: exclusions?.exclude_bibliography ?? true,
+          exclude_quotes: exclusions?.exclude_quotes ?? false,
+          exclude_small_sources: exclusions?.exclude_small_sources ?? false,
         });
 
       if (docError) {

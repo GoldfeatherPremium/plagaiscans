@@ -113,7 +113,14 @@ export default function UploadDocument() {
       (current, total) => {
         setUploadProgress({ current, total });
       },
-      { uploadType: 'single' }
+      { 
+        uploadType: 'single',
+        exclusions: {
+          exclude_bibliography: excludeBibliographic,
+          exclude_quotes: excludeQuoted,
+          exclude_small_sources: excludeSmallSources,
+        }
+      }
     );
 
     setUploading(false);
