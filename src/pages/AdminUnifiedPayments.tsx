@@ -18,6 +18,7 @@ interface UnifiedPayment {
   user_email?: string;
   user_name?: string;
   amount_usd: number;
+  currency?: string;
   credits: number;
   status: string;
   created_at: string;
@@ -127,6 +128,7 @@ const AdminUnifiedPayments: React.FC = () => {
         user_email: p.customer_email || profileMap[p.user_id]?.email,
         user_name: profileMap[p.user_id]?.name,
         amount_usd: Number(p.amount_usd),
+        currency: p.currency || 'USD',
         credits: p.credits,
         status: p.status,
         created_at: p.created_at,
@@ -143,6 +145,7 @@ const AdminUnifiedPayments: React.FC = () => {
         user_email: profileMap[p.user_id]?.email,
         user_name: profileMap[p.user_id]?.name,
         amount_usd: Number(p.amount_usd),
+        currency: 'USD',
         credits: p.credits,
         status: p.status,
         created_at: p.created_at,
@@ -159,6 +162,7 @@ const AdminUnifiedPayments: React.FC = () => {
         user_email: profileMap[p.user_id]?.email,
         user_name: profileMap[p.user_id]?.name,
         amount_usd: Number(p.amount_usd),
+        currency: p.currency || 'USD',
         credits: p.credits,
         status: p.status,
         created_at: p.created_at,
@@ -175,6 +179,7 @@ const AdminUnifiedPayments: React.FC = () => {
         user_email: p.customer_email || profileMap[p.user_id]?.email,
         user_name: profileMap[p.user_id]?.name,
         amount_usd: Number(p.amount_usd),
+        currency: 'USD',
         credits: p.credits,
         status: p.status,
         created_at: p.created_at,
@@ -191,6 +196,7 @@ const AdminUnifiedPayments: React.FC = () => {
         user_email: p.customer_email || profileMap[p.user_id]?.email,
         user_name: profileMap[p.user_id]?.name,
         amount_usd: Number(p.amount_usd),
+        currency: p.currency || 'USD',
         credits: p.credits,
         status: p.status,
         created_at: p.created_at,
@@ -262,12 +268,13 @@ const AdminUnifiedPayments: React.FC = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Type', 'User Email', 'Amount USD', 'Credits', 'Status', 'Reference'];
+    const headers = ['Date', 'Type', 'User Email', 'Amount', 'Currency', 'Credits', 'Status', 'Reference'];
     const rows = filteredPayments.map(p => [
       format(new Date(p.created_at), 'yyyy-MM-dd HH:mm'),
       p.type,
       p.user_email || '',
       p.amount_usd.toFixed(2),
+      p.currency || 'USD',
       p.credits,
       p.status,
       p.reference || '',
@@ -430,7 +437,11 @@ const AdminUnifiedPayments: React.FC = () => {
                             <p className="text-xs text-muted-foreground">{payment.user_email}</p>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right font-medium">${payment.amount_usd.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {payment.currency && payment.currency !== 'USD'
+                            ? `${payment.amount_usd.toFixed(2)} ${payment.currency}`
+                            : `$${payment.amount_usd.toFixed(2)}`}
+                        </TableCell>
                         <TableCell className="text-right">{payment.credits}</TableCell>
                         <TableCell>{getStatusBadge(payment.status)}</TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground">
