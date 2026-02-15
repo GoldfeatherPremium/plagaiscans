@@ -182,7 +182,8 @@ Deno.serve(async (req) => {
           <tr>
             <td style="background: #f3f4f6; border-radius: 8px; padding: 20px;">
               <p style="color: #374151; margin: 0 0 8px 0;"><strong>Email:</strong> ${email}</p>
-              <p style="color: #374151; margin: 0;"><strong>Password:</strong> ${password}</p>
+              <p style="color: #374151; margin: 0 0 8px 0;"><strong>Password:</strong> ${password}</p>
+              <p style="color: #374151; margin: 0;"><strong>Login link:</strong> <a href="${loginUrl}" style="color: #6366f1; text-decoration: none;">${loginUrl}</a></p>
             </td>
           </tr>
         </table>
@@ -203,9 +204,6 @@ Deno.serve(async (req) => {
               <a href="${loginUrl}" style="display: inline-block; background: #6366f1; color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
                 Login Now
               </a>
-              <p style="color: #9ca3af; font-size: 12px; margin: 10px 0 0 0; word-break: break-all;">
-                ${loginUrl}
-              </p>
             </td>
           </tr>
         </table>
