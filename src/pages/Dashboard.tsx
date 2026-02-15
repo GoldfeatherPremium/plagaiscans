@@ -7,7 +7,8 @@ import { useStaffScanTypes } from '@/hooks/useStaffScanTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { FileText, Clock, CheckCircle, CreditCard, Upload, Download, Wallet, XCircle, BarChart3, ArrowRight, Info, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { StatusBadge } from '@/components/StatusBadge';
 import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { PushNotificationBanner } from '@/components/PushNotificationBanner';
@@ -42,6 +43,8 @@ export default function Dashboard() {
   const { documents, loading: docsLoading, downloadFile } = useDocuments();
   const { canAccessAI, canAccessSimilarity, loading: scanTypesLoading } = useStaffScanTypes();
   const [pendingPayments, setPendingPayments] = useState<ManualPayment[]>([]);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const navigate = useNavigate();
   const { t } = useTranslation('dashboard');
 
   // Full Scan Queue Stats (all documents except similarity_only)
@@ -393,42 +396,105 @@ export default function Dashboard() {
         {role === 'customer' && <CreditExpirationCard />}
 
         {/* Quick Actions */}
-        {role === 'customer' && (
-          <div className="grid md:grid-cols-2 gap-4">
-            <Card className="group hover:-translate-y-2 hover:shadow-xl hover:border-primary/50 transition-all duration-300 cursor-pointer overflow-hidden">
-              <Link to="/dashboard/upload">
-                <CardContent className="p-6 flex items-center gap-4 relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="h-14 w-14 rounded-xl gradient-primary flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-primary/30">
-                    <Upload className="h-7 w-7 text-primary-foreground" />
+        {role === 'customer' && (() => {
+          const hasAI = (profile?.credit_balance || 0) > 0;
+          const hasSimilarity = (profile?.similarity_credit_balance || 0) > 0;
+
+          const handleUploadClick = () => {
+            if (hasAI && hasSimilarity) {
+              setUploadDialogOpen(true);
+            } else if (hasSimilarity) {
+              navigate('/dashboard/upload-similarity');
+            } else {
+              navigate('/dashboard/upload');
+            }
+          };
+
+          const uploadLabel = hasAI && !hasSimilarity
+            ? t('sidebar.uploadFull')
+            : !hasAI && hasSimilarity
+            ? t('sidebar.uploadSimilarity', 'Upload (Similarity Scan)')
+            : t('overview.uploadDocuments', 'Upload Documents');
+
+          return (
+            <>
+              <div className="grid md:grid-cols-2 gap-4">
+                <Card className="group hover:-translate-y-2 hover:shadow-xl hover:border-primary/50 transition-all duration-300 cursor-pointer overflow-hidden" onClick={handleUploadClick}>
+                  <CardContent className="p-6 flex items-center gap-4 relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="h-14 w-14 rounded-xl gradient-primary flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-primary/30">
+                      <Upload className="h-7 w-7 text-primary-foreground" />
+                    </div>
+                    <div className="relative">
+                      <h3 className="font-semibold text-lg">{uploadLabel}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {t('overview.uploadSubtitle')}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="group hover:-translate-y-2 hover:shadow-xl hover:border-secondary/50 transition-all duration-300 cursor-pointer overflow-hidden">
+                  <Link to="/dashboard/credits">
+                    <CardContent className="p-6 flex items-center gap-4 relative">
+                      <div className="absolute inset-0 bg-gradient-to-r from-secondary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="h-14 w-14 rounded-xl gradient-success flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-secondary/30">
+                        <CreditCard className="h-7 w-7 text-secondary-foreground" />
+                      </div>
+                      <div className="relative">
+                        <h3 className="font-semibold text-lg">{t('sidebar.buyCredits')}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {t('overview.buyCreditsSubtitle')}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Link>
+                </Card>
+              </div>
+
+              {/* Scan Type Selection Dialog */}
+              <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>{t('overview.chooseScanType', 'Choose Scan Type')}</DialogTitle>
+                    <DialogDescription>{t('overview.chooseScanTypeDesc', 'Select the type of scan you want to perform.')}</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-3 pt-2">
+                    <Card
+                      className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all duration-200"
+                      onClick={() => { setUploadDialogOpen(false); navigate('/dashboard/upload'); }}
+                    >
+                      <CardContent className="p-4 flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <FileText className="h-6 w-6 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{t('overview.aiScan', 'AI Scan')}</h4>
+                          <p className="text-sm text-muted-foreground">{t('overview.aiScanDesc', 'AI detection + similarity report')}</p>
+                        </div>
+                        <Badge variant="secondary">{profile?.credit_balance} {t('overview.credits')}</Badge>
+                      </CardContent>
+                    </Card>
+                    <Card
+                      className="cursor-pointer hover:border-blue-500/50 hover:shadow-md transition-all duration-200"
+                      onClick={() => { setUploadDialogOpen(false); navigate('/dashboard/upload-similarity'); }}
+                    >
+                      <CardContent className="p-4 flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                          <BarChart3 className="h-6 w-6 text-blue-500" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold">{t('overview.similarityScan', 'Similarity Scan')}</h4>
+                          <p className="text-sm text-muted-foreground">{t('overview.similarityScanDesc', 'Similarity report only')}</p>
+                        </div>
+                        <Badge variant="secondary">{profile?.similarity_credit_balance} {t('overview.credits')}</Badge>
+                      </CardContent>
+                    </Card>
                   </div>
-                  <div className="relative">
-                    <h3 className="font-semibold text-lg">{t('sidebar.uploadFull')}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {t('overview.uploadSubtitle')}
-                    </p>
-                  </div>
-                </CardContent>
-              </Link>
-            </Card>
-            <Card className="group hover:-translate-y-2 hover:shadow-xl hover:border-secondary/50 transition-all duration-300 cursor-pointer overflow-hidden">
-              <Link to="/dashboard/credits">
-                <CardContent className="p-6 flex items-center gap-4 relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-secondary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="h-14 w-14 rounded-xl gradient-success flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-secondary/30">
-                    <CreditCard className="h-7 w-7 text-secondary-foreground" />
-                  </div>
-                  <div className="relative">
-                    <h3 className="font-semibold text-lg">{t('sidebar.buyCredits')}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {t('overview.buyCreditsSubtitle')}
-                    </p>
-                  </div>
-                </CardContent>
-              </Link>
-            </Card>
-          </div>
-        )}
+                </DialogContent>
+              </Dialog>
+            </>
+          );
+        })()}
 
         {/* Recent Documents */}
         <Card>
