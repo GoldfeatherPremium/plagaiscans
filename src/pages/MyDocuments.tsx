@@ -353,7 +353,18 @@ export default function MyDocuments() {
                             )}
                           </TableCell>
                           <TableCell className="text-center">
-                            {doc.ai_percentage !== null && doc.ai_percentage !== undefined ? (
+                            {doc.scan_type === 'similarity_only' ? (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                    <Info className="h-4 w-4 text-primary" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-72 text-sm">
+                                  <p>If you want to get AI report of your document, purchase AI Scan credits from our website or contact admins to purchase AI credits.</p>
+                                </PopoverContent>
+                              </Popover>
+                            ) : doc.ai_percentage !== null && doc.ai_percentage !== undefined ? (
                               <span className="font-medium">{doc.ai_percentage}%</span>
                             ) : (
                               <span className="font-medium">*</span>
