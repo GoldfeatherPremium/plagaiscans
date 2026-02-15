@@ -178,7 +178,7 @@ export default function Dashboard() {
         </div>
 
         {/* Full Scan Queue Section - Show for customers, admins, or staff with AI access */}
-        {(role === 'customer' || role === 'admin' || (role === 'staff' && canAccessAI)) && (
+        {((role === 'customer' && (profile?.credit_balance || 0) > 0) || role === 'admin' || (role === 'staff' && canAccessAI)) && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold flex items-center gap-2">
