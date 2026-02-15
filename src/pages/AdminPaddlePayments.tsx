@@ -248,7 +248,11 @@ export default function AdminPaddlePayments() {
                                 <p className="text-xs text-muted-foreground">{profile?.email || t.customer_email}</p>
                               </div>
                             </TableCell>
-                            <TableCell className="font-semibold whitespace-nowrap">${Number(t.amount_usd).toFixed(2)}</TableCell>
+                            <TableCell className="font-semibold whitespace-nowrap">
+                              {t.currency && t.currency !== 'USD'
+                                ? `${Number(t.amount_usd).toFixed(2)} ${t.currency}`
+                                : `$${Number(t.amount_usd).toFixed(2)}`}
+                            </TableCell>
                             <TableCell>
                               <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 whitespace-nowrap">
                                 +{t.credits} credits
