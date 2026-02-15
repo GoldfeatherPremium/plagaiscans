@@ -1,39 +1,70 @@
 
 
-# Conditional Dashboard Sections Based on Credit Type
+# Fix Currency Display and Tax/VAT Calculation from Paddle Data
 
 ## Problem
-The AI Scan Queue section always shows for all customers, even those with zero AI credits. Only the Similarity Queue already has credit-based visibility. This means a similarity-only customer sees an empty AI Scan section.
+1. Payments in non-USD currencies (GBP, CAD, etc.) are stored with `amount_usd` field name but actually contain the local currency amount, causing confusion
+2. Invoices and receipts show VAT as 0 even though Paddle already calculates and collects tax (e.g., 20% UK VAT, 13% Canadian tax)
+3. Currency display is inconsistent across the app
 
-## Solution
-Update the visibility conditions in `src/pages/Dashboard.tsx` so that for **customers**:
+## Discovery
+Paddle's webhook payload already includes detailed tax breakdowns:
+- **GBP example**: subtotal=14.68, tax=2.94 (20%), total=17.62
+- **CAD example**: subtotal=27.21, tax=3.54 (13%), total=30.75
 
-- **AI Scan Queue section** (line 181): Only show when `profile.credit_balance > 0`
-- **Similarity Queue section** (line 270): Already conditional -- no change needed
+We do NOT need live currency conversion -- Paddle provides the exact tax amounts in the customer's currency.
 
-This means:
-1. **AI credits only** -- only AI Scan Queue shown
-2. **Similarity credits only** -- only Similarity Queue shown
-3. **Both credits** -- both sections shown
-4. **No credits** -- neither section shown (edge case)
+## Changes
 
-Staff and admin visibility remains unchanged.
+### 1. Paddle Webhook (`supabase/functions/paddle-webhook/index.ts`)
+Extract tax data from `eventData.details.totals` and `eventData.details.tax_rates_used`:
+- `subtotal` = totals.subtotal / 100
+- `tax` = totals.tax / 100
+- `taxRate` = tax_rates_used[0].tax_rate (e.g., 0.2 for 20%)
+
+Pass these values when calling `create-invoice` and `create-receipt`:
+- `subtotal` (pre-tax amount)
+- `vat_amount` (tax amount)
+- `vat_rate` (tax percentage, e.g., 20)
+- `amount_usd` remains the total paid (including tax)
+
+### 2. Invoice PDF (`supabase/functions/generate-invoice-pdf/index.ts`)
+No structural changes needed -- it already renders VAT rows. The data will now flow correctly from the webhook.
+
+### 3. Receipt PDF (`supabase/functions/generate-receipt-pdf/index.ts`)
+Same as above -- already has VAT rendering logic. Will now show correct values.
+
+### 4. Payment History (`src/pages/PaymentHistory.tsx`)
+- Remove the "$" prefix for non-USD currencies (already partially done)
+- Ensure consistent display: show currency symbol + amount + currency code
+
+### 5. My Invoices (`src/pages/MyInvoices.tsx`)
+- Add `currency` field to the Invoice interface (fetch from DB)
+- Display amounts using the correct currency symbol instead of hardcoded "$"
+
+### 6. My Receipts (`src/pages/MyReceipts.tsx`)
+- Already handles currency well -- minor cleanup to ensure consistency
+
+### 7. Admin Unified Payments (`src/pages/AdminUnifiedPayments.tsx`)
+- Already fixed in previous change -- no additional work needed
 
 ## Technical Details
 
-### File: `src/pages/Dashboard.tsx`
-
-**Line 181** -- Change the customer condition from always-true to credit-based:
-
+### Paddle webhook data extraction (key change):
 ```
-// Before:
-(role === 'customer' || role === 'admin' || (role === 'staff' && canAccessAI))
-
-// After:
-((role === 'customer' && (profile?.credit_balance || 0) > 0) || role === 'admin' || (role === 'staff' && canAccessAI))
+const totals = eventData?.details?.totals;
+const taxRates = eventData?.details?.tax_rates_used;
+const subtotalAmount = totals?.subtotal ? parseFloat(totals.subtotal) / 100 : amountTotal;
+const taxAmount = totals?.tax ? parseFloat(totals.tax) / 100 : 0;
+const taxRate = taxRates?.[0]?.tax_rate ? taxRates[0].tax_rate * 100 : 0;
 ```
 
-The similarity section at line 270 already has this logic, so no changes needed there.
+### Files to modify:
+1. `supabase/functions/paddle-webhook/index.ts` -- extract and pass tax data
+2. `src/pages/MyInvoices.tsx` -- add currency-aware display
+3. `src/pages/PaymentHistory.tsx` -- minor currency display fix
+4. Redeploy `paddle-webhook` edge function
 
-This is a one-line change -- minimal risk, clean fix.
+### No database changes needed
+All required columns (`vat_rate`, `vat_amount`, `subtotal`, `currency`) already exist in both `invoices` and `receipts` tables.
 
