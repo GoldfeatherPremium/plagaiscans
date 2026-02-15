@@ -227,8 +227,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
-  // Check if user needs to provide phone number (for OAuth users)
-  const needsPhoneNumber = !!(user && profile && !profile.phone);
+  // Check if user needs to complete profile (missing phone or name)
+  const needsPhoneNumber = !!(user && profile && (!profile.phone || !profile.full_name));
 
   return (
     <AuthContext.Provider
