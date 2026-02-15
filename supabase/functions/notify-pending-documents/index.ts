@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
 
     const { data: pendingDocuments, error: fetchError } = await supabase
       .from("documents")
-      .select("id, file_name, user_id, uploaded_at, pending_reminder_sent_at")
+      .select("id, file_name, user_id, uploaded_at, pending_reminder_sent_at, scan_type")
       .eq("status", "pending")
       .is("assigned_staff_id", null)
       .is("pending_reminder_sent_at", null)
@@ -146,15 +146,35 @@ Deno.serve(async (req) => {
       throw new Error("SENDER_NET_API_KEY not configured");
     }
 
-    const documentList = pendingDocuments
-      .map((doc) => {
-        const uploadedAt = new Date(doc.uploaded_at);
-        const minutesAgo = Math.floor((Date.now() - uploadedAt.getTime()) / 60000);
-        return `• ${doc.file_name} (${minutesAgo} minutes ago)`;
-      })
-      .join("\n");
+    // Group documents by scan type / queue
+    const aiScanDocs = pendingDocuments.filter((doc) => doc.scan_type === 'full');
+    const similarityDocs = pendingDocuments.filter((doc) => doc.scan_type === 'similarity_only');
 
-    const subject = `⚠️ ${pendingDocuments.length} Document${pendingDocuments.length > 1 ? "s" : ""} Waiting - Plagaiscans`;
+    const buildDocList = (docs: typeof pendingDocuments) =>
+      docs
+        .map((doc) => {
+          const uploadedAt = new Date(doc.uploaded_at);
+          const minutesAgo = Math.floor((Date.now() - uploadedAt.getTime()) / 60000);
+          return `• ${doc.file_name} (${minutesAgo} minutes ago)`;
+        })
+        .join("\n");
+
+    const queueParts: string[] = [];
+    if (aiScanDocs.length > 0) queueParts.push(`${aiScanDocs.length} in AI Scan Queue`);
+    if (similarityDocs.length > 0) queueParts.push(`${similarityDocs.length} in Similarity Queue`);
+    const subjectSummary = queueParts.join(', ');
+
+    const subject = `⚠️ ${subjectSummary} - Plagaiscans`;
+
+    const buildQueueBlock = (title: string, docs: typeof pendingDocuments, color: string) => {
+      if (docs.length === 0) return '';
+      return `
+        <div style="background-color: #fef3c7; border-radius: 8px; padding: 20px; margin-bottom: 20px; border-left: 4px solid ${color};">
+          <p style="margin: 0 0 10px 0; color: #92400e; font-weight: 600;">${docs.length} Document${docs.length > 1 ? "s" : ""} pending in ${title}:</p>
+          <pre style="margin: 0; color: #78350f; font-family: inherit; white-space: pre-wrap; font-size: 14px;">${buildDocList(docs)}</pre>
+        </div>
+      `;
+    };
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -183,10 +203,8 @@ Deno.serve(async (req) => {
                       The following documents have been pending for more than ${thresholdMinutes} minutes without being picked up by staff.
                     </p>
                     
-                    <div style="background-color: #fef3c7; border-radius: 8px; padding: 20px; margin-bottom: 20px; border-left: 4px solid #f59e0b;">
-                      <p style="margin: 0 0 10px 0; color: #92400e; font-weight: 600;">${pendingDocuments.length} Document${pendingDocuments.length > 1 ? "s" : ""} Waiting:</p>
-                      <pre style="margin: 0; color: #78350f; font-family: inherit; white-space: pre-wrap; font-size: 14px;">${documentList}</pre>
-                    </div>
+                    ${buildQueueBlock('AI Scan Queue', aiScanDocs, '#ef4444')}
+                    ${buildQueueBlock('Similarity Queue', similarityDocs, '#f59e0b')}
                     
                     <div style="text-align: center; margin-bottom: 30px;">
                       <a href="${EMAIL_CONFIG.SITE_URL}/dashboard/queue" 
