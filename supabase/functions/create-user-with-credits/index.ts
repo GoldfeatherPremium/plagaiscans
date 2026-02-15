@@ -186,6 +186,9 @@ Deno.serve(async (req) => {
           <a href="${loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
             Login Now →
           </a>
+          <p style="color: #9ca3af; font-size: 12px; margin: 10px 0 0 0; word-break: break-all;">
+            ${loginUrl}
+          </p>
         </div>
 
         <p style="color: #ef4444; font-size: 13px; margin: 20px 0 0 0; padding: 12px; background: #fef2f2; border-radius: 6px;">
