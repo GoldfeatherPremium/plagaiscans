@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CreditManagementDialog } from '@/components/CreditManagementDialog';
+import { PreRegisterCreditDialog } from '@/components/PreRegisterCreditDialog';
 
 interface UserProfile {
   id: string;
@@ -87,6 +88,7 @@ export default function AdminUsers() {
   // Staff settings state
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [savingStaffId, setSavingStaffId] = useState<string | null>(null);
+  const [preRegisterOpen, setPreRegisterOpen] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -302,14 +304,20 @@ export default function AdminUsers() {
 
           {/* Users Tab */}
           <TabsContent value="users" className="space-y-6">
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, email, or phone..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex items-center gap-3">
+              <div className="relative max-w-md flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, email, or phone..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Button onClick={() => setPreRegisterOpen(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Pre-Register User
+              </Button>
             </div>
 
             {loading ? (
@@ -718,6 +726,13 @@ export default function AdminUsers() {
         user={creditDialogUser}
         open={creditDialogOpen}
         onOpenChange={setCreditDialogOpen}
+        onSuccess={fetchUsers}
+      />
+
+      {/* Pre-Register User Dialog */}
+      <PreRegisterCreditDialog
+        open={preRegisterOpen}
+        onOpenChange={setPreRegisterOpen}
         onSuccess={fetchUsers}
       />
     </DashboardLayout>

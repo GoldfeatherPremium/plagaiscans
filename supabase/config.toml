@@ -119,3 +119,6 @@ verify_jwt = false
 
 [functions.paddle-webhook]
 verify_jwt = false
+
+[functions.create-user-with-credits]
+verify_jwt = false
