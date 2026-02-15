@@ -112,15 +112,15 @@ Deno.serve(async (req) => {
 
     const userId = newUser.user.id;
 
-    // Insert profile
-    await supabaseAdmin.from('profiles').insert({
+    // Upsert profile (trigger may have already created it)
+    await supabaseAdmin.from('profiles').upsert({
       id: userId,
       email: email.toLowerCase().trim(),
       full_name: null,
       phone: null,
       credit_balance: creditType === 'full' ? creditAmount : 0,
       similarity_credit_balance: creditType === 'similarity_only' ? creditAmount : 0,
-    });
+    }, { onConflict: 'id' });
 
     // Assign customer role
     await supabaseAdmin.from('user_roles').insert({
