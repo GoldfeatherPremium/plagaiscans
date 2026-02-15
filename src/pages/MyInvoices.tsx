@@ -29,7 +29,14 @@ interface Invoice {
   customer_name: string | null;
   created_at: string;
   paid_at: string | null;
+  currency: string | null;
 }
+
+const formatCurrencyAmount = (amount: number, currency: string | null | undefined): string => {
+  const cur = (currency || 'USD').toUpperCase();
+  if (cur === 'USD') return `$${Number(amount).toFixed(2)}`;
+  return `${Number(amount).toFixed(2)} ${cur}`;
+};
 
 export default function MyInvoices() {
   const { t } = useTranslation('dashboard');
@@ -251,7 +258,7 @@ export default function MyInvoices() {
                           +{invoice.credits}
                         </TableCell>
                         <TableCell className="font-medium">
-                          ${Number(invoice.amount_usd).toFixed(2)}
+                          {formatCurrencyAmount(invoice.amount_usd, invoice.currency)}
                         </TableCell>
                         <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                         <TableCell>

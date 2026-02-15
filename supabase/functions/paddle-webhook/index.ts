@@ -149,10 +149,17 @@ serve(async (req) => {
             break;
           }
 
-          // Calculate amount from transaction details
-          const amountTotal = eventData?.details?.totals?.total
-            ? parseFloat(eventData.details.totals.total) / 100
+          // Calculate amount and tax from transaction details
+          const totals = eventData?.details?.totals;
+          const taxRatesUsed = eventData?.details?.tax_rates_used;
+          const amountTotal = totals?.total
+            ? parseFloat(totals.total) / 100
             : 0;
+          const subtotalAmount = totals?.subtotal ? parseFloat(totals.subtotal) / 100 : amountTotal;
+          const taxAmount = totals?.tax ? parseFloat(totals.tax) / 100 : 0;
+          const taxRate = taxRatesUsed?.[0]?.tax_rate ? parseFloat(taxRatesUsed[0].tax_rate) * 100 : 0;
+
+          logStep("Tax data extracted", { subtotalAmount, taxAmount, taxRate, amountTotal });
 
           // Idempotency check
           const idempotencyKey = `paddle_webhook:${transactionId}`;
@@ -229,8 +236,11 @@ serve(async (req) => {
                 payment_id: transactionId,
                 customer_email: profile?.email,
                 description: `${credits} Document Check Credits`,
-                currency: (eventData?.currency_code || 'USD').toUpperCase(),
+                currency: paddleCurrency,
                 status: 'paid',
+                subtotal: subtotalAmount,
+                vat_amount: taxAmount,
+                vat_rate: taxRate,
               }),
             });
           } catch (e) {
@@ -250,12 +260,12 @@ serve(async (req) => {
                 customerEmail: profile?.email,
                 description: `${credits} Document Check Credits`,
                 quantity: credits,
-                unitPrice: credits > 0 ? amountTotal / credits : 0,
-                subtotal: amountTotal,
-                vatRate: 0,
-                vatAmount: 0,
+                unitPrice: credits > 0 ? subtotalAmount / credits : 0,
+                subtotal: subtotalAmount,
+                vatRate: taxRate,
+                vatAmount: taxAmount,
                 amountPaid: amountTotal,
-                currency: (eventData?.currency_code || 'USD').toUpperCase(),
+                currency: paddleCurrency,
                 paymentMethod: 'Paddle',
                 transactionId,
                 paymentId: transactionId,
