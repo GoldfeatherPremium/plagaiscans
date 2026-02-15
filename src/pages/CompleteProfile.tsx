@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { FileCheck, Loader2, Phone } from 'lucide-react';
+import { FileCheck, Loader2, Phone, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { PhoneInput } from '@/components/PhoneInput';
 import { SEO } from '@/components/SEO';
@@ -15,13 +16,16 @@ export default function CompleteProfile() {
   const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [isPhoneValid, setIsPhoneValid] = useState(false);
   const [error, setError] = useState('');
 
+  const needsName = !profile?.full_name;
+  const needsPhone = !profile?.phone;
+
   useEffect(() => {
-    // If user already has a phone number, redirect to dashboard
-    if (profile?.phone) {
+    if (profile && profile.phone && profile.full_name) {
       navigate('/dashboard');
     }
   }, [profile, navigate]);
@@ -30,7 +34,12 @@ export default function CompleteProfile() {
     e.preventDefault();
     setError('');
 
-    if (!isPhoneValid) {
+    if (needsName && !fullName.trim()) {
+      setError('Please enter your full name');
+      return;
+    }
+
+    if (needsPhone && !isPhoneValid) {
       setError('Please enter a valid phone number');
       return;
     }
@@ -43,9 +52,13 @@ export default function CompleteProfile() {
     setLoading(true);
 
     try {
+      const updates: Record<string, string> = {};
+      if (needsName) updates.full_name = fullName.trim();
+      if (needsPhone) updates.phone = phone;
+
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ phone })
+        .update(updates)
         .eq('id', user.id);
 
       if (updateError) throw updateError;
@@ -54,7 +67,7 @@ export default function CompleteProfile() {
       
       toast({
         title: 'Profile completed!',
-        description: 'Your phone number has been saved.',
+        description: 'Your profile has been saved.',
       });
       
       navigate('/dashboard');
@@ -78,11 +91,10 @@ export default function CompleteProfile() {
     <>
       <SEO
         title="Complete Your Profile"
-        description="Add your phone number to complete your PlagaiScans profile."
+        description="Complete your PlagaiScans profile to get started."
         noIndex={true}
       />
       <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
-        {/* Background decoration */}
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-20 left-1/4 w-72 h-72 bg-primary/5 rounded-full blur-3xl animate-float" />
           <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-secondary/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
@@ -103,28 +115,45 @@ export default function CompleteProfile() {
             <CardHeader>
               <div className="flex items-center gap-3 mb-2">
                 <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Phone className="h-5 w-5 text-primary" />
+                  <User className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle>Add Phone Number</CardTitle>
-                  <CardDescription>We need your phone number to complete your profile</CardDescription>
+                  <CardTitle>Complete Your Profile</CardTitle>
+                  <CardDescription>Please provide the following details to get started</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <PhoneInput
-                    value={phone}
-                    onChange={(fullNumber, valid) => {
-                      setPhone(fullNumber);
-                      setIsPhoneValid(valid);
-                    }}
-                  />
-                  {error && <p className="text-sm text-destructive">{error}</p>}
-                </div>
-                <Button type="submit" className="w-full" disabled={loading || !isPhoneValid}>
+                {needsName && (
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input
+                      id="fullName"
+                      placeholder="Enter your full name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                    />
+                  </div>
+                )}
+                {needsPhone && (
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <PhoneInput
+                      value={phone}
+                      onChange={(fullNumber, valid) => {
+                        setPhone(fullNumber);
+                        setIsPhoneValid(valid);
+                      }}
+                    />
+                  </div>
+                )}
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={loading || (needsPhone && !isPhoneValid) || (needsName && !fullName.trim())}
+                >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Complete Profile
                 </Button>
