@@ -165,34 +165,53 @@ Deno.serve(async (req) => {
       const validityText = expiryDays ? `${expiryDays} days` : 'No expiry';
       const loginUrl = `${EMAIL_CONFIG.SITE_URL}/auth`;
 
+      const serviceDescription = creditType === 'full'
+        ? 'Log in, upload your documents, and receive Turnitin.com-generated AI detection and similarity reports.'
+        : 'Log in, upload your documents, and receive Turnitin.com-generated similarity reports.';
+
       const emailContent = `
-        <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 22px;">Welcome to Plagaiscans!</h2>
+        <h2 style="color: #1f2937; margin: 0 0 16px 0; font-size: 22px;">Welcome to Plagaiscans!</h2>
+        <p style="color: #4b5563; margin: 0 0 8px 0; line-height: 1.6;">
+          An account has been created for you with credits ready to use.
+        </p>
         <p style="color: #4b5563; margin: 0 0 20px 0; line-height: 1.6;">
-          An account has been created for you with credits ready to use. Here are your login details:
+          ${serviceDescription}
         </p>
         
-        <div style="background: #f3f4f6; border-radius: 8px; padding: 20px; margin: 0 0 20px 0;">
-          <p style="color: #374151; margin: 0 0 8px 0;"><strong>Email:</strong> ${email}</p>
-          <p style="color: #374151; margin: 0 0 8px 0;"><strong>Password:</strong> ${password}</p>
-        </div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 20px 0;">
+          <tr>
+            <td style="background: #f3f4f6; border-radius: 8px; padding: 20px;">
+              <p style="color: #374151; margin: 0 0 8px 0;"><strong>Email:</strong> ${email}</p>
+              <p style="color: #374151; margin: 0;"><strong>Password:</strong> ${password}</p>
+            </td>
+          </tr>
+        </table>
 
-        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 8px; padding: 20px; margin: 0 0 20px 0;">
-          <p style="color: white; margin: 0 0 4px 0; font-size: 14px;">Your Credits</p>
-          <p style="color: white; margin: 0 0 8px 0; font-size: 28px; font-weight: bold;">${creditAmount} ${creditTypeLabel}</p>
-          <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 13px;">Validity: ${validityText}</p>
-        </div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 20px 0;">
+          <tr>
+            <td style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 8px; padding: 20px;">
+              <p style="color: white; margin: 0 0 4px 0; font-size: 14px;">Your Credits</p>
+              <p style="color: white; margin: 0 0 8px 0; font-size: 28px; font-weight: bold;">${creditAmount} ${creditTypeLabel}</p>
+              <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 13px;">Validity: ${validityText}</p>
+            </td>
+          </tr>
+        </table>
 
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
-            Login Now →
-          </a>
-          <p style="color: #9ca3af; font-size: 12px; margin: 10px 0 0 0; word-break: break-all;">
-            ${loginUrl}
-          </p>
-        </div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+          <tr>
+            <td align="center">
+              <a href="${loginUrl}" style="display: inline-block; background: #6366f1; color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Login Now
+              </a>
+              <p style="color: #9ca3af; font-size: 12px; margin: 10px 0 0 0; word-break: break-all;">
+                ${loginUrl}
+              </p>
+            </td>
+          </tr>
+        </table>
 
-        <p style="color: #ef4444; font-size: 13px; margin: 20px 0 0 0; padding: 12px; background: #fef2f2; border-radius: 6px;">
-          ⚠️ Please change your password after your first login for security.
+        <p style="color: #b91c1c; font-size: 13px; margin: 20px 0 0 0; padding: 12px; background: #fef2f2; border-radius: 6px;">
+          Please change your password after your first login for security.
         </p>
 
         ${getEmailFooter()}
@@ -202,8 +221,8 @@ Deno.serve(async (req) => {
 
       const emailResult = await sendEmailViaSenderNet(
         senderApiKey,
-        { email: email.toLowerCase().trim() },
-        'Welcome to Plagaiscans - Your Account & Credits Are Ready!',
+        { email: email.toLowerCase().trim(), name: email.split('@')[0] },
+        'Your Plagaiscans Account Is Ready',
         htmlEmail
       );
 
@@ -213,7 +232,7 @@ Deno.serve(async (req) => {
         emailType: 'pre_registration_welcome',
         recipientId: userId,
         recipientEmail: email,
-        subject: 'Welcome to Plagaiscans - Your Account & Credits Are Ready!',
+        subject: 'Your Plagaiscans Account Is Ready',
         status: emailResult.success ? 'sent' : 'failed',
         providerResponse: emailResult.response,
         errorMessage: emailResult.error,
