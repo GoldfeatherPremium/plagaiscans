@@ -24,7 +24,7 @@ const UploadSimilarity: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadResults, setUploadResults] = useState<{ success: number; failed: number } | null>(null);
+  const [uploadResults, setUploadResults] = useState<{ success: number; failed: number; errorMessage?: string } | null>(null);
 
   const creditBalance = profile?.credit_balance || 0;
   const similarityCreditBalance = profile?.similarity_credit_balance || 0;
@@ -123,19 +123,21 @@ const UploadSimilarity: React.FC = () => {
 
     let success = 0;
     let failed = 0;
+    let lastError = '';
 
     for (let i = 0; i < selectedFiles.length; i++) {
       try {
         await uploadSimilarityDocument(selectedFiles[i], {});
         success++;
-      } catch (error) {
+      } catch (error: any) {
         failed++;
-        console.error('Upload error:', error);
+        lastError = error?.message || 'Unknown error';
+        console.error('Upload error for', selectedFiles[i].name, ':', error);
       }
       setUploadProgress(((i + 1) / selectedFiles.length) * 100);
     }
 
-    setUploadResults({ success, failed });
+    setUploadResults({ success, failed, errorMessage: lastError || undefined });
     setUploading(false);
     await refreshProfile();
 
@@ -143,6 +145,14 @@ const UploadSimilarity: React.FC = () => {
       toast({
         title: t('uploadSimilarity.uploadCompleteToast'),
         description: t('uploadSimilarity.documentsUploaded', { count: success }),
+      });
+    }
+
+    if (failed > 0) {
+      toast({
+        title: 'Upload Failed',
+        description: `${failed} file(s) failed: ${lastError}`,
+        variant: 'destructive',
       });
     }
   };
@@ -191,6 +201,11 @@ const UploadSimilarity: React.FC = () => {
                   <p className="text-sm text-muted-foreground">
                     {uploadResults.success} {t('uploadSimilarity.succeeded')}, {uploadResults.failed} {t('uploadSimilarity.failed')}
                   </p>
+                  {uploadResults.errorMessage && (
+                    <p className="text-sm text-destructive mt-1">
+                      Error: {uploadResults.errorMessage}
+                    </p>
+                  )}
                 </div>
                 <Button 
                   variant="outline" 
