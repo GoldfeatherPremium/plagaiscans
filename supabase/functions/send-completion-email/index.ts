@@ -48,10 +48,17 @@ async function sendEmail(
       }),
     });
 
-    const result = await response.json();
+    const responseText = await response.text();
+    let result: any;
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      console.error("Sender.net returned non-JSON response:", responseText.substring(0, 500));
+      return { success: false, error: `Non-JSON response (HTTP ${response.status}): ${responseText.substring(0, 200)}` };
+    }
     if (!response.ok) {
       console.error("Sender.net error:", result);
-      return { success: false, response: result, error: `HTTP ${response.status}` };
+      return { success: false, response: result, error: `HTTP ${response.status}: ${JSON.stringify(result).substring(0, 200)}` };
     }
     return { success: true, response: result };
   } catch (error: any) {
