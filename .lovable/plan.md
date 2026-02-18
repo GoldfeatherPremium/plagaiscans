@@ -1,70 +1,65 @@
 
 
-# Fix Currency Display and Tax/VAT Calculation from Paddle Data
+## Add Expired Credits Summary with Time Frame Filtering
 
-## Problem
-1. Payments in non-USD currencies (GBP, CAD, etc.) are stored with `amount_usd` field name but actually contain the local currency amount, causing confusion
-2. Invoices and receipts show VAT as 0 even though Paddle already calculates and collects tax (e.g., 20% UK VAT, 13% Canadian tax)
-3. Currency display is inconsistent across the app
+### Goal
+Add a new stats section to both the **Credit Validity Management** page and the **Magic Upload Links** page showing how many unused credits have expired, with the ability to filter by time frame (e.g., last 7 days, 30 days, 90 days, all time).
 
-## Discovery
-Paddle's webhook payload already includes detailed tax breakdowns:
-- **GBP example**: subtotal=14.68, tax=2.94 (20%), total=17.62
-- **CAD example**: subtotal=27.21, tax=3.54 (13%), total=30.75
+### Current State
+- The Credit Validity page shows 4 stat cards: Total Records, Active, Expiring Soon, Expired (count only)
+- The Magic Links page has no credit expiration info at all
+- The `credit_validity` table tracks expired records (`expired = true`) with `credits_amount` (original allocation)
+- When credits expire, `remaining_credits` is set to 0, so we cannot retroactively determine exactly how many were unused at the moment of expiry
 
-We do NOT need live currency conversion -- Paddle provides the exact tax amounts in the customer's currency.
+### Data Limitation & Fix
+Currently, the expire logic zeros out `remaining_credits` without preserving how many were wasted. To accurately track expired (wasted) credits going forward:
 
-## Changes
+1. **Add a `credits_expired_unused` column** to the `credit_validity` table -- stores the remaining credits at the moment of expiration (before zeroing)
+2. **Update the `expire-credits` edge function** to populate this column when processing expirations
+3. **Update the manual "Mark Expired" action** on the admin page to also record unused credits before zeroing
 
-### 1. Paddle Webhook (`supabase/functions/paddle-webhook/index.ts`)
-Extract tax data from `eventData.details.totals` and `eventData.details.tax_rates_used`:
-- `subtotal` = totals.subtotal / 100
-- `tax` = totals.tax / 100
-- `taxRate` = tax_rates_used[0].tax_rate (e.g., 0.2 for 20%)
+### Changes
 
-Pass these values when calling `create-invoice` and `create-receipt`:
-- `subtotal` (pre-tax amount)
-- `vat_amount` (tax amount)
-- `vat_rate` (tax percentage, e.g., 20)
-- `amount_usd` remains the total paid (including tax)
+#### 1. Database Migration
+- Add `credits_expired_unused INTEGER DEFAULT NULL` column to `credit_validity`
+- For existing expired records, set `credits_expired_unused = credits_amount` as a best-effort approximation (since the actual unused count is lost)
 
-### 2. Invoice PDF (`supabase/functions/generate-invoice-pdf/index.ts`)
-No structural changes needed -- it already renders VAT rows. The data will now flow correctly from the webhook.
+#### 2. Update `expire-credits` Edge Function
+- Before setting `remaining_credits = 0`, save the value into `credits_expired_unused`
 
-### 3. Receipt PDF (`supabase/functions/generate-receipt-pdf/index.ts`)
-Same as above -- already has VAT rendering logic. Will now show correct values.
+#### 3. Update `AdminCreditValidity.tsx`
+- Add a **time frame selector** (Period: 7d / 30d / 90d / All Time) near the stats area
+- Add a new stat card: **"Total Expired Credits"** showing the sum of `credits_expired_unused` (or `credits_amount` for older records) filtered by the selected time frame
+- Split into **AI Scan Expired** and **Similarity Expired** sub-stats
+- The existing 4 stat cards remain; this adds a highlighted summary card below them
 
-### 4. Payment History (`src/pages/PaymentHistory.tsx`)
-- Remove the "$" prefix for non-USD currencies (already partially done)
-- Ensure consistent display: show currency symbol + amount + currency code
+#### 4. Update `AdminMagicLinks.tsx`
+- Add a compact **"Expired Credits Summary"** card at the top (alongside existing stats) querying the same `credit_validity` data
+- Include a simple period selector (7d / 30d / 90d / All Time)
+- Show total expired credits count and amount, broken down by type
 
-### 5. My Invoices (`src/pages/MyInvoices.tsx`)
-- Add `currency` field to the Invoice interface (fetch from DB)
-- Display amounts using the correct currency symbol instead of hardcoded "$"
+#### 5. Shared Query Hook (optional optimization)
+- Create a reusable query or inline the fetch in both pages to get expired credit stats filtered by date range
 
-### 6. My Receipts (`src/pages/MyReceipts.tsx`)
-- Already handles currency well -- minor cleanup to ensure consistency
+### Technical Details
 
-### 7. Admin Unified Payments (`src/pages/AdminUnifiedPayments.tsx`)
-- Already fixed in previous change -- no additional work needed
+**New column migration:**
+```sql
+ALTER TABLE credit_validity 
+ADD COLUMN credits_expired_unused INTEGER DEFAULT NULL;
 
-## Technical Details
-
-### Paddle webhook data extraction (key change):
-```
-const totals = eventData?.details?.totals;
-const taxRates = eventData?.details?.tax_rates_used;
-const subtotalAmount = totals?.subtotal ? parseFloat(totals.subtotal) / 100 : amountTotal;
-const taxAmount = totals?.tax ? parseFloat(totals.tax) / 100 : 0;
-const taxRate = taxRates?.[0]?.tax_rate ? taxRates[0].tax_rate * 100 : 0;
+UPDATE credit_validity 
+SET credits_expired_unused = credits_amount 
+WHERE expired = true;
 ```
 
-### Files to modify:
-1. `supabase/functions/paddle-webhook/index.ts` -- extract and pass tax data
-2. `src/pages/MyInvoices.tsx` -- add currency-aware display
-3. `src/pages/PaymentHistory.tsx` -- minor currency display fix
-4. Redeploy `paddle-webhook` edge function
+**Period filter logic:**
+- Filter `credit_validity` records where `expired = true` and `expires_at` falls within the selected period
+- Sum `credits_expired_unused` grouped by `credit_type`
 
-### No database changes needed
-All required columns (`vat_rate`, `vat_amount`, `subtotal`, `currency`) already exist in both `invoices` and `receipts` tables.
+**Stats displayed:**
+- Total expired credit batches (count)
+- Total wasted AI Scan credits
+- Total wasted Similarity credits
+- Period comparison (e.g., "58 batches / 1,003 credits expired all time")
 
