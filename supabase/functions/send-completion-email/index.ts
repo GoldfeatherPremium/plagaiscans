@@ -24,47 +24,77 @@ interface EmailRequest {
   retryLogId?: string;
 }
 
-// Send email via Sender.net API
+// Retryable HTTP status codes
+const RETRYABLE_STATUS_CODES = [429, 500, 502, 503, 504];
+
+// Send email via Sender.net API with auto-retry
 async function sendEmail(
   apiKey: string,
   to: { email: string; name?: string },
   subject: string,
-  htmlContent: string
-): Promise<{ success: boolean; response?: any; error?: string }> {
-  try {
-    const response = await fetch("https://api.sender.net/v2/message/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        to: { email: to.email, name: to.name || to.email.split('@')[0] },
-        from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
-        subject,
-        html: htmlContent,
-        reply_to: { email: EMAIL_CONFIG.REPLY_TO, name: EMAIL_CONFIG.FROM_NAME },
-      }),
-    });
+  htmlContent: string,
+  maxRetries: number = 3
+): Promise<{ success: boolean; response?: any; error?: string; retryCount?: number }> {
+  let lastError = '';
+  let lastResponse: any;
 
-    const responseText = await response.text();
-    let result: any;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 30000); // 1s, 2s, 4s max 30s
+      console.log(`Retry attempt ${attempt}/${maxRetries} after ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+
     try {
-      result = JSON.parse(responseText);
-    } catch {
-      console.error("Sender.net returned non-JSON response:", responseText.substring(0, 500));
-      return { success: false, error: `Non-JSON response (HTTP ${response.status}): ${responseText.substring(0, 200)}` };
+      const response = await fetch("https://api.sender.net/v2/message/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          to: { email: to.email, name: to.name || to.email.split('@')[0] },
+          from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
+          subject,
+          html: htmlContent,
+          reply_to: { email: EMAIL_CONFIG.REPLY_TO, name: EMAIL_CONFIG.FROM_NAME },
+        }),
+      });
+
+      const responseText = await response.text();
+      let result: any;
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        console.error(`Attempt ${attempt}: Sender.net returned non-JSON response:`, responseText.substring(0, 500));
+        lastError = `Non-JSON response (HTTP ${response.status}): ${responseText.substring(0, 200)}`;
+        if (RETRYABLE_STATUS_CODES.includes(response.status)) continue;
+        return { success: false, error: lastError, retryCount: attempt };
+      }
+
+      if (!response.ok) {
+        console.error(`Attempt ${attempt}: Sender.net error (HTTP ${response.status}):`, result);
+        lastError = `HTTP ${response.status}: ${JSON.stringify(result).substring(0, 200)}`;
+        lastResponse = result;
+        if (RETRYABLE_STATUS_CODES.includes(response.status)) continue;
+        return { success: false, response: result, error: lastError, retryCount: attempt };
+      }
+
+      if (attempt > 0) {
+        console.log(`Email sent successfully on retry attempt ${attempt}`);
+      }
+      return { success: true, response: result, retryCount: attempt };
+    } catch (error: any) {
+      console.error(`Attempt ${attempt}: Sender.net send error:`, error);
+      lastError = error?.message || 'Unknown error';
+      // Network errors are retryable
+      continue;
     }
-    if (!response.ok) {
-      console.error("Sender.net error:", result);
-      return { success: false, response: result, error: `HTTP ${response.status}: ${JSON.stringify(result).substring(0, 200)}` };
-    }
-    return { success: true, response: result };
-  } catch (error: any) {
-    console.error("Sender.net send error:", error);
-    return { success: false, error: error?.message || 'Unknown error' };
   }
+
+  console.error(`All ${maxRetries + 1} attempts failed for email to ${to.email}`);
+  return { success: false, response: lastResponse, error: `Failed after ${maxRetries + 1} attempts. Last error: ${lastError}`, retryCount: maxRetries };
 }
 
 // Check if email setting is enabled
