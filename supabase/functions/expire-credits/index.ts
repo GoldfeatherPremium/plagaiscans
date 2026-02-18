@@ -113,10 +113,10 @@ serve(async (req) => {
           }
         }
 
-        // Mark as expired
+        // Mark as expired - save remaining_credits before zeroing
         const { error: markError } = await supabaseClient
           .from("credit_validity")
-          .update({ expired: true, remaining_credits: 0 })
+          .update({ expired: true, remaining_credits: 0, credits_expired_unused: remainingCredits })
           .eq("id", creditRecord.id);
 
         if (markError) {

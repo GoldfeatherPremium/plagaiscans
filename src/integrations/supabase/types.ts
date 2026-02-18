@@ -494,6 +494,7 @@ export type Database = {
           created_at: string
           credit_type: string
           credits_amount: number
+          credits_expired_unused: number | null
           expired: boolean
           expires_at: string
           id: string
@@ -506,6 +507,7 @@ export type Database = {
           created_at?: string
           credit_type?: string
           credits_amount: number
+          credits_expired_unused?: number | null
           expired?: boolean
           expires_at: string
           id?: string
@@ -518,6 +520,7 @@ export type Database = {
           created_at?: string
           credit_type?: string
           credits_amount?: number
+          credits_expired_unused?: number | null
           expired?: boolean
           expires_at?: string
           id?: string
