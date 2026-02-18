@@ -1,8 +1,9 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useExpiredCreditsStats, ExpiredPeriod } from '@/hooks/useExpiredCreditsStats';
-import { Loader2, TrendingDown } from 'lucide-react';
+import { Loader2, TrendingDown, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ExpiredCreditsSummaryProps {
   compact?: boolean;
@@ -25,6 +26,16 @@ export function ExpiredCreditsSummary({ compact = false }: ExpiredCreditsSummary
           <div className="flex items-center gap-2">
             <TrendingDown className="h-5 w-5 text-destructive" />
             <h3 className="font-semibold text-sm">Expired Credits Summary</h3>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-xs">Only tracks unused credits from new expirations going forward. Historical expired records don't have accurate unused data.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <Select value={period} onValueChange={(v) => setPeriod(v as ExpiredPeriod)}>
             <SelectTrigger className="w-[140px] h-8 text-xs">
@@ -50,7 +61,7 @@ export function ExpiredCreditsSummary({ compact = false }: ExpiredCreditsSummary
               <p className="text-xl font-bold text-destructive">{stats?.totalBatches || 0}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Total Wasted</p>
+              <p className="text-xs text-muted-foreground">Unused Credits Wasted</p>
               <p className="text-xl font-bold text-destructive">{stats?.totalExpiredCredits || 0}</p>
             </div>
             <div>
@@ -69,7 +80,7 @@ export function ExpiredCreditsSummary({ compact = false }: ExpiredCreditsSummary
         )}
 
         <p className="text-[11px] text-muted-foreground mt-3">
-          {periodLabel[period]} • {stats?.totalBatches || 0} batches / {stats?.totalExpiredCredits || 0} credits expired
+          {periodLabel[period]} • {stats?.trackedBatches || 0} tracked / {stats?.untrackedBatches || 0} historical (no data)
         </p>
       </CardContent>
     </Card>

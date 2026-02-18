@@ -10,6 +10,8 @@ export interface ExpiredCreditsStats {
   totalExpiredCredits: number;
   aiScanExpired: number;
   similarityExpired: number;
+  trackedBatches: number; // batches with actual unused data
+  untrackedBatches: number; // historical batches without accurate data
 }
 
 export function useExpiredCreditsStats() {
@@ -37,16 +39,22 @@ export function useExpiredCreditsStats() {
         totalExpiredCredits: 0,
         aiScanExpired: 0,
         similarityExpired: 0,
+        trackedBatches: 0,
+        untrackedBatches: 0,
       };
 
       for (const row of data || []) {
-        // Use credits_expired_unused if available, fallback to credits_amount
-        const unused = (row as any).credits_expired_unused ?? row.credits_amount;
-        result.totalExpiredCredits += unused;
-        if (row.credit_type === 'full') {
-          result.aiScanExpired += unused;
+        const unused = (row as any).credits_expired_unused;
+        if (unused != null) {
+          result.trackedBatches++;
+          result.totalExpiredCredits += unused;
+          if (row.credit_type === 'full') {
+            result.aiScanExpired += unused;
+          } else {
+            result.similarityExpired += unused;
+          }
         } else {
-          result.similarityExpired += unused;
+          result.untrackedBatches++;
         }
       }
 
