@@ -143,13 +143,16 @@ export default function AdminEmailDeliveryLogs() {
           throw new Error(`Retry not supported for email type: ${log.email_type}`);
       }
 
-      const { error } = await supabase.functions.invoke(functionName, {
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: payload,
       });
 
       if (error) throw error;
+      if (data && !data.success) {
+        throw new Error(data.error || 'Email delivery failed');
+      }
 
-      toast.success('Email retry initiated');
+      toast.success('Email retry successful');
       
       // Refresh logs after a short delay
       setTimeout(() => {

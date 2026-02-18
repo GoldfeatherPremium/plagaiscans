@@ -410,7 +410,11 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!result.success) {
-      throw new Error(result.error || "Failed to send email");
+      console.error("Email delivery failed after retries:", result.error);
+      return new Response(
+        JSON.stringify({ success: false, error: result.error || "Failed to send email", retryCount: result.retryCount }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     console.log("Completion email sent successfully");
@@ -422,8 +426,8 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error in send-completion-email function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify({ success: false, error: error.message }),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };
