@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ExpiredCreditsSummary } from '@/components/ExpiredCreditsSummary';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -133,11 +134,11 @@ export default function AdminCreditValidity() {
     }
   };
 
-  const handleMarkExpired = async (id: string) => {
+  const handleMarkExpired = async (record: CreditValidity) => {
     const { error } = await supabase
       .from('credit_validity')
-      .update({ expired: true, remaining_credits: 0 })
-      .eq('id', id);
+      .update({ expired: true, remaining_credits: 0, credits_expired_unused: record.remaining_credits } as any)
+      .eq('id', record.id);
 
     if (error) {
       toast({ title: 'Error', description: 'Failed to update record', variant: 'destructive' });
@@ -281,6 +282,9 @@ export default function AdminCreditValidity() {
           </Card>
         </div>
 
+        {/* Expired Credits Summary */}
+        <ExpiredCreditsSummary />
+
         {/* Filters */}
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1 max-w-md">
@@ -407,7 +411,7 @@ export default function AdminCreditValidity() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => handleMarkExpired(cv.id)}
+                                    onClick={() => handleMarkExpired(cv)}
                                   >
                                     <XCircle className="h-4 w-4 mr-1" />
                                     Expire

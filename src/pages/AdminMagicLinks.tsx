@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ExpiredCreditsSummary } from '@/components/ExpiredCreditsSummary';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -251,6 +252,9 @@ export default function AdminMagicLinks() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Expired Credits Summary */}
+        <ExpiredCreditsSummary compact />
 
         {/* Magic Links Table */}
         {loading ? (
