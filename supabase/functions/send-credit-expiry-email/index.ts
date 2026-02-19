@@ -1,38 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const EMAIL_CONFIG = {
-  FROM_NAME: "Plagaiscans",
-  FROM_EMAIL: "support@plagaiscans.com",
-  REPLY_TO: "support@plagaiscans.com",
-  SITE_URL: "https://plagaiscans.com",
-};
+import { sendEmailViaSendPulse, EMAIL_CONFIG } from "../_shared/email-utils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-async function sendEmail(apiKey: string, to: { email: string; name?: string }, subject: string, htmlContent: string) {
-  const response = await fetch("https://api.sender.net/v2/message/send", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      to: { email: to.email, name: to.name || to.email.split('@')[0] },
-      from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
-      subject,
-      html: htmlContent,
-      reply_to: { email: EMAIL_CONFIG.REPLY_TO, name: EMAIL_CONFIG.FROM_NAME },
-    }),
-  });
-
-  const result = await response.json();
-  return { success: response.ok, response: result };
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -82,8 +55,6 @@ serve(async (req) => {
 
     console.log(`Found ${allCredits.length} expiring credit records`);
 
-    const apiKey = Deno.env.get("SENDER_NET_API_KEY");
-    if (!apiKey) throw new Error("SENDER_NET_API_KEY not configured");
     let sentCount = 0;
 
     for (const credit of allCredits) {
@@ -159,7 +130,7 @@ serve(async (req) => {
         </html>
       `;
 
-      const result = await sendEmail(apiKey, { email: profile.email, name: userName }, subject, htmlContent);
+      const result = await sendEmailViaSendPulse({ email: profile.email, name: userName }, subject, htmlContent);
       
       if (result.success) {
         sentCount++;

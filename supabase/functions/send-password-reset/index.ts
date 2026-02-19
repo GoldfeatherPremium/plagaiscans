@@ -1,13 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-// Email configuration constants
-const EMAIL_CONFIG = {
-  FROM_NAME: "Plagaiscans Support",
-  FROM_EMAIL: "support@plagaiscans.com",
-  REPLY_TO: "support@plagaiscans.com",
-  SITE_URL: "https://plagaiscans.com",
-};
+import { sendEmailViaSendPulse, isEmailEnabled, logEmail, updateEmailLog, incrementEmailCounter, EMAIL_CONFIG } from "../_shared/email-utils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,154 +11,6 @@ const corsHeaders = {
 interface PasswordResetRequest {
   email: string;
   retryLogId?: string;
-}
-
-// Send email via Sender.net API
-async function sendEmail(
-  apiKey: string,
-  to: { email: string; name?: string },
-  subject: string,
-  htmlContent: string
-): Promise<{ success: boolean; response?: any; error?: string }> {
-  try {
-    const response = await fetch("https://api.sender.net/v2/message/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        to: { email: to.email, name: to.name || to.email.split('@')[0] },
-        from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
-        subject,
-        html: htmlContent,
-        reply_to: { email: EMAIL_CONFIG.REPLY_TO, name: EMAIL_CONFIG.FROM_NAME },
-      }),
-    });
-
-    const result = await response.json();
-    if (!response.ok) {
-      console.error("Sender.net error:", result);
-      return { success: false, response: result, error: `HTTP ${response.status}` };
-    }
-    return { success: true, response: result };
-  } catch (error: any) {
-    console.error("Sender.net send error:", error);
-    return { success: false, error: error?.message || 'Unknown error' };
-  }
-}
-
-// Check if email setting is enabled
-async function isEmailEnabled(supabase: any, settingKey: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase
-      .from("email_settings")
-      .select("is_enabled")
-      .eq("setting_key", settingKey)
-      .maybeSingle();
-    
-    if (error || !data) {
-      console.log(`Email setting ${settingKey} not found, defaulting to enabled`);
-      return true;
-    }
-    
-    return data.is_enabled;
-  } catch (error) {
-    console.error("Error checking email setting:", error);
-    return true;
-  }
-}
-
-// Log email to transactional_email_logs
-async function logEmail(
-  supabase: any,
-  params: {
-    emailType: string;
-    recipientId?: string;
-    recipientEmail: string;
-    recipientName?: string;
-    subject: string;
-    status: string;
-    providerResponse?: any;
-    errorMessage?: string;
-    metadata?: any;
-  }
-): Promise<string | null> {
-  try {
-    const { data, error } = await supabase
-      .from("transactional_email_logs")
-      .insert({
-        email_type: params.emailType,
-        recipient_id: params.recipientId || null,
-        recipient_email: params.recipientEmail,
-        recipient_name: params.recipientName || null,
-        subject: params.subject,
-        status: params.status,
-        provider_response: params.providerResponse || null,
-        error_message: params.errorMessage || null,
-        metadata: params.metadata || null,
-        sent_at: params.status === 'sent' ? new Date().toISOString() : null,
-      })
-      .select('id')
-      .single();
-    
-    if (error) {
-      console.error("Error logging email:", error);
-      return null;
-    }
-    return data?.id || null;
-  } catch (error) {
-    console.error("Error logging email:", error);
-    return null;
-  }
-}
-
-// Update existing email log
-async function updateEmailLog(
-  supabase: any,
-  logId: string,
-  params: {
-    status: string;
-    providerResponse?: any;
-    errorMessage?: string;
-  }
-): Promise<void> {
-  try {
-    await supabase
-      .from("transactional_email_logs")
-      .update({
-        status: params.status,
-        provider_response: params.providerResponse || null,
-        error_message: params.errorMessage || null,
-        sent_at: params.status === 'sent' ? new Date().toISOString() : null,
-      })
-      .eq('id', logId);
-  } catch (error) {
-    console.error("Error updating email log:", error);
-  }
-}
-
-// Increment warmup counter
-async function incrementWarmupCounter(supabase: any): Promise<void> {
-  try {
-    const { data: warmupSettings } = await supabase
-      .from("email_warmup_settings")
-      .select("id, emails_sent_today")
-      .single();
-
-    if (warmupSettings) {
-      await supabase
-        .from("email_warmup_settings")
-        .update({
-          emails_sent_today: warmupSettings.emails_sent_today + 1,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", warmupSettings.id);
-    }
-  } catch (error) {
-    console.error("Error incrementing warmup counter:", error);
-  }
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -185,11 +30,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log("Processing password reset request for:", email, "retryLogId:", retryLogId);
-
-    const apiKey = Deno.env.get("SENDER_NET_API_KEY");
-    if (!apiKey) {
-      throw new Error("SENDER_NET_API_KEY not configured");
-    }
 
     const isEnabled = await isEmailEnabled(supabase, "password_reset");
     if (!isEnabled) {
@@ -309,8 +149,7 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    const result = await sendEmail(
-      apiKey,
+    const result = await sendEmailViaSendPulse(
       { email: email, name: userName },
       subject,
       htmlContent
@@ -336,7 +175,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (result.success) {
-      await incrementWarmupCounter(supabase);
+      await incrementEmailCounter(supabase);
       console.log("Password reset email sent successfully");
     } else {
       throw new Error(result.error || "Failed to send email");

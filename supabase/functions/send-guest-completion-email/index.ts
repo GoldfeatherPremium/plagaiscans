@@ -1,12 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const EMAIL_CONFIG = {
-  FROM_NAME: "Plagaiscans Support",
-  FROM_EMAIL: "support@plagaiscans.com",
-  REPLY_TO: "support@plagaiscans.com",
-  SITE_URL: "https://plagaiscans.com",
-};
+import { sendEmailViaSendPulse, isEmailEnabled, incrementEmailCounter, EMAIL_CONFIG } from "../_shared/email-utils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,61 +16,6 @@ interface GuestEmailRequest {
   aiPercentage?: number | null;
 }
 
-// Send email via Sender.net API
-async function sendEmail(
-  apiKey: string,
-  to: { email: string; name?: string },
-  subject: string,
-  htmlContent: string
-): Promise<{ success: boolean; response?: any; error?: string }> {
-  try {
-    const response = await fetch("https://api.sender.net/v2/message/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        to: { email: to.email, name: to.name || to.email.split('@')[0] },
-        from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
-        subject,
-        html: htmlContent,
-        reply_to: { email: EMAIL_CONFIG.REPLY_TO, name: EMAIL_CONFIG.FROM_NAME },
-      }),
-    });
-
-    const result = await response.json();
-    if (!response.ok) {
-      console.error("Sender.net error:", result);
-      return { success: false, response: result, error: `HTTP ${response.status}` };
-    }
-    return { success: true, response: result };
-  } catch (error: any) {
-    console.error("Sender.net send error:", error);
-    return { success: false, error: error?.message || 'Unknown error' };
-  }
-}
-
-async function isEmailEnabled(supabase: any, settingKey: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase.from("email_settings").select("is_enabled").eq("setting_key", settingKey).maybeSingle();
-    if (error || !data) return true;
-    return data.is_enabled;
-  } catch (error) { return true; }
-}
-
-async function incrementWarmupCounter(supabase: any): Promise<void> {
-  try {
-    const { data: warmupSettings } = await supabase.from("email_warmup_settings").select("id, emails_sent_today").single();
-    if (warmupSettings) {
-      await supabase.from("email_warmup_settings").update({
-        emails_sent_today: warmupSettings.emails_sent_today + 1, updated_at: new Date().toISOString(),
-      }).eq("id", warmupSettings.id);
-    }
-  } catch (error) {}
-}
-
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -86,9 +25,6 @@ const handler = async (req: Request): Promise<Response> => {
     const { documentId, magicLinkId, fileName, similarityPercentage, aiPercentage }: GuestEmailRequest = await req.json();
 
     console.log("Sending guest completion email for document:", documentId, "magicLinkId:", magicLinkId);
-
-    const apiKey = Deno.env.get("SENDER_NET_API_KEY");
-    if (!apiKey) throw new Error("SENDER_NET_API_KEY not configured");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -207,7 +143,7 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    const result = await sendEmail(apiKey, { email: guestEmail, name: guestName }, subject, htmlContent);
+    const result = await sendEmailViaSendPulse({ email: guestEmail, name: guestName }, subject, htmlContent);
 
     await supabase.from("transactional_email_logs").insert({
       email_type: 'guest_document_completion',
@@ -223,7 +159,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (result.success) {
-      await incrementWarmupCounter(supabase);
+      await incrementEmailCounter(supabase);
     }
 
     if (!result.success) {

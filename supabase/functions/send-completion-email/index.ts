@@ -1,13 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-// Email configuration constants
-const EMAIL_CONFIG = {
-  FROM_NAME: "Plagaiscans Support",
-  FROM_EMAIL: "support@plagaiscans.com",
-  REPLY_TO: "support@plagaiscans.com",
-  SITE_URL: "https://plagaiscans.com",
-};
+import { sendEmailViaSendPulse, isEmailEnabled, logEmail as sharedLogEmail, updateEmailLog, incrementEmailCounter, EMAIL_CONFIG } from "../_shared/email-utils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,9 +20,8 @@ interface EmailRequest {
 // Retryable HTTP status codes
 const RETRYABLE_STATUS_CODES = [429, 500, 502, 503, 504];
 
-// Send email via Sender.net API with auto-retry
-async function sendEmail(
-  apiKey: string,
+// Send email with auto-retry via SendPulse
+async function sendEmailWithRetry(
   to: { email: string; name?: string },
   subject: string,
   htmlContent: string,
@@ -40,82 +32,32 @@ async function sendEmail(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
-      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 30000); // 1s, 2s, 4s max 30s
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 30000);
       console.log(`Retry attempt ${attempt}/${maxRetries} after ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
 
-    try {
-      const response = await fetch("https://api.sender.net/v2/message/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          to: { email: to.email, name: to.name || to.email.split('@')[0] },
-          from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
-          subject,
-          html: htmlContent,
-          reply_to: { email: EMAIL_CONFIG.REPLY_TO, name: EMAIL_CONFIG.FROM_NAME },
-        }),
-      });
+    const result = await sendEmailViaSendPulse(to, subject, htmlContent);
 
-      const responseText = await response.text();
-      let result: any;
-      try {
-        result = JSON.parse(responseText);
-      } catch {
-        console.error(`Attempt ${attempt}: Sender.net returned non-JSON response:`, responseText.substring(0, 500));
-        lastError = `Non-JSON response (HTTP ${response.status}): ${responseText.substring(0, 200)}`;
-        if (RETRYABLE_STATUS_CODES.includes(response.status)) continue;
-        return { success: false, error: lastError, retryCount: attempt };
-      }
-
-      if (!response.ok) {
-        console.error(`Attempt ${attempt}: Sender.net error (HTTP ${response.status}):`, result);
-        lastError = `HTTP ${response.status}: ${JSON.stringify(result).substring(0, 200)}`;
-        lastResponse = result;
-        if (RETRYABLE_STATUS_CODES.includes(response.status)) continue;
-        return { success: false, response: result, error: lastError, retryCount: attempt };
-      }
-
+    if (result.success) {
       if (attempt > 0) {
         console.log(`Email sent successfully on retry attempt ${attempt}`);
       }
-      return { success: true, response: result, retryCount: attempt };
-    } catch (error: any) {
-      console.error(`Attempt ${attempt}: Sender.net send error:`, error);
-      lastError = error?.message || 'Unknown error';
-      // Network errors are retryable
-      continue;
+      return { success: true, response: result.response, retryCount: attempt };
+    }
+
+    lastError = result.error || 'Unknown error';
+    lastResponse = result.response;
+
+    // Check if error is retryable
+    const statusMatch = lastError.match(/HTTP (\d+)/);
+    if (statusMatch && !RETRYABLE_STATUS_CODES.includes(parseInt(statusMatch[1]))) {
+      return { success: false, response: lastResponse, error: lastError, retryCount: attempt };
     }
   }
 
   console.error(`All ${maxRetries + 1} attempts failed for email to ${to.email}`);
   return { success: false, response: lastResponse, error: `Failed after ${maxRetries + 1} attempts. Last error: ${lastError}`, retryCount: maxRetries };
-}
-
-// Check if email setting is enabled
-async function isEmailEnabled(supabase: any, settingKey: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase
-      .from("email_settings")
-      .select("is_enabled")
-      .eq("setting_key", settingKey)
-      .maybeSingle();
-    
-    if (error || !data) {
-      console.log(`Email setting ${settingKey} not found, defaulting to enabled`);
-      return true;
-    }
-    
-    return data.is_enabled;
-  } catch (error) {
-    console.error("Error checking email setting:", error);
-    return true;
-  }
 }
 
 // Log email to database
@@ -161,31 +103,6 @@ async function logEmail(
   }
 }
 
-// Update existing email log
-async function updateEmailLog(
-  supabase: any,
-  logId: string,
-  params: {
-    status: string;
-    providerResponse?: any;
-    errorMessage?: string;
-  }
-): Promise<void> {
-  try {
-    await supabase
-      .from("transactional_email_logs")
-      .update({
-        status: params.status,
-        provider_response: params.providerResponse || null,
-        error_message: params.errorMessage || null,
-        sent_at: params.status === 'sent' ? new Date().toISOString() : null,
-      })
-      .eq('id', logId);
-  } catch (error) {
-    console.error("Error updating email log:", error);
-  }
-}
-
 // Increment warmup counter
 async function incrementWarmupCounter(supabase: any): Promise<void> {
   try {
@@ -217,11 +134,6 @@ const handler = async (req: Request): Promise<Response> => {
     const { documentId, userId, fileName, similarityPercentage = 0, aiPercentage = 0, retryLogId }: EmailRequest = await req.json();
 
     console.log("Sending completion email for document:", documentId, "userId:", userId, "fileName:", fileName, "retryLogId:", retryLogId);
-
-    const apiKey = Deno.env.get("SENDER_NET_API_KEY");
-    if (!apiKey) {
-      throw new Error("SENDER_NET_API_KEY not configured");
-    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -321,7 +233,6 @@ const handler = async (req: Request): Promise<Response> => {
                       <p style="margin: 0; color: #18181b; font-weight: 600;">${fileName}</p>
                     </div>
                     
-                    
                     <div style="text-align: center;">
                       <a href="${EMAIL_CONFIG.SITE_URL}/dashboard/documents" 
                          style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600;">
@@ -355,8 +266,7 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    const result = await sendEmail(
-      apiKey,
+    const result = await sendEmailWithRetry(
       { email: profile.email, name: userName },
       subject,
       htmlContent
@@ -389,6 +299,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send push notification
     try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const pushRes = await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
         method: 'POST',
         headers: {

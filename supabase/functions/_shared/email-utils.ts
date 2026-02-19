@@ -1,4 +1,4 @@
-// Shared email utilities for all edge functions
+// Shared email utilities for all edge functions - SendPulse provider
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Email configuration constants
@@ -9,27 +9,80 @@ export const EMAIL_CONFIG = {
   SITE_URL: "https://plagaiscans.com",
 };
 
-// Send email via Sender.net API
-export async function sendEmailViaSenderNet(
-  apiKey: string,
+// In-memory token cache for SendPulse OAuth
+let cachedToken: { token: string; expiresAt: number } | null = null;
+
+// Get SendPulse OAuth2 access token
+async function getSendPulseToken(): Promise<string> {
+  // Return cached token if still valid (with 60s buffer)
+  if (cachedToken && Date.now() < cachedToken.expiresAt - 60000) {
+    return cachedToken.token;
+  }
+
+  const clientId = Deno.env.get("SENDPULSE_CLIENT_ID");
+  const clientSecret = Deno.env.get("SENDPULSE_CLIENT_SECRET");
+
+  if (!clientId || !clientSecret) {
+    throw new Error("SENDPULSE_CLIENT_ID and SENDPULSE_CLIENT_SECRET must be configured");
+  }
+
+  const response = await fetch("https://api.sendpulse.com/oauth/access_token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      grant_type: "client_credentials",
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  });
+
+  const responseText = await response.text();
+  let result: any;
+  try {
+    result = JSON.parse(responseText);
+  } catch {
+    console.error("SendPulse OAuth returned non-JSON:", responseText.substring(0, 200));
+    throw new Error(`SendPulse OAuth failed: non-JSON response (HTTP ${response.status})`);
+  }
+
+  if (!response.ok || !result.access_token) {
+    console.error("SendPulse OAuth error:", result);
+    throw new Error(`SendPulse OAuth failed: ${result.message || result.error || `HTTP ${response.status}`}`);
+  }
+
+  cachedToken = {
+    token: result.access_token,
+    expiresAt: Date.now() + (result.expires_in || 3600) * 1000,
+  };
+
+  return cachedToken.token;
+}
+
+// Send email via SendPulse SMTP API
+export async function sendEmailViaSendPulse(
   to: { email: string; name?: string },
   subject: string,
   htmlContent: string
 ): Promise<{ success: boolean; response?: any; error?: string }> {
   try {
-    const response = await fetch("https://api.sender.net/v2/message/send", {
+    const token = await getSendPulseToken();
+
+    // SendPulse requires base64-encoded HTML
+    const htmlBase64 = btoa(unescape(encodeURIComponent(htmlContent)));
+
+    const response = await fetch("https://api.sendpulse.com/smtp/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+        "Authorization": `Bearer ${token}`,
       },
       body: JSON.stringify({
-        to: { email: to.email, name: to.name || to.email.split('@')[0] },
-        from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
-        subject,
-        html: htmlContent,
-        reply_to: { email: EMAIL_CONFIG.REPLY_TO, name: EMAIL_CONFIG.FROM_NAME },
+        email: {
+          html: htmlBase64,
+          subject,
+          from: { name: EMAIL_CONFIG.FROM_NAME, email: EMAIL_CONFIG.FROM_EMAIL },
+          to: [{ name: to.name || to.email.split("@")[0], email: to.email }],
+        },
       }),
     });
 
@@ -38,19 +91,62 @@ export async function sendEmailViaSenderNet(
     try {
       result = JSON.parse(responseText);
     } catch {
-      console.error("Sender.net returned non-JSON response:", responseText.substring(0, 200));
+      console.error("SendPulse returned non-JSON response:", responseText.substring(0, 200));
       return { success: false, error: `Non-JSON response (HTTP ${response.status})`, response: responseText.substring(0, 200) };
     }
+
     if (!response.ok) {
-      console.error("Sender.net error:", result);
+      console.error("SendPulse error:", result);
+      // If token expired, clear cache and retry once
+      if (response.status === 401) {
+        cachedToken = null;
+        console.log("Token expired, retrying with fresh token...");
+        const newToken = await getSendPulseToken();
+        const retryResponse = await fetch("https://api.sendpulse.com/smtp/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${newToken}`,
+          },
+          body: JSON.stringify({
+            email: {
+              html: htmlBase64,
+              subject,
+              from: { name: EMAIL_CONFIG.FROM_NAME, email: EMAIL_CONFIG.FROM_EMAIL },
+              to: [{ name: to.name || to.email.split("@")[0], email: to.email }],
+            },
+          }),
+        });
+        const retryText = await retryResponse.text();
+        try {
+          const retryResult = JSON.parse(retryText);
+          if (!retryResponse.ok) {
+            return { success: false, response: retryResult, error: `HTTP ${retryResponse.status}` };
+          }
+          return { success: true, response: retryResult };
+        } catch {
+          return { success: false, error: `Non-JSON response on retry (HTTP ${retryResponse.status})` };
+        }
+      }
       return { success: false, response: result, error: `HTTP ${response.status}` };
     }
+
     return { success: true, response: result };
   } catch (error: any) {
-    console.error("Sender.net send error:", error);
+    console.error("SendPulse send error:", error);
     return { success: false, error: error?.message || "Unknown error" };
   }
 }
+
+// Backward-compatible alias
+export const sendEmailViaSenderNet = async (
+  _apiKey: string,
+  to: { email: string; name?: string },
+  subject: string,
+  htmlContent: string
+): Promise<{ success: boolean; response?: any; error?: string }> => {
+  return sendEmailViaSendPulse(to, subject, htmlContent);
+};
 
 // Check if email setting is enabled
 export async function isEmailEnabled(supabase: any, settingKey: string): Promise<boolean> {
