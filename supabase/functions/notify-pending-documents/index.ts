@@ -1,57 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const EMAIL_CONFIG = {
-  FROM_NAME: "Plagaiscans Support",
-  FROM_EMAIL: "support@plagaiscans.com",
-  REPLY_TO: "support@plagaiscans.com",
-  SITE_URL: "https://plagaiscans.com",
-};
+import { sendEmailViaSendPulse, sleep, EMAIL_CONFIG } from "../_shared/email-utils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
-
-// Send email via Sender.net API
-async function sendEmail(
-  apiKey: string,
-  to: { email: string; name?: string },
-  subject: string,
-  htmlContent: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const response = await fetch("https://api.sender.net/v2/message/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        to: { email: to.email, name: to.name || to.email.split('@')[0] },
-        from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
-        subject,
-        html: htmlContent,
-        reply_to: { email: EMAIL_CONFIG.REPLY_TO, name: EMAIL_CONFIG.FROM_NAME },
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      console.error("Sender.net error:", error);
-      return { success: false, error: `HTTP ${response.status}` };
-    }
-    return { success: true };
-  } catch (error: any) {
-    console.error("Sender.net send error:", error);
-    return { success: false, error: error?.message || "Unknown error" };
-  }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -139,11 +93,6 @@ Deno.serve(async (req) => {
         JSON.stringify({ message: "No admin profiles found", notified: 0 }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-    }
-
-    const apiKey = Deno.env.get("SENDER_NET_API_KEY");
-    if (!apiKey) {
-      throw new Error("SENDER_NET_API_KEY not configured");
     }
 
     // Group documents by scan type / queue
@@ -241,8 +190,7 @@ Deno.serve(async (req) => {
 
     for (const admin of adminProfiles) {
       console.log(`Sending notification to admin: ${admin.email}`);
-      const result = await sendEmail(
-        apiKey,
+      const result = await sendEmailViaSendPulse(
         { email: admin.email, name: admin.full_name || "Admin" },
         subject,
         htmlContent

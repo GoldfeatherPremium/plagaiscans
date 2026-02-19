@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendEmailViaSenderNet, logEmail, incrementEmailCounter, wrapEmailContent, getEmailFooter, EMAIL_CONFIG } from "../_shared/email-utils.ts";
+import { sendEmailViaSendPulse, logEmail, incrementEmailCounter, wrapEmailContent, getEmailFooter, EMAIL_CONFIG } from "../_shared/email-utils.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
     }
 
     // Send welcome email
-    const senderApiKey = Deno.env.get('SENDER_NET_API_KEY');
+    const senderApiKey = Deno.env.get('SENDPULSE_CLIENT_ID'); // just check if configured
     let emailSent = false;
 
     if (senderApiKey) {
@@ -217,8 +217,7 @@ Deno.serve(async (req) => {
 
       const htmlEmail = wrapEmailContent(emailContent, '🎉', 'Welcome to Plagaiscans');
 
-      const emailResult = await sendEmailViaSenderNet(
-        senderApiKey,
+      const emailResult = await sendEmailViaSendPulse(
         { email: email.toLowerCase().trim(), name: email.split('@')[0] },
         'Your Plagaiscans Account Is Ready',
         htmlEmail

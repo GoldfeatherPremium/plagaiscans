@@ -1,12 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const EMAIL_CONFIG = {
-  FROM_NAME: "Plagaiscans Support",
-  FROM_EMAIL: "support@plagaiscans.com",
-  REPLY_TO: "support@plagaiscans.com",
-  SITE_URL: "https://plagaiscans.com",
-};
+import { sendEmailViaSendPulse, sleep, EMAIL_CONFIG } from "../_shared/email-utils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,63 +29,40 @@ interface Recipient {
 const DELAY_BETWEEN_EMAILS_MS = 500;
 
 async function sendSingleEmail(
-  apiKey: string,
   recipient: Recipient,
   subject: string,
   htmlContent: string,
   maxRetries: number = 3
 ): Promise<{ success: boolean; error?: string }> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await fetch("https://api.sender.net/v2/message/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          to: { email: recipient.email, name: recipient.email.split('@')[0] },
-          from: { email: EMAIL_CONFIG.FROM_EMAIL, name: EMAIL_CONFIG.FROM_NAME },
-          subject: subject,
-          html: htmlContent,
-          reply_to: { email: EMAIL_CONFIG.REPLY_TO, name: EMAIL_CONFIG.FROM_NAME },
-        }),
-      });
+    if (attempt > 0) {
+      const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
+      console.warn(`Retrying for ${recipient.id.substring(0, 8)}... in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+      await sleep(delay);
+    }
 
-      if (response.ok) {
-        console.log(`Email sent to recipient ${recipient.id.substring(0, 8)}...`);
-        return { success: true };
-      }
+    const result = await sendEmailViaSendPulse(
+      { email: recipient.email, name: recipient.email.split('@')[0] },
+      subject,
+      htmlContent
+    );
 
-      const error = await response.text();
-      const isRetryable = response.status >= 500 || response.status === 429;
+    if (result.success) {
+      console.log(`Email sent to recipient ${recipient.id.substring(0, 8)}...`);
+      return { success: true };
+    }
 
-      if (isRetryable && attempt < maxRetries) {
-        const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
-        console.warn(`Retryable error ${response.status} for ${recipient.id.substring(0, 8)}..., retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
-        await sleep(delay);
-        continue;
-      }
+    // Check if error is retryable
+    const statusMatch = result.error?.match(/HTTP (\d+)/);
+    const status = statusMatch ? parseInt(statusMatch[1]) : 0;
+    const isRetryable = status >= 500 || status === 429;
 
-      console.error(`Failed to send to ${recipient.id.substring(0, 8)}...:`, error);
-      return { success: false, error: `HTTP ${response.status}` };
-    } catch (error: any) {
-      if (attempt < maxRetries) {
-        const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
-        console.warn(`Network error for ${recipient.id.substring(0, 8)}..., retrying in ${delay}ms`);
-        await sleep(delay);
-        continue;
-      }
-      console.error(`Error sending to ${recipient.id.substring(0, 8)}...:`, error.message);
-      return { success: false, error: error.message };
+    if (!isRetryable || attempt === maxRetries) {
+      console.error(`Failed to send to ${recipient.id.substring(0, 8)}...:`, result.error);
+      return { success: false, error: result.error };
     }
   }
   return { success: false, error: "Max retries exceeded" };
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -164,11 +135,6 @@ const handler = async (req: Request): Promise<Response> => {
       promotional: '🎉', welcome: '👋', custom: '📧'
     };
 
-    const apiKey = Deno.env.get("SENDER_NET_API_KEY");
-    if (!apiKey) {
-      throw new Error("SENDER_NET_API_KEY is not configured");
-    }
-
     let successCount = 0;
     let failedCount = 0;
 
@@ -223,7 +189,7 @@ const handler = async (req: Request): Promise<Response> => {
         </html>
       `;
 
-      const result = await sendSingleEmail(apiKey, recipient, subject, htmlContent);
+      const result = await sendSingleEmail(recipient, subject, htmlContent);
 
       if (logId) {
         await supabase.from("email_send_logs").insert({
