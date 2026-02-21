@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 export interface DocumentFilters {
   search: string;
   status: string;
+  scanType?: string;
   dateFrom: Date | undefined;
   dateTo: Date | undefined;
 }
@@ -20,12 +21,14 @@ interface DocumentSearchFiltersProps {
   filters: DocumentFilters;
   onFiltersChange: (filters: DocumentFilters) => void;
   showStatusFilter?: boolean;
+  showScanTypeFilter?: boolean;
 }
 
 export const DocumentSearchFilters: React.FC<DocumentSearchFiltersProps> = ({
   filters,
   onFiltersChange,
-  showStatusFilter = true
+  showStatusFilter = true,
+  showScanTypeFilter = false
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -33,6 +36,7 @@ export const DocumentSearchFilters: React.FC<DocumentSearchFiltersProps> = ({
     let count = 0;
     if (filters.search) count++;
     if (filters.status && filters.status !== 'all') count++;
+    if (filters.scanType && filters.scanType !== 'all') count++;
     if (filters.dateFrom) count++;
     if (filters.dateTo) count++;
     return count;
@@ -42,6 +46,7 @@ export const DocumentSearchFilters: React.FC<DocumentSearchFiltersProps> = ({
     onFiltersChange({
       search: '',
       status: 'all',
+      scanType: 'all',
       dateFrom: undefined,
       dateTo: undefined
     });
@@ -96,6 +101,25 @@ export const DocumentSearchFilters: React.FC<DocumentSearchFiltersProps> = ({
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="in_progress">In Progress</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {showScanTypeFilter && (
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Scan Type</label>
+              <Select 
+                value={filters.scanType || 'all'} 
+                onValueChange={(value) => onFiltersChange({ ...filters, scanType: value })}
+              >
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All Scan Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Scan Types</SelectItem>
+                  <SelectItem value="full">AI Scan</SelectItem>
+                  <SelectItem value="similarity_only">Similarity Only</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -163,6 +187,7 @@ export function filterDocuments<T extends {
   file_name: string; 
   status: string; 
   uploaded_at: string;
+  scan_type?: string;
   customer_profile?: { email?: string; full_name?: string | null } | null;
 }>(documents: T[], filters: DocumentFilters): T[] {
   return documents.filter(doc => {
@@ -176,6 +201,11 @@ export function filterDocuments<T extends {
       if (!matchesName && !matchesEmail && !matchesFullName) {
         return false;
       }
+    }
+
+    // Scan type filter
+    if (filters.scanType && filters.scanType !== 'all' && doc.scan_type !== filters.scanType) {
+      return false;
     }
 
     // Status filter

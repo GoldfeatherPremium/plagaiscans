@@ -213,6 +213,16 @@ export default function AdminDashboardOverview() {
       magicLinks.remainingCapacity = magicLinks.totalCapacity - magicLinks.uploadsUsed;
 
       // Fetch scan type statistics using server-side counts (exclude soft-deleted documents)
+      // Also fetch deleted_documents_log for accurate all-time totals
+      const { data: deletedDocsLog } = await supabase
+        .from('deleted_documents_log')
+        .select('scan_type, completed_at');
+      const deletedCompleted = deletedDocsLog?.filter(d => d.completed_at) || [];
+      const deletedFullCompleted = deletedCompleted.filter(d => d.scan_type === 'full').length;
+      const deletedSimCompleted = deletedCompleted.filter(d => d.scan_type === 'similarity_only').length;
+      const deletedFullTotal = deletedDocsLog?.filter(d => d.scan_type === 'full').length || 0;
+      const deletedSimTotal = deletedDocsLog?.filter(d => d.scan_type === 'similarity_only').length || 0;
+
       // AI Scan (full) stats
       const [
         { count: fullCompletedInPeriod },
@@ -277,18 +287,18 @@ export default function AdminDashboardOverview() {
         fullScan: {
           completedInPeriod: fullCompletedInPeriod || 0,
           completedPrevPeriod: fullCompletedPrevPeriod || 0,
-          completedTotal: fullCompletedTotal || 0,
+          completedTotal: (fullCompletedTotal || 0) + deletedFullCompleted,
           pending: fullPending || 0,
           inProgress: fullInProgress || 0,
-          total: fullTotal || 0
+          total: (fullTotal || 0) + deletedFullTotal
         },
         similarityOnly: {
           completedInPeriod: simCompletedInPeriod || 0,
           completedPrevPeriod: simCompletedPrevPeriod || 0,
-          completedTotal: simCompletedTotal || 0,
+          completedTotal: (simCompletedTotal || 0) + deletedSimCompleted,
           pending: simPending || 0,
           inProgress: simInProgress || 0,
-          total: simTotal || 0
+          total: (simTotal || 0) + deletedSimTotal
         }
       };
 
