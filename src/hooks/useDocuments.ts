@@ -59,10 +59,20 @@ export const useDocuments = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchDocuments = async () => {
+  // Optimistically update a document in local state without re-fetching
+  const optimisticUpdate = (documentId: string, updates: Partial<Document>) => {
+    setDocuments(prev => prev.map(doc => 
+      doc.id === documentId ? { ...doc, ...updates } : doc
+    ));
+  };
+
+  const fetchDocuments = async (background = false) => {
     if (!user) return;
 
-    setLoading(true);
+    // Only show loading spinner on initial load, not background refetches
+    if (!background && documents.length === 0) {
+      setLoading(true);
+    }
     try {
       // Paginated fetching to bypass 1000 row limit
       const PAGE_SIZE = 1000;
@@ -161,6 +171,13 @@ export const useDocuments = () => {
 
   const releaseDocument = async (documentId: string) => {
     try {
+      // Optimistic update — UI reflects change instantly
+      optimisticUpdate(documentId, { 
+        status: 'pending' as DocumentStatus, 
+        assigned_staff_id: null, 
+        assigned_at: null 
+      });
+
       const { error } = await supabase
         .from('documents')
         .update({ 
@@ -172,13 +189,16 @@ export const useDocuments = () => {
 
       if (error) throw error;
 
-      await fetchDocuments();
+      // Background sync
+      fetchDocuments(true).catch(console.error);
       toast({
         title: 'Document Released',
         description: 'Document is now available for other staff members',
       });
     } catch (error) {
       console.error('Error releasing document:', error);
+      // Revert on error by re-fetching
+      fetchDocuments(true).catch(console.error);
       toast({
         title: 'Error',
         description: 'Failed to release document',
@@ -555,6 +575,9 @@ export const useDocuments = () => {
         updateData.completed_at = new Date().toISOString();
       }
 
+      // Optimistic local update — UI reflects change instantly
+      optimisticUpdate(documentId, updateData as Partial<Document>);
+
       const { error } = await supabase
         .from('documents')
         .update(updateData)
@@ -672,7 +695,8 @@ export const useDocuments = () => {
         }
       }
 
-      await fetchDocuments();
+      // Background refetch to sync with server — don't block the UI
+      fetchDocuments(true).catch(console.error);
 
       toast({
         title: 'Success',
