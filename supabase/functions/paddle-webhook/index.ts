@@ -70,7 +70,26 @@ async function sendPushNotification(userId: string, title: string, body: string,
   }
 }
 
-// Helper: create user notification
+// Helper: notify admin about payment
+async function notifyAdminPayment(params: {
+  customerEmail: string; customerName: string; amount: number;
+  credits: number; paymentMethod: string; transactionId?: string;
+  creditType?: string; currency?: string;
+}) {
+  try {
+    await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-admin-payment-notification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+      },
+      body: JSON.stringify(params),
+    });
+  } catch (e) {
+    logStep("Failed to send admin payment notification", { error: e });
+  }
+}
+
 async function createUserNotification(userId: string, title: string, message: string) {
   await supabaseAdmin.from("user_notifications").insert({ user_id: userId, title, message });
 }
@@ -283,6 +302,18 @@ serve(async (req) => {
 
           await sendPushNotification(userId, 'Payment Successful! 💳',
             `${credits} credits have been added to your account.`, { type: 'payment_success', url: '/dashboard' });
+
+          // Notify admin about this payment
+          await notifyAdminPayment({
+            customerEmail: profile?.email || '',
+            customerName: profile?.email?.split('@')[0] || 'Customer',
+            amount: amountTotal,
+            credits,
+            paymentMethod: 'paddle',
+            transactionId,
+            creditType,
+            currency: paddleCurrency,
+          });
 
           // Credit validity
           try {

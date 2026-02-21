@@ -122,3 +122,6 @@ verify_jwt = false
 
 [functions.create-user-with-credits]
 verify_jwt = false
+
+[functions.send-admin-payment-notification]
+verify_jwt = false
