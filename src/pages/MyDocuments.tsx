@@ -9,7 +9,7 @@ import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/compo
 import { useTranslation } from 'react-i18next';
 
 import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
-import { FileText, Download, Loader2, DownloadCloud, Package, Trash2, Pencil, ChevronDown, Info, MessageSquare } from 'lucide-react';
+import { FileText, Download, Loader2, DownloadCloud, Package, Trash2, Pencil, ChevronDown, ChevronLeft, ChevronRight, Info, MessageSquare } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PushNotificationBanner } from '@/components/PushNotificationBanner';
 import { supabase } from '@/integrations/supabase/client';
@@ -58,31 +58,26 @@ export default function MyDocuments() {
     dateTo: undefined
   });
   
-  // Load more state - show 200 initially, load 200 more each click
-  const INITIAL_LOAD = 200;
-  const LOAD_MORE_COUNT = 200;
-  const [visibleCount, setVisibleCount] = useState(INITIAL_LOAD);
+  // Pagination state
+  const DOCS_PER_PAGE = 50;
+  const [currentPage, setCurrentPage] = useState(1);
 
   const allFilteredDocuments = useMemo(() => {
     return filterDocuments(documents, filters);
   }, [documents, filters]);
   
-  // Reset visible count when filters change
+  // Reset page when filters change
   React.useEffect(() => {
-    setVisibleCount(INITIAL_LOAD);
+    setCurrentPage(1);
   }, [filters]);
   
-  // Slice to show only visible documents
+  const totalPages = Math.ceil(allFilteredDocuments.length / DOCS_PER_PAGE);
+  
+  // Slice to show only current page documents
   const filteredDocuments = useMemo(() => {
-    return allFilteredDocuments.slice(0, visibleCount);
-  }, [allFilteredDocuments, visibleCount]);
-  
-  const hasMoreToLoad = visibleCount < allFilteredDocuments.length;
-  const remainingCount = allFilteredDocuments.length - visibleCount;
-  
-  const handleLoadMore = () => {
-    setVisibleCount(prev => prev + LOAD_MORE_COUNT);
-  };
+    const start = (currentPage - 1) * DOCS_PER_PAGE;
+    return allFilteredDocuments.slice(start, start + DOCS_PER_PAGE);
+  }, [allFilteredDocuments, currentPage]);
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -322,7 +317,7 @@ export default function MyDocuments() {
                               onCheckedChange={() => toggleSelection(doc.id)}
                             />
                           </TableCell>
-                          <TableCell className="text-center font-medium">{index + 1}</TableCell>
+                          <TableCell className="text-center font-medium">{(currentPage - 1) * DOCS_PER_PAGE + index + 1}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <FileText className="h-4 w-4 text-primary flex-shrink-0" />
@@ -486,17 +481,53 @@ export default function MyDocuments() {
           </Card>
         )}
 
-        {/* Load More Button */}
-        {hasMoreToLoad && !loading && (
-          <div className="flex justify-center pt-4">
-            <Button
-              variant="outline"
-              onClick={handleLoadMore}
-              className="gap-2"
-            >
-              <ChevronDown className="h-4 w-4" />
-              Load More ({Math.min(remainingCount, LOAD_MORE_COUNT)} of {remainingCount} remaining)
-            </Button>
+        {/* Pagination */}
+        {totalPages > 1 && !loading && (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {(currentPage - 1) * DOCS_PER_PAGE + 1}–{Math.min(currentPage * DOCS_PER_PAGE, allFilteredDocuments.length)} of {allFilteredDocuments.length} documents
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                let page: number;
+                if (totalPages <= 7) {
+                  page = i + 1;
+                } else if (currentPage <= 4) {
+                  page = i + 1;
+                } else if (currentPage >= totalPages - 3) {
+                  page = totalPages - 6 + i;
+                } else {
+                  page = currentPage - 3 + i;
+                }
+                return (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    size="sm"
+                    className="w-9"
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </Button>
+                );
+              })}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         )}
 

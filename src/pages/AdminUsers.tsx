@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Loader2, User, Mail, Phone, CreditCard, Calendar, History, TrendingUp, TrendingDown, ArrowUpDown, UserPlus, Clock, Users, Settings2, Save } from 'lucide-react';
+import { Search, Loader2, User, Mail, Phone, CreditCard, Calendar, History, TrendingUp, TrendingDown, ArrowUpDown, UserPlus, Clock, Users, Settings2, Save, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -159,6 +159,9 @@ export default function AdminUsers() {
     setStaffMembers(merged);
   };
 
+  const USERS_PER_PAGE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+
   const filteredUsers = useMemo(() => {
     if (!searchQuery.trim()) return users;
     const query = searchQuery.toLowerCase();
@@ -169,6 +172,17 @@ export default function AdminUsers() {
         user.phone?.toLowerCase().includes(query)
     );
   }, [users, searchQuery]);
+
+  // Reset page when search changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * USERS_PER_PAGE;
+    return filteredUsers.slice(start, start + USERS_PER_PAGE);
+  }, [filteredUsers, currentPage]);
 
   const openCreditDialog = (user: UserProfile) => {
     setCreditDialogUser(user);
@@ -382,9 +396,9 @@ export default function AdminUsers() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredUsers.map((user, index) => (
+                        {paginatedUsers.map((user, index) => (
                           <TableRow key={user.id}>
-                            <TableCell className="text-center font-medium">{index + 1}</TableCell>
+                            <TableCell className="text-center font-medium">{(currentPage - 1) * USERS_PER_PAGE + index + 1}</TableCell>
                             <TableCell className="font-medium">
                               {user.full_name || <span className="text-muted-foreground">No name</span>}
                             </TableCell>
@@ -439,9 +453,60 @@ export default function AdminUsers() {
               </Card>
             )}
 
-            <p className="text-xs text-muted-foreground">
-              Total users: {users.length} {searchQuery && `(${filteredUsers.length} matching search)`}
-            </p>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(currentPage - 1) * USERS_PER_PAGE + 1}–{Math.min(currentPage * USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length} users
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                    let page: number;
+                    if (totalPages <= 7) {
+                      page = i + 1;
+                    } else if (currentPage <= 4) {
+                      page = i + 1;
+                    } else if (currentPage >= totalPages - 3) {
+                      page = totalPages - 6 + i;
+                    } else {
+                      page = currentPage - 3 + i;
+                    }
+                    return (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? 'default' : 'outline'}
+                        size="sm"
+                        className="w-9"
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </Button>
+                    );
+                  })}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            {totalPages <= 1 && (
+              <p className="text-xs text-muted-foreground">
+                Total users: {users.length} {searchQuery && `(${filteredUsers.length} matching search)`}
+              </p>
+            )}
           </TabsContent>
 
           {/* Role Assignment Tab */}
