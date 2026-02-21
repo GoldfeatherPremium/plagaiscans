@@ -72,6 +72,7 @@ export default function AdminUsers() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'staff' | 'customer'>('all');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
@@ -164,20 +165,26 @@ export default function AdminUsers() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredUsers = useMemo(() => {
-    if (!searchQuery.trim()) return users;
-    const query = searchQuery.toLowerCase();
-    return users.filter(
-      (user) =>
-        user.full_name?.toLowerCase().includes(query) ||
-        user.email.toLowerCase().includes(query) ||
-        user.phone?.toLowerCase().includes(query)
-    );
-  }, [users, searchQuery]);
+    let result = users;
+    if (roleFilter !== 'all') {
+      result = result.filter(u => (u.role || 'customer') === roleFilter);
+    }
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (user) =>
+          user.full_name?.toLowerCase().includes(query) ||
+          user.email.toLowerCase().includes(query) ||
+          user.phone?.toLowerCase().includes(query)
+      );
+    }
+    return result;
+  }, [users, searchQuery, roleFilter]);
 
-  // Reset page when search changes
+  // Reset page when search/filter changes
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, roleFilter]);
 
   const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
   const paginatedUsers = useMemo(() => {
@@ -326,8 +333,8 @@ export default function AdminUsers() {
 
           {/* Users Tab */}
           <TabsContent value="users" className="space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="relative max-w-md flex-1">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <div className="relative max-w-md flex-1 w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search by name, email, or phone..."
@@ -336,7 +343,25 @@ export default function AdminUsers() {
                   className="pl-10"
                 />
               </div>
-              <Button onClick={() => setPreRegisterOpen(true)}>
+              <div className="flex items-center gap-2 flex-wrap">
+                {(['all', 'customer', 'staff', 'admin'] as const).map((role) => (
+                  <Button
+                    key={role}
+                    size="sm"
+                    variant={roleFilter === role ? 'default' : 'outline'}
+                    onClick={() => setRoleFilter(role)}
+                    className="capitalize"
+                  >
+                    {role === 'all' ? 'All' : role}
+                    {role !== 'all' && (
+                      <Badge variant="secondary" className="ml-1.5 text-xs px-1.5 py-0">
+                        {users.filter(u => (u.role || 'customer') === role).length}
+                      </Badge>
+                    )}
+                  </Button>
+                ))}
+              </div>
+              <Button onClick={() => setPreRegisterOpen(true)} className="shrink-0">
                 <UserPlus className="h-4 w-4 mr-2" />
                 Pre-Register User
               </Button>
