@@ -77,6 +77,26 @@ async function createUserNotification(userId: string, title: string, message: st
   await supabaseAdmin.from("user_notifications").insert({ user_id: userId, title, message });
 }
 
+// Helper: notify admin about payment
+async function notifyAdminPayment(params: {
+  customerEmail: string; customerName: string; amount: number;
+  credits: number; paymentMethod: string; transactionId?: string;
+  creditType?: string; currency?: string;
+}) {
+  try {
+    await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-admin-payment-notification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+      },
+      body: JSON.stringify(params),
+    });
+  } catch (e) {
+    logStep("Failed to send admin payment notification", { error: e });
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -322,6 +342,18 @@ serve(async (req) => {
 
           await sendPushNotification(userId, 'Payment Successful! 💳', 
             `${credits} credits have been added to your account.`, { type: 'payment_success', url: '/dashboard' });
+
+          // Notify admin about this payment
+          await notifyAdminPayment({
+            customerEmail: session.customer_email || profile?.email || '',
+            customerName: session.customer_details?.name || session.customer_email || 'Customer',
+            amount: amountTotal,
+            credits,
+            paymentMethod: 'stripe',
+            transactionId: session.payment_intent as string || session.id,
+            creditType,
+            currency: (session.currency || 'usd').toUpperCase(),
+          });
 
           // --- Credit Validity Record ---
           try {

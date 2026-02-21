@@ -82,6 +82,10 @@ export default function AdminSettings() {
   const [savingGoogle, setSavingGoogle] = useState(false);
   const [showGoogleSecret, setShowGoogleSecret] = useState(false);
 
+  // Admin payment email notification
+  const [adminPaymentEmailEnabled, setAdminPaymentEmailEnabled] = useState(false);
+  const [adminPaymentNotifyEmails, setAdminPaymentNotifyEmails] = useState('');
+  const [savingAdminPaymentEmail, setSavingAdminPaymentEmail] = useState(false);
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -121,7 +125,9 @@ export default function AdminSettings() {
       'payment_paddle_enabled',
       'fee_paddle',
       'paddle_client_token',
-      'paddle_environment'
+      'paddle_environment',
+      'admin_payment_email_enabled',
+      'admin_payment_notify_emails',
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
@@ -201,6 +207,12 @@ export default function AdminSettings() {
       if (googleClientIdSetting) setGoogleClientId(googleClientIdSetting.value);
       if (googleClientSecretSetting) setGoogleClientSecret(googleClientSecretSetting.value);
       setGoogleEnabled(googleEnabledSetting?.value === 'true');
+      
+      // Admin payment email notification
+      const adminPaymentEmailSetting = data.find(s => s.key === 'admin_payment_email_enabled');
+      const adminPaymentEmailsSetting = data.find(s => s.key === 'admin_payment_notify_emails');
+      setAdminPaymentEmailEnabled(adminPaymentEmailSetting?.value === 'true');
+      if (adminPaymentEmailsSetting) setAdminPaymentNotifyEmails(adminPaymentEmailsSetting.value);
     }
     setLoading(false);
   };
@@ -505,6 +517,26 @@ export default function AdminSettings() {
     }
   };
 
+  const saveAdminPaymentEmailSettings = async () => {
+    setSavingAdminPaymentEmail(true);
+    
+    const updates = [
+      supabase.from('settings').upsert({ key: 'admin_payment_email_enabled', value: adminPaymentEmailEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'admin_payment_notify_emails', value: adminPaymentNotifyEmails }, { onConflict: 'key' }),
+    ];
+    
+    const results = await Promise.all(updates);
+    const hasError = results.some(r => r.error);
+    
+    setSavingAdminPaymentEmail(false);
+    
+    if (hasError) {
+      toast({ title: 'Error', description: 'Failed to save admin payment email settings', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: `Admin payment email notifications ${adminPaymentEmailEnabled ? 'enabled' : 'disabled'}` });
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -719,7 +751,56 @@ export default function AdminSettings() {
           </CardContent>
         </Card>
 
-        {/* Payment Handling Fees */}
+        {/* Admin Payment Email Notifications */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-primary" />
+              Admin Payment Email Alerts
+            </CardTitle>
+            <CardDescription>Receive an email notification when a customer completes a payment</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Bell className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium">Enable Payment Email Alerts</p>
+                  <p className="text-sm text-muted-foreground">
+                    {adminPaymentEmailEnabled ? 'You will receive emails for all customer payments' : 'Payment email alerts are disabled'}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={adminPaymentEmailEnabled}
+                onCheckedChange={setAdminPaymentEmailEnabled}
+              />
+            </div>
+            
+            {adminPaymentEmailEnabled && (
+              <div className="space-y-2">
+                <Label htmlFor="adminPaymentEmails">Admin Email Addresses</Label>
+                <Input
+                  id="adminPaymentEmails"
+                  placeholder="admin1@example.com, admin2@example.com"
+                  value={adminPaymentNotifyEmails}
+                  onChange={(e) => setAdminPaymentNotifyEmails(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Comma-separated list of email addresses that will receive payment notifications.
+                </p>
+              </div>
+            )}
+            
+            <Button onClick={saveAdminPaymentEmailSettings} disabled={savingAdminPaymentEmail}>
+              {savingAdminPaymentEmail ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Email Alert Settings
+            </Button>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
