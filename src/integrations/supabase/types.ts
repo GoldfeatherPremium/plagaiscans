@@ -769,7 +769,7 @@ export type Database = {
           exclude_quotes: boolean
           exclude_small_sources: boolean
           file_name: string
-          file_path: string
+          file_path: string | null
           files_cleaned_at: string | null
           id: string
           is_favorite: boolean | null
@@ -808,7 +808,7 @@ export type Database = {
           exclude_quotes?: boolean
           exclude_small_sources?: boolean
           file_name: string
-          file_path: string
+          file_path?: string | null
           files_cleaned_at?: string | null
           id?: string
           is_favorite?: boolean | null
@@ -847,7 +847,7 @@ export type Database = {
           exclude_quotes?: boolean
           exclude_small_sources?: boolean
           file_name?: string
-          file_path?: string
+          file_path?: string | null
           files_cleaned_at?: string | null
           id?: string
           is_favorite?: boolean | null
