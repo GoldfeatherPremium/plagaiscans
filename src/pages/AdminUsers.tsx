@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Loader2, User, Mail, Phone, CreditCard, Calendar, History, TrendingUp, TrendingDown, ArrowUpDown, UserPlus, Clock, Users, Settings2, Save, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Loader2, User, Mail, Phone, CreditCard, Calendar, History, TrendingUp, TrendingDown, ArrowUpDown, UserPlus, Clock, Users, Settings2, Save, ChevronLeft, ChevronRight, Shield, ShieldCheck, ShieldX, UserCog } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -84,6 +84,7 @@ export default function AdminUsers() {
   // Role assignment state
   const [selectedUserForRole, setSelectedUserForRole] = useState('');
   const [selectedRole, setSelectedRole] = useState<'admin' | 'staff' | 'customer'>('staff');
+  const [roleSearchQuery, setRoleSearchQuery] = useState('');
 
   // Staff settings state
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
@@ -225,20 +226,27 @@ export default function AdminUsers() {
     setLoadingHistory(false);
   };
 
-  const assignRole = async () => {
-    if (!selectedUserForRole || !selectedRole) return;
+  const assignRole = async (userId?: string, role?: 'admin' | 'staff' | 'customer') => {
+    const targetUser = userId || selectedUserForRole;
+    const targetRole = role || selectedRole;
+    if (!targetUser || !targetRole) return;
 
-    await supabase.from('user_roles').delete().eq('user_id', selectedUserForRole);
-
-    const { error } = await supabase.from('user_roles').insert({ user_id: selectedUserForRole, role: selectedRole });
-
-    if (error) {
-      toast({ title: 'Error', description: 'Failed to assign role', variant: 'destructive' });
+    if (targetRole === 'customer') {
+      // Remove from user_roles to make them a customer
+      await supabase.from('user_roles').delete().eq('user_id', targetUser);
     } else {
-      toast({ title: 'Success', description: `Role assigned: ${selectedRole}` });
-      setSelectedUserForRole('');
-      fetchStaffWithSettings();
+      await supabase.from('user_roles').delete().eq('user_id', targetUser);
+      const { error } = await supabase.from('user_roles').insert({ user_id: targetUser, role: targetRole });
+      if (error) {
+        toast({ title: 'Error', description: 'Failed to assign role', variant: 'destructive' });
+        return;
+      }
     }
+
+    toast({ title: 'Success', description: `Role assigned: ${targetRole}` });
+    setSelectedUserForRole('');
+    fetchUsers();
+    fetchStaffWithSettings();
   };
 
   const updateStaffLimit = (staffId: string, field: 'time_limit_minutes' | 'max_concurrent_files', value: number) => {
@@ -521,17 +529,29 @@ export default function AdminUsers() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Select User</Label>
+                  <Label>Search & Select User</Label>
+                  <Input
+                    placeholder="Search by name or email..."
+                    value={roleSearchQuery}
+                    onChange={(e) => setRoleSearchQuery(e.target.value)}
+                    className="mb-2"
+                  />
                   <Select value={selectedUserForRole} onValueChange={setSelectedUserForRole}>
                     <SelectTrigger>
                       <SelectValue placeholder="Choose a user" />
                     </SelectTrigger>
                     <SelectContent>
-                      {users.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.full_name || user.email}
-                        </SelectItem>
-                      ))}
+                      {users
+                        .filter(u => {
+                          if (!roleSearchQuery.trim()) return true;
+                          const q = roleSearchQuery.toLowerCase();
+                          return u.full_name?.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+                        })
+                        .map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.full_name || user.email} {user.full_name ? `(${user.email})` : ''}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -548,10 +568,95 @@ export default function AdminUsers() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={assignRole} disabled={!selectedUserForRole}>
+                <Button onClick={() => assignRole()} disabled={!selectedUserForRole}>
                   <UserPlus className="h-4 w-4 mr-2" />
                   Assign Role
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Current Staff & Admins */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5" />
+                  Current Staff & Admins
+                </CardTitle>
+                <CardDescription>Manage existing staff and admin roles — demote or promote</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const staffAdmins = users.filter(u => u.role === 'staff' || u.role === 'admin');
+                  if (staffAdmins.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Shield className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>No staff or admin users found.</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>User</TableHead>
+                            <TableHead>Current Role</TableHead>
+                            <TableHead className="text-center">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {staffAdmins.map((user) => (
+                            <TableRow key={user.id}>
+                              <TableCell>
+                                <div>
+                                  <div className="font-medium">{user.full_name || 'Unnamed'}</div>
+                                  <div className="text-sm text-muted-foreground">{user.email}</div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={user.role === 'admin' ? 'destructive' : 'default'}
+                                  className="capitalize"
+                                >
+                                  {user.role}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-2 flex-wrap">
+                                  {user.role === 'staff' && (
+                                    <>
+                                      <Button size="sm" variant="outline" onClick={() => assignRole(user.id, 'admin')}>
+                                        <ShieldCheck className="h-4 w-4 mr-1" />
+                                        Promote to Admin
+                                      </Button>
+                                      <Button size="sm" variant="secondary" onClick={() => assignRole(user.id, 'customer')}>
+                                        <ShieldX className="h-4 w-4 mr-1" />
+                                        Demote to Customer
+                                      </Button>
+                                    </>
+                                  )}
+                                  {user.role === 'admin' && (
+                                    <>
+                                      <Button size="sm" variant="outline" onClick={() => assignRole(user.id, 'staff')}>
+                                        <UserCog className="h-4 w-4 mr-1" />
+                                        Demote to Staff
+                                      </Button>
+                                      <Button size="sm" variant="secondary" onClick={() => assignRole(user.id, 'customer')}>
+                                        <ShieldX className="h-4 w-4 mr-1" />
+                                        Demote to Customer
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
