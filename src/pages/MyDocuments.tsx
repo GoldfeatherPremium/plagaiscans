@@ -53,6 +53,7 @@ export default function MyDocuments() {
   const [filters, setFilters] = useState<DocumentFilters>({
     search: '',
     status: 'all',
+    scanType: 'all',
     dateFrom: undefined,
     dateTo: undefined
   });
@@ -221,6 +222,7 @@ export default function MyDocuments() {
           filters={filters} 
           onFiltersChange={setFilters}
           showStatusFilter={true}
+          showScanTypeFilter={isAdmin}
         />
 
         {loading ? (

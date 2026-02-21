@@ -42,16 +42,25 @@ export default function AdminAnalytics() {
       .is('deleted_at', null)
       .limit(50000);
     const allDocs = docs || [];
-    setTotalDocs(allDocs.length);
+    
+    // Fetch deleted documents log for accurate historical totals
+    const { data: deletedDocs } = await supabase
+      .from('deleted_documents_log')
+      .select('scan_type, completed_at');
+    const deletedCompleted = deletedDocs?.filter(d => d.completed_at) || [];
+    const deletedFullCount = deletedCompleted.filter(d => d.scan_type === 'full').length;
+    const deletedSimilarityCount = deletedCompleted.filter(d => d.scan_type === 'similarity_only').length;
+    
+    setTotalDocs(allDocs.length + (deletedDocs?.length || 0));
     setPendingDocs(allDocs.filter((d) => d.status === 'pending').length);
 
     const completedAll = allDocs.filter((d) => d.status === 'completed');
     const completedFull = completedAll.filter((d) => d.scan_type === 'full');
     const completedSimilarity = completedAll.filter((d) => d.scan_type === 'similarity_only');
 
-    setCompletedDocs(completedAll.length);
-    setCompletedFullDocs(completedFull.length);
-    setCompletedSimilarityDocs(completedSimilarity.length);
+    setCompletedDocs(completedAll.length + deletedCompleted.length);
+    setCompletedFullDocs(completedFull.length + deletedFullCount);
+    setCompletedSimilarityDocs(completedSimilarity.length + deletedSimilarityCount);
 
     // Calculate daily stats (last 7 days)
     const last7Days: { date: string; count: number }[] = [];
