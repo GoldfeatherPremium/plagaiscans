@@ -103,7 +103,16 @@ const AdminCreditValidity = lazy(() => import("./pages/AdminCreditValidity"));
 const AdminDeletedDocuments = lazy(() => import("./pages/AdminDeletedDocuments"));
 const AdminExtensionDownload = lazy(() => import("./pages/AdminExtensionDownload"));
 const BlogWhatIsPlagiarism = lazy(() => import("./pages/BlogWhatIsPlagiarism"));
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes - avoid refetching on every navigation
+      gcTime: 10 * 60 * 1000,   // 10 minutes garbage collection
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 // Loading skeleton component for Suspense fallback
 const PageLoader = () => (

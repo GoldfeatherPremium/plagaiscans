@@ -2,10 +2,10 @@
 // Version 5 - HARD FIX: Navigation requests are NEVER intercepted
 // Offline page is NEVER served for HTML/page loads
 
-const SW_VERSION = 'v5';
+const SW_VERSION = 'v6';
 const STATIC_CACHE_NAME = `plagaiscans-static-${SW_VERSION}`;
 
-// Only cache static assets (not HTML)
+// Cache static assets and key JS/CSS bundles
 const STATIC_ASSETS = [
   '/pwa-icon-192.png',
   '/pwa-icon-512.png',
