@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
 
     // Parse optional parameters
     const url = new URL(req.url);
-    const retentionDays = parseInt(url.searchParams.get("days") || "7");
+    const retentionDays = parseInt(url.searchParams.get("days") || "10");
     const batchSize = parseInt(url.searchParams.get("batch") || "50");
     const dryRun = url.searchParams.get("dry_run") === "true";
 
