@@ -98,6 +98,7 @@ serve(async (req) => {
       currency = 'USD',
       vat_rate = 0,
       vat_amount = 0,
+      subtotal: requestSubtotal,
       unit_price,
       quantity = 1,
       invoice_date,
@@ -105,7 +106,7 @@ serve(async (req) => {
       stripe_invoice_id,
       stripe_invoice_url,
       stripe_receipt_url
-    } = requestData;
+    } = requestData as any;
 
     // Validate required fields
     if (!user_id || !amount_usd || !credits || !payment_type) {
@@ -154,8 +155,10 @@ serve(async (req) => {
     }
 
     // Calculate subtotal and unit price
-    const subtotal = amount_usd;
-    const finalUnitPrice = unit_price || amount_usd;
+    // If subtotal is provided (e.g. from Paddle where tax is included in total), use it
+    // Otherwise, subtotal equals the total amount (no tax added on top)
+    const subtotal = requestSubtotal || (vat_amount > 0 ? amount_usd - vat_amount : amount_usd);
+    const finalUnitPrice = unit_price || subtotal;
 
     // Determine dates
     const now = new Date().toISOString();

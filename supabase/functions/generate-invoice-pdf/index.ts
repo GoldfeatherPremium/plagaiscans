@@ -79,12 +79,13 @@ serve(async (req) => {
     const invoiceDate = formatDate(invoice.created_at);
     const paymentDate = invoice.paid_at ? formatDate(invoice.paid_at) : invoiceDate;
 
-    // Calculate amounts
-    const subtotal = Number(invoice.subtotal || invoice.amount_usd);
+    // Calculate amounts - use amount_usd as the authoritative total paid
     const vatRate = Number(invoice.vat_rate || 0);
     const vatAmount = Number(invoice.vat_amount || 0);
-    const totalAmount = subtotal + vatAmount;
-    const unitPrice = Number(invoice.unit_price || invoice.amount_usd);
+    const totalAmount = Number(invoice.amount_usd);
+    // Subtotal: if stored separately use it, otherwise derive from total minus tax
+    const subtotal = Number(invoice.subtotal || (totalAmount - vatAmount));
+    const unitPrice = Number(invoice.unit_price || subtotal);
     const quantity = invoice.quantity || 1;
     const currency = invoice.currency || 'USD';
 
