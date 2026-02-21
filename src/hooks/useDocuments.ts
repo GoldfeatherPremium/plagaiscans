@@ -85,7 +85,7 @@ export const useDocuments = () => {
         let query = supabase.from('documents').select('*');
 
         if (role === 'customer') {
-          query = query.eq('user_id', user.id);
+          query = query.eq('user_id', user.id).or('deleted_by_user.is.null,deleted_by_user.eq.false');
         }
 
         const { data, error } = await query
@@ -808,91 +808,23 @@ export const useDocuments = () => {
 
   const deleteDocument = async (documentId: string, filePath: string, similarityReportPath?: string | null, aiReportPath?: string | null) => {
     try {
-      // 0. Fetch document details BEFORE deleting for logging
-      const { data: docData } = await supabase
+      // Soft delete: mark as deleted but preserve the record and files
+      const { error: updateError } = await supabase
         .from('documents')
-        .select('*, profiles:user_id(email, full_name)')
-        .eq('id', documentId)
-        .single();
-
-      // 1. Delete tag assignments first (foreign key constraint)
-      const { error: tagError } = await supabase
-        .from('document_tag_assignments')
-        .delete()
-        .eq('document_id', documentId);
-      
-      if (tagError) {
-        console.error('Error deleting tag assignments:', tagError);
-      }
-
-      // 2. Delete the original uploaded file from storage
-      const { error: fileDeleteError } = await supabase.storage
-        .from('documents')
-        .remove([filePath]);
-      
-      if (fileDeleteError) {
-        console.error('Error deleting original file:', fileDeleteError);
-      }
-
-      // 3. Delete similarity report if exists
-      if (similarityReportPath) {
-        const { error: simReportError } = await supabase.storage
-          .from('reports')
-          .remove([similarityReportPath]);
-        
-        if (simReportError) {
-          console.error('Error deleting similarity report:', simReportError);
-        }
-      }
-
-      // 4. Delete AI report if exists
-      if (aiReportPath) {
-        const { error: aiReportError } = await supabase.storage
-          .from('reports')
-          .remove([aiReportPath]);
-        
-        if (aiReportError) {
-          console.error('Error deleting AI report:', aiReportError);
-        }
-      }
-
-      // 5. Delete the document record from database
-      const { error: docDeleteError } = await supabase
-        .from('documents')
-        .delete()
+        .update({ 
+          deleted_by_user: true, 
+          deleted_at: new Date().toISOString() 
+        })
         .eq('id', documentId);
 
-      if (docDeleteError) throw docDeleteError;
+      if (updateError) throw updateError;
 
-      // 6. Log the deletion for admin tracking (NO credit refund)
-      if (docData) {
-        const profileData = docData.profiles as { email?: string; full_name?: string } | null;
-        await supabase.from('deleted_documents_log').insert({
-          original_document_id: documentId,
-          user_id: docData.user_id,
-          magic_link_id: docData.magic_link_id,
-          file_name: docData.file_name,
-          file_path: filePath,
-          scan_type: docData.scan_type || 'full',
-          similarity_percentage: docData.similarity_percentage,
-          ai_percentage: docData.ai_percentage,
-          similarity_report_path: similarityReportPath,
-          ai_report_path: aiReportPath,
-          remarks: docData.remarks,
-          uploaded_at: docData.uploaded_at,
-          completed_at: docData.completed_at,
-          deleted_by_type: 'customer',
-          customer_email: profileData?.email || null,
-          customer_name: profileData?.full_name || null,
-        });
-      }
-
-      // 7. Refresh documents list
-      await fetchDocuments();
+      // Remove from local state immediately
+      setDocuments(prev => prev.filter(doc => doc.id !== documentId));
 
       toast({
-        title: 'File deleted successfully',
-        description: 'The document and all associated reports have been permanently removed.',
+        title: 'Document deleted',
+        description: 'The document has been removed from your view.',
       });
 
       return { success: true };
