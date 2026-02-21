@@ -483,11 +483,11 @@ export default function MyDocuments() {
 
         {/* Pagination */}
         {totalPages > 1 && !loading && (
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
               Showing {(currentPage - 1) * DOCS_PER_PAGE + 1}–{Math.min(currentPage * DOCS_PER_PAGE, allFilteredDocuments.length)} of {allFilteredDocuments.length} documents
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center">
               <Button
                 variant="outline"
                 size="sm"
@@ -496,16 +496,16 @@ export default function MyDocuments() {
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                 let page: number;
-                if (totalPages <= 7) {
+                if (totalPages <= 5) {
                   page = i + 1;
-                } else if (currentPage <= 4) {
+                } else if (currentPage <= 3) {
                   page = i + 1;
-                } else if (currentPage >= totalPages - 3) {
-                  page = totalPages - 6 + i;
+                } else if (currentPage >= totalPages - 2) {
+                  page = totalPages - 4 + i;
                 } else {
-                  page = currentPage - 3 + i;
+                  page = currentPage - 2 + i;
                 }
                 return (
                   <Button
