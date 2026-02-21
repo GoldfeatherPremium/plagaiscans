@@ -76,8 +76,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Only cache-first for static assets (images, fonts)
-  if (isStaticAsset(url.pathname)) {
+  // Cache-first for static assets (images, fonts, JS, CSS bundles)
+  if (isStaticAsset(url.pathname) || isBundleAsset(url.pathname)) {
     event.respondWith(cacheFirstStatic(request));
   }
   // Everything else: network only (no interception)
@@ -94,6 +94,15 @@ function isStaticAsset(pathname) {
     pathname.endsWith('.woff') ||
     pathname.endsWith('.woff2') ||
     pathname.endsWith('.ttf')
+  );
+}
+
+function isBundleAsset(pathname) {
+  return (
+    pathname.startsWith('/assets/') && (
+      pathname.endsWith('.js') ||
+      pathname.endsWith('.css')
+    )
   );
 }
 
