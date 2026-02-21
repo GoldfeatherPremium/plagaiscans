@@ -1,65 +1,127 @@
 
 
-## Add Expired Credits Summary with Time Frame Filtering
+## Plan: Auto-Delete Documents, Performance Optimization, SEO, Analytics Improvements, and PWA Enhancements
 
-### Goal
-Add a new stats section to both the **Credit Validity Management** page and the **Magic Upload Links** page showing how many unused credits have expired, with the ability to filter by time frame (e.g., last 7 days, 30 days, 90 days, all time).
+This plan covers the three areas you requested, broken into clear phases.
 
-### Current State
-- The Credit Validity page shows 4 stat cards: Total Records, Active, Expiring Soon, Expired (count only)
-- The Magic Links page has no credit expiration info at all
-- The `credit_validity` table tracks expired records (`expired = true`) with `credits_amount` (original allocation)
-- When credits expire, `remaining_credits` is set to 0, so we cannot retroactively determine exactly how many were unused at the moment of expiry
+---
 
-### Data Limitation & Fix
-Currently, the expire logic zeros out `remaining_credits` without preserving how many were wasted. To accurately track expired (wasted) credits going forward:
+### 1. Auto-Delete Document Files After 10 Days
 
-1. **Add a `credits_expired_unused` column** to the `credit_validity` table -- stores the remaining credits at the moment of expiration (before zeroing)
-2. **Update the `expire-credits` edge function** to populate this column when processing expirations
-3. **Update the manual "Mark Expired" action** on the admin page to also record unused credits before zeroing
+**What it does:** Automatically deletes uploaded files (documents, reports) from storage after 10 days, while keeping the database record intact so you can still see document history, stats, and metadata in admin and customer views.
 
-### Changes
+**Changes:**
+- Update the existing `cleanup-old-files` edge function to use a **10-day retention** (currently defaults to 7 days) and make it the hardcoded default
+- Set up a **scheduled task (cron job)** to run this function automatically every day -- no manual triggering needed
+- The function already preserves database records and only nullifies file paths after deleting storage files, which is exactly what you want
 
-#### 1. Database Migration
-- Add `credits_expired_unused INTEGER DEFAULT NULL` column to `credit_validity`
-- For existing expired records, set `credits_expired_unused = credits_amount` as a best-effort approximation (since the actual unused count is lost)
+**Technical details:**
+- Modify `supabase/functions/cleanup-old-files/index.ts` to default to 10 days
+- Create a daily cron job via SQL (`cron.schedule`) that calls the cleanup function once per day
+- The `files_cleaned_at` column already tracks which documents have been cleaned
 
-#### 2. Update `expire-credits` Edge Function
-- Before setting `remaining_credits = 0`, save the value into `credits_expired_unused`
+---
 
-#### 3. Update `AdminCreditValidity.tsx`
-- Add a **time frame selector** (Period: 7d / 30d / 90d / All Time) near the stats area
-- Add a new stat card: **"Total Expired Credits"** showing the sum of `credits_expired_unused` (or `credits_amount` for older records) filtered by the selected time frame
-- Split into **AI Scan Expired** and **Similarity Expired** sub-stats
-- The existing 4 stat cards remain; this adds a highlighted summary card below them
+### 2. Website Performance Optimization
 
-#### 4. Update `AdminMagicLinks.tsx`
-- Add a compact **"Expired Credits Summary"** card at the top (alongside existing stats) querying the same `credit_validity` data
-- Include a simple period selector (7d / 30d / 90d / All Time)
-- Show total expired credits count and amount, broken down by type
+**What it does:** Makes the website load significantly faster by reducing unnecessary work during initial page load.
 
-#### 5. Shared Query Hook (optional optimization)
-- Create a reusable query or inline the fetch in both pages to get expired credit stats filtered by date range
+**Changes:**
 
-### Technical Details
+**a) Faster initial load -- defer non-critical work**
+- Move the `useMaintenanceMode` hook call out of the critical rendering path for public routes. Currently it blocks the Landing page render with a database query. Instead, render the page immediately and check maintenance in the background
+- Add `staleTime` and smarter defaults to the `QueryClient` so pages don't re-fetch data they already have
 
-**New column migration:**
-```sql
-ALTER TABLE credit_validity 
-ADD COLUMN credits_expired_unused INTEGER DEFAULT NULL;
+**b) Optimize QueryClient configuration**
+- Set `staleTime: 5 * 60 * 1000` (5 minutes) so data isn't re-fetched on every page navigation
+- Set `gcTime: 10 * 60 * 1000` (10 minutes) for garbage collection
+- This alone will make navigating between dashboard pages feel instant
 
-UPDATE credit_validity 
-SET credits_expired_unused = credits_amount 
-WHERE expired = true;
-```
+**c) Preload critical assets**
+- Add `<link rel="preconnect">` for the backend URL in `index.html` so the browser starts the connection early
+- Add font preloading hints
 
-**Period filter logic:**
-- Filter `credit_validity` records where `expired = true` and `expires_at` falls within the selected period
-- Sum `credits_expired_unused` grouped by `credit_type`
+**d) Reduce Landing page auth overhead**
+- The Landing page currently initializes `useAuth()` which triggers profile + role database queries even for anonymous visitors. Optimize to skip these queries when no session exists
 
-**Stats displayed:**
-- Total expired credit batches (count)
-- Total wasted AI Scan credits
-- Total wasted Similarity credits
-- Period comparison (e.g., "58 batches / 1,003 credits expired all time")
+---
+
+### 3. SEO Improvements
+
+**What it does:** Improves Google ranking and search visibility.
+
+**Changes:**
+
+**a) Enhanced meta tags on all public pages**
+- Add Open Graph image tags to pages that are missing them (How It Works, Use Cases, FAQ, Contact, About Us)
+- Ensure all public pages have unique, keyword-rich `<title>` and `<meta description>` tags
+
+**b) Improve sitemap.xml**
+- Update `public/sitemap.xml` to include all public routes with proper `lastmod`, `changefreq`, and `priority` values
+- Add the blog post URL and all service pages
+
+**c) Add FAQ structured data**
+- Add `FAQPage` JSON-LD schema to the FAQ page and to the landing page FAQ section so Google shows rich snippets in search results
+
+**d) Performance signals (Core Web Vitals)**
+- The performance fixes from section 2 directly improve Google ranking since page speed is a ranking factor
+
+---
+
+### 4. Analytics and Overview Improvements
+
+**What it does:** Makes the admin dashboard overview and analytics pages more useful.
+
+**Changes:**
+
+**a) Admin Dashboard Overview enhancements**
+- Add a "Revenue this month" quick stat card
+- Add a "New users this week" growth indicator
+- Add document processing rate (avg time from pending to completed)
+
+**b) Customer Dashboard improvements**
+- Show credit expiration countdown more prominently
+- Add a "documents processed this month" mini-chart
+
+---
+
+### 5. PWA / Mobile App Improvements
+
+**What it does:** Better mobile experience and offline support.
+
+**Changes:**
+
+**a) Improve service worker caching**
+- Update `public/sw.js` to cache API responses for offline viewing of dashboard data
+- Add better offline fallback page with branding
+
+**b) Better install experience**
+- Improve the `/install` page with device-specific instructions
+- Add a bottom-bar install prompt on mobile that appears after 2 page views (non-intrusive)
+
+---
+
+### Implementation Order
+
+1. Performance optimization (biggest user impact)
+2. Auto-delete documents cron job
+3. SEO improvements
+4. Analytics enhancements
+5. PWA improvements
+
+### Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `supabase/functions/cleanup-old-files/index.ts` | Modify default to 10 days |
+| SQL (cron job) | Create daily schedule for cleanup |
+| `src/App.tsx` | Optimize QueryClient config |
+| `src/hooks/useMaintenanceMode.ts` | Non-blocking for public routes |
+| `index.html` | Add preconnect hints |
+| `public/sitemap.xml` | Update with all routes |
+| `src/pages/FAQ.tsx` | Add FAQPage structured data |
+| `src/pages/AdminDashboardOverview.tsx` | Enhanced stats |
+| `src/pages/Dashboard.tsx` | Better credit expiry visibility |
+| `public/sw.js` | Improved caching strategy |
+| `src/pages/Install.tsx` | Device-specific instructions |
 
