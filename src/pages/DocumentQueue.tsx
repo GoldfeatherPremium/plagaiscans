@@ -180,16 +180,16 @@ export default function DocumentQueue() {
       return;
     }
     
-    // Assign to this staff member
-    await updateDocumentStatus(doc.id, 'in_progress');
-    
-    // Auto-download the file
+    // Start download immediately — don't wait for status update
     downloadFile(doc.file_path, doc.magic_link_id ? 'magic-uploads' : 'documents', doc.file_name);
     
     toast({
       title: 'Document Assigned',
       description: 'Document assigned and download started.',
     });
+
+    // Assign to this staff member (optimistic update happens inside)
+    updateDocumentStatus(doc.id, 'in_progress');
   };
 
   // Toggle document selection
