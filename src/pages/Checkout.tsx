@@ -106,11 +106,13 @@ export default function Checkout() {
   const [btEmail, setBtEmail] = useState('');
   const [btPhoneValid, setBtPhoneValid] = useState(false);
 
+  const [bankTransferCountryCodes, setBankTransferCountryCodes] = useState<string[]>([...BANK_TRANSFER_COUNTRY_CODES]);
+
   const bankTransferCountries = useMemo(() => 
     countries
-      .filter(c => (BANK_TRANSFER_COUNTRY_CODES as readonly string[]).includes(c.code))
+      .filter(c => bankTransferCountryCodes.includes(c.code))
       .sort((a, b) => a.name.localeCompare(b.name)),
-    []
+    [bankTransferCountryCodes]
   );
 
   const selectedBtCountry = useMemo(() => 
@@ -166,7 +168,7 @@ export default function Checkout() {
         .from('settings')
         .select('key, value')
         .in('key', [
-          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled', 'payment_paypal_enabled', 'payment_paddle_enabled', 'payment_bank_transfer_enabled', 'payment_usdt_manual_enabled', 'usdt_manual_wallet_address',
+          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled', 'payment_paypal_enabled', 'payment_paddle_enabled', 'payment_bank_transfer_enabled', 'payment_usdt_manual_enabled', 'usdt_manual_wallet_address', 'bank_transfer_countries',
           'binance_pay_id', 'binance_discount_percent',
           'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe', 'fee_dodo', 'fee_paypal', 'fee_paddle',
           'paddle_client_token', 'paddle_environment'
@@ -204,6 +206,13 @@ export default function Checkout() {
         const bankTransferSetting = settings.find(s => s.key === 'payment_bank_transfer_enabled');
         setBankTransferEnabled(bankTransferSetting?.value !== 'false');
 
+        const bankTransferCountriesSetting = settings.find(s => s.key === 'bank_transfer_countries');
+        if (bankTransferCountriesSetting) {
+          try {
+            const parsed = JSON.parse(bankTransferCountriesSetting.value);
+            if (Array.isArray(parsed)) setBankTransferCountryCodes(parsed);
+          } catch {}
+        }
         const usdtManualSetting = settings.find(s => s.key === 'payment_usdt_manual_enabled');
         const usdtManualWalletSetting = settings.find(s => s.key === 'usdt_manual_wallet_address');
         setUsdtManualEnabled(usdtManualSetting?.value === 'true');
