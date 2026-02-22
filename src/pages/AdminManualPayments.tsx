@@ -122,7 +122,7 @@ export default function AdminManualPayments() {
         amount: payment.credits,
         balance_before: currentBalance,
         balance_after: newBalance,
-        description: `Binance Pay purchase - $${payment.amount_usd}`,
+        description: `${payment.payment_method === 'usdt_manual' ? 'USDT Transfer' : 'Binance Pay'} purchase - $${payment.amount_usd}`,
         performed_by: user?.id,
       });
 
@@ -177,7 +177,7 @@ export default function AdminManualPayments() {
             vatAmount: 0,
             amountPaid: payment.amount_usd,
             currency: 'USD',
-            paymentMethod: 'Binance Pay',
+            paymentMethod: payment.payment_method === 'usdt_manual' ? 'USDT Transfer' : 'Binance Pay',
             transactionId: payment.transaction_id || payment.id,
             paymentId: payment.id,
             credits: payment.credits,
@@ -274,7 +274,7 @@ export default function AdminManualPayments() {
               <Badge className="bg-yellow-500 text-black">{pendingCount} Pending</Badge>
             )}
           </h1>
-          <p className="text-muted-foreground mt-1">Verify Binance Pay and other manual payments</p>
+          <p className="text-muted-foreground mt-1">Verify Binance Pay, USDT Transfer, and other manual payments</p>
         </div>
 
         <Card>
@@ -313,8 +313,17 @@ export default function AdminManualPayments() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Wallet className="h-4 w-4 text-[#F0B90B]" />
-                            Binance Pay
+                            {payment.payment_method === 'usdt_manual' ? (
+                              <>
+                                <Wallet className="h-4 w-4 text-[#26A17B]" />
+                                USDT Transfer
+                              </>
+                            ) : (
+                              <>
+                                <Wallet className="h-4 w-4 text-[#F0B90B]" />
+                                Binance Pay
+                              </>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="font-medium">

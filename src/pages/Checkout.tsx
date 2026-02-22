@@ -92,6 +92,14 @@ export default function Checkout() {
   
   const [bankTransferEnabled, setBankTransferEnabled] = useState(true);
   const [showBankTransferDialog, setShowBankTransferDialog] = useState(false);
+  
+  // USDT Manual Transfer
+  const [usdtManualEnabled, setUsdtManualEnabled] = useState(false);
+  const [usdtManualWalletAddress, setUsdtManualWalletAddress] = useState('');
+  const [showUsdtManualDialog, setShowUsdtManualDialog] = useState(false);
+  const [usdtManualHash, setUsdtManualHash] = useState('');
+  const [submittingUsdtManual, setSubmittingUsdtManual] = useState(false);
+  const [usdtManualStep, setUsdtManualStep] = useState<'info' | 'hash'>('info');
   const [btCountry, setBtCountry] = useState('');
   const [btFullName, setBtFullName] = useState('');
   const [btWhatsApp, setBtWhatsApp] = useState('');
@@ -158,7 +166,7 @@ export default function Checkout() {
         .from('settings')
         .select('key, value')
         .in('key', [
-          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled', 'payment_paypal_enabled', 'payment_paddle_enabled', 'payment_bank_transfer_enabled',
+          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled', 'payment_paypal_enabled', 'payment_paddle_enabled', 'payment_bank_transfer_enabled', 'payment_usdt_manual_enabled', 'usdt_manual_wallet_address',
           'binance_pay_id', 'binance_discount_percent',
           'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe', 'fee_dodo', 'fee_paypal', 'fee_paddle',
           'paddle_client_token', 'paddle_environment'
@@ -195,6 +203,11 @@ export default function Checkout() {
 
         const bankTransferSetting = settings.find(s => s.key === 'payment_bank_transfer_enabled');
         setBankTransferEnabled(bankTransferSetting?.value !== 'false');
+
+        const usdtManualSetting = settings.find(s => s.key === 'payment_usdt_manual_enabled');
+        const usdtManualWalletSetting = settings.find(s => s.key === 'usdt_manual_wallet_address');
+        setUsdtManualEnabled(usdtManualSetting?.value === 'true');
+        setUsdtManualWalletAddress(usdtManualWalletSetting?.value || '');
 
         const paddlePayment = settings.find(s => s.key === 'payment_paddle_enabled');
         const feePaddleSetting = settings.find(s => s.key === 'fee_paddle');
@@ -400,6 +413,63 @@ export default function Checkout() {
     const totalWithFee = calculateTotalWithFee('whatsapp');
     const message = `Hi, I want to buy ${packageCredits} credits for $${totalWithFee}. Please help me with the payment.`;
     openWhatsAppCustom(message);
+  };
+
+  const openUsdtManualDialog = () => {
+    setUsdtManualHash('');
+    setUsdtManualStep('info');
+    setShowUsdtManualDialog(true);
+  };
+
+  const submitUsdtManualPayment = async () => {
+    if (!user || !selectedPackage) return;
+    const hash = usdtManualHash.trim();
+    if (!hash || hash.length < 10) {
+      toast.error('Please enter a valid transaction hash');
+      return;
+    }
+
+    setSubmittingUsdtManual(true);
+    try {
+      const totalAmount = calculateDiscountedTotal(packagePrice);
+      
+      const { error } = await supabase.from('manual_payments').insert({
+        user_id: user.id,
+        payment_method: 'usdt_manual',
+        amount_usd: totalAmount,
+        credits: packageCredits,
+        status: 'pending',
+        transaction_id: hash,
+        notes: `USDT TRC20 Transfer — Package: ${selectedPackage.name || selectedPackage.credits + ' credits'}`,
+      });
+
+      if (error) throw error;
+
+      // Notify admins
+      const { data: adminRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+
+      if (adminRoles && adminRoles.length > 0) {
+        const notifications = adminRoles.map(admin => ({
+          user_id: admin.user_id,
+          title: '💰 New USDT Transfer Payment',
+          message: `New USDT payment of $${totalAmount} for ${packageCredits} credits.\nTx Hash: ${hash}\nUser: ${profile?.email || user.email}\nPlease verify in Admin Panel.`,
+          created_by: user.id,
+        }));
+        await supabase.from('user_notifications').insert(notifications);
+      }
+
+      toast.success('Payment submitted! Admin will verify and credit your account.');
+      setShowUsdtManualDialog(false);
+      navigate('/dashboard/payments');
+    } catch (error: any) {
+      console.error('USDT manual payment error:', error);
+      toast.error('Failed to submit payment');
+    } finally {
+      setSubmittingUsdtManual(false);
+    }
   };
 
   const openBankTransferDialog = () => {
@@ -884,6 +954,25 @@ export default function Checkout() {
                   </div>
                 )}
 
+                {usdtManualEnabled && usdtManualWalletAddress && (
+                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-[#26A17B]/10 flex items-center justify-center flex-shrink-0">
+                          <Wallet className="h-5 w-5 text-[#26A17B]" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-sm">USDT Transfer (TRC20)</h3>
+                          <p className="text-xs text-muted-foreground">Send USDT directly</p>
+                        </div>
+                      </div>
+                      <Button onClick={openUsdtManualDialog} size="sm" variant="outline">
+                        Pay ${calculateDiscountedTotal(packagePrice)}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {bankTransferEnabled && (
                   <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
                     <div className="flex items-center justify-between gap-4">
@@ -920,7 +1009,7 @@ export default function Checkout() {
                   </div>
                 )}
 
-                {!stripeEnabled && !vivaEnabled && !binanceEnabled && !usdtEnabled && !whatsappEnabled && !paddleEnabled && !bankTransferEnabled && (
+                {!stripeEnabled && !vivaEnabled && !binanceEnabled && !usdtEnabled && !whatsappEnabled && !paddleEnabled && !bankTransferEnabled && !usdtManualEnabled && (
                   <div className="text-center py-8">
                     <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">No payment methods are currently available. Please contact support.</p>
@@ -1094,6 +1183,93 @@ export default function Checkout() {
           navigate('/dashboard/payment-success');
         }}
       />
+
+      {/* USDT Manual Transfer Dialog */}
+      <Dialog open={showUsdtManualDialog} onOpenChange={setShowUsdtManualDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-[#26A17B]" />
+              USDT Transfer (TRC20)
+            </DialogTitle>
+            <DialogDescription>
+              {usdtManualStep === 'info' ? 'Send USDT to the address below' : 'Enter your transaction hash'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {usdtManualStep === 'info' ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg space-y-3">
+                <p className="font-medium">Amount: ${calculateDiscountedTotal(packagePrice)}</p>
+                <p className="text-sm text-muted-foreground">For {packageCredits} credits</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Wallet Address (TRC20)</Label>
+                <div className="flex items-center gap-2">
+                  <Input value={usdtManualWalletAddress} readOnly className="font-mono text-xs" />
+                  <Button variant="outline" size="icon" onClick={() => {
+                    navigator.clipboard.writeText(usdtManualWalletAddress);
+                    toast.success('Address copied');
+                  }}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <ol className="space-y-3 text-sm">
+                <li className="flex gap-3">
+                  <span className="h-6 w-6 rounded-full bg-[#26A17B] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">1</span>
+                  <span>Copy the wallet address above</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="h-6 w-6 rounded-full bg-[#26A17B] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
+                  <span>Send exactly ${calculateDiscountedTotal(packagePrice)} USDT via TRC20 network</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="h-6 w-6 rounded-full bg-[#26A17B] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">3</span>
+                  <span>Copy the transaction hash from your wallet</span>
+                </li>
+              </ol>
+
+              <p className="text-xs text-muted-foreground text-center">
+                ⚠️ Send only USDT on TRC20 network. Other networks may result in lost funds.
+              </p>
+
+              <Button className="w-full bg-[#26A17B] hover:bg-[#1f8a66] text-white" onClick={() => setUsdtManualStep('hash')}>
+                I've Sent the Payment
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="usdtTxHash">Transaction Hash</Label>
+                <Input
+                  id="usdtTxHash"
+                  placeholder="Paste your transaction hash here"
+                  value={usdtManualHash}
+                  onChange={(e) => setUsdtManualHash(e.target.value.trim())}
+                  className="font-mono text-xs"
+                  maxLength={128}
+                />
+                <p className="text-xs text-muted-foreground">Find this in your wallet's transaction history</p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setUsdtManualStep('info')}>Back</Button>
+                <Button
+                  className="flex-1 bg-[#26A17B] hover:bg-[#1f8a66] text-white"
+                  onClick={submitUsdtManualPayment}
+                  disabled={submittingUsdtManual || !usdtManualHash.trim()}
+                >
+                  {submittingUsdtManual ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                  Submit
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Bank Transfer Dialog */}
       <Dialog open={showBankTransferDialog} onOpenChange={setShowBankTransferDialog}>
