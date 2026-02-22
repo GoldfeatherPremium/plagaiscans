@@ -7,7 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench, Mail, FileText, Chrome, Eye, EyeOff, Zap, Bird, Sailboat } from 'lucide-react';
+import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench, Mail, FileText, Chrome, Eye, EyeOff, Zap, Bird, Sailboat, Landmark, Plus, X } from 'lucide-react';
+import { BANK_TRANSFER_COUNTRY_CODES } from '@/data/bankTransferCountries';
+import { countries } from '@/data/countries';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AdminRemarkPresets } from '@/components/AdminRemarkPresets';
@@ -56,6 +60,12 @@ export default function AdminSettings() {
   const [usdtManualEnabled, setUsdtManualEnabled] = useState(false);
   const [usdtManualWalletAddress, setUsdtManualWalletAddress] = useState('');
   const [savingUsdtManual, setSavingUsdtManual] = useState(false);
+
+  // Bank Transfer settings
+  const [bankTransferEnabled, setBankTransferEnabled] = useState(true);
+  const [bankTransferCountries, setBankTransferCountries] = useState<string[]>([...BANK_TRANSFER_COUNTRY_CODES]);
+  const [savingBankTransfer, setSavingBankTransfer] = useState(false);
+  const [newBtCountry, setNewBtCountry] = useState('');
 
   // Paddle settings
   const [paddleEnabled, setPaddleEnabled] = useState(false);
@@ -135,6 +145,8 @@ export default function AdminSettings() {
       'admin_payment_notify_emails',
       'payment_usdt_manual_enabled',
       'usdt_manual_wallet_address',
+      'payment_bank_transfer_enabled',
+      'bank_transfer_countries',
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
@@ -226,6 +238,17 @@ export default function AdminSettings() {
       const usdtManualWalletSetting = data.find(s => s.key === 'usdt_manual_wallet_address');
       setUsdtManualEnabled(usdtManualSetting?.value === 'true');
       if (usdtManualWalletSetting) setUsdtManualWalletAddress(usdtManualWalletSetting.value);
+
+      // Bank Transfer
+      const bankTransferSetting = data.find(s => s.key === 'payment_bank_transfer_enabled');
+      setBankTransferEnabled(bankTransferSetting?.value !== 'false');
+      const bankTransferCountriesSetting = data.find(s => s.key === 'bank_transfer_countries');
+      if (bankTransferCountriesSetting) {
+        try {
+          const parsed = JSON.parse(bankTransferCountriesSetting.value);
+          if (Array.isArray(parsed)) setBankTransferCountries(parsed);
+        } catch {}
+      }
     }
     setLoading(false);
   };
@@ -291,9 +314,13 @@ export default function AdminSettings() {
       .from('settings')
       .upsert({ key: 'payment_usdt_manual_enabled', value: usdtManualEnabled.toString() }, { onConflict: 'key' });
     
+    const { error: error10 } = await supabase
+      .from('settings')
+      .upsert({ key: 'payment_bank_transfer_enabled', value: bankTransferEnabled.toString() }, { onConflict: 'key' });
+    
     setSavingPaymentMethods(false);
     
-    if (error1 || error2 || error3 || error4 || error5 || error6 || error7 || error8 || error9) {
+    if (error1 || error2 || error3 || error4 || error5 || error6 || error7 || error8 || error9 || error10) {
       toast({ title: 'Error', description: 'Failed to save payment settings', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Payment methods updated' });
@@ -776,9 +803,106 @@ export default function AdminSettings() {
                 onCheckedChange={setUsdtManualEnabled}
               />
             </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg border-blue-600/30 bg-blue-600/5">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-blue-600/10 flex items-center justify-center">
+                  <Landmark className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="font-medium">Bank Transfer</p>
+                  <p className="text-sm text-muted-foreground">Manual bank transfer for supported countries</p>
+                </div>
+              </div>
+              <Switch
+                checked={bankTransferEnabled}
+                onCheckedChange={setBankTransferEnabled}
+              />
+            </div>
             <Button onClick={savePaymentMethods} disabled={savingPaymentMethods}>
               {savingPaymentMethods ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Payment Settings
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Bank Transfer Country Manager */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Landmark className="h-5 w-5 text-blue-600" />
+              Bank Transfer Countries
+            </CardTitle>
+            <CardDescription>Manage which countries can use the bank transfer payment method</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Select value={newBtCountry} onValueChange={setNewBtCountry}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Select a country to add" />
+                </SelectTrigger>
+                <SelectContent>
+                  {countries
+                    .filter(c => !bankTransferCountries.includes(c.code))
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map(c => (
+                      <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                disabled={!newBtCountry}
+                onClick={() => {
+                  if (newBtCountry && !bankTransferCountries.includes(newBtCountry)) {
+                    setBankTransferCountries(prev => [...prev, newBtCountry].sort());
+                    setNewBtCountry('');
+                  }
+                }}
+              >
+                <Plus className="h-4 w-4 mr-1" /> Add
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {bankTransferCountries
+                .map(code => {
+                  const country = countries.find(c => c.code === code);
+                  return (
+                    <Badge key={code} variant="secondary" className="flex items-center gap-1 px-3 py-1.5">
+                      {country?.name || code}
+                      <button
+                        onClick={() => setBankTransferCountries(prev => prev.filter(c => c !== code))}
+                        className="ml-1 hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  );
+                })}
+            </div>
+
+            {bankTransferCountries.length === 0 && (
+              <p className="text-sm text-muted-foreground">No countries selected. Bank transfer will not be available.</p>
+            )}
+
+            <Button
+              onClick={async () => {
+                setSavingBankTransfer(true);
+                const { error } = await supabase.from('settings').upsert(
+                  { key: 'bank_transfer_countries', value: JSON.stringify(bankTransferCountries) },
+                  { onConflict: 'key' }
+                );
+                setSavingBankTransfer(false);
+                if (error) {
+                  toast({ title: 'Error', description: 'Failed to save countries', variant: 'destructive' });
+                } else {
+                  toast({ title: 'Success', description: 'Bank transfer countries updated' });
+                }
+              }}
+              disabled={savingBankTransfer}
+            >
+              {savingBankTransfer ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Countries
             </Button>
           </CardContent>
         </Card>
