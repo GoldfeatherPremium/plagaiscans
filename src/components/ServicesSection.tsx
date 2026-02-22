@@ -73,13 +73,6 @@ const ServicesSection = () => {
           ))}
         </div>
 
-        {/* Disclaimer */}
-        <div className="mt-10">
-          <p className="text-sm text-muted-foreground border-l-2 border-border pl-4 max-w-2xl">
-            Reports are provided for informational purposes only. Results depend on available indexed sources. 
-            Users are responsible for reviewing and interpreting all results.
-          </p>
-        </div>
       </div>
     </section>
   );
