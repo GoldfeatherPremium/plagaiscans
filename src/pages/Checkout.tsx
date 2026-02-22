@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, CreditCard, Loader2, Bitcoin, Copy, ExternalLink, 
   RefreshCw, Wallet, Globe, 
-  CheckCircle, MessageCircle, AlertCircle, Tag, X, Shield, Store
+  CheckCircle, MessageCircle, AlertCircle, Tag, X, Shield, Store, Landmark
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
@@ -19,6 +19,9 @@ import { Separator } from '@/components/ui/separator';
 import { useWhatsApp } from '@/hooks/useWhatsApp';
 import { usePromoCode } from '@/hooks/usePromoCode';
 import { StripeEmbeddedCheckout } from '@/components/StripeEmbeddedCheckout';
+import { BANK_TRANSFER_COUNTRY_CODES } from '@/data/bankTransferCountries';
+import { countries, Country, validatePhoneNumber } from '@/data/countries';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface PaymentDetails {
   paymentId: string;
@@ -86,6 +89,26 @@ export default function Checkout() {
   const [creatingPaddlePayment, setCreatingPaddlePayment] = useState(false);
   const [paddleClientToken, setPaddleClientToken] = useState('');
   const [paddleEnvironment, setPaddleEnvironment] = useState('sandbox');
+  
+  const [bankTransferEnabled, setBankTransferEnabled] = useState(true);
+  const [showBankTransferDialog, setShowBankTransferDialog] = useState(false);
+  const [btCountry, setBtCountry] = useState('');
+  const [btFullName, setBtFullName] = useState('');
+  const [btWhatsApp, setBtWhatsApp] = useState('');
+  const [btEmail, setBtEmail] = useState('');
+  const [btPhoneValid, setBtPhoneValid] = useState(false);
+
+  const bankTransferCountries = useMemo(() => 
+    countries
+      .filter(c => (BANK_TRANSFER_COUNTRY_CODES as readonly string[]).includes(c.code))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    []
+  );
+
+  const selectedBtCountry = useMemo(() => 
+    countries.find(c => c.code === btCountry),
+    [btCountry]
+  );
 
   const packagePrice = selectedPackage?.price || 0;
   const packageCredits = selectedPackage?.credits || 0;
@@ -135,7 +158,7 @@ export default function Checkout() {
         .from('settings')
         .select('key, value')
         .in('key', [
-          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled', 'payment_paypal_enabled', 'payment_paddle_enabled',
+          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled', 'payment_paypal_enabled', 'payment_paddle_enabled', 'payment_bank_transfer_enabled',
           'binance_pay_id', 'binance_discount_percent',
           'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe', 'fee_dodo', 'fee_paypal', 'fee_paddle',
           'paddle_client_token', 'paddle_environment'
@@ -169,6 +192,9 @@ export default function Checkout() {
         if (binanceId) setBinancePayId(binanceId.value);
         const binanceDiscountSetting = settings.find(s => s.key === 'binance_discount_percent');
         if (binanceDiscountSetting) setBinanceDiscount(parseFloat(binanceDiscountSetting.value) || 0);
+
+        const bankTransferSetting = settings.find(s => s.key === 'payment_bank_transfer_enabled');
+        setBankTransferEnabled(bankTransferSetting?.value !== 'false');
 
         const paddlePayment = settings.find(s => s.key === 'payment_paddle_enabled');
         const feePaddleSetting = settings.find(s => s.key === 'fee_paddle');
@@ -374,6 +400,41 @@ export default function Checkout() {
     const totalWithFee = calculateTotalWithFee('whatsapp');
     const message = `Hi, I want to buy ${packageCredits} credits for $${totalWithFee}. Please help me with the payment.`;
     openWhatsAppCustom(message);
+  };
+
+  const openBankTransferDialog = () => {
+    setBtEmail(profile?.email || user?.email || '');
+    setBtFullName('');
+    setBtWhatsApp('');
+    setBtCountry('');
+    setBtPhoneValid(false);
+    setShowBankTransferDialog(true);
+  };
+
+  const handleBankTransferSubmit = () => {
+    if (!btCountry) { toast.error('Please select your country'); return; }
+    if (!btFullName.trim() || btFullName.trim().length < 2) { toast.error('Please enter your full name'); return; }
+    if (!btWhatsApp || !btPhoneValid) { toast.error('Please enter a valid WhatsApp number'); return; }
+    if (!btEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(btEmail.trim())) { toast.error('Please enter a valid email'); return; }
+
+    const countryName = selectedBtCountry?.name || btCountry;
+    const message = `Hello, I'd like to pay via Bank Transfer.\n\nCountry: ${countryName}\nFull Name: ${btFullName.trim()}\nWhatsApp: ${btWhatsApp}\nEmail: ${btEmail.trim()}\nCredits: ${packageCredits}\nAmount: $${calculateDiscountedTotal(packagePrice)}\n\nPlease share your bank account details.`;
+    openWhatsAppCustom(message);
+    setShowBankTransferDialog(false);
+    toast.success('Redirecting to WhatsApp...');
+  };
+
+  const handleBtPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value.replace(/\D/g, '');
+    const maxLen = selectedBtCountry?.maxLength || 15;
+    const limitedValue = inputValue.slice(0, maxLen);
+    setBtWhatsApp(limitedValue ? `${selectedBtCountry?.dialCode || ''}${limitedValue}` : '');
+    if (limitedValue && selectedBtCountry) {
+      const validation = validatePhoneNumber(limitedValue, selectedBtCountry);
+      setBtPhoneValid(validation.valid);
+    } else {
+      setBtPhoneValid(false);
+    }
   };
 
   const createStripePayment = async () => {
@@ -823,6 +884,25 @@ export default function Checkout() {
                   </div>
                 )}
 
+                {bankTransferEnabled && (
+                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <Landmark className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-sm">Bank Transfer</h3>
+                          <p className="text-xs text-muted-foreground">No processing fee</p>
+                        </div>
+                      </div>
+                      <Button onClick={openBankTransferDialog} size="sm" variant="outline">
+                        Pay ${calculateDiscountedTotal(packagePrice)}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {whatsappEnabled && (
                   <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
                     <div className="flex items-center justify-between gap-4">
@@ -840,7 +920,7 @@ export default function Checkout() {
                   </div>
                 )}
 
-                {!stripeEnabled && !vivaEnabled && !binanceEnabled && !usdtEnabled && !whatsappEnabled && !paddleEnabled && (
+                {!stripeEnabled && !vivaEnabled && !binanceEnabled && !usdtEnabled && !whatsappEnabled && !paddleEnabled && !bankTransferEnabled && (
                   <div className="text-center py-8">
                     <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">No payment methods are currently available. Please contact support.</p>
@@ -1014,6 +1094,93 @@ export default function Checkout() {
           navigate('/dashboard/payment-success');
         }}
       />
+
+      {/* Bank Transfer Dialog */}
+      <Dialog open={showBankTransferDialog} onOpenChange={setShowBankTransferDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Landmark className="h-5 w-5 text-primary" />
+              Bank Transfer
+            </DialogTitle>
+            <DialogDescription>
+              Fill in your details to request bank account information
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Country</Label>
+              <Select value={btCountry} onValueChange={(val) => {
+                setBtCountry(val);
+                setBtWhatsApp('');
+                setBtPhoneValid(false);
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your country" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bankTransferCountries.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Full Name (as on bank account)</Label>
+              <Input
+                placeholder="Enter your full name"
+                value={btFullName}
+                onChange={(e) => setBtFullName(e.target.value.slice(0, 100))}
+                maxLength={100}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>WhatsApp Number</Label>
+              <div className="flex gap-2">
+                <div className="w-[100px] flex items-center justify-center border rounded-lg bg-muted px-3 text-sm font-medium">
+                  {selectedBtCountry?.dialCode || '—'}
+                </div>
+                <Input
+                  type="tel"
+                  placeholder="Phone number"
+                  value={btWhatsApp ? btWhatsApp.replace(selectedBtCountry?.dialCode || '', '') : ''}
+                  onChange={handleBtPhoneChange}
+                  disabled={!btCountry}
+                  className="flex-1"
+                  maxLength={selectedBtCountry?.maxLength || 15}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                placeholder="your@email.com"
+                value={btEmail}
+                onChange={(e) => setBtEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Credits</Label>
+              <Input value={`${packageCredits} credits — $${calculateDiscountedTotal(packagePrice)}`} readOnly className="bg-muted" />
+            </div>
+
+            <Button className="w-full" onClick={handleBankTransferSubmit}>
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Request Bank Details via WhatsApp
+            </Button>
+
+            <p className="text-xs text-muted-foreground text-center">
+              No processing fee is applied for bank transfers.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
