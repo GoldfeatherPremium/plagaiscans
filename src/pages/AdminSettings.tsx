@@ -52,6 +52,11 @@ export default function AdminSettings() {
   const [savingPaypal, setSavingPaypal] = useState(false);
   const [showPaypalSecret, setShowPaypalSecret] = useState(false);
   
+  // USDT Manual Transfer settings
+  const [usdtManualEnabled, setUsdtManualEnabled] = useState(false);
+  const [usdtManualWalletAddress, setUsdtManualWalletAddress] = useState('');
+  const [savingUsdtManual, setSavingUsdtManual] = useState(false);
+
   // Paddle settings
   const [paddleEnabled, setPaddleEnabled] = useState(false);
   const [paddleFee, setPaddleFee] = useState('0');
@@ -128,6 +133,8 @@ export default function AdminSettings() {
       'paddle_environment',
       'admin_payment_email_enabled',
       'admin_payment_notify_emails',
+      'payment_usdt_manual_enabled',
+      'usdt_manual_wallet_address',
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
@@ -213,6 +220,12 @@ export default function AdminSettings() {
       const adminPaymentEmailsSetting = data.find(s => s.key === 'admin_payment_notify_emails');
       setAdminPaymentEmailEnabled(adminPaymentEmailSetting?.value === 'true');
       if (adminPaymentEmailsSetting) setAdminPaymentNotifyEmails(adminPaymentEmailsSetting.value);
+
+      // USDT Manual Transfer
+      const usdtManualSetting = data.find(s => s.key === 'payment_usdt_manual_enabled');
+      const usdtManualWalletSetting = data.find(s => s.key === 'usdt_manual_wallet_address');
+      setUsdtManualEnabled(usdtManualSetting?.value === 'true');
+      if (usdtManualWalletSetting) setUsdtManualWalletAddress(usdtManualWalletSetting.value);
     }
     setLoading(false);
   };
@@ -274,9 +287,13 @@ export default function AdminSettings() {
       .from('settings')
       .upsert({ key: 'payment_paddle_enabled', value: paddleEnabled.toString() }, { onConflict: 'key' });
     
+    const { error: error9 } = await supabase
+      .from('settings')
+      .upsert({ key: 'payment_usdt_manual_enabled', value: usdtManualEnabled.toString() }, { onConflict: 'key' });
+    
     setSavingPaymentMethods(false);
     
-    if (error1 || error2 || error3 || error4 || error5 || error6 || error7 || error8) {
+    if (error1 || error2 || error3 || error4 || error5 || error6 || error7 || error8 || error9) {
       toast({ title: 'Error', description: 'Failed to save payment settings', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Payment methods updated' });
@@ -744,6 +761,21 @@ export default function AdminSettings() {
                 onCheckedChange={setPaddleEnabled}
               />
             </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg border-[#26A17B]/30 bg-[#26A17B]/5">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-[#26A17B]/10 flex items-center justify-center">
+                  <Wallet className="h-5 w-5 text-[#26A17B]" />
+                </div>
+                <div>
+                  <p className="font-medium">USDT Transfer (TRC20)</p>
+                  <p className="text-sm text-muted-foreground">Semi-manual — customer sends USDT, admin verifies</p>
+                </div>
+              </div>
+              <Switch
+                checked={usdtManualEnabled}
+                onCheckedChange={setUsdtManualEnabled}
+              />
+            </div>
             <Button onClick={savePaymentMethods} disabled={savingPaymentMethods}>
               {savingPaymentMethods ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Payment Settings
@@ -943,6 +975,49 @@ export default function AdminSettings() {
             <Button onClick={savePaymentFees} disabled={savingFees}>
               {savingFees ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Payment Fees
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* USDT Manual Transfer Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-[#26A17B]" />
+              USDT Transfer (TRC20) Configuration
+            </CardTitle>
+            <CardDescription>Set your TRC20 wallet address for receiving USDT transfers</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="usdtManualWallet">TRC20 Wallet Address</Label>
+              <Input
+                id="usdtManualWallet"
+                placeholder="Enter your USDT TRC20 wallet address (e.g. T...)"
+                value={usdtManualWalletAddress}
+                onChange={(e) => setUsdtManualWalletAddress(e.target.value)}
+                className="font-mono text-xs"
+                maxLength={100}
+              />
+              <p className="text-xs text-muted-foreground">
+                This address will be shown to customers on the checkout page
+              </p>
+            </div>
+            
+            <Button onClick={async () => {
+              setSavingUsdtManual(true);
+              const { error } = await supabase
+                .from('settings')
+                .upsert({ key: 'usdt_manual_wallet_address', value: usdtManualWalletAddress }, { onConflict: 'key' });
+              setSavingUsdtManual(false);
+              if (error) {
+                toast({ title: 'Error', description: 'Failed to save wallet address', variant: 'destructive' });
+              } else {
+                toast({ title: 'Success', description: 'USDT wallet address updated' });
+              }
+            }} disabled={savingUsdtManual}>
+              {savingUsdtManual ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Wallet Address
             </Button>
           </CardContent>
         </Card>
