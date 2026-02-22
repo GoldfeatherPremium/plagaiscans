@@ -306,17 +306,6 @@ export default function Pricing() {
             </div>
           </div>
 
-          {/* Disclaimer */}
-          <Card className="bg-muted/50 border-muted">
-            <CardContent className="p-6">
-              <div className="flex items-start gap-3">
-                <Info className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-muted-foreground">
-                  <strong>{t('pricing.disclaimer.label')}</strong> {t('pricing.disclaimer.text')}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </main>
 
