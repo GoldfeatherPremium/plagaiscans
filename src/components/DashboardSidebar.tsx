@@ -405,7 +405,7 @@ export const DashboardSidebar: React.FC = () => {
       ],
     },
     {
-      label: 'Analytics & Monitoring',
+      label: 'Analytics',
       icon: PieChart,
       links: [
         { to: '/dashboard/overview', icon: LayoutDashboard, label: 'Overview' },
