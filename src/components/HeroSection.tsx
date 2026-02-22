@@ -25,11 +25,6 @@ const HeroSection = () => {
             Plagaiscans is a subscription-based software-as-a-service (SaaS) platform that provides text similarity and originality analysis. The service is designed to assist editors, educators, publishers, and content teams in reviewing written material.
           </p>
 
-          {/* Disclaimer */}
-          <p className="text-sm text-muted-foreground mb-8 border-l-2 border-border pl-4">
-            Reports are informational only. Results depend on available indexed sources. Users are responsible for reviewing and interpreting all results.
-          </p>
-
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 mb-12">
             <Link to="/auth">
