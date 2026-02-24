@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Email and valid credit amount are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Check if email already exists
+    // Check if profile already exists (active user)
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
       .select('id')
@@ -98,12 +98,29 @@ Deno.serve(async (req) => {
     // Generate password
     const password = generatePassword(12);
 
-    // Create user via admin API
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    // Try to create user via admin API
+    let { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: email.toLowerCase().trim(),
       password,
       email_confirm: true,
     });
+
+    // If auth user already exists (stale/orphaned), delete and recreate
+    if (createError?.message?.includes('already been registered')) {
+      console.log('Stale auth user found, deleting and recreating...');
+      const { data: { users } } = await supabaseAdmin.auth.admin.listUsers({ filter: email.toLowerCase().trim() });
+      const existingAuthUser = users?.find(u => u.email === email.toLowerCase().trim());
+      if (existingAuthUser) {
+        await supabaseAdmin.auth.admin.deleteUser(existingAuthUser.id);
+      }
+      const result = await supabaseAdmin.auth.admin.createUser({
+        email: email.toLowerCase().trim(),
+        password,
+        email_confirm: true,
+      });
+      newUser = result.data;
+      createError = result.error;
+    }
 
     if (createError || !newUser?.user) {
       console.error('Create user error:', createError);
