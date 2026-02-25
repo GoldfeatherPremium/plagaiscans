@@ -180,6 +180,15 @@ export default function AdminSupportTickets() {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      // Trigger email notification to customer (fire-and-forget)
+      supabase.functions.invoke('send-support-reply-email', {
+        body: {
+          ticketId: selectedTicket.id,
+          ticketSubject: selectedTicket.subject,
+          messagePreview: newMessage.trim(),
+        }
+      }).catch(err => console.error('Support reply email error:', err));
+
       setNewMessage('');
       await fetchMessages(selectedTicket.id);
     }

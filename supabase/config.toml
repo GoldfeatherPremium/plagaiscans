@@ -125,3 +125,6 @@ verify_jwt = false
 
 [functions.send-admin-payment-notification]
 verify_jwt = false
+
+[functions.send-support-reply-email]
+verify_jwt = false
