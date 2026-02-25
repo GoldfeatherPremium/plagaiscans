@@ -38,7 +38,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 
 type EmailType = 'announcement' | 'payment_reminder' | 'document_status' | 'promotional' | 'welcome' | 'custom';
-type TargetAudience = 'all' | 'customers' | 'staff' | 'admins';
+type TargetAudience = 'all' | 'customers' | 'staff' | 'admins' | 'specific';
 
 interface EmailLog {
   id: string;
@@ -103,6 +103,7 @@ const audienceConfig: Record<TargetAudience, { label: string; description: strin
   customers: { label: 'Customers Only', description: 'Only registered customers', icon: Users },
   staff: { label: 'Staff Only', description: 'Only staff members', icon: Users },
   admins: { label: 'Admins Only', description: 'Only admin users', icon: Settings2 },
+  specific: { label: 'Specific Email', description: 'Send to one email', icon: Mail },
 };
 
 const emailTemplates: Record<EmailType, { subject: string; title: string; message: string; ctaText: string; ctaUrl: string }> = {
@@ -163,6 +164,9 @@ export const AdminEmailPanel: React.FC = () => {
   const [ctaText, setCtaText] = useState(emailTemplates.announcement.ctaText);
   const [ctaUrl, setCtaUrl] = useState(emailTemplates.announcement.ctaUrl);
   const [includeCta, setIncludeCta] = useState(true);
+  const [specificEmail, setSpecificEmail] = useState('');
+  const [specificUserId, setSpecificUserId] = useState<string | null>(null);
+  const [emailLookupLoading, setEmailLookupLoading] = useState(false);
   
   // Preview state
   const [showPreview, setShowPreview] = useState(false);
@@ -214,9 +218,34 @@ export const AdminEmailPanel: React.FC = () => {
     }
   });
 
+  // Lookup user by email for specific sending
+  const lookupEmail = async (email: string) => {
+    if (!email.trim()) {
+      setSpecificUserId(null);
+      return;
+    }
+    setEmailLookupLoading(true);
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, email, full_name')
+      .eq('email', email.trim().toLowerCase())
+      .maybeSingle();
+    setSpecificUserId(data?.id || null);
+    setEmailLookupLoading(false);
+    if (!data) {
+      toast({ title: 'User not found', description: 'No account with that email was found.', variant: 'destructive' });
+    }
+  };
+
   // Send email mutation
   const sendEmailMutation = useMutation({
     mutationFn: async () => {
+      const isSpecific = targetAudience === 'specific';
+      
+      if (isSpecific && !specificUserId) {
+        throw new Error('Please look up a valid email first');
+      }
+
       // First create a log entry
       const { data: logEntry, error: logError } = await supabase
         .from('email_logs')
@@ -227,8 +256,8 @@ export const AdminEmailPanel: React.FC = () => {
           message,
           cta_text: includeCta ? ctaText : null,
           cta_url: includeCta ? ctaUrl : null,
-          target_audience: targetAudience,
-          recipient_count: userCounts?.[targetAudience] || 0,
+          target_audience: isSpecific ? `specific:${specificEmail}` : targetAudience,
+          recipient_count: isSpecific ? 1 : (userCounts?.[targetAudience] || 0),
           status: 'sending',
           sent_by: user?.id
         })
@@ -241,7 +270,8 @@ export const AdminEmailPanel: React.FC = () => {
       const { data, error } = await supabase.functions.invoke('admin-send-email', {
         body: {
           type: emailType,
-          targetAudience,
+          targetAudience: isSpecific ? 'specific' : targetAudience,
+          specificUserIds: isSpecific ? [specificUserId] : undefined,
           subject,
           title,
           message,
@@ -330,7 +360,7 @@ export const AdminEmailPanel: React.FC = () => {
     toast({ title: 'Copied to clipboard' });
   };
 
-  const recipientCount = userCounts?.[targetAudience] || 0;
+  const recipientCount = targetAudience === 'specific' ? (specificUserId ? 1 : 0) : (userCounts?.[targetAudience] || 0);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -472,7 +502,7 @@ export const AdminEmailPanel: React.FC = () => {
                 {/* Target Audience */}
                 <div className="space-y-2">
                   <Label>Target Audience</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                     {Object.entries(audienceConfig).map(([key, config]) => (
                       <button
                         key={key}
@@ -486,12 +516,45 @@ export const AdminEmailPanel: React.FC = () => {
                         <config.icon className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
                         <p className="text-sm font-medium">{config.label}</p>
                         <p className="text-xs text-muted-foreground">
-                          {countsLoading ? '...' : userCounts?.[key as TargetAudience] || 0} users
+                          {key === 'specific' ? (specificUserId ? '1 user' : 'Enter email') : (countsLoading ? '...' : `${userCounts?.[key as TargetAudience] || 0} users`)}
                         </p>
                       </button>
                     ))}
                   </div>
                 </div>
+
+                {/* Specific Email Input */}
+                {targetAudience === 'specific' && (
+                  <div className="space-y-2 pl-4 border-l-2 border-primary/20">
+                    <Label htmlFor="specificEmail">Recipient Email Address</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="specificEmail"
+                        type="email"
+                        value={specificEmail}
+                        onChange={(e) => {
+                          setSpecificEmail(e.target.value);
+                          setSpecificUserId(null);
+                        }}
+                        placeholder="customer@example.com"
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); lookupEmail(specificEmail); } }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => lookupEmail(specificEmail)}
+                        disabled={emailLookupLoading || !specificEmail.trim()}
+                      >
+                        {emailLookupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+                      </Button>
+                    </div>
+                    {specificUserId && (
+                      <p className="text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" /> User found — ready to send
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Subject */}
                 <div className="space-y-2">
