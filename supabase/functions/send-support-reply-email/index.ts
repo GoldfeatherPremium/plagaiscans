@@ -106,7 +106,7 @@ serve(async (req) => {
 
     const htmlContent = wrapEmailContent(content, "💬", "Support Reply");
 
-    // Log the email attempt
+    // Log the email attempt to transactional_email_logs
     const logId = await logEmail(supabase, {
       emailType: "support_reply",
       recipientId: ticket.user_id,
@@ -116,6 +116,21 @@ serve(async (req) => {
       status: "pending",
     });
 
+    // Also log to email_logs so it appears in admin Email Center
+    const { data: emailLogEntry } = await supabase
+      .from("email_logs")
+      .insert({
+        type: "custom",
+        subject,
+        title: "Support Reply Notification",
+        message: `Auto-sent support reply email for ticket: "${ticketSubject || ticket.subject}"`,
+        target_audience: `support:${profile.email}`,
+        recipient_count: 1,
+        status: "sending",
+      })
+      .select("id")
+      .single();
+
     // Send email
     const result = await sendEmailViaSendPulse(
       { email: profile.email, name: customerName },
@@ -123,13 +138,31 @@ serve(async (req) => {
       htmlContent
     );
 
-    // Update log
+    // Update transactional log
     if (logId) {
       const { updateEmailLog } = await import("../_shared/email-utils.ts");
       await updateEmailLog(supabase, logId, {
         status: result.success ? "sent" : "failed",
         providerResponse: result.response,
         errorMessage: result.error,
+      });
+    }
+
+    // Update email_logs entry
+    if (emailLogEntry?.id) {
+      await supabase.from("email_logs").update({
+        status: result.success ? "sent" : "failed",
+        success_count: result.success ? 1 : 0,
+        failed_count: result.success ? 0 : 1,
+        sent_at: new Date().toISOString(),
+      }).eq("id", emailLogEntry.id);
+
+      // Also log to email_send_logs for per-recipient tracking
+      await supabase.from("email_send_logs").insert({
+        email_log_id: emailLogEntry.id,
+        recipient_id: ticket.user_id,
+        status: result.success ? "sent" : "failed",
+        error_message: result.error || null,
       });
     }
 
