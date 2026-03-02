@@ -94,7 +94,9 @@ export function PeriodSelector({ value, onChange, className }: PeriodSelectorPro
 
   const handlePeriodChange = (period: PeriodType) => {
     if (period === 'custom') {
-      setIsCalendarOpen(true);
+      // Set periodType to custom immediately so the Popover renders, then open it
+      onChange({ ...value, periodType: 'custom', label: 'Select range' });
+      setTimeout(() => setIsCalendarOpen(true), 0);
       return;
     }
     onChange(getDateRangeForPeriod(period));
