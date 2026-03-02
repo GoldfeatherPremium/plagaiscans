@@ -1,43 +1,51 @@
 
 
-## USDT Manual Transfer (TRC20) Payment Method
+## Plan: Enhanced Activity Logs Page
 
-### Overview
-Add a new semi-manual "USDT Transfer" payment option on the Checkout page. The admin provides a fixed TRC20 wallet address (configured in settings). The customer sends USDT to that address, then submits the transaction hash. The admin verifies the hash manually and approves the payment, which credits the customer's account with expiry validity.
+### Current State
+- Activity Logs page shows document actions and credit transactions from `credit_transactions` table
+- Filter only has: All / Document / Credit
+- No date range filtering
+- No credit type (AI vs Similarity) distinction
+- Missing Paddle and manual payment logs
+- `credit_transactions` has a `credit_type` field (`full` = AI, `similarity_only` = Similarity)
 
-### User Flow
-1. Customer clicks "USDT Transfer" on the Checkout page
-2. A dialog opens showing the admin's fixed TRC20 wallet address (from settings) and the amount to pay
-3. Customer copies the address, sends USDT externally
-4. Customer pastes their transaction hash into the form and submits
-5. A record is created in `manual_payments` with `payment_method = 'usdt_manual'`
-6. Admin gets notified, reviews the hash, and approves/rejects from the existing Manual Payments admin page
-7. On approval, credits are added with expiry validity (existing flow in `AdminManualPayments`)
+### Changes to `src/pages/AdminActivityLogs.tsx`
+
+#### 1. Add Credit Type Sub-filter (AI / Similarity)
+- Add a second filter dropdown: "All Credits" / "AI Credits" / "Similarity Credits"
+- Store `credit_type` in the `ActivityLog` interface as metadata
+- Filter credit logs by `credit_type` field (`full` for AI, `similarity_only` for Similarity)
+
+#### 2. Add Paddle & Manual Payment Logs
+- Fetch from `paddle_payments` table (status = completed) and map to credit-type logs with source "Paddle"
+- Fetch from `manual_payments` table (status = verified) and map to credit-type logs with source "Manual"
+- These will appear as `credit` type logs with details showing the payment source
+
+#### 3. Add Date Range Filter
+- Add preset buttons: "This Week", "This Month", "Last 30 Days", "All Time"
+- Add custom date range picker (start date / end date inputs)
+- Filter all logs client-side by date range (data is already fetched)
+
+#### 4. Add Credit Summary Cards at Top
+- Replace/expand the stats section to show:
+  - **Total AI Credits Added** (sum of `amount` where `credit_type = 'full'` and `transaction_type = 'add'`) within selected date range
+  - **Total Similarity Credits Added** (sum where `credit_type = 'similarity_only'` and `transaction_type = 'add'`) within selected date range
+  - **Total Transactions** count within date range
+- These cards update dynamically based on the active date range filter
+
+#### 5. Updated Filter Options
+- Type filter becomes: All / Document / Credit / Paddle Payment / Manual Payment
+- Or keep Credit as umbrella and add sub-filters for credit source and credit type
+
+### Data Flow
+- All data fetched once on mount (current pattern preserved)
+- Date range + type + credit-type + search all applied client-side via `useMemo`
+- Credit summary stats computed from filtered data
 
 ### Technical Details
-
-**1. Admin Settings (`src/pages/AdminSettings.tsx`)**
-- Add two new settings:
-  - `payment_usdt_manual_enabled` (toggle on/off)
-  - `usdt_manual_wallet_address` (TRC20 wallet address input)
-- These are stored in the existing `settings` table
-
-**2. Checkout Page (`src/pages/Checkout.tsx`)**
-- Fetch `payment_usdt_manual_enabled` and `usdt_manual_wallet_address` from settings
-- Add a new "USDT Transfer (TRC20)" payment card (distinct from the existing NOWPayments-based USDT option)
-- Dialog shows:
-  - The fixed wallet address with copy button
-  - The exact USD amount to send
-  - A transaction hash input field (validated: 64-char hex string starting with optional `0x`)
-- On submit: insert into `manual_payments` table with `payment_method: 'usdt_manual'` and `transaction_id: <hash>`
-- Notify admins via `user_notifications`
-- Redirect to payment history
-
-**3. Admin Manual Payments Page (`src/pages/AdminManualPayments.tsx`)**
-- Update the "Method" column display to show "USDT Transfer" with a distinct icon when `payment_method === 'usdt_manual'`
-- Update the description text from "Binance Pay" to be generic ("Binance Pay, USDT Transfer, and other manual payments")
-- The existing verify/reject flow already handles credit assignment with validity -- no changes needed there beyond displaying the method name and transaction hash
-
-**4. No database changes needed**
-- The existing `manual_payments` table already has all required columns (`payment_method`, `transaction_id`, `amount_usd`, `credits`, `status`, etc.)
+- New state variables: `dateRange` (preset or custom), `startDate`, `endDate`, `creditTypeFilter`
+- Extend `ActivityLog` interface with optional `credit_type` and `source` fields
+- Paddle payments mapped with action like "Paddle Payment: +X credits" and details showing amount
+- Manual payments mapped with action like "Manual Payment: +X credits" and details showing payment method
 
