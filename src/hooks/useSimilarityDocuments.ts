@@ -136,8 +136,10 @@ export const useSimilarityDocuments = () => {
       throw new Error('Your similarity credits have expired. Please purchase new credits to continue.');
     }
 
-    // Upload file to storage
-    const filePath = `${user.id}/${Date.now()}_${file.name}`;
+    // Upload file to storage - sanitize filename to avoid invalid key errors from special characters
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    const safeExt = fileExt ? fileExt : 'bin';
+    const filePath = `${user.id}/${Date.now()}.${safeExt}`;
     const { error: uploadError } = await supabase.storage
       .from('documents')
       .upload(filePath, file);
