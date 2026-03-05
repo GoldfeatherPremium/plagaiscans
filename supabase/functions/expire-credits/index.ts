@@ -50,56 +50,32 @@ serve(async (req) => {
 
     for (const creditRecord of expiredCredits) {
       try {
-        // Reconcile remaining_credits against actual usage before expiring
-        // Sum all non-expired remaining credits for this user and credit type
-        const { data: allBatches, error: batchError } = await supabaseClient
-          .from("credit_validity")
-          .select("id, remaining_credits, credits_amount")
-          .eq("user_id", creditRecord.user_id)
-          .eq("expired", false)
-          .eq("credit_type", creditRecord.credit_type);
+        const remainingCredits = creditRecord.remaining_credits;
 
-        if (batchError) {
-          throw new Error(`Failed to fetch batches: ${batchError.message}`);
-        }
-
-        // Get user's current balance
-        const balanceField = creditRecord.credit_type === 'similarity' ? 'similarity_credit_balance' : 'credit_balance';
-        const { data: profile, error: profileError } = await supabaseClient
-          .from("profiles")
-          .select("credit_balance, similarity_credit_balance")
-          .eq("id", creditRecord.user_id)
-          .single();
-
-        if (profileError) {
-          throw new Error(`Failed to fetch profile: ${profileError.message}`);
-        }
-
-        const currentBalance = creditRecord.credit_type === 'similarity' 
-          ? (profile?.similarity_credit_balance || 0)
-          : (profile?.credit_balance || 0);
-
-        // Total remaining across all non-expired batches (including the one expiring)
-        const totalRemainingInBatches = (allBatches || []).reduce((sum, b) => sum + b.remaining_credits, 0);
-
-        // If batches claim more remaining than actual balance, they are over-counted
-        // Reconcile: this batch's true remaining = max(0, currentBalance - otherBatchesRemaining)
-        const otherBatchesRemaining = totalRemainingInBatches - creditRecord.remaining_credits;
-        const reconciledRemaining = Math.max(0, currentBalance - Math.max(0, otherBatchesRemaining));
-
-        logStep("Reconciled remaining credits", {
+        logStep("Processing expired batch", {
           userId: creditRecord.user_id,
           batchId: creditRecord.id,
-          originalRemaining: creditRecord.remaining_credits,
-          reconciledRemaining,
-          currentBalance,
-          totalRemainingInBatches,
-          otherBatchesRemaining,
+          remainingCredits,
+          creditType: creditRecord.credit_type,
         });
 
-        const remainingCredits = reconciledRemaining;
-        
         if (remainingCredits > 0) {
+          // Get user's current balance
+          const { data: profile, error: profileError } = await supabaseClient
+            .from("profiles")
+            .select("credit_balance, similarity_credit_balance")
+            .eq("id", creditRecord.user_id)
+            .single();
+
+          if (profileError) {
+            throw new Error(`Failed to fetch profile: ${profileError.message}`);
+          }
+
+          const isSimilarity = creditRecord.credit_type === 'similarity' || creditRecord.credit_type === 'similarity_only';
+          const currentBalance = isSimilarity
+            ? (profile?.similarity_credit_balance || 0)
+            : (profile?.credit_balance || 0);
+
           // Only deduct up to the remaining credits or current balance
           const creditsToDeduct = Math.min(remainingCredits, currentBalance);
           const newBalance = currentBalance - creditsToDeduct;
@@ -114,7 +90,7 @@ serve(async (req) => {
 
           if (creditsToDeduct > 0) {
             // Update user balance based on credit type
-            const updateField = creditRecord.credit_type === 'similarity' 
+            const updateField = isSimilarity
               ? { similarity_credit_balance: newBalance }
               : { credit_balance: newBalance };
             const { error: updateError } = await supabaseClient
@@ -151,7 +127,7 @@ serve(async (req) => {
           }
         }
 
-        // Mark as expired - save remaining_credits before zeroing
+        // Mark as expired
         const { error: markError } = await supabaseClient
           .from("credit_validity")
           .update({ expired: true, remaining_credits: 0, credits_expired_unused: remainingCredits })

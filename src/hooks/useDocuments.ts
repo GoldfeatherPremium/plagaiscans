@@ -283,37 +283,21 @@ export const useDocuments = () => {
         return fail('Upload failed', `Could not create document record: ${insertError?.message ?? 'Unknown error'}`, insertError);
       }
 
-      // 3) Deduct credit AFTER successful upload + insert
-      const newBalance = currentBalance - 1;
-      const { data: updateData, error: updateError } = await supabase
-        .from('profiles')
-        .update({ credit_balance: newBalance })
-        .eq('id', user.id)
-        .eq('credit_balance', currentBalance) // optimistic lock
-        .select('credit_balance')
-        .maybeSingle();
-
-      if (updateError || !updateData) {
-        // Roll back the document + storage if we couldn't deduct credits safely
-        await supabase.from('documents').delete().eq('id', docData.id);
-        await supabase.storage.from('documents').remove([filePath]);
-        return fail('Upload failed', 'Could not deduct credits (balance changed). Please try again.', updateError);
-      }
-
-      const { error: txError } = await supabase.from('credit_transactions').insert({
-        user_id: user.id,
-        amount: -1,
-        balance_before: currentBalance,
-        balance_after: newBalance,
-        transaction_type: 'deduction',
-        credit_type: 'full',
-        description: `Document upload: ${file.name}`,
-        performed_by: user.id,
+      // 3) Deduct credit atomically via server-side RPC (FIFO + transaction logging)
+      const { data: creditResultRaw, error: creditError } = await supabase.rpc('consume_user_credit', {
+        p_user_id: user.id,
+        p_credit_type: 'full',
+        p_description: `Document upload: ${file.name}`,
       });
 
-      if (txError) {
-        // Log internally but don't alarm user - upload was successful
-        console.error('Credit transaction logging failed (non-critical):', txError);
+      const creditResult = creditResultRaw as { success: boolean; error?: string } | null;
+
+      if (creditError || !creditResult?.success) {
+        // Roll back the document + storage if we couldn't deduct credits
+        await supabase.from('documents').delete().eq('id', docData.id);
+        await supabase.storage.from('documents').remove([filePath]);
+        const errMsg = creditError?.message || creditResult?.error || 'Credit deduction failed';
+        return fail('Upload failed', errMsg, creditError);
       }
 
       toast({ title: 'Success', description: 'Document uploaded successfully' });
@@ -427,37 +411,20 @@ export const useDocuments = () => {
           throw insertError ?? new Error('Failed to create document record');
         }
 
-        // 3) Deduct credit AFTER successful upload + insert
-        const newBalance = currentBalance - 1;
-        const { data: updateData, error: updateError } = await supabase
-          .from('profiles')
-          .update({ credit_balance: newBalance })
-          .eq('id', user.id)
-          .eq('credit_balance', currentBalance)
-          .select('credit_balance')
-          .maybeSingle();
-
-        if (updateError || !updateData) {
-          // Roll back this file if we couldn't deduct credits safely
-          await supabase.from('documents').delete().eq('id', docData.id);
-          await supabase.storage.from('documents').remove([filePath]);
-          throw updateError ?? new Error('Credit deduction failed');
-        }
-
-        const { error: txError } = await supabase.from('credit_transactions').insert({
-          user_id: user.id,
-          amount: -1,
-          balance_before: currentBalance,
-          balance_after: newBalance,
-          transaction_type: 'deduction',
-          credit_type: 'full',
-          description: `Document upload: ${file.name}`,
-          performed_by: user.id,
+        // 3) Deduct credit atomically via server-side RPC (FIFO + transaction logging)
+        const { data: creditResultRaw, error: creditError } = await supabase.rpc('consume_user_credit', {
+          p_user_id: user.id,
+          p_credit_type: 'full',
+          p_description: `Document upload: ${file.name}`,
         });
 
-        if (txError) {
-          // Log internally but don't alarm user - upload was successful
-          console.error('Credit transaction logging failed (non-critical):', txError);
+        const creditResult = creditResultRaw as { success: boolean; error?: string } | null;
+
+        if (creditError || !creditResult?.success) {
+          // Roll back this file if we couldn't deduct credits
+          await supabase.from('documents').delete().eq('id', docData.id);
+          await supabase.storage.from('documents').remove([filePath]);
+          throw creditError ?? new Error(creditResult?.error || 'Credit deduction failed');
         }
 
         successCount++;
