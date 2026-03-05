@@ -50,21 +50,56 @@ serve(async (req) => {
 
     for (const creditRecord of expiredCredits) {
       try {
-        const remainingCredits = creditRecord.remaining_credits;
+        // Reconcile remaining_credits against actual usage before expiring
+        // Sum all non-expired remaining credits for this user and credit type
+        const { data: allBatches, error: batchError } = await supabaseClient
+          .from("credit_validity")
+          .select("id, remaining_credits, credits_amount")
+          .eq("user_id", creditRecord.user_id)
+          .eq("expired", false)
+          .eq("credit_type", creditRecord.credit_type);
+
+        if (batchError) {
+          throw new Error(`Failed to fetch batches: ${batchError.message}`);
+        }
+
+        // Get user's current balance
+        const balanceField = creditRecord.credit_type === 'similarity' ? 'similarity_credit_balance' : 'credit_balance';
+        const { data: profile, error: profileError } = await supabaseClient
+          .from("profiles")
+          .select("credit_balance, similarity_credit_balance")
+          .eq("id", creditRecord.user_id)
+          .single();
+
+        if (profileError) {
+          throw new Error(`Failed to fetch profile: ${profileError.message}`);
+        }
+
+        const currentBalance = creditRecord.credit_type === 'similarity' 
+          ? (profile?.similarity_credit_balance || 0)
+          : (profile?.credit_balance || 0);
+
+        // Total remaining across all non-expired batches (including the one expiring)
+        const totalRemainingInBatches = (allBatches || []).reduce((sum, b) => sum + b.remaining_credits, 0);
+
+        // If batches claim more remaining than actual balance, they are over-counted
+        // Reconcile: this batch's true remaining = max(0, currentBalance - otherBatchesRemaining)
+        const otherBatchesRemaining = totalRemainingInBatches - creditRecord.remaining_credits;
+        const reconciledRemaining = Math.max(0, currentBalance - Math.max(0, otherBatchesRemaining));
+
+        logStep("Reconciled remaining credits", {
+          userId: creditRecord.user_id,
+          batchId: creditRecord.id,
+          originalRemaining: creditRecord.remaining_credits,
+          reconciledRemaining,
+          currentBalance,
+          totalRemainingInBatches,
+          otherBatchesRemaining,
+        });
+
+        const remainingCredits = reconciledRemaining;
         
         if (remainingCredits > 0) {
-          // Get user's current balance
-          const { data: profile, error: profileError } = await supabaseClient
-            .from("profiles")
-            .select("credit_balance")
-            .eq("id", creditRecord.user_id)
-            .single();
-
-          if (profileError) {
-            throw new Error(`Failed to fetch profile: ${profileError.message}`);
-          }
-
-          const currentBalance = profile?.credit_balance || 0;
           // Only deduct up to the remaining credits or current balance
           const creditsToDeduct = Math.min(remainingCredits, currentBalance);
           const newBalance = currentBalance - creditsToDeduct;
@@ -78,10 +113,13 @@ serve(async (req) => {
           });
 
           if (creditsToDeduct > 0) {
-            // Update user balance
+            // Update user balance based on credit type
+            const updateField = creditRecord.credit_type === 'similarity' 
+              ? { similarity_credit_balance: newBalance }
+              : { credit_balance: newBalance };
             const { error: updateError } = await supabaseClient
               .from("profiles")
-              .update({ credit_balance: newBalance })
+              .update(updateField)
               .eq("id", creditRecord.user_id);
 
             if (updateError) {
