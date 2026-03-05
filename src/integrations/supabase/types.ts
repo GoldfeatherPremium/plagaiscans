@@ -3113,6 +3113,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consume_user_credit: {
+        Args: {
+          p_credit_type?: string
+          p_description?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       generate_extension_token: { Args: never; Returns: string }
       generate_transaction_id: { Args: never; Returns: string }
       get_user_role: {

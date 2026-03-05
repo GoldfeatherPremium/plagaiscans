@@ -164,26 +164,21 @@ export const useSimilarityDocuments = () => {
       throw insertError;
     }
 
-    // Deduct similarity credit
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({
-        similarity_credit_balance: profile.similarity_credit_balance - 1,
-      })
-      .eq('id', user.id);
-
-    if (updateError) throw updateError;
-
-    // Log credit transaction
-    await supabase.from('credit_transactions').insert({
-      user_id: user.id,
-      amount: -1,
-      balance_before: profile.similarity_credit_balance,
-      balance_after: profile.similarity_credit_balance - 1,
-      transaction_type: 'deduction',
-      description: `Similarity check: ${file.name}`,
-      credit_type: 'similarity_only',
+    // Deduct similarity credit atomically via server-side RPC (FIFO + transaction logging)
+    const { data: creditResultRaw, error: creditError } = await supabase.rpc('consume_user_credit', {
+      p_user_id: user.id,
+      p_credit_type: 'similarity_only',
+      p_description: `Similarity check: ${file.name}`,
     });
+
+    const creditResult = creditResultRaw as { success: boolean; error?: string } | null;
+
+    if (creditError || !creditResult?.success) {
+      // Rollback: delete uploaded file and document
+      await supabase.storage.from('documents').remove([filePath]);
+      const errMsg = creditError?.message || creditResult?.error || 'Credit deduction failed';
+      throw new Error(errMsg);
+    }
 
     await refreshProfile();
     await fetchDocuments();
