@@ -500,11 +500,11 @@ export const useDocuments = () => {
         document.body.removeChild(link);
         URL.revokeObjectURL(blobUrl);
       }, 100);
-    } catch (error) {
-      console.error('Error downloading file:', error);
+    } catch (error: any) {
+      console.error('Error downloading file:', error, 'Path:', path, 'Bucket:', bucket);
       toast({
-        title: 'Error',
-        description: 'Failed to download file',
+        title: 'Download Failed',
+        description: error?.message || 'Failed to download file. The file may not exist or you may not have permission.',
         variant: 'destructive',
       });
     }
