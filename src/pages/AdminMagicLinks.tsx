@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMagicLinks, MagicUploadLink } from '@/hooks/useMagicLinks';
+import { useState as useStateAlias } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Table,
