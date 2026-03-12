@@ -47,6 +47,7 @@ import {
   Calendar,
   FileText,
   ExternalLink,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function AdminMagicLinks() {
