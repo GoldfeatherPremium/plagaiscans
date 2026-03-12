@@ -461,7 +461,15 @@ export const useDocuments = () => {
     return { success: successCount, failed: failedCount };
   };
 
-  const downloadFile = async (path: string, bucket: string = 'documents', originalFileName?: string) => {
+  const downloadFile = async (path: string | null | undefined, bucket: string = 'documents', originalFileName?: string) => {
+    if (!path) {
+      toast({
+        title: 'File Unavailable',
+        description: 'This file has been removed after the retention period and is no longer available for download.',
+        variant: 'destructive',
+      });
+      return;
+    }
     try {
       // Auto-detect bucket for guest/magic-link uploads
       const effectiveBucket = bucket === 'documents' && path.startsWith('magic/') ? 'magic-uploads' : bucket;
