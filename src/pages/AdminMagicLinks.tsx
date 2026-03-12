@@ -345,7 +345,7 @@ export default function AdminMagicLinks() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {link.status === 'active' && (
+                            {link.status === 'active' && (!link.expires_at || new Date(link.expires_at) > new Date()) ? (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -354,6 +354,57 @@ export default function AdminMagicLinks() {
                               >
                                 <Ban className="h-4 w-4" />
                               </Button>
+                            ) : (
+                              <Dialog open={reactivatingId === link.id} onOpenChange={(open) => {
+                                if (!open) {
+                                  setReactivatingId(null);
+                                  setReactivateExpiryHours(undefined);
+                                }
+                              }}>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-green-600"
+                                    onClick={() => setReactivatingId(link.id)}
+                                    title="Re-enable link"
+                                  >
+                                    <RefreshCw className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Re-enable Magic Link</DialogTitle>
+                                    <DialogDescription>
+                                      This will set the link status back to active with a new expiry date.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4 py-4">
+                                    <div className="space-y-2">
+                                      <Label htmlFor="reactivate-expiry">New Expiry (hours from now)</Label>
+                                      <Input
+                                        id="reactivate-expiry"
+                                        type="number"
+                                        min={1}
+                                        placeholder="Leave empty for 1 month"
+                                        value={reactivateExpiryHours || ''}
+                                        onChange={(e) => setReactivateExpiryHours(e.target.value ? parseInt(e.target.value) : undefined)}
+                                      />
+                                      <p className="text-xs text-muted-foreground">Default: 720 hours (1 month)</p>
+                                    </div>
+                                  </div>
+                                  <DialogFooter>
+                                    <Button variant="outline" onClick={() => setReactivatingId(null)}>Cancel</Button>
+                                    <Button onClick={async () => {
+                                      await reactivateMagicLink(link.id, reactivateExpiryHours);
+                                      setReactivatingId(null);
+                                      setReactivateExpiryHours(undefined);
+                                    }}>
+                                      Re-enable Link
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
                             )}
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
