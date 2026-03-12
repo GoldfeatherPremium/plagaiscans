@@ -147,6 +147,35 @@ export const useMagicLinks = () => {
     }
   };
 
+  const reactivateMagicLink = async (linkId: string, newExpiresInHours?: number) => {
+    try {
+      const newExpiresAt = newExpiresInHours
+        ? new Date(Date.now() + newExpiresInHours * 60 * 60 * 1000).toISOString()
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // Default 1 month
+
+      const { error } = await supabase
+        .from('magic_upload_links')
+        .update({ status: 'active', expires_at: newExpiresAt })
+        .eq('id', linkId);
+
+      if (error) throw error;
+
+      await fetchMagicLinks();
+
+      toast({
+        title: 'Success',
+        description: 'Magic link re-enabled successfully',
+      });
+    } catch (error) {
+      console.error('Error reactivating magic link:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to re-enable magic link',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const deleteMagicLink = async (linkId: string) => {
     try {
       const { error } = await supabase
@@ -617,6 +646,7 @@ export const useMagicLinks = () => {
     fetchMagicLinks,
     createMagicLink,
     disableMagicLink,
+    reactivateMagicLink,
     deleteMagicLink,
     validateMagicLink,
     validateMagicLinkForAccess,
