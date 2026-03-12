@@ -70,6 +70,8 @@ export default function AdminMagicLinks() {
   const [viewingFiles, setViewingFiles] = useState<{ link: MagicUploadLink; files: any[] } | null>(null);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null);
+  const [reactivateExpiryHours, setReactivateExpiryHours] = useState<number | undefined>(undefined);
 
   const handleCreate = async () => {
     setCreating(true);
