@@ -57,6 +57,7 @@ export default function AdminMagicLinks() {
     loading,
     createMagicLink,
     disableMagicLink,
+    reactivateMagicLink,
     deleteMagicLink,
     getMagicLinkFiles,
     deleteMagicFile,
