@@ -646,6 +646,7 @@ export const useMagicLinks = () => {
     fetchMagicLinks,
     createMagicLink,
     disableMagicLink,
+    reactivateMagicLink,
     deleteMagicLink,
     validateMagicLink,
     validateMagicLinkForAccess,
