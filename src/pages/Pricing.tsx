@@ -140,6 +140,9 @@ export default function Pricing() {
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               {t('pricing.subtitle')}
             </p>
+            <p className="text-sm text-muted-foreground mt-3">
+              {t('pricing.creditMeaning')}
+            </p>
           </div>
 
           {loading ? (
