@@ -65,6 +65,7 @@
     },
     "bestValue": "شائع",
     "validFor": "صالح لـ {{days}} يوم",
+    "creditMeaning": "1 رصيد = فحص مستند واحد",
     "getStarted": "البدء",
     "customPlan": {
       "title": "باقة مخصصة",

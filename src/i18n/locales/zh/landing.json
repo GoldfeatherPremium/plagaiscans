@@ -65,6 +65,7 @@
     },
     "bestValue": "热门",
     "validFor": "有效期 {{days}} 天",
+    "creditMeaning": "1 积分 = 1 次文档扫描",
     "getStarted": "开始",
     "customPlan": {
       "title": "自定义套餐",

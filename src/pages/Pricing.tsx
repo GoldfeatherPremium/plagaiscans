@@ -140,6 +140,9 @@ export default function Pricing() {
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               {t('pricing.subtitle')}
             </p>
+            <p className="text-sm text-muted-foreground mt-3">
+              {t('pricing.creditMeaning')}
+            </p>
           </div>
 
           {loading ? (
@@ -196,6 +199,7 @@ export default function Pricing() {
                             : `$${(pkg.price / pkg.credits).toFixed(2)} per credit`
                           }
                         </p>
+                        <p className="text-xs text-muted-foreground mt-1">{t('pricing.creditMeaning')}</p>
                         {pkg.validity_days && (
                         <Badge variant="outline" className="mt-2 bg-amber-500/10 text-amber-600 border-amber-500/20">
                             <Clock className="h-3 w-3 mr-1" />

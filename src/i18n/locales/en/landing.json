@@ -107,6 +107,7 @@
     },
     "bestValue": "Popular",
     "validFor": "Valid for {{days}} days",
+    "creditMeaning": "1 credit = 1 document scan",
     "getStarted": "Get Started",
     "customPlan": {
       "title": "Custom Plan",
