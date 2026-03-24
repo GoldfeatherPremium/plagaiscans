@@ -408,7 +408,7 @@ serve(async (req: Request) => {
         .from('reports')
         .download(report.filePath);
 
-      let analysis: ReportAnalysis = { reportType: 'unknown', percentage: null, textSnippet: '' };
+      let analysis: ReportAnalysis = { reportType: 'unknown', percentage: null, textSnippet: '', source: 'none' };
       
       if (downloadError) {
         console.error(`Failed to download PDF ${report.filePath}:`, downloadError);
