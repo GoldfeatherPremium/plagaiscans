@@ -17,6 +17,7 @@ interface ReportAnalysis {
   reportType: 'similarity' | 'ai' | 'unknown';
   percentage: number | null;
   textSnippet: string;
+  source: 'page2' | 'last_pages' | 'none';
 }
 
 interface MappingResult {
@@ -162,18 +163,19 @@ function findBestMatch(
 }
 
 /**
- * Analyze PDF page 2 to classify report type and extract percentage
+ * Analyze PDF to classify report type and extract percentage.
+ * Priority: page 2 for classification + percentage, then last 20 pages fallback for percentage.
  */
-async function analyzePdfPage2(pdfBuffer: ArrayBuffer): Promise<ReportAnalysis> {
+async function analyzePdf(pdfBuffer: ArrayBuffer): Promise<ReportAnalysis> {
   try {
     const pdf = await getDocument({ data: new Uint8Array(pdfBuffer), useSystemFonts: true }).promise;
     
-    // Only read page 2 (index 1)
     if (pdf.numPages < 2) {
       console.log('PDF has less than 2 pages, cannot analyze');
-      return { reportType: 'unknown', percentage: null, textSnippet: 'insufficient pages' };
+      return { reportType: 'unknown', percentage: null, textSnippet: 'insufficient pages', source: 'none' };
     }
     
+    // Step 1: Read page 2 for classification and percentage
     const page = await pdf.getPage(2);
     const textContent = await page.getTextContent();
     // deno-lint-ignore no-explicit-any
@@ -184,7 +186,6 @@ async function analyzePdfPage2(pdfBuffer: ArrayBuffer): Promise<ReportAnalysis> 
     
     console.log('Page 2 text excerpt:', text.substring(0, 500));
     
-    // Enhanced classification keywords
     const similarityKeywords = [
       'overall similarity', 'match groups', 'integrity overview', 'similarity index', 
       'matching text', 'turnitin similarity', 'originality', 'sources overview',
@@ -201,39 +202,14 @@ async function analyzePdfPage2(pdfBuffer: ArrayBuffer): Promise<ReportAnalysis> 
     
     let reportType: 'similarity' | 'ai' | 'unknown' = 'unknown';
     let percentage: number | null = null;
+    let source: 'page2' | 'last_pages' | 'none' = 'none';
     
+    // Classify report type from page 2
     if (isSimilarity && !isAI) {
       reportType = 'similarity';
-      // Extract similarity percentage - try multiple patterns
-      const patterns = [
-        /(\d+(?:\.\d+)?)\s*%\s*(?:overall\s+)?similarity/,
-        /similarity[:\s]+(\d+(?:\.\d+)?)\s*%/,
-        /(\d+(?:\.\d+)?)\s*%\s*match/,
-      ];
-      for (const pattern of patterns) {
-        const match = text.match(pattern);
-        if (match) {
-          percentage = parseFloat(match[1]);
-          break;
-        }
-      }
     } else if (isAI && !isSimilarity) {
       reportType = 'ai';
-      // Extract AI percentage - try multiple patterns
-      const patterns = [
-        /(\d+(?:\.\d+)?)\s*%\s*(?:detected\s+as\s+)?ai/,
-        /ai[:\s]+(\d+(?:\.\d+)?)\s*%/,
-        /(\d+(?:\.\d+)?)\s*%\s*ai(?:\s+writing)?/,
-      ];
-      for (const pattern of patterns) {
-        const match = text.match(pattern);
-        if (match) {
-          percentage = parseFloat(match[1]);
-          break;
-        }
-      }
     } else if (isSimilarity && isAI) {
-      // Both keywords found - classify based on which appears first
       const similarityIndex = Math.min(...similarityKeywords.map(kw => {
         const idx = text.indexOf(kw);
         return idx === -1 ? Infinity : idx;
@@ -242,22 +218,90 @@ async function analyzePdfPage2(pdfBuffer: ArrayBuffer): Promise<ReportAnalysis> 
         const idx = text.indexOf(kw);
         return idx === -1 ? Infinity : idx;
       }));
-      
-      if (similarityIndex < aiIndex) {
-        reportType = 'similarity';
-        const similarityMatch = text.match(/(\d+(?:\.\d+)?)\s*%\s*(?:overall\s+)?similarity/);
-        if (similarityMatch) percentage = parseFloat(similarityMatch[1]);
-      } else {
-        reportType = 'ai';
-        const aiMatch = text.match(/(\d+(?:\.\d+)?)\s*%\s*(?:detected\s+as\s+)?ai/);
-        if (aiMatch) percentage = parseFloat(aiMatch[1]);
+      reportType = similarityIndex < aiIndex ? 'similarity' : 'ai';
+    }
+
+    // Try to extract percentage from page 2
+    if (reportType === 'similarity') {
+      const patterns = [
+        /(\d+(?:\.\d+)?)\s*%\s*(?:overall\s+)?similarity/,
+        /similarity[:\s]+(\d+(?:\.\d+)?)\s*%/,
+        /(\d+(?:\.\d+)?)\s*%\s*match/,
+      ];
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) { percentage = parseFloat(match[1]); source = 'page2'; break; }
+      }
+    } else if (reportType === 'ai') {
+      const patterns = [
+        /(\d+(?:\.\d+)?)\s*%\s*(?:detected\s+as\s+)?ai/,
+        /ai[:\s]+(\d+(?:\.\d+)?)\s*%/,
+        /(\d+(?:\.\d+)?)\s*%\s*ai(?:\s+writing)?/,
+      ];
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) { percentage = parseFloat(match[1]); source = 'page2'; break; }
       }
     }
+
+    // Step 2: If no percentage found on page 2, scan last 20 pages
+    if (percentage === null && pdf.numPages > 2) {
+      const lastPageStart = Math.max(3, pdf.numPages - 19); // Skip pages 1-2, already checked
+      console.log(`No percentage on page 2. Scanning pages ${lastPageStart} to ${pdf.numPages} for fallback`);
+
+      const similarityFallbackPatterns = [
+        /(\d+(?:\.\d+)?)\s*%?\s*similarity\s*index/i,
+        /similarity\s*index\s*[:\s]*(\d+(?:\.\d+)?)\s*%/i,
+        /(\d+(?:\.\d+)?)\s*%\s*(?:overall\s+)?similarity/i,
+      ];
+      const aiFallbackPatterns = [
+        /(\d+(?:\.\d+)?)\s*%\s*(?:detected\s+as\s+)?ai/i,
+        /ai[:\s]+(\d+(?:\.\d+)?)\s*%/i,
+        /(\d+(?:\.\d+)?)\s*%\s*ai(?:\s+writing)?/i,
+      ];
+
+      const patternsToUse = reportType === 'ai' ? aiFallbackPatterns 
+        : reportType === 'similarity' ? similarityFallbackPatterns 
+        : [...similarityFallbackPatterns, ...aiFallbackPatterns];
+
+      for (let pageNum = pdf.numPages; pageNum >= lastPageStart; pageNum--) {
+        const fallbackPage = await pdf.getPage(pageNum);
+        const fallbackTextContent = await fallbackPage.getTextContent();
+        // deno-lint-ignore no-explicit-any
+        const fallbackText = (fallbackTextContent.items as any[])
+          .map((item) => item.str || '')
+          .join(' ');
+        
+        const lowerFallbackText = fallbackText.toLowerCase();
+        // Only check pages with relevant content
+        const hasRelevantContent = lowerFallbackText.includes('originality report') 
+          || lowerFallbackText.includes('similarity index')
+          || lowerFallbackText.includes('ai writing')
+          || lowerFallbackText.includes('ai detection');
+
+        if (!hasRelevantContent) continue;
+
+        for (const pattern of patternsToUse) {
+          const match = fallbackText.match(pattern);
+          if (match) {
+            percentage = parseFloat(match[1]);
+            source = 'last_pages';
+            console.log(`Found percentage on page ${pageNum} (fallback): ${percentage}%`);
+            break;
+          }
+        }
+        if (percentage !== null) break;
+      }
+    }
+
+    if (percentage === null) {
+      console.log('No percentage found in entire PDF');
+    }
     
-    return { reportType, percentage, textSnippet: text.substring(0, 200) };
+    return { reportType, percentage, textSnippet: text.substring(0, 200), source };
   } catch (error) {
     console.error('PDF analysis error:', error);
-    return { reportType: 'unknown', percentage: null, textSnippet: 'error: ' + (error as Error).message };
+    return { reportType: 'unknown', percentage: null, textSnippet: 'error: ' + (error as Error).message, source: 'none' };
   }
 }
 
@@ -364,14 +408,14 @@ serve(async (req: Request) => {
         .from('reports')
         .download(report.filePath);
 
-      let analysis: ReportAnalysis = { reportType: 'unknown', percentage: null, textSnippet: '' };
+      let analysis: ReportAnalysis = { reportType: 'unknown', percentage: null, textSnippet: '', source: 'none' };
       
       if (downloadError) {
         console.error(`Failed to download PDF ${report.filePath}:`, downloadError);
       } else {
         // Analyze PDF page 2
         const buffer = await pdfData.arrayBuffer();
-        analysis = await analyzePdfPage2(buffer);
+        analysis = await analyzePdf(buffer);
         console.log(`Analysis result for ${report.fileName}:`, analysis);
       }
 
