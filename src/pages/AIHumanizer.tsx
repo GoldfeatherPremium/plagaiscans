@@ -255,7 +255,31 @@ const AIHumanizer = () => {
           {/* Output */}
           {outputText && (
             <>
-              {/* Human Score */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-foreground">Humanized Output</h3>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={handleCopy}>
+                        <Copy className="w-4 h-4" />
+                        Copy
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleDownloadTxt}>
+                        <Download className="w-4 h-4" />
+                        .txt
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-4 whitespace-pre-wrap text-foreground text-base leading-relaxed">
+                    {highlightDiff(inputText, outputText)}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                    <mark className="bg-primary/15 rounded px-1">Highlighted words</mark> indicate humanized changes from your original text.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Human Score - Analysis of humanized output */}
               {humanScore !== null && (
                 <Card className="border-primary/30 bg-primary/5">
                   <CardContent className="p-6">
@@ -269,7 +293,7 @@ const AIHumanizer = () => {
                       <div className="flex-1 w-full">
                         <div className="flex items-center gap-2 mb-2">
                           <CheckCircle className="w-5 h-5 text-primary" />
-                          <h3 className="font-semibold text-foreground">AI Detection Analysis</h3>
+                          <h3 className="font-semibold text-foreground">Humanized Text Analysis</h3>
                         </div>
                         <Progress value={humanScore} className="h-2 mb-3" />
                         {analysis && (
@@ -310,37 +334,13 @@ const AIHumanizer = () => {
                           <p className="text-sm text-muted-foreground italic mb-2">"{analysis.overall_assessment}"</p>
                         )}
                         <p className="text-sm text-muted-foreground">
-                          This is an AI-based analysis. To know the <strong>actual AI percentage</strong> detected by Turnitin, get your content officially scanned.
+                          This analysis is based on the <strong>humanized output</strong>. To know the <strong>actual AI percentage</strong> detected by Turnitin, get your content officially scanned.
                         </p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               )}
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-foreground">Humanized Output</h3>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={handleCopy}>
-                        <Copy className="w-4 h-4" />
-                        Copy
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleDownloadTxt}>
-                        <Download className="w-4 h-4" />
-                        .txt
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="bg-muted/50 rounded-lg p-4 whitespace-pre-wrap text-foreground text-base leading-relaxed">
-                    {highlightDiff(inputText, outputText)}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                    <mark className="bg-primary/15 rounded px-1">Highlighted words</mark> indicate humanized changes from your original text.
-                  </p>
-                </CardContent>
-              </Card>
 
               {/* CTA: Get Official AI Detection */}
               <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
