@@ -344,13 +344,9 @@ export default function GuestUpload() {
         )}
 
         <Tabs defaultValue="upload" className="space-y-6">
-          <TabsList className="grid w-full max-w-lg grid-cols-4">
+          <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="upload">Upload</TabsTrigger>
             <TabsTrigger value="documents">My Documents</TabsTrigger>
-            <TabsTrigger value="humanizer" className="gap-1">
-              <Sparkles className="h-3 w-3" />
-              Humanizer
-            </TabsTrigger>
             <TabsTrigger value="pricing">Pricing</TabsTrigger>
           </TabsList>
 
@@ -777,6 +773,28 @@ export default function GuestUpload() {
               </Card>
             )}
 
+            {/* AI Humanizer CTA */}
+            <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
+              <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4">
+                <div className="flex-shrink-0 p-2.5 rounded-full bg-primary/10">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold">AI % is high? Don't worry!</h3>
+                  <p className="text-muted-foreground text-sm">Use our free AI Humanizer to reduce AI detection in your content.</p>
+                </div>
+                <a
+                  href="/ai-humanizer"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-9 rounded-md px-4 text-sm font-medium flex-shrink-0"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Try Free Humanizer
+                </a>
+              </CardContent>
+            </Card>
+
             {/* Refresh reminder */}
             <Card className="bg-muted/50">
               <CardContent className="p-4 flex items-center gap-3">
@@ -938,43 +956,6 @@ export default function GuestUpload() {
                     </div>
                   </li>
                 </ol>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Free Humanizer Tab */}
-          <TabsContent value="humanizer" className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-display font-bold flex items-center gap-2">
-                <Sparkles className="h-6 w-6 text-primary" />
-                Free AI Humanizer
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Reduce AI detection in your content — 100% free, no login required
-              </p>
-            </div>
-            <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
-              <CardContent className="p-8 text-center space-y-4">
-                <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Sparkles className="h-8 w-8 text-primary" />
-                </div>
-                <h2 className="text-xl font-bold">AI % is high? Don't worry!</h2>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                  Our free AI Humanizer tool rewrites your AI-generated content to sound natural and human-like. Reduce AI detection scores instantly — up to 1,000 words per request, unlimited uses.
-                </p>
-                <a
-                  href="/ai-humanizer"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-11 rounded-md px-8 font-medium"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Open AI Humanizer Tool
-                  <ArrowRight className="h-4 w-4" />
-                </a>
-                <p className="text-xs text-muted-foreground">
-                  Opens in a new tab · No account needed · Completely free
-                </p>
               </CardContent>
             </Card>
           </TabsContent>
