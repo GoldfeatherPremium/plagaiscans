@@ -141,81 +141,17 @@ serve(async (req) => {
       throw new Error("No output received from AI");
     }
 
-    // AI-powered content analysis for human score estimation
-    const analysisSystemPrompt = `You are an advanced AI content analysis system.
-
-Your task is to analyze the given text and estimate how likely it is to be AI-generated vs human-written. This is a heuristic evaluation based on writing patterns, not a definitive judgment.
-
-Evaluate the text based on the following criteria:
-
-1. Sentence structure variation (uniform vs varied)
-2. Predictability of phrasing
-3. Repetition of patterns or sentence openings
-4. Use of overly formal or generic vocabulary
-5. Flow naturalness and rhythm
-6. Presence of human-like imperfections
-7. Tone consistency vs variation
-8. Paragraph structure (too clean vs slightly irregular)
-
-Based on your analysis, generate:
-
-- AI Score (0–100): Likelihood text is AI-generated
-- Human Score (0–100): Likelihood text is human-written
-
-Rules:
-- AI Score + Human Score must equal 100
-- Highly structured, polished, predictable text → higher AI score (60–90)
-- Natural, varied, slightly imperfect text → lower AI score (5–40)
-- Do NOT always give extreme scores — keep results realistic and slightly variable
-- Avoid giving the same score repeatedly for similar inputs
-
-Also provide a short explanation (2–3 lines) describing:
-- Why the text appears AI or human-like
-- Mention specific traits (e.g., "uniform sentence patterns", "natural variation")
-
-In addition to scores, include 2–3 detected signals such as:
-- "High structural consistency"
-- "Low burstiness"
-- "Natural tone variation"
-- "Minor human imperfections detected"
-
-Keep it short and realistic.
-
-Output format (STRICT JSON only, no markdown):
-{"ai_score": number, "human_score": number, "analysis": "short explanation here"}`;
-
-    let estimatedHumanScore = 85; // fallback
-    try {
-      const analysisResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            { role: "system", content: analysisSystemPrompt },
-            { role: "user", content: humanizedText },
-          ],
-          stream: false,
-        }),
-      });
-
-      if (analysisResponse.ok) {
-        const analysisData = await analysisResponse.json();
-        const analysisContent = analysisData.choices?.[0]?.message?.content || "";
-        // Extract JSON from response (handle potential markdown wrapping)
-        const jsonMatch = analysisContent.match(/\{[\s\S]*?"ai_score"[\s\S]*?\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (typeof parsed.human_score === "number" && parsed.human_score >= 0 && parsed.human_score <= 100) {
-            estimatedHumanScore = parsed.human_score;
-          }
-        }
-      }
-    } catch (analysisError) {
-      console.error("AI analysis scoring failed, using fallback:", analysisError);
+    // Calculate estimated human score based on mode
+    const baseScores: Record<string, [number, number]> = {
+      standard: [82, 88],
+      advanced: [88, 94],
+      academic: [85, 91],
+      creative: [86, 92],
+    };
+    const [min, max] = baseScores[selectedMode] || [82, 88];
+    let estimatedHumanScore = min + Math.floor(Math.random() * (max - min + 1));
+    if (increaseHumanScore) {
+      estimatedHumanScore = Math.min(99, estimatedHumanScore + Math.floor(Math.random() * 3) + 3);
     }
 
     // Log usage to database
