@@ -771,7 +771,7 @@ export const useDocuments = () => {
           table: 'documents',
         },
         () => {
-          fetchDocuments();
+          fetchDocuments(true);
         }
       )
       .subscribe();
@@ -779,7 +779,7 @@ export const useDocuments = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, role]);
 
   const deleteDocument = async (documentId: string, filePath: string, similarityReportPath?: string | null, aiReportPath?: string | null) => {
     try {
