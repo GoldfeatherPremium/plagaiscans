@@ -1,33 +1,46 @@
 
 
-## Plan
+## Plan: Add Admin Push Notifications for Manual & Paddle Payments
 
-### 1. Remove the Dynamic Island refresh banner
+### Current State
+- **Manual payments** (Binance Pay, USDT): When submitted, in-app notifications are created in `user_notifications` table for admins, but **no web push notifications** are sent.
+- **Paddle payments**: The webhook already sends an admin email notification via `send-admin-payment-notification`, and creates in-app user notifications, but **no admin push notification** is sent.
 
-The `RefreshProgressBar` component renders an iPhone Dynamic Island-style floating pill that shows pull-to-refresh and route-change loading status. It will be completely removed.
+### Changes
 
-**Changes:**
-- **`src/App.tsx`**: Remove the `RefreshProgressBar` import and its usage (`<RefreshProgressBar />`)
-- **`src/components/RefreshProgressBar.tsx`**: Delete the file
-- The pull-to-refresh hook (`usePullToRefresh`) remains available if needed elsewhere but is no longer invoked
+#### 1. `src/pages/Checkout.tsx` — Add push notifications for manual payments
 
-### 2. Push notifications when app/site is closed — already working
+After the existing `user_notifications` insert for Binance Pay (line ~371) and USDT (line ~470), add a call to `send-push-notification` targeting admins:
 
-After reviewing the code, **server-side push notifications for document completion are already implemented**:
+```typescript
+await supabase.functions.invoke('send-push-notification', {
+  body: {
+    title: '🔔 New Manual Payment',
+    body: `$${amount} for ${credits} credits from ${email}. Please verify.`,
+    targetAudience: 'admins',
+    eventType: 'admin_manual_payment',
+    url: '/admin/manual-payments',
+  },
+});
+```
 
-- When a document is completed, `send-completion-email` (edge function) calls `send-push-notification` server-side (lines 300-322)
-- The service worker (`sw.js`) handles incoming push events and displays native OS notifications even when the app is closed (lines 127-171)
-- The `useDocumentCompletionNotifications` hook provides *additional* in-app toast/sound when the app is open — this is complementary, not the primary delivery mechanism
+This will be added in both the Binance Pay and USDT Manual submission handlers.
 
-**For this to work, the customer must have:**
-1. Granted notification permission in their browser
-2. An active push subscription stored in the `push_subscriptions` table
+#### 2. `supabase/functions/paddle-webhook/index.ts` — Add admin push notification
 
-**No code changes needed** for this part — the infrastructure is already in place. If customers report not receiving notifications when the app is closed, the issue would be subscription health (already monitored by `usePushSubscriptionHealth`) or browser-level notification permissions.
+After the existing `notifyAdminPayment` call (line ~309), add a push notification to admins:
 
-**For guests**: Guests don't have user accounts or push subscriptions, so web push is not applicable to them. They receive completion emails instead.
+```typescript
+await sendPushNotification(null, 'New Paddle Payment 💳',
+  `${credits} credits purchased by ${profile?.email}. Amount: $${amountTotal}`,
+  { type: 'admin_paddle_payment', url: '/admin/paddle-payments', targetAudience: 'admins' });
+```
 
----
+Since `sendPushNotification` in this file sends to a single user, we'll instead use a direct fetch call to `send-push-notification` with `targetAudience: 'admins'`.
 
-**Summary**: Only 2 files need changes — remove the import/usage from `App.tsx` and delete `RefreshProgressBar.tsx`.
+### Files Modified
+1. **`src/pages/Checkout.tsx`** — Add push notification calls in Binance Pay and USDT handlers
+2. **`supabase/functions/paddle-webhook/index.ts`** — Add admin push notification after successful payment processing
+
+### No database changes needed
 
