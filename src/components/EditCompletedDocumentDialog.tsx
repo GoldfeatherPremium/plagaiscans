@@ -137,6 +137,58 @@ export const EditCompletedDocumentDialog: React.FC<EditCompletedDocumentDialogPr
         action: `Edited document: ${changesDescription.join(', ') || 'updated remarks'}`,
       });
 
+      // Send completion notifications if status changed to completed
+      if (status === 'completed' && document.status !== 'completed') {
+        const finalSimilarity = similarityPercentage ? parseFloat(similarityPercentage) : null;
+        const finalAi = aiPercentage ? parseFloat(aiPercentage) : null;
+
+        if (document.user_id) {
+          // Registered user: send completion email + push notification
+          try {
+            await supabase.functions.invoke('send-completion-email', {
+              body: {
+                userId: document.user_id,
+                documentId: document.id,
+                fileName: document.file_name,
+                similarityPercentage: finalSimilarity,
+                aiPercentage: finalAi,
+              },
+            });
+          } catch (e) {
+            console.error('Failed to send completion email:', e);
+          }
+
+          try {
+            await supabase.functions.invoke('send-push-notification', {
+              body: {
+                title: 'Document Processed ✅',
+                body: `Your document "${document.file_name}" has been processed and is ready for review.`,
+                targetUserId: document.user_id,
+                eventType: 'document_completed',
+                url: '/dashboard/my-documents',
+              },
+            });
+          } catch (e) {
+            console.error('Failed to send push notification:', e);
+          }
+        } else if (document.magic_link_id) {
+          // Guest user: send guest completion email
+          try {
+            await supabase.functions.invoke('send-guest-completion-email', {
+              body: {
+                documentId: document.id,
+                magicLinkId: document.magic_link_id,
+                fileName: document.file_name,
+                similarityPercentage: finalSimilarity,
+                aiPercentage: finalAi,
+              },
+            });
+          } catch (e) {
+            console.error('Failed to send guest completion email:', e);
+          }
+        }
+      }
+
       toast({
         title: 'Document Updated',
         description: 'Changes saved successfully.',
