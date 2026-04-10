@@ -1,34 +1,32 @@
 
 
-## Plan: Align Similarity Queue UI with AI Scan Queue UI
+## Plan: Fix Similarity Queue & Bulk Upload
 
-### Key Differences Found
+### Issue 1: Remove Exclusions Column from Similarity Queue
 
-Comparing `DocumentQueue.tsx` (AI Scan) with `SimilarityQueue.tsx` (Similarity), these are the UI differences:
+**`src/pages/SimilarityQueue.tsx`**
+- Remove the `<TableHead>Exclusions</TableHead>` header (line 624)
+- Remove the `<TableCell>` block rendering Bib/Quotes/Small badges (lines 671-686)
 
-1. **Stats cards** — Similarity queue has 3 stats cards (Pending, In Progress, Completed Today). AI Scan queue does not.
-2. **Header icon** — Similarity queue has a Search icon before the title. AI Scan queue does not.
-3. **Bulk Upload** — AI Scan uses Tabs (Queue / Bulk Upload) for inline bulk upload. Similarity queue has a separate nav button to a different page.
-4. **Card structure** — AI Scan queue table is in a Card with no CardHeader. Similarity queue has CardHeader with title/description.
-5. **Table columns** — AI Scan combines filename + customer name in one "Document" column. Similarity has them as separate columns. Similarity also shows a "Similarity Only" badge per row.
-6. **Exclusions column** — AI Scan has an Exclusions column. Similarity does not.
+### Issue 2: Similarity Bulk Upload Not Completing Documents
 
-### Changes — `src/pages/SimilarityQueue.tsx`
+The `process-similarity-bulk-reports` edge function has several gaps compared to the working AI scan version (`process-bulk-reports`):
 
-1. **Remove stats cards** (the 3-card grid for Pending/In Progress/Completed)
-2. **Remove Search icon** from the header title
-3. **Replace the Bulk Upload nav button** with Tabs (Queue / Bulk Upload) matching AI Scan's pattern, using `<BulkUploadPanel scanType="similarity" compact />`
-4. **Remove CardHeader** from the staff/admin queue Card — just use `CardContent` with `p-0`
-5. **Merge Customer column into Document column** — show customer name as a secondary line under filename (same pattern as AI Scan)
-6. **Remove "Similarity Only" badge** from table rows
-7. **Add Exclusions column** matching AI Scan's format
-8. **Extract queue content** into a `renderQueueContent()` function for use inside Tabs
+**Root causes identified:**
+1. The document query does not filter `needs_review = false` or `deleted_at IS NULL`, so it may match deleted or flagged documents instead of the correct ones
+2. No fuzzy matching — if the filename normalization doesn't produce an exact match, the report goes to "unmatched" even when a close match exists
+3. Missing `magic_link_id` in the select query, so guest completion emails cannot be sent
+4. No `documentId` manual assignment support (from the preview dialog), so admin manual mappings are ignored
 
-### What stays the same
-- Customer view (tabs for In Progress / Completed) remains unchanged
-- All batch operations, dialogs, and logic remain unchanged
-- Edit/Cancel document dialogs remain unchanged
+**`supabase/functions/process-similarity-bulk-reports/index.ts`** — align with `process-bulk-reports`:
+
+1. Add `.eq('needs_review', false)` and `.is('deleted_at', null)` filters to the document query
+2. Add `magic_link_id` to the select fields
+3. Add fuzzy matching logic (same `findBestMatch` approach used in AI scan version) as a fallback when exact match fails
+4. Support `report.documentId` for manual assignment from the preview dialog
+5. Send guest completion email when `magic_link_id` is present (already sends for registered users)
 
 ### Files Modified
-1. **`src/pages/SimilarityQueue.tsx`** — UI restructuring only, no logic changes
+1. `src/pages/SimilarityQueue.tsx` — remove Exclusions column
+2. `supabase/functions/process-similarity-bulk-reports/index.ts` — fix matching and completion logic
 
