@@ -1215,6 +1215,36 @@ export type Database = {
           },
         ]
       }
+      humanizer_usage_logs: {
+        Row: {
+          created_at: string
+          estimated_score: number
+          id: string
+          increase_human_score: boolean
+          mode: string
+          user_id: string | null
+          word_count: number
+        }
+        Insert: {
+          created_at?: string
+          estimated_score: number
+          id?: string
+          increase_human_score?: boolean
+          mode?: string
+          user_id?: string | null
+          word_count: number
+        }
+        Update: {
+          created_at?: string
+          estimated_score?: number
+          id?: string
+          increase_human_score?: boolean
+          mode?: string
+          user_id?: string | null
+          word_count?: number
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           amount_usd: number
