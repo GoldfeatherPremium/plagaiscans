@@ -73,36 +73,57 @@ serve(async (req) => {
     // Get or create Paddle customer
     let paddleCustomerId: string | null = null;
 
-    // Search for existing customer by email
-    const customerSearchRes = await fetch(`${paddleBaseUrl}/customers?email=${encodeURIComponent(user.email)}`, {
-      headers: {
-        "Authorization": `Bearer ${paddleApiKey}`,
-        "Content-Type": "application/json",
-      },
-    });
+    // Check profile for cached paddle_customer_id
+    const { data: profileData } = await supabaseClient
+      .from("profiles")
+      .select("paddle_customer_id")
+      .eq("id", user.id)
+      .single();
 
-    const customerSearchData = await customerSearchRes.json();
-    if (customerSearchData.data?.length > 0) {
-      paddleCustomerId = customerSearchData.data[0].id;
-      logStep("Found existing Paddle customer", { paddleCustomerId });
+    if (profileData?.paddle_customer_id) {
+      paddleCustomerId = profileData.paddle_customer_id;
+      logStep("Using cached Paddle customer from profile", { paddleCustomerId });
     } else {
-      // Create new customer
-      const createCustomerRes = await fetch(`${paddleBaseUrl}/customers`, {
-        method: "POST",
+      // Search for existing customer by email
+      const customerSearchRes = await fetch(`${paddleBaseUrl}/customers?email=${encodeURIComponent(user.email)}`, {
         headers: {
           "Authorization": `Bearer ${paddleApiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          email: user.email,
-          name: user.user_metadata?.full_name || user.email,
-        }),
       });
 
-      const createCustomerData = await createCustomerRes.json();
-      if (createCustomerData.data?.id) {
-        paddleCustomerId = createCustomerData.data.id;
-        logStep("Created new Paddle customer", { paddleCustomerId });
+      const customerSearchData = await customerSearchRes.json();
+      if (customerSearchData.data?.length > 0) {
+        paddleCustomerId = customerSearchData.data[0].id;
+        logStep("Found existing Paddle customer", { paddleCustomerId });
+      } else {
+        // Create new customer
+        const createCustomerRes = await fetch(`${paddleBaseUrl}/customers`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${paddleApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: user.email,
+            name: user.user_metadata?.full_name || user.email,
+          }),
+        });
+
+        const createCustomerData = await createCustomerRes.json();
+        if (createCustomerData.data?.id) {
+          paddleCustomerId = createCustomerData.data.id;
+          logStep("Created new Paddle customer", { paddleCustomerId });
+        }
+      }
+
+      // Cache paddle_customer_id to profile for future use
+      if (paddleCustomerId) {
+        await supabaseClient
+          .from("profiles")
+          .update({ paddle_customer_id: paddleCustomerId })
+          .eq("id", user.id);
+        logStep("Cached paddle_customer_id to profile", { paddleCustomerId });
       }
     }
 
