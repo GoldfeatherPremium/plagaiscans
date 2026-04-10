@@ -1,46 +1,24 @@
 
 
-## Plan: Add Admin Push Notifications for Manual & Paddle Payments
+## Plan: Remove Tabs from Payment History — Show Unified List
 
-### Current State
-- **Manual payments** (Binance Pay, USDT): When submitted, in-app notifications are created in `user_notifications` table for admins, but **no web push notifications** are sent.
-- **Paddle payments**: The webhook already sends an admin email notification via `send-admin-payment-notification`, and creates in-app user notifications, but **no admin push notification** is sent.
+### Problem
+The Payment History page (`src/pages/PaymentHistory.tsx`) splits Paddle and Binance payments into two separate tabs. The user wants all payments shown directly in a single view without tabs.
 
 ### Changes
 
-#### 1. `src/pages/Checkout.tsx` — Add push notifications for manual payments
+**`src/pages/PaymentHistory.tsx`** — single file change:
 
-After the existing `user_notifications` insert for Binance Pay (line ~371) and USDT (line ~470), add a call to `send-push-notification` targeting admins:
+1. Remove the `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` imports and wrapper
+2. Merge both payment lists into one unified table, sorted by date (newest first)
+3. Combine Paddle and manual payments into a single array with a normalized shape (adding a `source` field like "Paddle" or "Binance")
+4. Show one table with columns: Date, Method, Credits, Amount, Status, Receipt
+5. The "Method" column shows a badge indicating Paddle or Binance
+6. Keep all existing functionality (receipt download, status badges, realtime subscriptions)
 
-```typescript
-await supabase.functions.invoke('send-push-notification', {
-  body: {
-    title: '🔔 New Manual Payment',
-    body: `$${amount} for ${credits} credits from ${email}. Please verify.`,
-    targetAudience: 'admins',
-    eventType: 'admin_manual_payment',
-    url: '/admin/manual-payments',
-  },
-});
-```
-
-This will be added in both the Binance Pay and USDT Manual submission handlers.
-
-#### 2. `supabase/functions/paddle-webhook/index.ts` — Add admin push notification
-
-After the existing `notifyAdminPayment` call (line ~309), add a push notification to admins:
-
-```typescript
-await sendPushNotification(null, 'New Paddle Payment 💳',
-  `${credits} credits purchased by ${profile?.email}. Amount: $${amountTotal}`,
-  { type: 'admin_paddle_payment', url: '/admin/paddle-payments', targetAudience: 'admins' });
-```
-
-Since `sendPushNotification` in this file sends to a single user, we'll instead use a direct fetch call to `send-push-notification` with `targetAudience: 'admins'`.
-
-### Files Modified
-1. **`src/pages/Checkout.tsx`** — Add push notification calls in Binance Pay and USDT handlers
-2. **`supabase/functions/paddle-webhook/index.ts`** — Add admin push notification after successful payment processing
-
-### No database changes needed
+### What stays the same
+- Stats cards at the top remain unchanged
+- Realtime subscriptions for both tables remain
+- Receipt download logic unchanged
+- All status badge rendering unchanged
 
