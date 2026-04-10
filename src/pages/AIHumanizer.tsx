@@ -47,6 +47,7 @@ const AIHumanizer = () => {
   const [inputText, setInputText] = useState("");
   const [outputText, setOutputText] = useState("");
   const [humanScore, setHumanScore] = useState<number | null>(null);
+  const [analysis, setAnalysis] = useState<Record<string, string> | null>(null);
   const [mode, setMode] = useState("standard");
   const [increaseHumanScore, setIncreaseHumanScore] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
