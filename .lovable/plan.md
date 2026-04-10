@@ -1,33 +1,53 @@
 
 
-## Plan: Integrate AI Humanizer Across Site & Add Post-Humanization CTA
+## Plan: Add Humanizer CTA to Dashboard + Admin Analytics Page
 
-### Changes
+### 1. **`src/pages/Dashboard.tsx`** — Add humanizer promotion banner for customers
 
-#### 1. **`src/components/Navigation.tsx`** — Add "AI Humanizer" link to public nav
-- Add `{ href: "/ai-humanizer", label: "AI Humanizer", isRoute: true }` to `navLinks` array (before Pricing)
+After the "Quick Actions" section (around line 497), add a promotional card visible only to customers:
+- Purple/gradient card with Sparkles icon
+- Title: "AI % is high? Don't worry!"
+- Subtitle: "Use our free AI Humanizer tool to reduce AI detection in your content"
+- "Try AI Humanizer" button linking to `/ai-humanizer`
 
-#### 2. **`src/pages/Landing.tsx`** — Add AI Humanizer section to landing page
-- Add a new section before the final CTA section promoting the free AI Humanizer tool with a "Try AI Humanizer" button linking to `/ai-humanizer`
+### 2. **`supabase` migration** — Create `humanizer_usage_logs` table
 
-#### 3. **`src/components/DashboardSidebar.tsx`** — Add AI Humanizer to customer sidebar
-- Add `{ to: '/ai-humanizer', icon: Sparkles, label: 'AI Humanizer' }` to `customerLinks` array (after "My Documents", before "Buy Credits")
-- Import `Sparkles` icon
+Track every humanization request:
+- `id` (uuid, PK)
+- `user_id` (uuid, nullable — null for guests)
+- `word_count` (integer)
+- `mode` (text — standard/advanced/academic/creative)
+- `increase_human_score` (boolean)
+- `estimated_score` (integer)
+- `created_at` (timestamptz)
+- RLS: insert for anyone (anon + authenticated), select only for admins via `has_role`
 
-#### 4. **`src/pages/AIHumanizer.tsx`** — Post-humanization improvements
-- Remove the "Upgrade to Premium" CTA (tool is fully free, no tiers)
-- After output is shown, display a **"Human Score" estimate** section (a visual badge showing ~85-95% estimated human score based on mode)
-- Below the score, show a strong CTA: "Want to know the **actual AI percentage** detected by Turnitin? Get your content officially checked by our AI detection service" with a button linking to `/dashboard/upload` (for logged-in users) or `/auth` (for guests)
-- Update the plagiarism checker CTA to focus on AI scan credit purchase: "Buy AI Scan credits to get your official Turnitin report"
+### 3. **`supabase/functions/humanize-text/index.ts`** — Log usage
 
-#### 5. **`supabase/functions/humanize-text/index.ts`** — Return estimated human score
-- Add an `estimatedHumanScore` field to the response (calculated based on mode: standard=82-88, advanced=88-94, academic=85-91, creative=86-92, +3-5 if increaseHumanScore is on)
-- This is a simple random range estimate to encourage users to verify with real AI detection
+After successful humanization, insert a row into `humanizer_usage_logs` with the request details (user_id from JWT if available, word count, mode, score).
 
-### Files Modified
-1. `src/components/Navigation.tsx`
-2. `src/pages/Landing.tsx`
-3. `src/components/DashboardSidebar.tsx`
-4. `src/pages/AIHumanizer.tsx`
-5. `supabase/functions/humanize-text/index.ts`
+### 4. **`src/pages/AdminHumanizerAnalytics.tsx`** — New admin page
+
+Comprehensive analytics dashboard showing:
+- **Stats cards**: Total requests, unique users, guest vs. logged-in users, total words processed
+- **Daily usage chart** (last 30 days bar chart)
+- **Mode breakdown** (pie chart — Standard/Advanced/Academic/Creative)
+- **Average human score** across all requests
+- **Recent requests table**: timestamp, user (email or "Guest"), word count, mode, score
+
+### 5. **`src/components/DashboardSidebar.tsx`** — Add admin link
+
+Add `{ to: '/dashboard/humanizer-analytics', icon: Sparkles, label: 'Humanizer Analytics' }` to the Analytics group.
+
+### 6. **`src/App.tsx`** — Add route
+
+Add lazy-loaded route for `/dashboard/humanizer-analytics`.
+
+### Files
+1. `src/pages/Dashboard.tsx` — add customer CTA card
+2. `supabase/functions/humanize-text/index.ts` — log usage to DB
+3. `src/pages/AdminHumanizerAnalytics.tsx` — new admin analytics page
+4. `src/components/DashboardSidebar.tsx` — add sidebar link
+5. `src/App.tsx` — add route
+6. DB migration — create `humanizer_usage_logs` table
 
