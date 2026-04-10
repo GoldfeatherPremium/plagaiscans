@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
@@ -8,15 +9,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Copy, Download, FileText, Sparkles, Shield, GraduationCap, Users, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Copy, Download, FileText, Sparkles, Shield, GraduationCap, Users, Loader2, ChevronDown, ChevronUp, ArrowRight, CheckCircle } from "lucide-react";
 
 const MAX_WORDS = 1000;
 
 const AIHumanizer = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [inputText, setInputText] = useState("");
   const [outputText, setOutputText] = useState("");
+  const [humanScore, setHumanScore] = useState<number | null>(null);
   const [mode, setMode] = useState("standard");
   const [increaseHumanScore, setIncreaseHumanScore] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -37,6 +43,7 @@ const AIHumanizer = () => {
 
     setIsProcessing(true);
     setOutputText("");
+    setHumanScore(null);
 
     try {
       const { data, error } = await supabase.functions.invoke("humanize-text", {
@@ -55,6 +62,7 @@ const AIHumanizer = () => {
       }
 
       setOutputText(data.humanizedText || "");
+      setHumanScore(data.estimatedHumanScore || null);
       toast.success("Text humanized successfully!");
     } catch (err) {
       toast.error("Failed to humanize text. Please try again.");
@@ -219,49 +227,92 @@ const AIHumanizer = () => {
 
           {/* Output */}
           {outputText && (
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-foreground">Humanized Output</h3>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={handleCopy}>
-                      <Copy className="w-4 h-4" />
-                      Copy
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleDownloadTxt}>
-                      <Download className="w-4 h-4" />
-                      .txt
-                    </Button>
+            <>
+              {/* Human Score */}
+              {humanScore !== null && (
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardContent className="p-6">
+                    <div className="flex flex-col sm:flex-row items-center gap-6">
+                      <div className="flex-shrink-0 text-center">
+                        <div className="w-20 h-20 rounded-full border-4 border-primary flex items-center justify-center bg-background">
+                          <span className="text-2xl font-bold text-primary">{humanScore}%</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Estimated Human Score</p>
+                      </div>
+                      <div className="flex-1 w-full">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="w-5 h-5 text-primary" />
+                          <h3 className="font-semibold text-foreground">Humanization Complete</h3>
+                        </div>
+                        <Progress value={humanScore} className="h-2 mb-3" />
+                        <p className="text-sm text-muted-foreground">
+                          This is an estimated score. To know the <strong>actual AI percentage</strong> detected by Turnitin, get your content officially scanned by our AI detection service.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-foreground">Humanized Output</h3>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={handleCopy}>
+                        <Copy className="w-4 h-4" />
+                        Copy
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleDownloadTxt}>
+                        <Download className="w-4 h-4" />
+                        .txt
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-4 whitespace-pre-wrap text-foreground text-base leading-relaxed">
-                  {outputText}
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="bg-muted/50 rounded-lg p-4 whitespace-pre-wrap text-foreground text-base leading-relaxed">
+                    {outputText}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* CTA: Get Official AI Detection */}
+              <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
+                <CardContent className="p-6 text-center">
+                  <Shield className="w-10 h-10 text-primary mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-foreground mb-2">
+                    Want to Know the Actual AI Percentage?
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4 max-w-lg mx-auto">
+                    Get your content officially checked with Turnitin's AI detection. Know your exact AI score before submitting your work.
+                  </p>
+                  <Button
+                    size="lg"
+                    className="gap-2"
+                    onClick={() => navigate(user ? '/dashboard/upload' : '/auth')}
+                  >
+                    Get Official AI Detection Report
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    Starting from just 1 credit per scan · Instant results
+                  </p>
+                </CardContent>
+              </Card>
+            </>
           )}
 
-          {/* Upgrade CTA */}
-          <div className="text-center py-4">
-            <p className="text-sm text-muted-foreground mb-2">
-              Need more than {MAX_WORDS} words? Upgrade to Premium on Plagaiscans
-            </p>
-            <a href="/pricing">
-              <Button variant="outline">View Premium Plans</Button>
-            </a>
-          </div>
-
-          {/* Check plagiarism CTA */}
+          {/* Check plagiarism CTA (always visible) */}
           <Card className="bg-primary/5 border-primary/20">
             <CardContent className="p-6 text-center">
               <FileText className="w-8 h-8 text-primary mx-auto mb-3" />
-              <h3 className="font-semibold text-foreground mb-2">Check Your Content for Plagiarism</h3>
+              <h3 className="font-semibold text-foreground mb-2">Check Your Content with AI Detection</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                After humanizing, verify your content's originality with our plagiarism checker.
+                Buy AI Scan credits to get your official Turnitin AI detection report and know your exact score.
               </p>
-              <a href="/plagiarism-checker">
-                <Button>Check Plagiarism with Plagaiscans</Button>
-              </a>
+              <Button variant="outline" onClick={() => navigate(user ? '/dashboard/credits' : '/auth')}>
+                Buy AI Scan Credits
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
             </CardContent>
           </Card>
         </div>
