@@ -1,34 +1,51 @@
 
 
-## Plan: Honor Paddle Quantity Changes in Credit Allocation
+## Fix: Deleted Documents Reappearing for Customers
 
-### Problem
-When a customer buys the "1 Credit Pack" via Paddle and changes the quantity to 5 in the checkout UI, they pay for 5 but only receive 1 credit. This happens because:
+### Root Cause
 
-1. **Checkout function** (`create-paddle-checkout`) hardcodes `quantity: 1` and stores `credits: "1"` in `custom_data`
-2. **Webhook** (`paddle-webhook`) reads credits from `custom_data.credits` (always "1") and ignores the actual quantity purchased
+In `src/hooks/useDocuments.ts`, the realtime subscription (line 760-782) captures a stale reference to `fetchDocuments`. The subscription effect depends only on `[user]`, but `fetchDocuments` uses `role` from closure scope. When the realtime event fires, it may call `fetchDocuments` with a stale or undefined `role`, causing the `deleted_by_user` filter (line 87-88) to be skipped — since the filter only applies when `role === 'customer'`.
 
-### Fix (2 files)
+Additionally, even when `role` is correct, the filter is only applied for customers. A more robust fix is to **always** filter out `deleted_by_user = true` documents for customers, regardless of how `fetchDocuments` is invoked.
 
-#### 1. `supabase/functions/paddle-webhook/index.ts`
-In the `transaction.completed` handler (~line 159-161), after extracting `custom_data`, also read the actual quantity from the Paddle transaction items and multiply:
+### Fix (1 file)
 
+**`src/hooks/useDocuments.ts`** — Two changes:
+
+1. **Always filter out soft-deleted documents for customers**: Move the `deleted_by_user` filter to apply unconditionally for customer role, and also apply it as a safety net even if role is ambiguous by checking if the user has no staff/admin role.
+
+2. **Fix stale closure in realtime subscription**: Add `role` to the realtime effect's dependency array so the subscription re-creates with current `fetchDocuments` when role changes. Alternatively, use a ref to always call the latest `fetchDocuments`.
+
+```typescript
+// Line 760-782: Add role to deps
+useEffect(() => {
+  if (!user) return;
+
+  const channel = supabase
+    .channel('documents-changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'documents',
+      },
+      () => {
+        fetchDocuments(true); // background fetch to avoid loading flash
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [user, role]); // Add role to dependencies
 ```
-const itemQuantity = eventData?.items?.[0]?.quantity || 1;
-const baseCredits = parseInt(customData.credits || "0", 10);
-const credits = baseCredits * itemQuantity;
-```
 
-This way, if `custom_data.credits` = "1" but the customer purchased quantity 5, `credits` becomes 5. All downstream logic (balance update, credit_validity, invoices, receipts, notifications) already uses the `credits` variable, so they'll automatically reflect the correct amount.
+And change the realtime handler to call `fetchDocuments(true)` (background mode) to prevent UI flicker.
 
-#### 2. `supabase/functions/create-paddle-checkout/index.ts`  
-No changes needed to the checkout creation — Paddle naturally allows quantity changes on its checkout UI. The fix is entirely in the webhook.
-
-### What stays the same
-- Idempotency checks, credit validity creation, invoice/receipt generation, notifications — all already use the `credits` variable, so they'll automatically pick up the corrected value.
-- No database migration needed.
-- No frontend changes needed.
-
-### Testing
-After deployment, test by selecting the 1-credit Paddle package, changing quantity to 2+ in checkout, completing payment, and verifying the correct number of credits appears in the account.
+### What this fixes
+- Documents soft-deleted by customers will stay hidden even when realtime events fire
+- No more stale closure causing the filter to be bypassed
+- Background fetch prevents loading spinner flash on every realtime event
 
