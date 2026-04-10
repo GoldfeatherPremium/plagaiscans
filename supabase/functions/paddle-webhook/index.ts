@@ -317,6 +317,28 @@ serve(async (req) => {
             currency: paddleCurrency,
           });
 
+          // Send push notification to admins
+          try {
+            const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+            const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+            await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({
+                title: "New Paddle Payment 💳",
+                body: `${credits} credits purchased by ${profile?.email || "unknown"}. Amount: $${amountTotal}`,
+                targetAudience: "admins",
+                eventType: "admin_paddle_payment",
+                url: "/admin/paddle-payments",
+              }),
+            });
+          } catch (pushErr) {
+            logStep("Error sending admin push notification", { error: pushErr });
+          }
+
           // Credit validity
           try {
             const { data: packageData } = await supabaseAdmin
