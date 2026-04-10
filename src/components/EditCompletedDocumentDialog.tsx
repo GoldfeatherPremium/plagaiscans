@@ -143,7 +143,17 @@ export const EditCompletedDocumentDialog: React.FC<EditCompletedDocumentDialogPr
         const finalAi = aiPercentage ? parseFloat(aiPercentage) : null;
 
         if (document.user_id) {
-          // Registered user: send completion email + push notification
+          // Registered user: in-app notification + completion email + push notification
+          try {
+            await supabase.from('user_notifications').insert({
+              user_id: document.user_id,
+              title: 'Document Completed',
+              message: `Your document "${document.file_name}" has been processed. Similarity: ${finalSimilarity ?? 'N/A'}%${finalAi != null ? `, AI: ${finalAi}%` : ''}.`,
+            });
+          } catch (e) {
+            console.error('Failed to create in-app notification:', e);
+          }
+
           try {
             await supabase.functions.invoke('send-completion-email', {
               body: {
