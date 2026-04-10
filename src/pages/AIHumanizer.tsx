@@ -196,9 +196,9 @@ const AIHumanizer = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="academic">Academic (Formal)</SelectItem>
                   <SelectItem value="standard">Standard (Balanced)</SelectItem>
                   <SelectItem value="advanced">Advanced (Stronger)</SelectItem>
-                  <SelectItem value="academic">Academic (Formal)</SelectItem>
                   <SelectItem value="creative">Creative (Engaging)</SelectItem>
                 </SelectContent>
               </Select>
