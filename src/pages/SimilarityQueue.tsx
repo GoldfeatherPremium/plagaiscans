@@ -654,7 +654,7 @@ const SimilarityQueue: React.FC = () => {
                                   {doc.file_name}
                                 </span>
                                 <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={doc.profile?.email}>
-                                  {doc.profile?.full_name || doc.profile?.email || (doc.magic_link_id ? 'Guest' : '-')}
+                                  {doc.profile?.full_name || doc.profile?.email || '-'}
                                 </span>
                               </div>
                             </div>
@@ -1020,7 +1020,7 @@ const SimilarityQueue: React.FC = () => {
               </TabsContent>
               
               <TabsContent value="bulk-upload" className="mt-4">
-                <BulkUploadPanel scanType="similarity" compact />
+                <BulkUploadPanel scanType="similarity_only" compact />
               </TabsContent>
             </Tabs>
           ) : (
