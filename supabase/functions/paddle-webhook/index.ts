@@ -362,6 +362,19 @@ serve(async (req) => {
             logStep("Error creating credit validity", { error: e });
           }
 
+          // Save paddle_customer_id to profile for future checkout reuse
+          if (paddleCustomerId) {
+            try {
+              await supabaseAdmin
+                .from("profiles")
+                .update({ paddle_customer_id: paddleCustomerId })
+                .eq("id", userId);
+              logStep("Saved paddle_customer_id to profile", { userId, paddleCustomerId });
+            } catch (e) {
+              logStep("Error saving paddle_customer_id", { error: e });
+            }
+          }
+
           logStep("Credits added", { userId, credits, newBalance });
           break;
         }

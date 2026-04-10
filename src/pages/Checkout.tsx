@@ -669,6 +669,7 @@ export default function Checkout() {
         transactionId: data.transactionId,
         settings: {
           successUrl: `${window.location.origin}/dashboard/payment-success?provider=paddle`,
+          allowLogout: false,
         },
       });
     } catch (error: any) {
