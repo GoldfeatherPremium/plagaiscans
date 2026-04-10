@@ -371,6 +371,17 @@ export default function Checkout() {
         await supabase.from('user_notifications').insert(notifications);
       }
 
+      // Send push notification to admins
+      await supabase.functions.invoke('send-push-notification', {
+        body: {
+          title: '🔔 New Binance Pay Payment',
+          body: `$${totalWithDiscount} for ${packageCredits} credits from ${profile?.email || user.email}. Please verify.`,
+          targetAudience: 'admins',
+          eventType: 'admin_manual_payment',
+          url: '/admin/manual-payments',
+        },
+      });
+
       toast.success('Payment submitted! Admin will verify and credit your account.');
       setShowBinanceDialog(false);
       setBinanceOrderId('');
@@ -469,6 +480,17 @@ export default function Checkout() {
         }));
         await supabase.from('user_notifications').insert(notifications);
       }
+
+      // Send push notification to admins
+      await supabase.functions.invoke('send-push-notification', {
+        body: {
+          title: '💰 New USDT Transfer Payment',
+          body: `$${totalAmount} for ${packageCredits} credits from ${profile?.email || user.email}. Please verify.`,
+          targetAudience: 'admins',
+          eventType: 'admin_manual_payment',
+          url: '/admin/manual-payments',
+        },
+      });
 
       toast.success('Payment submitted! Admin will verify and credit your account.');
       setShowUsdtManualDialog(false);
