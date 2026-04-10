@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/compo
 import { useTranslation } from 'react-i18next';
 
 import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
-import { FileText, Download, Loader2, DownloadCloud, Package, Trash2, Pencil, ChevronDown, ChevronLeft, ChevronRight, Info, MessageSquare } from 'lucide-react';
+import { FileText, Download, Loader2, DownloadCloud, Package, Trash2, Pencil, ChevronDown, ChevronLeft, ChevronRight, Info, MessageSquare, Sparkles } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PushNotificationBanner } from '@/components/PushNotificationBanner';
 import { supabase } from '@/integrations/supabase/client';
@@ -219,6 +220,25 @@ export default function MyDocuments() {
           showStatusFilter={true}
           showScanTypeFilter={isAdmin}
         />
+
+        {/* AI Humanizer CTA - Top */}
+        <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
+          <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4">
+            <div className="flex-shrink-0 p-2.5 rounded-full bg-primary/10">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold">AI % is high? Don't worry!</h3>
+              <p className="text-muted-foreground text-sm">Use our free AI Humanizer to reduce AI detection in your content.</p>
+            </div>
+            <Button asChild size="sm" className="flex-shrink-0">
+              <Link to="/ai-humanizer">
+                <Sparkles className="h-4 w-4 mr-1" />
+                Try Free Humanizer
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         {loading ? (
           <Card className="overflow-hidden">
@@ -530,6 +550,20 @@ export default function MyDocuments() {
             </div>
           </div>
         )}
+
+        {/* AI Humanizer CTA - Bottom */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="flex flex-col sm:flex-row items-center gap-4 p-4 text-center sm:text-left">
+            <Sparkles className="h-8 w-8 text-primary flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-semibold">Reduce AI Detection for Free</h3>
+              <p className="text-sm text-muted-foreground">Humanize your AI-generated content before scanning — it's 100% free, unlimited requests.</p>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/ai-humanizer">Try AI Humanizer</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
