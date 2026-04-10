@@ -1,65 +1,34 @@
 
 
-## Diagnosis: Credit FIFO Deduction System Is Broken
+## Plan: Honor Paddle Quantity Changes in Credit Allocation
 
-### Root Cause Found
-The database has **zero** `credit_transactions` records with `transaction_type = 'deduction'` (the value used by customer uploads). There are only 42 records with `transaction_type = 'deduct'` (from admin bulk operations).
+### Problem
+When a customer buys the "1 Credit Pack" via Paddle and changes the quantity to 5 in the checkout UI, they pay for 5 but only receive 1 credit. This happens because:
 
-This means: every time a customer uploads a document, the `credit_transactions` insert **silently fails**. The upload code treats this as "non-critical" and continues. Because no `credit_transactions` row is inserted, the `trg_deduct_credit_validity` trigger **never fires**, so `remaining_credits` in `credit_validity` is **never decremented**.
+1. **Checkout function** (`create-paddle-checkout`) hardcodes `quantity: 1` and stores `credits: "1"` in `custom_data`
+2. **Webhook** (`paddle-webhook`) reads credits from `custom_data.credits` (always "1") and ignores the actual quantity purchased
 
-**Evidence for vnlingoasia@gmail.com:**
-- Profile balance: 18 credits (correct)
-- Active credit_validity batches show: 30 + 10 + 50 = 90 remaining (should be 18 total)
-- 116 documents uploaded, zero deduction transaction records
-- When batches expire, the system sees remaining_credits > 0 and incorrectly deducts from the profile balance again
+### Fix (2 files)
 
-### Fix Plan
+#### 1. `supabase/functions/paddle-webhook/index.ts`
+In the `transaction.completed` handler (~line 159-161), after extracting `custom_data`, also read the actual quantity from the Paddle transaction items and multiply:
 
-#### 1. Database Function: `consume_user_credit`
-Create a SECURITY DEFINER database function that performs the entire credit consumption atomically in a single server-side transaction:
-- Check and deduct from `profiles.credit_balance` (or `similarity_credit_balance`)
-- Insert into `credit_transactions`
-- FIFO deduct from `credit_validity.remaining_credits` (oldest expiry first)
-
-This eliminates the multi-step client-side approach that silently fails.
-
-#### 2. Update Upload Hooks
-Modify `useDocuments.ts` (AI scan uploads) and `useSimilarityDocuments.ts` (similarity uploads) to call `supabase.rpc('consume_user_credit', ...)` instead of doing 3 separate client-side operations (profile update + transaction insert + trigger).
-
-#### 3. Reconcile Existing Data
-Run a one-time migration to fix all `credit_validity.remaining_credits` values. For each user:
-- Sum actual documents uploaded (credits consumed)
-- Apply FIFO logic retroactively to update `remaining_credits` in each batch
-- Ensure sum of `remaining_credits` across active batches = profile's current balance
-
-#### 4. Simplify expire-credits Function
-Since `remaining_credits` will now be accurate, the expire-credits function can simply use `remaining_credits` directly without the complex reconciliation logic.
-
-### Technical Details
-
-**New database function signature:**
-```sql
-CREATE OR REPLACE FUNCTION public.consume_user_credit(
-  p_user_id uuid,
-  p_credit_type text DEFAULT 'full',
-  p_description text DEFAULT 'Credit used'
-) RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER
+```
+const itemQuantity = eventData?.items?.[0]?.quantity || 1;
+const baseCredits = parseInt(customData.credits || "0", 10);
+const credits = baseCredits * itemQuantity;
 ```
 
-**Upload hook change (both hooks):**
-```typescript
-// Replace 3 separate calls with one atomic RPC
-const { data, error } = await supabase.rpc('consume_user_credit', {
-  p_user_id: user.id,
-  p_credit_type: 'full',
-  p_description: `Document upload: ${file.name}`
-});
-```
+This way, if `custom_data.credits` = "1" but the customer purchased quantity 5, `credits` becomes 5. All downstream logic (balance update, credit_validity, invoices, receipts, notifications) already uses the `credits` variable, so they'll automatically reflect the correct amount.
 
-**Files to modify:**
-- New migration: create `consume_user_credit` function + reconcile existing data
-- `src/hooks/useDocuments.ts` - replace manual balance deduction with RPC call
-- `src/hooks/useSimilarityDocuments.ts` - replace manual balance deduction with RPC call
-- `supabase/functions/expire-credits/index.ts` - simplify to trust remaining_credits directly
+#### 2. `supabase/functions/create-paddle-checkout/index.ts`  
+No changes needed to the checkout creation — Paddle naturally allows quantity changes on its checkout UI. The fix is entirely in the webhook.
+
+### What stays the same
+- Idempotency checks, credit validity creation, invoice/receipt generation, notifications — all already use the `credits` variable, so they'll automatically pick up the corrected value.
+- No database migration needed.
+- No frontend changes needed.
+
+### Testing
+After deployment, test by selecting the 1-credit Paddle package, changing quantity to 2+ in checkout, completing payment, and verifying the correct number of credits appears in the account.
 
