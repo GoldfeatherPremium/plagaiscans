@@ -157,6 +157,26 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(result.error || "Failed to send email");
     }
 
+    // Send push notification for payment verification
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          title: '✅ Payment Verified!',
+          body: `${credits} credits have been added to your account.`,
+          userId,
+          url: '/dashboard',
+          eventType: 'payment_confirmation',
+        }),
+      });
+    } catch (e) {
+      console.error('Push notification error:', e);
+    }
+
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
