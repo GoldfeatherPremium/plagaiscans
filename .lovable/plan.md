@@ -1,27 +1,34 @@
 
 
-## Plan: Send Completion Email & Push Notification on Manual Report Upload
+## Plan: Align Similarity Queue UI with AI Scan Queue UI
 
-### Problem
-When an admin manually edits a document via the `EditCompletedDocumentDialog` (e.g., uploading reports and setting status to "completed"), the component directly updates the database without triggering the completion email or push notification. The `updateDocumentStatus` function in `useDocuments.ts` handles these notifications, but this dialog bypasses it.
+### Key Differences Found
 
-### Changes
+Comparing `DocumentQueue.tsx` (AI Scan) with `SimilarityQueue.tsx` (Similarity), these are the UI differences:
 
-**`src/components/EditCompletedDocumentDialog.tsx`** — single file change:
+1. **Stats cards** — Similarity queue has 3 stats cards (Pending, In Progress, Completed Today). AI Scan queue does not.
+2. **Header icon** — Similarity queue has a Search icon before the title. AI Scan queue does not.
+3. **Bulk Upload** — AI Scan uses Tabs (Queue / Bulk Upload) for inline bulk upload. Similarity queue has a separate nav button to a different page.
+4. **Card structure** — AI Scan queue table is in a Card with no CardHeader. Similarity queue has CardHeader with title/description.
+5. **Table columns** — AI Scan combines filename + customer name in one "Document" column. Similarity has them as separate columns. Similarity also shows a "Similarity Only" badge per row.
+6. **Exclusions column** — AI Scan has an Exclusions column. Similarity does not.
 
-After the successful document update and activity log insert (around line 138), add completion email and push notification logic when:
-1. The status is being changed TO `completed`
-2. AND the document was NOT already `completed` (i.e., `document.status !== 'completed'`)
-3. AND the document has a `user_id` (registered user, not guest)
+### Changes — `src/pages/SimilarityQueue.tsx`
 
-Add the following after the activity log insert:
-- Call `send-completion-email` edge function with `userId`, `documentId`, `fileName`, `similarityPercentage`, and `aiPercentage`
-- Call `send-push-notification` edge function with the same pattern used in `useDocuments.ts`
-- For guest documents (magic_link_id), call `send-guest-completion-email`
-- All calls wrapped in try/catch so failures don't block the save
+1. **Remove stats cards** (the 3-card grid for Pending/In Progress/Completed)
+2. **Remove Search icon** from the header title
+3. **Replace the Bulk Upload nav button** with Tabs (Queue / Bulk Upload) matching AI Scan's pattern, using `<BulkUploadPanel scanType="similarity" compact />`
+4. **Remove CardHeader** from the staff/admin queue Card — just use `CardContent` with `p-0`
+5. **Merge Customer column into Document column** — show customer name as a secondary line under filename (same pattern as AI Scan)
+6. **Remove "Similarity Only" badge** from table rows
+7. **Add Exclusions column** matching AI Scan's format
+8. **Extract queue content** into a `renderQueueContent()` function for use inside Tabs
 
 ### What stays the same
-- The existing `updateDocumentStatus` flow in `useDocuments.ts` remains unchanged
-- Bulk upload notification logic remains unchanged
-- Error handling and activity logging remain unchanged
+- Customer view (tabs for In Progress / Completed) remains unchanged
+- All batch operations, dialogs, and logic remain unchanged
+- Edit/Cancel document dialogs remain unchanged
+
+### Files Modified
+1. **`src/pages/SimilarityQueue.tsx`** — UI restructuring only, no logic changes
 
