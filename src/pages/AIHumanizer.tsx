@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Copy, Download, FileText, Sparkles, Shield, GraduationCap, Users, Loader2, ChevronDown, ChevronUp, ArrowRight, CheckCircle, X, RefreshCw } from "lucide-react";
+import { Copy, Download, FileText, Sparkles, Shield, GraduationCap, Users, Loader2, ChevronDown, ChevronUp, ArrowRight, CheckCircle, X, RefreshCw, AlertCircle } from "lucide-react";
 
 /** Simple word-level diff: highlights words in humanized text that differ from original */
 function highlightDiff(original: string, humanized: string) {
@@ -47,7 +47,7 @@ const AIHumanizer = () => {
   const [inputText, setInputText] = useState("");
   const [outputText, setOutputText] = useState("");
   const [humanScore, setHumanScore] = useState<number | null>(null);
-  const [analysis, setAnalysis] = useState<Record<string, string> | null>(null);
+  const [analysis, setAnalysis] = useState<Record<string, any> | null>(null);
   const [mode, setMode] = useState("standard");
   const [increaseHumanScore, setIncreaseHumanScore] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -335,8 +335,8 @@ const AIHumanizer = () => {
                 </CardContent>
               </Card>
 
-              {/* Human Score - Analysis of humanized output */}
-              {humanScore !== null && (
+              {/* Human Score - AI Human-Likeness Analysis */}
+              {humanScore !== null ? (
                 <Card className="border-primary/30 bg-primary/5">
                   <CardContent className="p-6">
                     <div className="flex flex-col sm:flex-row items-center gap-6">
@@ -349,54 +349,84 @@ const AIHumanizer = () => {
                       <div className="flex-1 w-full">
                         <div className="flex items-center gap-2 mb-2">
                           <CheckCircle className="w-5 h-5 text-primary" />
-                          <h3 className="font-semibold text-foreground">Humanized Text Analysis</h3>
+                          <h3 className="font-semibold text-foreground">AI Human-Likeness Analysis</h3>
                         </div>
                         <Progress value={humanScore} className="h-2 mb-3" />
+
+                        {/* Computed Metrics Grid */}
                         {analysis && (
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
-                            {analysis.perplexity && (
-                              <div className="bg-background rounded-md p-2 text-center">
-                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Perplexity</p>
-                                <p className="text-xs font-semibold text-foreground capitalize">{analysis.perplexity.replace(/_/g, ' ')}</p>
+                          <>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                              {analysis.vocabulary_richness != null && (
+                                <div className="bg-background rounded-md p-2 text-center">
+                                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Vocabulary Richness</p>
+                                  <p className="text-sm font-bold text-foreground">{(analysis.vocabulary_richness * 100).toFixed(0)}%</p>
+                                </div>
+                              )}
+                              {analysis.sentence_length_std_dev != null && (
+                                <div className="bg-background rounded-md p-2 text-center">
+                                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Sentence Variance</p>
+                                  <p className="text-sm font-bold text-foreground">{analysis.sentence_length_std_dev}</p>
+                                </div>
+                              )}
+                              {analysis.opener_diversity != null && (
+                                <div className="bg-background rounded-md p-2 text-center">
+                                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Opener Diversity</p>
+                                  <p className="text-sm font-bold text-foreground">{analysis.opener_diversity}%</p>
+                                </div>
+                              )}
+                              {analysis.transition_density != null && (
+                                <div className="bg-background rounded-md p-2 text-center">
+                                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Transition Density</p>
+                                  <p className="text-sm font-bold text-foreground">{analysis.transition_density}%</p>
+                                </div>
+                              )}
+                              {analysis.avg_sentence_length != null && (
+                                <div className="bg-background rounded-md p-2 text-center">
+                                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Avg Sentence Len</p>
+                                  <p className="text-sm font-bold text-foreground">{analysis.avg_sentence_length}w</p>
+                                </div>
+                              )}
+                              {analysis.paragraph_count != null && (
+                                <div className="bg-background rounded-md p-2 text-center">
+                                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Paragraphs</p>
+                                  <p className="text-sm font-bold text-foreground">{analysis.paragraph_count}</p>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Score breakdown */}
+                            {(analysis.heuristic_score != null || analysis.ai_judgment_score != null) && (
+                              <div className="flex gap-3 mb-3 text-xs text-muted-foreground">
+                                {analysis.heuristic_score != null && (
+                                  <span>Stats Score: <strong className="text-foreground">{analysis.heuristic_score}</strong></span>
+                                )}
+                                {analysis.ai_judgment_score != null && (
+                                  <span>AI Judge: <strong className="text-foreground">{analysis.ai_judgment_score}</strong></span>
+                                )}
                               </div>
                             )}
-                            {analysis.burstiness && (
-                              <div className="bg-background rounded-md p-2 text-center">
-                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Burstiness</p>
-                                <p className="text-xs font-semibold text-foreground capitalize">{analysis.burstiness.replace(/_/g, ' ')}</p>
-                              </div>
-                            )}
-                            {analysis.vocabulary_diversity && (
-                              <div className="bg-background rounded-md p-2 text-center">
-                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Vocabulary</p>
-                                <p className="text-xs font-semibold text-foreground capitalize">{analysis.vocabulary_diversity.replace(/_/g, ' ')}</p>
-                              </div>
-                            )}
-                            {analysis.sentence_uniformity && (
-                              <div className="bg-background rounded-md p-2 text-center">
-                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Uniformity</p>
-                                <p className="text-xs font-semibold text-foreground capitalize">{analysis.sentence_uniformity.replace(/_/g, ' ')}</p>
-                              </div>
-                            )}
-                            {analysis.structural_regularity && (
-                              <div className="bg-background rounded-md p-2 text-center">
-                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Structure</p>
-                                <p className="text-xs font-semibold text-foreground capitalize">{analysis.structural_regularity.replace(/_/g, ' ')}</p>
-                              </div>
-                            )}
-                          </div>
+                          </>
                         )}
+
                         {analysis?.overall_assessment && (
                           <p className="text-sm text-muted-foreground italic mb-2">"{analysis.overall_assessment}"</p>
                         )}
                         <p className="text-sm text-muted-foreground">
-                          This analysis is based on the <strong>humanized output</strong>. To know the <strong>actual AI percentage</strong> detected by Turnitin, get your content officially scanned.
+                          This is an <strong>AI-based estimate</strong> of the humanized output. For the <strong>actual AI percentage</strong> detected by Turnitin, get your content officially scanned.
                         </p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              )}
+              ) : outputText && !isProcessing ? (
+                <Card className="border-muted bg-muted/30">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                    <p className="text-sm text-muted-foreground">Analysis unavailable. The text was humanized successfully but the detection analysis could not be completed.</p>
+                  </CardContent>
+                </Card>
+              ) : null}
 
               {/* CTA: Get Official AI Detection */}
               <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
