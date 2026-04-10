@@ -92,7 +92,7 @@ serve(async (req) => {
   }
 
   try {
-    const { text, mode, increaseHumanScore } = await req.json();
+    const { text, mode, increaseHumanScore, iterationCount } = await req.json();
 
     if (!text || typeof text !== "string" || text.trim().length === 0) {
       return new Response(
@@ -121,6 +121,21 @@ serve(async (req) => {
 - Use more contractions and informal constructions
 - Add slight tangential thoughts that a human writer would naturally include
 - Make the writing feel more spontaneous and less polished`;
+    }
+
+    const iteration = typeof iterationCount === "number" ? iterationCount : 1;
+    if (iteration > 1) {
+      systemPrompt += `\n\nCRITICAL — ITERATIVE RE-HUMANIZATION (Pass ${iteration}):
+This text has ALREADY been humanized ${iteration - 1} time(s). It still has detectable AI patterns. You MUST:
+- Completely restructure sentences again — do NOT keep the same sentence order or structure
+- Break any remaining uniformity in paragraph length and sentence rhythm
+- Replace any lingering AI-safe vocabulary with more natural, unexpected word choices
+- Increase perplexity significantly — use more surprising, less predictable phrasing
+- Increase burstiness — mix very short fragments (2-4 words) with longer complex sentences
+- Add more natural human imperfections: slight redundancies, mild tangents, informal asides
+- Eliminate any remaining formulaic transitions or parallel structures
+- Make each paragraph feel distinctly different in tone and pacing
+- Target a HIGHER human score than the previous pass`;
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
