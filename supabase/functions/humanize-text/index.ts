@@ -30,6 +30,14 @@ Follow these detailed instructions:
 15. Allow minor unevenness in sentence structure to mimic real human writing.
 16. Do not make every paragraph perfectly balanced or symmetrical.
 17. Reduce over-explanation; keep some sentences slightly concise or implicit.
+18. Vary writing tone slightly across paragraphs (some slightly more casual, others more formal).
+19. Do not start paragraphs with predictable structured phrases.
+20. Occasionally begin directly with ideas instead of framed introductions.
+21. Allow slight inconsistency in flow to mimic real human writing.
+22. Avoid maintaining identical writing style across all paragraphs.
+23. Introduce subtle, natural shifts in voice and pacing.
+
+Before finalizing, lightly disrupt perfect structure and introduce subtle human-like irregularities without reducing clarity.
 
 Return ONLY the final rewritten text. Do not include explanations.`;
 
