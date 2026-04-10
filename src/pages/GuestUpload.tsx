@@ -773,6 +773,28 @@ export default function GuestUpload() {
               </Card>
             )}
 
+            {/* AI Humanizer CTA */}
+            <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
+              <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4">
+                <div className="flex-shrink-0 p-2.5 rounded-full bg-primary/10">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold">AI % is high? Don't worry!</h3>
+                  <p className="text-muted-foreground text-sm">Use our free AI Humanizer to reduce AI detection in your content.</p>
+                </div>
+                <a
+                  href="/ai-humanizer"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-9 rounded-md px-4 text-sm font-medium flex-shrink-0"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Try Free Humanizer
+                </a>
+              </CardContent>
+            </Card>
+
             {/* Refresh reminder */}
             <Card className="bg-muted/50">
               <CardContent className="p-4 flex items-center gap-3">
