@@ -941,6 +941,43 @@ export default function GuestUpload() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Free Humanizer Tab */}
+          <TabsContent value="humanizer" className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-display font-bold flex items-center gap-2">
+                <Sparkles className="h-6 w-6 text-primary" />
+                Free AI Humanizer
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Reduce AI detection in your content — 100% free, no login required
+              </p>
+            </div>
+            <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
+              <CardContent className="p-8 text-center space-y-4">
+                <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Sparkles className="h-8 w-8 text-primary" />
+                </div>
+                <h2 className="text-xl font-bold">AI % is high? Don't worry!</h2>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Our free AI Humanizer tool rewrites your AI-generated content to sound natural and human-like. Reduce AI detection scores instantly — up to 1,000 words per request, unlimited uses.
+                </p>
+                <a
+                  href="/ai-humanizer"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-11 rounded-md px-8 font-medium"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Open AI Humanizer Tool
+                  <ArrowRight className="h-4 w-4" />
+                </a>
+                <p className="text-xs text-muted-foreground">
+                  Opens in a new tab · No account needed · Completely free
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </main>
 
