@@ -69,6 +69,7 @@ const AIHumanizer = () => {
     setIsProcessing(true);
     setOutputText("");
     setHumanScore(null);
+    setAnalysis(null);
 
     try {
       const { data, error } = await supabase.functions.invoke("humanize-text", {
@@ -88,6 +89,7 @@ const AIHumanizer = () => {
 
       setOutputText(data.humanizedText || "");
       setHumanScore(data.estimatedHumanScore || null);
+      setAnalysis(data.analysis || null);
       toast.success("Text humanized successfully!");
     } catch (err) {
       toast.error("Failed to humanize text. Please try again.");
@@ -262,16 +264,53 @@ const AIHumanizer = () => {
                         <div className="w-20 h-20 rounded-full border-4 border-primary flex items-center justify-center bg-background">
                           <span className="text-2xl font-bold text-primary">{humanScore}%</span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">Estimated Human Score</p>
+                        <p className="text-xs text-muted-foreground mt-1">Human Score</p>
                       </div>
                       <div className="flex-1 w-full">
                         <div className="flex items-center gap-2 mb-2">
                           <CheckCircle className="w-5 h-5 text-primary" />
-                          <h3 className="font-semibold text-foreground">Humanization Complete</h3>
+                          <h3 className="font-semibold text-foreground">AI Detection Analysis</h3>
                         </div>
                         <Progress value={humanScore} className="h-2 mb-3" />
+                        {analysis && (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                            {analysis.perplexity && (
+                              <div className="bg-background rounded-md p-2 text-center">
+                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Perplexity</p>
+                                <p className="text-xs font-semibold text-foreground capitalize">{analysis.perplexity.replace(/_/g, ' ')}</p>
+                              </div>
+                            )}
+                            {analysis.burstiness && (
+                              <div className="bg-background rounded-md p-2 text-center">
+                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Burstiness</p>
+                                <p className="text-xs font-semibold text-foreground capitalize">{analysis.burstiness.replace(/_/g, ' ')}</p>
+                              </div>
+                            )}
+                            {analysis.vocabulary_diversity && (
+                              <div className="bg-background rounded-md p-2 text-center">
+                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Vocabulary</p>
+                                <p className="text-xs font-semibold text-foreground capitalize">{analysis.vocabulary_diversity.replace(/_/g, ' ')}</p>
+                              </div>
+                            )}
+                            {analysis.sentence_uniformity && (
+                              <div className="bg-background rounded-md p-2 text-center">
+                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Uniformity</p>
+                                <p className="text-xs font-semibold text-foreground capitalize">{analysis.sentence_uniformity.replace(/_/g, ' ')}</p>
+                              </div>
+                            )}
+                            {analysis.structural_regularity && (
+                              <div className="bg-background rounded-md p-2 text-center">
+                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Structure</p>
+                                <p className="text-xs font-semibold text-foreground capitalize">{analysis.structural_regularity.replace(/_/g, ' ')}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {analysis?.overall_assessment && (
+                          <p className="text-sm text-muted-foreground italic mb-2">"{analysis.overall_assessment}"</p>
+                        )}
                         <p className="text-sm text-muted-foreground">
-                          This is an estimated score. To know the <strong>actual AI percentage</strong> detected by Turnitin, get your content officially scanned by our AI detection service.
+                          This is an AI-based analysis. To know the <strong>actual AI percentage</strong> detected by Turnitin, get your content officially scanned.
                         </p>
                       </div>
                     </div>
