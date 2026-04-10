@@ -48,6 +48,8 @@ const AIHumanizer = () => {
   const [outputText, setOutputText] = useState("");
   const [humanScore, setHumanScore] = useState<number | null>(null);
   const [analysis, setAnalysis] = useState<Record<string, string> | null>(null);
+  const [beforeScore, setBeforeScore] = useState<number | null>(null);
+  const [beforeAnalysis, setBeforeAnalysis] = useState<Record<string, string> | null>(null);
   const [mode, setMode] = useState("standard");
   const [increaseHumanScore, setIncreaseHumanScore] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -70,6 +72,8 @@ const AIHumanizer = () => {
     setOutputText("");
     setHumanScore(null);
     setAnalysis(null);
+    setBeforeScore(null);
+    setBeforeAnalysis(null);
 
     try {
       const { data, error } = await supabase.functions.invoke("humanize-text", {
@@ -90,6 +94,8 @@ const AIHumanizer = () => {
       setOutputText(data.humanizedText || "");
       setHumanScore(data.estimatedHumanScore || null);
       setAnalysis(data.analysis || null);
+      setBeforeScore(data.beforeScore ?? null);
+      setBeforeAnalysis(data.beforeAnalysis || null);
       toast.success("Text humanized successfully!");
     } catch (err) {
       toast.error("Failed to humanize text. Please try again.");
