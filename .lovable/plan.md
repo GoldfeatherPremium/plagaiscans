@@ -1,32 +1,65 @@
 
 
-## Plan: Fix Similarity Queue & Bulk Upload
+## Plan: Build AI Humanizer Tool Page
 
-### Issue 1: Remove Exclusions Column from Similarity Queue
+### Overview
+Create a new public page at `/ai-humanizer` with an interactive AI-powered text humanization tool. The tool uses Lovable AI (via an edge function) to rewrite AI-generated text into natural, human-like writing.
 
-**`src/pages/SimilarityQueue.tsx`**
-- Remove the `<TableHead>Exclusions</TableHead>` header (line 624)
-- Remove the `<TableCell>` block rendering Bib/Quotes/Small badges (lines 671-686)
+### Files to Create
 
-### Issue 2: Similarity Bulk Upload Not Completing Documents
+1. **`src/pages/AIHumanizer.tsx`** — Main page component
+   - Hero section with title "Free AI Humanizer Tool" and subtitle
+   - Input textarea with word/character counter (max ~1000 words for free usage)
+   - Mode dropdown: Standard, Advanced, Academic, Creative
+   - "Increase Human Score" toggle (adds more randomness)
+   - "Humanize Now" button with loading state ("Humanizing your content...")
+   - Output section with humanized text, Copy button, Download as .txt/.docx buttons
+   - Trust badges: "AI Detection Optimized", "Academic Submission Ready", "Free Basic Usage"
+   - Marketing lines: "Used by students & professionals", "100% free basic usage"
+   - Upgrade CTA: "Need more words? Upgrade to Premium on Plagaiscans"
+   - "Check plagiarism with Plagaiscans" CTA linking to `/plagiarism-checker`
+   - FAQ section with relevant questions
+   - SEO component with proper title/meta/structured data
+   - Uses Navigation + Footer from existing components
+   - Follows existing conservative enterprise SaaS aesthetic (matching brand memory)
 
-The `process-similarity-bulk-reports` edge function has several gaps compared to the working AI scan version (`process-bulk-reports`):
+2. **`supabase/functions/humanize-text/index.ts`** — Edge function
+   - Accepts `{ text, mode, increaseHumanScore }` in request body
+   - Input validation with length check (reject > 1000 words for free tier)
+   - Calls Lovable AI Gateway (`google/gemini-2.5-flash`) with a carefully crafted system prompt per mode:
+     - Standard: balanced rewriting
+     - Advanced: strong humanization with more variation
+     - Academic: formal academic tone
+     - Creative: engaging natural storytelling
+   - System prompt instructs: rewrite sentence structures completely, vary sentence length, add natural imperfections, reduce repetitive phrasing, avoid robotic patterns, maintain meaning, add burstiness & perplexity variation
+   - "Increase Human Score" flag adds extra randomness instructions to the prompt
+   - Safety filter: refuse harmful/explicit content
+   - Basic rate limiting via IP-based tracking
+   - CORS headers included
+   - Handles 429/402 errors from AI gateway gracefully
 
-**Root causes identified:**
-1. The document query does not filter `needs_review = false` or `deleted_at IS NULL`, so it may match deleted or flagged documents instead of the correct ones
-2. No fuzzy matching — if the filename normalization doesn't produce an exact match, the report goes to "unmatched" even when a close match exists
-3. Missing `magic_link_id` in the select query, so guest completion emails cannot be sent
-4. No `documentId` manual assignment support (from the preview dialog), so admin manual mappings are ignored
+### Files to Modify
 
-**`supabase/functions/process-similarity-bulk-reports/index.ts`** — align with `process-bulk-reports`:
+3. **`src/App.tsx`**
+   - Add lazy import for `AIHumanizer`
+   - Add public route: `<Route path="/ai-humanizer" element={<PublicRoute><AIHumanizer /></PublicRoute>} />`
 
-1. Add `.eq('needs_review', false)` and `.is('deleted_at', null)` filters to the document query
-2. Add `magic_link_id` to the select fields
-3. Add fuzzy matching logic (same `findBestMatch` approach used in AI scan version) as a fallback when exact match fails
-4. Support `report.documentId` for manual assignment from the preview dialog
-5. Send guest completion email when `magic_link_id` is present (already sends for registered users)
+4. **`public/sitemap.xml`** — Add `/ai-humanizer` entry
 
-### Files Modified
-1. `src/pages/SimilarityQueue.tsx` — remove Exclusions column
-2. `supabase/functions/process-similarity-bulk-reports/index.ts` — fix matching and completion logic
+### Technical Details
+
+- **No streaming needed** — single request/response via `supabase.functions.invoke()`
+- **No login required** — guest usage allowed, no auth check
+- **Word limit enforced client-side and server-side** (1000 words)
+- **Download .txt** — simple Blob download
+- **Download .docx** — use a simple approach with Blob and proper MIME type (plain text in .docx wrapper)
+- **Copy** — `navigator.clipboard.writeText()`
+- **SEO**: Title "Free AI Humanizer Tool – Reduce AI Detection | Plagaiscans", meta description as specified
+- **Careful wording**: "optimized to reduce AI detection" instead of "bypass" claims per the reality check
+
+### Brand Compliance
+- Uses existing color scheme (primary blue, dark secondary)
+- Conservative enterprise SaaS aesthetic per brand memory
+- No trademark references (Turnitin etc.) in the UI — uses generic "AI detection tools" wording
+- Trust badges use safe language: "AI Detection Optimized" rather than "Turnitin Safe"
 
