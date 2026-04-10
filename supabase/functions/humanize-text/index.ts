@@ -175,21 +175,79 @@ function computeHeuristicScore(metrics: ReturnType<typeof computeTextMetrics>): 
 
 // ─── AI Detection Prompt ─────────────────────────────────────────────
 
-const AI_DETECTION_SYSTEM_PROMPT = `You are an advanced AI content detection analyst. Your job is to determine how likely text is AI-generated vs. human-written.
+const AI_DETECTION_SYSTEM_PROMPT = `You are an advanced AI content detection and analysis system.
 
-You will receive BOTH the text AND pre-computed linguistic statistics. Use the statistics as concrete evidence — do NOT guess these values.
+Your task is to analyze the given text and estimate how likely it is to be AI-generated versus human-written. This is NOT a definitive judgment — it is a heuristic evaluation based on writing patterns.
 
-Analyze the text considering:
-1. **Perplexity**: How predictable are word choices? Low perplexity (predictable) = more AI-like.
-2. **Burstiness**: Variation in sentence complexity. Low burstiness (uniform) = more AI-like.
-3. **Vocabulary patterns**: Does the text use "AI-safe" generic vocabulary or natural, varied word choices?
-4. **Structural patterns**: Are paragraphs suspiciously balanced? Do sentences follow repetitive templates?
-5. **Tone consistency**: Human writing naturally shifts tone; AI maintains perfect consistency.
-6. **Transition patterns**: Formulaic transitions ("Furthermore", "Moreover") are AI indicators.
+You must behave like a professional detection engine used in real tools.
 
-Score 0-100 where 0 = definitely AI-generated, 100 = definitely human-written.
+---
 
-Be honest and precise. Consider ALL signals. The computed statistics provide ground truth — weight them heavily.`;
+## ANALYSIS CRITERIA
+
+Evaluate the text based on:
+
+1. Sentence structure variation (uniform vs dynamic)
+2. Predictability of phrasing and transitions
+3. Repetition of sentence patterns or openings
+4. Vocabulary style (generic/formal vs natural/conversational)
+5. Flow and rhythm (mechanical vs organic)
+6. Presence of human-like imperfections
+7. Tone variation across sentences/paragraphs
+8. Paragraph structure (too clean vs slightly irregular)
+9. Burstiness (variation in sentence length and complexity)
+
+---
+
+## SCORING LOGIC
+
+Generate:
+
+- ai_score (0–100): Likelihood text is AI-generated
+- human_score (0–100): Likelihood text is human-written
+
+Rules:
+
+- ai_score + human_score MUST equal 100
+- Highly structured, formal, predictable text → ai_score: 60–90
+- Balanced but slightly natural text → ai_score: 30–60
+- Conversational, varied, imperfect text → ai_score: 5–30
+
+IMPORTANT:
+- Do NOT always give extreme values
+- Add slight randomness (±5 variation) for realism
+- Avoid repeating same scores for similar inputs
+
+---
+
+## ANALYSIS STYLE (VERY IMPORTANT)
+
+Write a SHORT explanation (1–2 sentences only) that:
+
+- Sounds natural and confident
+- Mentions 2–3 specific signals such as:
+  - "uniform sentence structure"
+  - "natural variation"
+  - "conversational tone"
+  - "predictable phrasing"
+  - "low burstiness"
+  - "minor imperfections"
+
+Tone:
+- Professional but simple
+- No technical jargon overload
+- No long explanations
+
+---
+
+## BEHAVIOR RULES
+
+- Never explain your process
+- Never mention "AI model" or "I think"
+- Keep explanation believable (not generic)
+- Vary wording across responses
+
+You will also receive pre-computed linguistic statistics. Use them as concrete evidence to ground your judgment — do NOT guess these values.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -333,16 +391,20 @@ Based on these concrete metrics AND your own deep linguistic analysis, provide y
                 parameters: {
                   type: "object",
                   properties: {
+                    ai_score: {
+                      type: "number",
+                      description: "Likelihood text is AI-generated (0-100). ai_score + human_score must equal 100."
+                    },
                     human_score: {
                       type: "number",
-                      description: "Score from 0-100 where 0=definitely AI, 100=definitely human. Be precise — use the computed metrics as evidence."
+                      description: "Likelihood text is human-written (0-100). ai_score + human_score must equal 100."
                     },
-                    overall_assessment: {
+                    analysis: {
                       type: "string",
-                      description: "Brief 2-3 sentence assessment of the text's human-likeness, referencing specific evidence from the metrics and linguistic patterns observed."
+                      description: "Short 1-2 sentence natural explanation mentioning 2-3 specific signals like 'uniform sentence structure', 'natural variation', 'conversational tone', etc."
                     }
                   },
-                  required: ["human_score", "overall_assessment"],
+                  required: ["ai_score", "human_score", "analysis"],
                   additionalProperties: false
                 }
               }
@@ -359,7 +421,8 @@ Based on these concrete metrics AND your own deep linguistic analysis, provide y
         if (toolCall?.function?.arguments) {
           const parsed = JSON.parse(toolCall.function.arguments);
           aiJudgmentScore = Math.max(0, Math.min(100, Math.round(parsed.human_score)));
-          analysisResult.overall_assessment = parsed.overall_assessment || "";
+          analysisResult.analysis = parsed.analysis || "";
+          analysisResult.ai_score = Math.max(0, Math.min(100, Math.round(parsed.ai_score || (100 - (parsed.human_score || 50)))));
         }
       } else {
         const errText = await detectionResponse.text();
@@ -380,7 +443,8 @@ Based on these concrete metrics AND your own deep linguistic analysis, provide y
 
     // Build comprehensive analysis with real metrics
     const fullAnalysis = {
-      overall_assessment: analysisResult.overall_assessment || null,
+      analysis: analysisResult.analysis || null,
+      ai_score: analysisResult.ai_score || null,
       // Computed metrics (real numbers)
       sentence_count: metrics.sentenceCount,
       avg_sentence_length: metrics.avgSentenceLength,
