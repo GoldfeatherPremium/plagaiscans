@@ -1,65 +1,33 @@
 
 
-## Plan: Build AI Humanizer Tool Page
+## Plan: Integrate AI Humanizer Across Site & Add Post-Humanization CTA
 
-### Overview
-Create a new public page at `/ai-humanizer` with an interactive AI-powered text humanization tool. The tool uses Lovable AI (via an edge function) to rewrite AI-generated text into natural, human-like writing.
+### Changes
 
-### Files to Create
+#### 1. **`src/components/Navigation.tsx`** — Add "AI Humanizer" link to public nav
+- Add `{ href: "/ai-humanizer", label: "AI Humanizer", isRoute: true }` to `navLinks` array (before Pricing)
 
-1. **`src/pages/AIHumanizer.tsx`** — Main page component
-   - Hero section with title "Free AI Humanizer Tool" and subtitle
-   - Input textarea with word/character counter (max ~1000 words for free usage)
-   - Mode dropdown: Standard, Advanced, Academic, Creative
-   - "Increase Human Score" toggle (adds more randomness)
-   - "Humanize Now" button with loading state ("Humanizing your content...")
-   - Output section with humanized text, Copy button, Download as .txt/.docx buttons
-   - Trust badges: "AI Detection Optimized", "Academic Submission Ready", "Free Basic Usage"
-   - Marketing lines: "Used by students & professionals", "100% free basic usage"
-   - Upgrade CTA: "Need more words? Upgrade to Premium on Plagaiscans"
-   - "Check plagiarism with Plagaiscans" CTA linking to `/plagiarism-checker`
-   - FAQ section with relevant questions
-   - SEO component with proper title/meta/structured data
-   - Uses Navigation + Footer from existing components
-   - Follows existing conservative enterprise SaaS aesthetic (matching brand memory)
+#### 2. **`src/pages/Landing.tsx`** — Add AI Humanizer section to landing page
+- Add a new section before the final CTA section promoting the free AI Humanizer tool with a "Try AI Humanizer" button linking to `/ai-humanizer`
 
-2. **`supabase/functions/humanize-text/index.ts`** — Edge function
-   - Accepts `{ text, mode, increaseHumanScore }` in request body
-   - Input validation with length check (reject > 1000 words for free tier)
-   - Calls Lovable AI Gateway (`google/gemini-2.5-flash`) with a carefully crafted system prompt per mode:
-     - Standard: balanced rewriting
-     - Advanced: strong humanization with more variation
-     - Academic: formal academic tone
-     - Creative: engaging natural storytelling
-   - System prompt instructs: rewrite sentence structures completely, vary sentence length, add natural imperfections, reduce repetitive phrasing, avoid robotic patterns, maintain meaning, add burstiness & perplexity variation
-   - "Increase Human Score" flag adds extra randomness instructions to the prompt
-   - Safety filter: refuse harmful/explicit content
-   - Basic rate limiting via IP-based tracking
-   - CORS headers included
-   - Handles 429/402 errors from AI gateway gracefully
+#### 3. **`src/components/DashboardSidebar.tsx`** — Add AI Humanizer to customer sidebar
+- Add `{ to: '/ai-humanizer', icon: Sparkles, label: 'AI Humanizer' }` to `customerLinks` array (after "My Documents", before "Buy Credits")
+- Import `Sparkles` icon
 
-### Files to Modify
+#### 4. **`src/pages/AIHumanizer.tsx`** — Post-humanization improvements
+- Remove the "Upgrade to Premium" CTA (tool is fully free, no tiers)
+- After output is shown, display a **"Human Score" estimate** section (a visual badge showing ~85-95% estimated human score based on mode)
+- Below the score, show a strong CTA: "Want to know the **actual AI percentage** detected by Turnitin? Get your content officially checked by our AI detection service" with a button linking to `/dashboard/upload` (for logged-in users) or `/auth` (for guests)
+- Update the plagiarism checker CTA to focus on AI scan credit purchase: "Buy AI Scan credits to get your official Turnitin report"
 
-3. **`src/App.tsx`**
-   - Add lazy import for `AIHumanizer`
-   - Add public route: `<Route path="/ai-humanizer" element={<PublicRoute><AIHumanizer /></PublicRoute>} />`
+#### 5. **`supabase/functions/humanize-text/index.ts`** — Return estimated human score
+- Add an `estimatedHumanScore` field to the response (calculated based on mode: standard=82-88, advanced=88-94, academic=85-91, creative=86-92, +3-5 if increaseHumanScore is on)
+- This is a simple random range estimate to encourage users to verify with real AI detection
 
-4. **`public/sitemap.xml`** — Add `/ai-humanizer` entry
-
-### Technical Details
-
-- **No streaming needed** — single request/response via `supabase.functions.invoke()`
-- **No login required** — guest usage allowed, no auth check
-- **Word limit enforced client-side and server-side** (1000 words)
-- **Download .txt** — simple Blob download
-- **Download .docx** — use a simple approach with Blob and proper MIME type (plain text in .docx wrapper)
-- **Copy** — `navigator.clipboard.writeText()`
-- **SEO**: Title "Free AI Humanizer Tool – Reduce AI Detection | Plagaiscans", meta description as specified
-- **Careful wording**: "optimized to reduce AI detection" instead of "bypass" claims per the reality check
-
-### Brand Compliance
-- Uses existing color scheme (primary blue, dark secondary)
-- Conservative enterprise SaaS aesthetic per brand memory
-- No trademark references (Turnitin etc.) in the UI — uses generic "AI detection tools" wording
-- Trust badges use safe language: "AI Detection Optimized" rather than "Turnitin Safe"
+### Files Modified
+1. `src/components/Navigation.tsx`
+2. `src/pages/Landing.tsx`
+3. `src/components/DashboardSidebar.tsx`
+4. `src/pages/AIHumanizer.tsx`
+5. `supabase/functions/humanize-text/index.ts`
 
