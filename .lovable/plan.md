@@ -1,53 +1,24 @@
 
 
-## Plan: Add Humanizer CTA to Dashboard + Admin Analytics Page
+## Plan: Upgrade Humanizer System Prompts
 
-### 1. **`src/pages/Dashboard.tsx`** — Add humanizer promotion banner for customers
+### What
+Replace all four system prompts in `supabase/functions/humanize-text/index.ts` with the user's improved guidelines, tailored per mode.
 
-After the "Quick Actions" section (around line 497), add a promotional card visible only to customers:
-- Purple/gradient card with Sparkles icon
-- Title: "AI % is high? Don't worry!"
-- Subtitle: "Use our free AI Humanizer tool to reduce AI detection in your content"
-- "Try AI Humanizer" button linking to `/ai-humanizer`
+### Changes
 
-### 2. **`supabase` migration** — Create `humanizer_usage_logs` table
+**`supabase/functions/humanize-text/index.ts`** — Replace the `systemPrompts` object (lines 10-73) with updated prompts based on the user's strict rules:
 
-Track every humanization request:
-- `id` (uuid, PK)
-- `user_id` (uuid, nullable — null for guests)
-- `word_count` (integer)
-- `mode` (text — standard/advanced/academic/creative)
-- `increase_human_score` (boolean)
-- `estimated_score` (integer)
-- `created_at` (timestamptz)
-- RLS: insert for anyone (anon + authenticated), select only for admins via `has_role`
+- **Standard mode**: Core prompt with all 10 rules verbatim — varied sentence structures, mix of short/medium/long sentences, slight human imperfections, no repetitive phrasing, natural tone, Grade 6-10 readability, meaning preservation, no AI filler, burstiness/perplexity, real person feel.
 
-### 3. **`supabase/functions/humanize-text/index.ts`** — Log usage
+- **Academic mode**: Same 10 core rules + "use formal tone, structured clarity, and precise wording."
 
-After successful humanization, insert a row into `humanizer_usage_logs` with the request details (user_id from JWT if available, word count, mode, score).
+- **Creative mode**: Same 10 core rules + "add engaging, slightly expressive language."
 
-### 4. **`src/pages/AdminHumanizerAnalytics.tsx`** — New admin page
+- **Advanced mode**: Same 10 core rules + "aggressively restructure sentences for maximum human-like variation."
 
-Comprehensive analytics dashboard showing:
-- **Stats cards**: Total requests, unique users, guest vs. logged-in users, total words processed
-- **Daily usage chart** (last 30 days bar chart)
-- **Mode breakdown** (pie chart — Standard/Advanced/Academic/Creative)
-- **Average human score** across all requests
-- **Recent requests table**: timestamp, user (email or "Guest"), word count, mode, score
+The `increaseHumanScore` additional instructions remain unchanged. No other files affected.
 
-### 5. **`src/components/DashboardSidebar.tsx`** — Add admin link
-
-Add `{ to: '/dashboard/humanizer-analytics', icon: Sparkles, label: 'Humanizer Analytics' }` to the Analytics group.
-
-### 6. **`src/App.tsx`** — Add route
-
-Add lazy-loaded route for `/dashboard/humanizer-analytics`.
-
-### Files
-1. `src/pages/Dashboard.tsx` — add customer CTA card
-2. `supabase/functions/humanize-text/index.ts` — log usage to DB
-3. `src/pages/AdminHumanizerAnalytics.tsx` — new admin analytics page
-4. `src/components/DashboardSidebar.tsx` — add sidebar link
-5. `src/App.tsx` — add route
-6. DB migration — create `humanizer_usage_logs` table
+### Files Modified
+1. `supabase/functions/humanize-text/index.ts` — system prompts only
 
