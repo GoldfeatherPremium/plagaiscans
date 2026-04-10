@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, FileText, Upload, Clock, CheckCircle, User, Loader2, Download, AlertCircle, Trash2, Lock, Unlock, CheckSquare, CheckCheck, FileStack, Pencil, Ban } from 'lucide-react';
+import { FileText, Upload, Clock, CheckCircle, Loader2, Download, AlertCircle, Trash2, Lock, Unlock, CheckSquare, CheckCheck, Pencil, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,9 +18,11 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
 import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
 import { CancelDocumentDialog } from '@/components/CancelDocumentDialog';
+import { BulkUploadPanel } from '@/components/BulkUploadPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSimilarityDocuments, SimilarityDocument } from '@/hooks/useSimilarityDocuments';
 import { useDocuments, Document } from '@/hooks/useDocuments';
+import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { SEO } from '@/components/SEO';
@@ -45,6 +47,8 @@ const SimilarityQueue: React.FC = () => {
   const { documents, loading, fetchDocuments, uploadSimilarityReport, deleteSimilarityDocument, cancelSimilarityDocument } = useSimilarityDocuments();
   const { downloadFile } = useDocuments();
   const isAdmin = role === 'admin';
+  const { permissions } = useStaffPermissions();
+  const canAccessBulkUpload = role === 'admin' || permissions.can_batch_process;
   
   // Dialog states
   const [selectedDoc, setSelectedDoc] = useState<SimilarityDocument | null>(null);
@@ -91,7 +95,6 @@ const SimilarityQueue: React.FC = () => {
     dateTo: undefined
   });
 
-  // Fetch settings
   useEffect(() => {
     const fetchSettings = async () => {
       const { data: globalData } = await supabase
@@ -119,21 +122,17 @@ const SimilarityQueue: React.FC = () => {
     fetchSettings();
   }, [user, role]);
 
-  // Update elapsed time every minute
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 60000);
     return () => clearInterval(interval);
   }, []);
 
-  // Count how many documents staff currently has in progress
   const myInProgressCount = documents.filter(
     (d) => d.assigned_staff_id === user?.id && d.status === 'in_progress'
   ).length;
 
-  // Check if staff can pick more
   const canPickMore = role === 'admin' || myInProgressCount < mySettings.max_concurrent_files;
 
-  // Filter documents based on status and role
   const availableDocs = useMemo(() => {
     const roleFiltered = documents.filter((d) => {
       if (role === 'customer') {
@@ -142,7 +141,6 @@ const SimilarityQueue: React.FC = () => {
       if (role === 'admin') {
         return d.status === 'pending' || d.status === 'in_progress';
       }
-      // Staff can see: unassigned pending docs OR their own in-progress docs
       return (
         (d.status === 'pending' && !d.assigned_staff_id) ||
         (d.assigned_staff_id === user?.id && d.status === 'in_progress')
@@ -153,7 +151,6 @@ const SimilarityQueue: React.FC = () => {
     return filtered.sort((a, b) => new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime());
   }, [documents, role, user?.id, filters]);
   
-  // Completed documents for customers
   const completedDocuments = useMemo(() => {
     if (role !== 'customer') return [];
     const completed = documents.filter((doc) => doc.status === 'completed');
@@ -191,7 +188,6 @@ const SimilarityQueue: React.FC = () => {
         action: 'assigned_similarity',
       });
 
-      // Auto-download the file
       const doc = documents.find(d => d.id === docId);
       if (doc) {
         handleDownloadOriginal(doc.file_path, doc.file_name);
@@ -243,7 +239,6 @@ const SimilarityQueue: React.FC = () => {
       const response = await fetch(data.signedUrl);
       const blob = await response.blob();
       
-      // Use the original report filename from the path
       const reportFileName = reportPath.split('/').pop() || `Similarity_Report_${originalFileName.replace(/\.[^/.]+$/, '')}.pdf`;
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -329,7 +324,6 @@ const SimilarityQueue: React.FC = () => {
     }
   };
 
-  // Batch operations
   const toggleDocSelection = (docId: string) => {
     setSelectedDocIds(prev => {
       const newSet = new Set(prev);
@@ -478,7 +472,6 @@ const SimilarityQueue: React.FC = () => {
     }
   };
 
-  // Process All - Admin only
   const handleProcessAllConfirm = async () => {
     if (role !== 'admin') return;
     
@@ -517,7 +510,11 @@ const SimilarityQueue: React.FC = () => {
   };
 
   const formatDateTime = (dateString: string) => {
-    return format(new Date(dateString), 'MMM d, yyyy HH:mm');
+    const date = new Date(dateString);
+    return {
+      date: date.toLocaleDateString(),
+      time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
   };
 
   const getElapsedTime = (assignedAt: string | null) => {
@@ -546,6 +543,262 @@ const SimilarityQueue: React.FC = () => {
     );
   }
 
+  const renderQueueContent = () => (
+    <>
+      {/* Search Filters */}
+      <DocumentSearchFilters 
+        filters={filters} 
+        onFiltersChange={setFilters}
+        showStatusFilter={role === 'admin'}
+      />
+
+      {availableDocs.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">No pending documents</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Batch Action Buttons */}
+          {selectedDocIds.size > 0 && (
+            <div className="flex items-center gap-2 flex-wrap bg-muted/50 p-3 rounded-lg">
+              <span className="text-sm font-medium">{selectedDocIds.size} selected</span>
+              <Button size="sm" variant="outline" onClick={clearSelection}>
+                Clear
+              </Button>
+              <Button size="sm" onClick={handleBatchPick}>
+                <CheckSquare className="h-4 w-4 mr-1" />
+                Batch Pick
+              </Button>
+              <Button size="sm" variant="secondary" onClick={handleBatchDownload}>
+                <Download className="h-4 w-4 mr-1" />
+                Batch Download
+              </Button>
+              <Button size="sm" variant="default" onClick={handleOpenBatchUpload}>
+                <Upload className="h-4 w-4 mr-1" />
+                Batch Upload Reports
+              </Button>
+            </div>
+          )}
+          
+          {/* Quick Select Buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-muted-foreground">Quick Select:</span>
+            <Button size="sm" variant="ghost" onClick={selectAllPending}>
+              All Pending
+            </Button>
+            <Button size="sm" variant="ghost" onClick={selectAllMyInProgress}>
+              My In-Progress
+            </Button>
+            {selectedDocIds.size > 0 && (
+              <Button size="sm" variant="ghost" onClick={clearSelection}>
+                Clear All
+              </Button>
+            )}
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10 text-center">
+                        <Checkbox 
+                          checked={selectedDocIds.size === availableDocs.length && availableDocs.length > 0}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedDocIds(new Set(availableDocs.map(d => d.id)));
+                            } else {
+                              setSelectedDocIds(new Set());
+                            }
+                          }}
+                        />
+                      </TableHead>
+                      <TableHead className="w-12 text-center">#</TableHead>
+                      <TableHead>Document</TableHead>
+                      <TableHead>Upload Time</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-center">Exclusions</TableHead>
+                      <TableHead className="text-center">Processing By</TableHead>
+                      <TableHead className="text-center">Time Elapsed</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {availableDocs.map((doc, index) => {
+                      const isAssignedToMe = doc.assigned_staff_id === user?.id;
+                      const { date, time } = formatDateTime(doc.uploaded_at);
+                      const elapsedInfo = getElapsedTime(doc.assigned_staff_id ? doc.uploaded_at : null);
+                      const overdue = isOverdue(doc.assigned_staff_id ? doc.uploaded_at : null);
+                      const isSelected = selectedDocIds.has(doc.id);
+
+                      return (
+                        <TableRow key={doc.id} className={`${isSelected ? 'bg-primary/10' : ''} ${isAssignedToMe ? 'bg-primary/5' : ''} ${overdue ? 'bg-destructive/5' : ''}`}>
+                          <TableCell className="text-center">
+                            <Checkbox 
+                              checked={isSelected}
+                              onCheckedChange={() => toggleDocSelection(doc.id)}
+                            />
+                          </TableCell>
+                          <TableCell className="text-center font-medium">
+                            {index + 1}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                              <div className="flex flex-col">
+                                <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
+                                  {doc.file_name}
+                                </span>
+                                <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={doc.profile?.email}>
+                                  {doc.profile?.full_name || doc.profile?.email || (doc.magic_link_id ? 'Guest' : '-')}
+                                </span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <div>{date}</div>
+                              <div className="text-muted-foreground">{time}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <StatusBadge status={doc.status} />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-2 text-xs">
+                              {doc.exclude_bibliography && (
+                                <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title="Exclude bibliography">Bib</span>
+                              )}
+                              {doc.exclude_quotes && (
+                                <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title="Exclude quotes">Quotes</span>
+                              )}
+                              {doc.exclude_small_sources && (
+                                <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title="Exclude small sources">Small</span>
+                              )}
+                              {!doc.exclude_bibliography && !doc.exclude_quotes && !doc.exclude_small_sources && (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {isAssignedToMe ? (
+                              <span className="text-xs text-primary font-medium">You</span>
+                            ) : doc.staff_profile ? (
+                              <span className="text-xs text-muted-foreground" title={doc.staff_profile.email}>
+                                {doc.staff_profile.full_name || doc.staff_profile.email}
+                              </span>
+                            ) : doc.assigned_staff_id ? (
+                              <span className="text-xs text-muted-foreground">Staff</span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {doc.status === 'in_progress' && elapsedInfo ? (
+                              <div className={`flex items-center justify-center gap-1 text-xs ${overdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                                <Clock className="h-3 w-3" />
+                                {elapsedInfo.display}
+                                {overdue && <span className="text-destructive">(overdue)</span>}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownloadOriginal(doc.file_path, doc.file_name)}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+
+                              {doc.status === 'pending' && !doc.assigned_staff_id && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleAssignToMe(doc.id)}
+                                  disabled={assigning === doc.id || !canPickMore}
+                                >
+                                  {assigning === doc.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    'Pick'
+                                  )}
+                                </Button>
+                              )}
+
+                              {isAssignedToMe && doc.status === 'in_progress' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedDoc(doc);
+                                    setUploadDialogOpen(true);
+                                  }}
+                                >
+                                  <Upload className="h-4 w-4" />
+                                </Button>
+                              )}
+
+                              {role === 'admin' && !isAssignedToMe && doc.status === 'in_progress' && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="text-amber-600 border-amber-600/30"
+                                  onClick={() => handleReleaseDocument(doc)}
+                                  title="Release document"
+                                >
+                                  <Unlock className="h-4 w-4" />
+                                </Button>
+                              )}
+
+                              {isAdmin && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setDocumentToEdit(doc as unknown as Document);
+                                    setEditDialogOpen(true);
+                                  }}
+                                  title="Edit document"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
+
+                              {isAdmin && (doc.status === 'pending' || doc.status === 'in_progress') && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => {
+                                    setDocumentToCancel(doc);
+                                    setCancelDialogOpen(true);
+                                  }}
+                                  title="Cancel document and refund credit"
+                                >
+                                  <Ban className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </>
+  );
+
   return (
     <DashboardLayout>
       <SEO 
@@ -556,12 +809,9 @@ const SimilarityQueue: React.FC = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <Search className="h-6 w-6 text-primary" />
-              <h1 className="text-3xl font-display font-bold">
-                {role === 'customer' ? 'My Similarity Documents' : 'Similarity Queue'}
-              </h1>
-            </div>
+            <h1 className="text-3xl font-display font-bold">
+              {role === 'customer' ? 'My Similarity Documents' : 'Similarity Queue'}
+            </h1>
             <p className="text-muted-foreground mt-1">
               {role === 'customer' 
                 ? 'View your similarity-only document checks' 
@@ -580,16 +830,9 @@ const SimilarityQueue: React.FC = () => {
             )}
           </div>
           
-          {/* Action Buttons - Admin Only */}
+          {/* Admin Action Buttons */}
           {role === 'admin' && (
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => navigate('/dashboard/similarity-bulk-upload')}
-                variant="outline"
-              >
-                <FileStack className="h-4 w-4 mr-2" />
-                Bulk Upload
-              </Button>
+            <div className="flex items-center gap-2">
               {availableDocs.length > 0 && (
                 <Button 
                   onClick={() => setProcessAllDialogOpen(true)}
@@ -612,71 +855,6 @@ const SimilarityQueue: React.FC = () => {
             </div>
           )}
         </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-yellow-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending</p>
-                  <p className="text-2xl font-bold">
-                    {documents.filter((d) => d.status === 'pending').length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <Loader2 className="h-6 w-6 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">In Progress</p>
-                  <p className="text-2xl font-bold">
-                    {documents.filter((d) => d.status === 'in_progress').length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <CheckCircle className="h-6 w-6 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    {role === 'customer' ? 'Completed' : 'Completed Today'}
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {role === 'customer' 
-                      ? completedDocuments.length
-                      : documents.filter(
-                          (d) =>
-                            d.status === 'completed' &&
-                            d.completed_at &&
-                            new Date(d.completed_at).toDateString() === new Date().toDateString()
-                        ).length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search Filters */}
-        <DocumentSearchFilters 
-          filters={filters} 
-          onFiltersChange={setFilters}
-          showStatusFilter={role === 'admin'}
-        />
 
         {/* Customer view with tabs */}
         {role === 'customer' ? (
@@ -701,7 +879,7 @@ const SimilarityQueue: React.FC = () => {
                 <CardContent>
                   {availableDocs.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
-                      <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No documents in progress</p>
                     </div>
                   ) : (
@@ -714,28 +892,26 @@ const SimilarityQueue: React.FC = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {availableDocs.map((doc) => (
-                          <TableRow key={doc.id}>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <FileText className="h-5 w-5 text-muted-foreground" />
-                                <div>
+                        {availableDocs.map((doc) => {
+                          const { date, time } = formatDateTime(doc.uploaded_at);
+                          return (
+                            <TableRow key={doc.id}>
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <FileText className="h-5 w-5 text-muted-foreground" />
                                   <p className="font-medium truncate max-w-[200px]">{doc.file_name}</p>
-                                  <Badge variant="secondary" className="text-xs mt-1">
-                                    <Search className="h-3 w-3 mr-1" />
-                                    Similarity Only
-                                  </Badge>
                                 </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {formatDateTime(doc.uploaded_at)}
-                            </TableCell>
-                            <TableCell>
-                              <StatusBadge status={doc.status} />
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                <div>{date}</div>
+                                <div>{time}</div>
+                              </TableCell>
+                              <TableCell>
+                                <StatusBadge status={doc.status} />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   )}
@@ -768,53 +944,61 @@ const SimilarityQueue: React.FC = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {completedDocuments.map((doc) => (
-                          <TableRow key={doc.id}>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <FileText className="h-5 w-5 text-muted-foreground" />
-                                <p className="font-medium truncate max-w-[200px]">{doc.file_name}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {doc.similarity_percentage !== null && doc.similarity_percentage !== undefined ? (
-                                <Badge variant={doc.similarity_percentage > 20 ? 'destructive' : 'secondary'}>
-                                  {doc.similarity_percentage}%
-                                </Badge>
-                              ) : (
-                                <span className="text-muted-foreground">N/A</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {doc.completed_at ? formatDateTime(doc.completed_at) : '-'}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                {doc.similarity_report_path && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleDownloadReport(doc.similarity_report_path!, doc.file_name)}
-                                  >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Report
-                                  </Button>
+                        {completedDocuments.map((doc) => {
+                          const completedDateTime = doc.completed_at ? formatDateTime(doc.completed_at) : null;
+                          return (
+                            <TableRow key={doc.id}>
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <FileText className="h-5 w-5 text-muted-foreground" />
+                                  <p className="font-medium truncate max-w-[200px]">{doc.file_name}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {doc.similarity_percentage !== null && doc.similarity_percentage !== undefined ? (
+                                  <Badge variant={doc.similarity_percentage > 20 ? 'destructive' : 'secondary'}>
+                                    {doc.similarity_percentage}%
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">•</span>
                                 )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => {
-                                    setDocumentToDelete(doc);
-                                    setDeleteDialogOpen(true);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {completedDateTime ? (
+                                  <div>
+                                    <div>{completedDateTime.date}</div>
+                                    <div>{completedDateTime.time}</div>
+                                  </div>
+                                ) : '-'}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  {doc.similarity_report_path && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDownloadReport(doc.similarity_report_path!, doc.file_name)}
+                                    >
+                                      <Download className="h-4 w-4 mr-2" />
+                                      Report
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => {
+                                      setDocumentToDelete(doc);
+                                      setDeleteDialogOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   )}
@@ -823,261 +1007,28 @@ const SimilarityQueue: React.FC = () => {
             </TabsContent>
           </Tabs>
         ) : (
-          /* Staff/Admin view with batch operations */
-          <>
-            {/* Batch Action Buttons */}
-            {selectedDocIds.size > 0 && (
-              <div className="flex items-center gap-2 flex-wrap bg-muted/50 p-3 rounded-lg">
-                <span className="text-sm font-medium">{selectedDocIds.size} selected</span>
-                <Button size="sm" variant="outline" onClick={clearSelection}>
-                  Clear
-                </Button>
-                <Button size="sm" onClick={handleBatchPick}>
-                  <CheckSquare className="h-4 w-4 mr-1" />
-                  Batch Pick
-                </Button>
-                <Button size="sm" variant="secondary" onClick={handleBatchDownload}>
-                  <Download className="h-4 w-4 mr-1" />
-                  Batch Download
-                </Button>
-                <Button size="sm" variant="default" onClick={handleOpenBatchUpload}>
-                  <Upload className="h-4 w-4 mr-1" />
-                  Batch Upload Reports
-                </Button>
-              </div>
-            )}
-            
-            {/* Quick Select Buttons */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-muted-foreground">Quick Select:</span>
-              <Button size="sm" variant="ghost" onClick={selectAllPending}>
-                All Pending
-              </Button>
-              <Button size="sm" variant="ghost" onClick={selectAllMyInProgress}>
-                My In-Progress
-              </Button>
-              {selectedDocIds.size > 0 && (
-                <Button size="sm" variant="ghost" onClick={clearSelection}>
-                  Clear All
-                </Button>
-              )}
+          /* Staff/Admin view with Tabs for Queue and Bulk Upload */
+          canAccessBulkUpload ? (
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList>
+                <TabsTrigger value="queue">Queue</TabsTrigger>
+                <TabsTrigger value="bulk-upload">Bulk Upload</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="queue" className="mt-4 space-y-4">
+                {renderQueueContent()}
+              </TabsContent>
+              
+              <TabsContent value="bulk-upload" className="mt-4">
+                <BulkUploadPanel scanType="similarity" compact />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div className="space-y-4">
+              {renderQueueContent()}
             </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Documents Awaiting Similarity Check</CardTitle>
-                <CardDescription>
-                  Only similarity report is required for these documents
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {availableDocs.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No documents in the similarity queue</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-10 text-center">
-                            <Checkbox 
-                              checked={selectedDocIds.size === availableDocs.length && availableDocs.length > 0}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedDocIds(new Set(availableDocs.map(d => d.id)));
-                                } else {
-                                  setSelectedDocIds(new Set());
-                                }
-                              }}
-                            />
-                          </TableHead>
-                          <TableHead className="w-12 text-center">#</TableHead>
-                          <TableHead>Document</TableHead>
-                          <TableHead>Customer</TableHead>
-                          <TableHead>Uploaded</TableHead>
-                          <TableHead className="text-center">Status</TableHead>
-                          <TableHead className="text-center">Assigned To</TableHead>
-                          <TableHead className="text-center">Time Elapsed</TableHead>
-                          <TableHead className="text-center">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {availableDocs.map((doc, index) => {
-                          const isAssignedToMe = doc.assigned_staff_id === user?.id;
-                          const elapsedInfo = getElapsedTime(doc.assigned_staff_id ? doc.uploaded_at : null);
-                          const overdue = isOverdue(doc.assigned_staff_id ? doc.uploaded_at : null);
-                          const isSelected = selectedDocIds.has(doc.id);
-
-                          return (
-                            <TableRow key={doc.id} className={`${isSelected ? 'bg-primary/10' : ''} ${isAssignedToMe ? 'bg-primary/5' : ''} ${overdue ? 'bg-destructive/5' : ''}`}>
-                              <TableCell className="text-center">
-                                <Checkbox 
-                                  checked={isSelected}
-                                  onCheckedChange={() => toggleDocSelection(doc.id)}
-                                />
-                              </TableCell>
-                              <TableCell className="text-center font-medium">
-                                {index + 1}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-3">
-                                  <FileText className="h-5 w-5 text-muted-foreground" />
-                                  <div>
-                                    <p className="font-medium truncate max-w-[200px]">{doc.file_name}</p>
-                                    <Badge variant="secondary" className="text-xs mt-1">
-                                      <Search className="h-3 w-3 mr-1" />
-                                      Similarity Only
-                                    </Badge>
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <User className="h-4 w-4 text-muted-foreground" />
-                                  <span className="text-sm truncate max-w-[150px]">
-                                    {doc.profile?.full_name || doc.profile?.email || 'Unknown'}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground">
-                                {formatDateTime(doc.uploaded_at)}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <StatusBadge status={doc.status} />
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {isAssignedToMe ? (
-                                  <span className="text-xs text-primary font-medium">You</span>
-                                ) : doc.staff_profile ? (
-                                  <span className="text-xs text-muted-foreground">
-                                    {doc.staff_profile.full_name || doc.staff_profile.email}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {doc.status === 'in_progress' && elapsedInfo ? (
-                                  <div className={`flex items-center justify-center gap-1 text-xs ${overdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                                    <Clock className="h-3 w-3" />
-                                    {elapsedInfo.display}
-                                    {overdue && <span className="text-destructive">(overdue)</span>}
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center justify-center gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDownloadOriginal(doc.file_path, doc.file_name)}
-                                  >
-                                    <Download className="h-4 w-4" />
-                                  </Button>
-
-                                  {doc.status === 'pending' && !doc.assigned_staff_id && (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleAssignToMe(doc.id)}
-                                      disabled={assigning === doc.id || !canPickMore}
-                                    >
-                                      {assigning === doc.id ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        'Pick'
-                                      )}
-                                    </Button>
-                                  )}
-
-                                  {isAssignedToMe && doc.status === 'in_progress' && (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedDoc(doc);
-                                        setUploadDialogOpen(true);
-                                      }}
-                                    >
-                                      <Upload className="h-4 w-4" />
-                                    </Button>
-                                  )}
-
-                                  {role === 'admin' && !isAssignedToMe && doc.status === 'in_progress' && (
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      className="text-amber-600 border-amber-600/30"
-                                      onClick={() => handleReleaseDocument(doc)}
-                                      title="Release document"
-                                    >
-                                      <Unlock className="h-4 w-4" />
-                                    </Button>
-                                  )}
-
-                                  {/* Admin Edit Button */}
-                                  {isAdmin && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        // Convert SimilarityDocument to Document for edit dialog
-                                        setDocumentToEdit(doc as unknown as Document);
-                                        setEditDialogOpen(true);
-                                      }}
-                                      title="Edit document"
-                                    >
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                  )}
-
-                                  {/* Admin Cancel Button */}
-                                  {isAdmin && (doc.status === 'pending' || doc.status === 'in_progress') && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="text-destructive hover:text-destructive"
-                                      onClick={() => {
-                                        setDocumentToCancel(doc);
-                                        setCancelDialogOpen(true);
-                                      }}
-                                      title="Cancel document and refund credit"
-                                    >
-                                      <Ban className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </>
+          )
         )}
-
-        {/* Info Card */}
-        <Card className="bg-muted/50">
-          <CardContent className="py-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-primary mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium">Similarity-Only Documents</p>
-                <p className="text-muted-foreground mt-1">
-                  {role === 'customer'
-                    ? 'These documents are checked for similarity only. You can delete completed documents after downloading the report.'
-                    : 'These documents only require a similarity report.'}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Single Upload Dialog */}
