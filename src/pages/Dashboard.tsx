@@ -566,7 +566,7 @@ export default function Dashboard() {
                             {doc.similarity_percentage !== null && doc.similarity_percentage !== undefined ? (
                               <span className="font-medium">{doc.similarity_percentage}%</span>
                             ) : (
-                              <span className="text-muted-foreground">N/A</span>
+                              <span className="text-muted-foreground">•</span>
                             )}
                           </TableCell>
                           <TableCell className="text-center">
