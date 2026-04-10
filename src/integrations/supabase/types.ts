@@ -1812,6 +1812,7 @@ export type Database = {
           email_unsubscribed: boolean | null
           full_name: string | null
           id: string
+          paddle_customer_id: string | null
           phone: string | null
           referral_code: string | null
           referred_by: string | null
@@ -1825,6 +1826,7 @@ export type Database = {
           email_unsubscribed?: boolean | null
           full_name?: string | null
           id: string
+          paddle_customer_id?: string | null
           phone?: string | null
           referral_code?: string | null
           referred_by?: string | null
@@ -1838,6 +1840,7 @@ export type Database = {
           email_unsubscribed?: boolean | null
           full_name?: string | null
           id?: string
+          paddle_customer_id?: string | null
           phone?: string | null
           referral_code?: string | null
           referred_by?: string | null

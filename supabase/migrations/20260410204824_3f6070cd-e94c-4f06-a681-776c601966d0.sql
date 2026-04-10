@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN paddle_customer_id TEXT;
