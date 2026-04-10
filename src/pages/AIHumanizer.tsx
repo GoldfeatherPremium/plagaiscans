@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Navigation from "@/components/Navigation";
@@ -14,6 +14,30 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Copy, Download, FileText, Sparkles, Shield, GraduationCap, Users, Loader2, ChevronDown, ChevronUp, ArrowRight, CheckCircle } from "lucide-react";
+
+/** Simple word-level diff: highlights words in humanized text that differ from original */
+function highlightDiff(original: string, humanized: string) {
+  const origWords = original.trim().split(/\s+/);
+  const humWords = humanized.trim().split(/\s+/);
+  
+  // Build a set of original words (lowercased) for quick lookup
+  const origSet = new Set(origWords.map(w => w.toLowerCase().replace(/[.,!?;:'"()]/g, '')));
+  
+  return humWords.map((word, i) => {
+    const clean = word.toLowerCase().replace(/[.,!?;:'"()]/g, '');
+    const isChanged = clean.length > 2 && !origSet.has(clean);
+    return (
+      <span key={i}>
+        {i > 0 ? ' ' : ''}
+        {isChanged ? (
+          <mark className="bg-primary/15 text-foreground rounded px-0.5">{word}</mark>
+        ) : (
+          word
+        )}
+      </span>
+    );
+  });
+}
 
 const MAX_WORDS = 1000;
 
@@ -270,8 +294,11 @@ const AIHumanizer = () => {
                     </div>
                   </div>
                   <div className="bg-muted/50 rounded-lg p-4 whitespace-pre-wrap text-foreground text-base leading-relaxed">
-                    {outputText}
+                    {highlightDiff(inputText, outputText)}
                   </div>
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                    <mark className="bg-primary/15 rounded px-1">Highlighted words</mark> indicate humanized changes from your original text.
+                  </p>
                 </CardContent>
               </Card>
 
