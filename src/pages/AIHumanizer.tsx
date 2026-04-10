@@ -1,0 +1,306 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import Navigation from "@/components/Navigation";
+import { Footer } from "@/components/Footer";
+import { SEO, generateWebPageSchema } from "@/components/SEO";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Copy, Download, FileText, Sparkles, Shield, GraduationCap, Users, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+
+const MAX_WORDS = 1000;
+
+const AIHumanizer = () => {
+  const [inputText, setInputText] = useState("");
+  const [outputText, setOutputText] = useState("");
+  const [mode, setMode] = useState("standard");
+  const [increaseHumanScore, setIncreaseHumanScore] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const wordCount = inputText.trim() ? inputText.trim().split(/\s+/).length : 0;
+  const charCount = inputText.length;
+
+  const handleHumanize = async () => {
+    if (!inputText.trim()) {
+      toast.error("Please paste some text to humanize.");
+      return;
+    }
+    if (wordCount > MAX_WORDS) {
+      toast.error(`Free usage is limited to ${MAX_WORDS} words. Please shorten your text.`);
+      return;
+    }
+
+    setIsProcessing(true);
+    setOutputText("");
+
+    try {
+      const { data, error } = await supabase.functions.invoke("humanize-text", {
+        body: { text: inputText, mode, increaseHumanScore },
+      });
+
+      if (error) {
+        const message = typeof error === "object" && "message" in error ? error.message : "Something went wrong.";
+        toast.error(message);
+        return;
+      }
+
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      setOutputText(data.humanizedText || "");
+      toast.success("Text humanized successfully!");
+    } catch (err) {
+      toast.error("Failed to humanize text. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(outputText);
+      toast.success("Copied to clipboard!");
+    } catch {
+      toast.error("Failed to copy.");
+    }
+  };
+
+  const handleDownloadTxt = () => {
+    const blob = new Blob([outputText], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "humanized-text.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const faqs = [
+    {
+      q: "How does the AI Humanizer work?",
+      a: "Our tool uses advanced AI to completely restructure your text — rewriting sentence patterns, varying length and rhythm, and adding natural human writing characteristics while keeping the original meaning intact.",
+    },
+    {
+      q: "Is this tool free to use?",
+      a: "Yes! Basic usage is 100% free for up to 1,000 words per request. For larger documents, consider upgrading to our premium service.",
+    },
+    {
+      q: "Will my humanized text be detected as AI-generated?",
+      a: "Our tool is optimized to significantly reduce AI detection scores. However, no tool can guarantee 100% undetectability. Results vary depending on the content and detection tool used.",
+    },
+    {
+      q: "Which mode should I choose?",
+      a: "Standard works for most content. Academic is ideal for essays and papers. Advanced provides stronger humanization. Creative is best for blog posts and storytelling content.",
+    },
+    {
+      q: "Does this change the meaning of my text?",
+      a: "No. The tool is designed to maintain the exact original meaning while restructuring how the content is expressed.",
+    },
+  ];
+
+  return (
+    <div className="min-h-screen bg-background">
+      <SEO
+        title="Free AI Humanizer Tool – Reduce AI Detection"
+        description="Convert AI-generated text into human-like writing instantly. Free AI humanizer tool optimized to reduce AI detection scores."
+        keywords="ai humanizer, humanize ai text, ai text converter, reduce ai detection, ai to human text, free ai humanizer"
+        canonicalUrl="/ai-humanizer"
+        structuredData={generateWebPageSchema(
+          "Free AI Humanizer Tool",
+          "Convert AI-generated text into human-like writing instantly.",
+          "/ai-humanizer"
+        )}
+      />
+      <Navigation />
+
+      {/* Hero */}
+      <section className="pt-28 pb-12 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium mb-6">
+            <Sparkles className="w-4 h-4" />
+            Free AI Humanizer Tool
+          </div>
+          <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
+            Transform AI Text Into Natural Human Writing
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Paste your AI-generated content and instantly get natural, human-like text optimized to reduce AI detection scores.
+          </p>
+        </div>
+      </section>
+
+      {/* Trust Badges */}
+      <section className="pb-8 px-4">
+        <div className="max-w-4xl mx-auto flex flex-wrap justify-center gap-4">
+          {[
+            { icon: Shield, label: "AI Detection Optimized" },
+            { icon: GraduationCap, label: "Academic Submission Ready" },
+            { icon: Users, label: "Used by Students & Professionals" },
+          ].map(({ icon: Icon, label }) => (
+            <div key={label} className="flex items-center gap-2 bg-card border border-border rounded-full px-4 py-2 text-sm text-muted-foreground">
+              <Icon className="w-4 h-4 text-primary" />
+              {label}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Main Tool */}
+      <section className="pb-16 px-4">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Controls */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="flex-1">
+              <label className="text-sm font-medium text-foreground mb-1.5 block">Humanization Mode</label>
+              <Select value={mode} onValueChange={setMode}>
+                <SelectTrigger className="w-full sm:w-[220px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">Standard (Balanced)</SelectItem>
+                  <SelectItem value="advanced">Advanced (Stronger)</SelectItem>
+                  <SelectItem value="academic">Academic (Formal)</SelectItem>
+                  <SelectItem value="creative">Creative (Engaging)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2 pt-5">
+              <Switch checked={increaseHumanScore} onCheckedChange={setIncreaseHumanScore} />
+              <label className="text-sm text-muted-foreground">Increase Human Score</label>
+            </div>
+          </div>
+
+          {/* Input */}
+          <Card>
+            <CardContent className="p-4">
+              <Textarea
+                placeholder="Paste your AI-generated content here..."
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                className="min-h-[200px] border-0 shadow-none focus-visible:ring-0 resize-y text-base"
+              />
+              <div className="flex justify-between items-center mt-2 text-sm text-muted-foreground">
+                <span>{charCount} characters</span>
+                <span className={wordCount > MAX_WORDS ? "text-destructive font-medium" : ""}>
+                  {wordCount} / {MAX_WORDS} words
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Humanize Button */}
+          <div className="text-center">
+            <Button
+              variant="hero"
+              size="xl"
+              onClick={handleHumanize}
+              disabled={isProcessing || !inputText.trim() || wordCount > MAX_WORDS}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Humanizing your content…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" />
+                  Humanize Now
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* Output */}
+          {outputText && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-foreground">Humanized Output</h3>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={handleCopy}>
+                      <Copy className="w-4 h-4" />
+                      Copy
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleDownloadTxt}>
+                      <Download className="w-4 h-4" />
+                      .txt
+                    </Button>
+                  </div>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-4 whitespace-pre-wrap text-foreground text-base leading-relaxed">
+                  {outputText}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Upgrade CTA */}
+          <div className="text-center py-4">
+            <p className="text-sm text-muted-foreground mb-2">
+              Need more than {MAX_WORDS} words? Upgrade to Premium on Plagaiscans
+            </p>
+            <a href="/pricing">
+              <Button variant="outline">View Premium Plans</Button>
+            </a>
+          </div>
+
+          {/* Check plagiarism CTA */}
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="p-6 text-center">
+              <FileText className="w-8 h-8 text-primary mx-auto mb-3" />
+              <h3 className="font-semibold text-foreground mb-2">Check Your Content for Plagiarism</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                After humanizing, verify your content's originality with our plagiarism checker.
+              </p>
+              <a href="/plagiarism-checker">
+                <Button>Check Plagiarism with Plagaiscans</Button>
+              </a>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="pb-20 px-4">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-2xl font-bold text-foreground text-center mb-8">Frequently Asked Questions</h2>
+          <div className="space-y-3">
+            {faqs.map((faq, i) => (
+              <Card key={i} className="cursor-pointer" onClick={() => setOpenFaq(openFaq === i ? null : i)}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-medium text-foreground">{faq.q}</h3>
+                    {openFaq === i ? (
+                      <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    )}
+                  </div>
+                  {openFaq === i && (
+                    <p className="text-sm text-muted-foreground mt-3">{faq.a}</p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Bottom marketing */}
+      <section className="pb-16 px-4 text-center">
+        <p className="text-sm text-muted-foreground">100% free basic usage · No login required · Optimized to reduce AI detection</p>
+      </section>
+
+      <Footer />
+    </div>
+  );
+};
+
+export default AIHumanizer;
