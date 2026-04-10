@@ -1,51 +1,33 @@
 
 
-## Fix: Deleted Documents Reappearing for Customers
+## Plan
 
-### Root Cause
+### 1. Remove the Dynamic Island refresh banner
 
-In `src/hooks/useDocuments.ts`, the realtime subscription (line 760-782) captures a stale reference to `fetchDocuments`. The subscription effect depends only on `[user]`, but `fetchDocuments` uses `role` from closure scope. When the realtime event fires, it may call `fetchDocuments` with a stale or undefined `role`, causing the `deleted_by_user` filter (line 87-88) to be skipped — since the filter only applies when `role === 'customer'`.
+The `RefreshProgressBar` component renders an iPhone Dynamic Island-style floating pill that shows pull-to-refresh and route-change loading status. It will be completely removed.
 
-Additionally, even when `role` is correct, the filter is only applied for customers. A more robust fix is to **always** filter out `deleted_by_user = true` documents for customers, regardless of how `fetchDocuments` is invoked.
+**Changes:**
+- **`src/App.tsx`**: Remove the `RefreshProgressBar` import and its usage (`<RefreshProgressBar />`)
+- **`src/components/RefreshProgressBar.tsx`**: Delete the file
+- The pull-to-refresh hook (`usePullToRefresh`) remains available if needed elsewhere but is no longer invoked
 
-### Fix (1 file)
+### 2. Push notifications when app/site is closed — already working
 
-**`src/hooks/useDocuments.ts`** — Two changes:
+After reviewing the code, **server-side push notifications for document completion are already implemented**:
 
-1. **Always filter out soft-deleted documents for customers**: Move the `deleted_by_user` filter to apply unconditionally for customer role, and also apply it as a safety net even if role is ambiguous by checking if the user has no staff/admin role.
+- When a document is completed, `send-completion-email` (edge function) calls `send-push-notification` server-side (lines 300-322)
+- The service worker (`sw.js`) handles incoming push events and displays native OS notifications even when the app is closed (lines 127-171)
+- The `useDocumentCompletionNotifications` hook provides *additional* in-app toast/sound when the app is open — this is complementary, not the primary delivery mechanism
 
-2. **Fix stale closure in realtime subscription**: Add `role` to the realtime effect's dependency array so the subscription re-creates with current `fetchDocuments` when role changes. Alternatively, use a ref to always call the latest `fetchDocuments`.
+**For this to work, the customer must have:**
+1. Granted notification permission in their browser
+2. An active push subscription stored in the `push_subscriptions` table
 
-```typescript
-// Line 760-782: Add role to deps
-useEffect(() => {
-  if (!user) return;
+**No code changes needed** for this part — the infrastructure is already in place. If customers report not receiving notifications when the app is closed, the issue would be subscription health (already monitored by `usePushSubscriptionHealth`) or browser-level notification permissions.
 
-  const channel = supabase
-    .channel('documents-changes')
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'documents',
-      },
-      () => {
-        fetchDocuments(true); // background fetch to avoid loading flash
-      }
-    )
-    .subscribe();
+**For guests**: Guests don't have user accounts or push subscriptions, so web push is not applicable to them. They receive completion emails instead.
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, [user, role]); // Add role to dependencies
-```
+---
 
-And change the realtime handler to call `fetchDocuments(true)` (background mode) to prevent UI flicker.
-
-### What this fixes
-- Documents soft-deleted by customers will stay hidden even when realtime events fire
-- No more stale closure causing the filter to be bypassed
-- Background fetch prevents loading spinner flash on every realtime event
+**Summary**: Only 2 files need changes — remove the import/usage from `App.tsx` and delete `RefreshProgressBar.tsx`.
 
