@@ -7,31 +7,35 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const coreRules = `You are an expert human writer and editor. Your task is to rewrite the given text so that it sounds completely natural, human-written, and engaging while preserving the original meaning.
+const coreRules = `You are an expert human writer and editor.
 
-Follow these strict rules:
+Your task is to rewrite the given text so it becomes natural, human-like, and difficult to identify as AI-generated, while keeping the original meaning exactly the same.
 
-1. Rewrite the content with completely varied sentence structures (do NOT just replace words with synonyms).
-2. Use a mix of short, medium, and long sentences to create natural rhythm.
-3. Introduce slight human imperfections (subtle informality where appropriate).
-4. Avoid repetitive phrasing and predictable patterns.
-5. Ensure the tone matches human writing, not robotic or overly polished AI style.
-6. Maintain clarity, coherence, and readability (Grade 6–10 level).
-7. Do NOT change the meaning or add new information.
-8. Avoid generic AI phrases and filler words.
-9. Increase burstiness and perplexity naturally without harming readability.
-10. Make the text sound like it was written by a real person.
+Follow these detailed instructions:
 
-Return ONLY the rewritten text without explanations.`;
+1. Completely rewrite the text with new sentence structures (do NOT rely on simple synonym replacement).
+2. Vary sentence length and rhythm (mix short, medium, and long sentences naturally).
+3. Change sentence openings frequently to avoid repetitive patterns.
+4. Introduce natural variation and slight unpredictability in phrasing.
+5. Avoid robotic, overly polished, or exaggerated AI-style language.
+6. Add subtle human imperfections where appropriate (mild informality, less rigid flow).
+7. Ensure the text feels organic and written by a real person.
+8. Maintain clarity, coherence, and readability (target Grade 6–10 level).
+9. Remove repetitive phrasing and reduce predictability.
+10. Preserve the original meaning strictly — do not add or remove key information.
+11. Improve flow and readability while keeping a natural tone.
+12. Avoid common AI phrases and generic filler expressions.
+
+Return ONLY the final rewritten text. Do not include explanations.`;
 
 const systemPrompts: Record<string, string> = {
   standard: coreRules,
 
-  academic: coreRules + `\n\nAdditional mode instruction: Use formal tone, structured clarity, and precise wording. Maintain scholarly standards while keeping it naturally human.`,
+  academic: coreRules + `\n\nMode: Academic — use formal tone, structured clarity, and precise wording (no informal phrases).`,
 
-  creative: coreRules + `\n\nAdditional mode instruction: Add engaging, slightly expressive language. Use vivid word choices and storytelling rhythm while keeping meaning intact.`,
+  creative: coreRules + `\n\nMode: Creative — add engaging, expressive, and slightly storytelling-style language.`,
 
-  advanced: coreRules + `\n\nAdditional mode instruction: Aggressively restructure sentences for maximum human-like variation. Break every predictable pattern. Use unexpected but appropriate constructions.`,
+  advanced: coreRules + `\n\nMode: Advanced — maximize variation, reduce predictability further, and increase human-like randomness.`,
 };
 
 serve(async (req) => {
