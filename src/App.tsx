@@ -103,6 +103,7 @@ const AdminCreditValidity = lazy(() => import("./pages/AdminCreditValidity"));
 const AdminDeletedDocuments = lazy(() => import("./pages/AdminDeletedDocuments"));
 const AdminExtensionDownload = lazy(() => import("./pages/AdminExtensionDownload"));
 const BlogWhatIsPlagiarism = lazy(() => import("./pages/BlogWhatIsPlagiarism"));
+const AIHumanizer = lazy(() => import("./pages/AIHumanizer"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -271,6 +272,7 @@ const AppRoutes = () => (
         <Route path="/resources" element={<Resources />} />
       <Route path="/resources/:slug" element={<Article />} />
       <Route path="/blog/what-is-plagiarism" element={<BlogWhatIsPlagiarism />} />
+      <Route path="/ai-humanizer" element={<PublicRoute><AIHumanizer /></PublicRoute>} />
       <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
       {/* Password reset page - bypasses auth checks to allow password change */}
       <Route path="/reset-password" element={<ResetPassword />} />
