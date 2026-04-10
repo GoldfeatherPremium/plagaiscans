@@ -340,11 +340,22 @@ const AIHumanizer = () => {
                 <Card className="border-primary/30 bg-primary/5">
                   <CardContent className="p-6">
                     <div className="flex flex-col sm:flex-row items-center gap-6">
-                      <div className="flex-shrink-0 text-center">
-                        <div className="w-20 h-20 rounded-full border-4 border-primary flex items-center justify-center bg-background">
-                          <span className="text-2xl font-bold text-primary">{humanScore}%</span>
+                      {/* Score circles */}
+                      <div className="flex gap-4 flex-shrink-0">
+                        <div className="text-center">
+                          <div className="w-20 h-20 rounded-full border-4 border-primary flex items-center justify-center bg-background">
+                            <span className="text-2xl font-bold text-primary">{humanScore}%</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">Human Score</p>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">Human Score</p>
+                        {analysis?.ai_score != null && (
+                          <div className="text-center">
+                            <div className="w-20 h-20 rounded-full border-4 border-destructive/60 flex items-center justify-center bg-background">
+                              <span className="text-2xl font-bold text-destructive">{analysis.ai_score}%</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">AI Score</p>
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1 w-full">
                         <div className="flex items-center gap-2 mb-2">
@@ -409,8 +420,8 @@ const AIHumanizer = () => {
                           </>
                         )}
 
-                        {analysis?.overall_assessment && (
-                          <p className="text-sm text-muted-foreground italic mb-2">"{analysis.overall_assessment}"</p>
+                        {analysis?.analysis && (
+                          <p className="text-sm text-muted-foreground italic mb-2">"{analysis.analysis}"</p>
                         )}
                         <p className="text-sm text-muted-foreground">
                           This is an <strong>AI-based estimate</strong> of the humanized output. For the <strong>actual AI percentage</strong> detected by Turnitin, get your content officially scanned.
