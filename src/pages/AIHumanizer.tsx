@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Copy, Download, FileText, Sparkles, Shield, GraduationCap, Users, Loader2, ChevronDown, ChevronUp, ArrowRight, CheckCircle, X, RefreshCw } from "lucide-react";
+import { Copy, Download, FileText, Sparkles, Shield, GraduationCap, Users, Loader2, ChevronDown, ChevronUp, ArrowRight, CheckCircle, X, RefreshCw, AlertCircle } from "lucide-react";
 
 /** Simple word-level diff: highlights words in humanized text that differ from original */
 function highlightDiff(original: string, humanized: string) {

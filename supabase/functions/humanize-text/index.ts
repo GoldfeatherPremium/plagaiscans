@@ -50,41 +50,146 @@ Return ONLY the final rewritten text. Do not include explanations.`;
 
 const systemPrompts: Record<string, string> = {
   standard: coreRules,
-
   academic: coreRules + `\n\nMode: Academic — use formal tone, structured clarity, and precise wording (no informal phrases).`,
-
   creative: coreRules + `\n\nMode: Creative — add engaging, expressive, and slightly storytelling-style language.`,
-
   advanced: coreRules + `\n\nMode: Advanced — maximize variation, reduce predictability further, and increase human-like randomness.`,
 };
 
-const AI_DETECTION_SYSTEM_PROMPT = `You are an advanced AI content detector that uses the same methodology as Turnitin's AI detection system.
+// ─── Computed Text Metrics ───────────────────────────────────────────
 
-Your job is to analyze text and determine how likely it is to be AI-generated vs. human-written.
+const TRANSITION_WORDS = new Set([
+  "furthermore", "moreover", "additionally", "consequently", "nevertheless",
+  "however", "therefore", "thus", "hence", "accordingly", "meanwhile",
+  "subsequently", "conversely", "nonetheless", "notwithstanding",
+  "in conclusion", "in addition", "as a result", "on the other hand",
+  "it is worth noting", "another important point", "looking ahead",
+]);
 
-Analyze the following linguistic signals that real AI detectors use:
+function computeTextMetrics(text: string) {
+  const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+  const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+  const allWords = text.toLowerCase().replace(/[^a-z0-9\s'-]/g, "").split(/\s+/).filter(w => w.length > 0);
+  const uniqueWords = new Set(allWords);
 
-1. **Perplexity Analysis**: Measure how predictable the word choices are. AI text tends to have LOW perplexity (very predictable next-word choices). Human text has HIGHER perplexity (more surprising, varied word choices).
+  // Sentence lengths (word counts)
+  const sentenceLengths = sentences.map(s => s.split(/\s+/).filter(w => w.length > 0).length);
+  const avgSentenceLength = sentenceLengths.length > 0
+    ? sentenceLengths.reduce((a, b) => a + b, 0) / sentenceLengths.length
+    : 0;
 
-2. **Burstiness Analysis**: Measure variation in sentence length and complexity. AI text tends to have LOW burstiness (uniform sentence lengths, consistent complexity). Human text has HIGH burstiness (mix of very short and very long sentences, varying complexity).
+  // Standard deviation of sentence lengths
+  const sentenceLengthStdDev = sentenceLengths.length > 1
+    ? Math.sqrt(sentenceLengths.reduce((sum, l) => sum + Math.pow(l - avgSentenceLength, 2), 0) / (sentenceLengths.length - 1))
+    : 0;
 
-3. **Sentence Uniformity**: Check if sentences follow similar patterns (subject-verb-object consistently, similar openings, parallel structure throughout). High uniformity = more likely AI.
+  const minSentenceLength = sentenceLengths.length > 0 ? Math.min(...sentenceLengths) : 0;
+  const maxSentenceLength = sentenceLengths.length > 0 ? Math.max(...sentenceLengths) : 0;
 
-4. **Vocabulary Predictability**: Analyze if the text uses "AI-safe" vocabulary — overly common, generic words that AI models favor (e.g., "significant", "crucial", "furthermore", "in conclusion"). More predictable vocabulary = more likely AI.
+  // Vocabulary richness (type-token ratio)
+  const vocabularyRichness = allWords.length > 0 ? uniqueWords.size / allWords.length : 0;
 
-5. **Structural Regularity**: Check paragraph structure — are all paragraphs similar in length? Do they follow a predictable pattern (intro sentence, supporting sentences, conclusion sentence)? High regularity = more likely AI.
+  // Sentence opener diversity
+  const openers = sentences.map(s => {
+    const words = s.trim().split(/\s+/).slice(0, 2);
+    return words.join(" ").toLowerCase().replace(/[^a-z\s]/g, "");
+  });
+  const uniqueOpeners = new Set(openers);
+  const openerDiversity = openers.length > 0 ? uniqueOpeners.size / openers.length : 0;
 
-6. **Transition Patterns**: Look for formulaic transitions ("Furthermore", "Moreover", "In addition", "It is worth noting"). Frequent use of these = more likely AI.
+  // Paragraph length variance
+  const paraLengths = paragraphs.map(p => p.split(/\s+/).filter(w => w.length > 0).length);
+  const avgParaLength = paraLengths.length > 0
+    ? paraLengths.reduce((a, b) => a + b, 0) / paraLengths.length
+    : 0;
+  const paraLengthVariance = paraLengths.length > 1
+    ? Math.sqrt(paraLengths.reduce((sum, l) => sum + Math.pow(l - avgParaLength, 2), 0) / (paraLengths.length - 1))
+    : 0;
 
-7. **Tone Consistency**: Human writing naturally shifts in tone across paragraphs. AI tends to maintain a perfectly consistent tone throughout. Check for natural tone variation.
+  // Transition word density
+  const lowerText = text.toLowerCase();
+  let transitionCount = 0;
+  for (const tw of TRANSITION_WORDS) {
+    const regex = new RegExp(`\\b${tw}\\b`, "gi");
+    const matches = lowerText.match(regex);
+    if (matches) transitionCount += matches.length;
+  }
+  const transitionDensity = allWords.length > 0 ? (transitionCount / allWords.length) * 100 : 0;
 
-8. **Repetitive Phrasing Patterns**: AI often repeats structural patterns (e.g., starting multiple sentences the same way, using the same sentence rhythm). Detect these patterns.
+  return {
+    sentenceCount: sentences.length,
+    avgSentenceLength: Math.round(avgSentenceLength * 10) / 10,
+    sentenceLengthStdDev: Math.round(sentenceLengthStdDev * 10) / 10,
+    minSentenceLength,
+    maxSentenceLength,
+    vocabularyRichness: Math.round(vocabularyRichness * 100) / 100,
+    openerDiversity: Math.round(openerDiversity * 100),
+    paragraphCount: paragraphs.length,
+    paraLengthVariance: Math.round(paraLengthVariance * 10) / 10,
+    transitionDensity: Math.round(transitionDensity * 100) / 100,
+    totalWords: allWords.length,
+    uniqueWords: uniqueWords.size,
+  };
+}
 
-Score the text on a scale of 0-100 where:
-- 0 = Definitely AI-generated
-- 100 = Definitely human-written
+// Compute a heuristic score from the metrics (0-100, higher = more human-like)
+function computeHeuristicScore(metrics: ReturnType<typeof computeTextMetrics>): number {
+  let score = 50; // start neutral
 
-Be precise and analytical. Consider ALL signals together. A text can score high on some signals and low on others — weight them appropriately.`;
+  // Sentence length variance: higher std dev = more human-like (AI tends to be uniform)
+  if (metrics.sentenceLengthStdDev > 10) score += 12;
+  else if (metrics.sentenceLengthStdDev > 7) score += 8;
+  else if (metrics.sentenceLengthStdDev > 4) score += 4;
+  else if (metrics.sentenceLengthStdDev < 2) score -= 8;
+
+  // Vocabulary richness: higher = more human-like
+  if (metrics.vocabularyRichness > 0.7) score += 10;
+  else if (metrics.vocabularyRichness > 0.55) score += 6;
+  else if (metrics.vocabularyRichness > 0.4) score += 2;
+  else score -= 5;
+
+  // Opener diversity: higher = more human-like
+  if (metrics.openerDiversity > 85) score += 10;
+  else if (metrics.openerDiversity > 70) score += 6;
+  else if (metrics.openerDiversity > 50) score += 2;
+  else score -= 5;
+
+  // Transition density: lower = more human-like (AI overuses transitions)
+  if (metrics.transitionDensity < 0.5) score += 8;
+  else if (metrics.transitionDensity < 1.5) score += 4;
+  else if (metrics.transitionDensity > 3) score -= 8;
+  else if (metrics.transitionDensity > 2) score -= 4;
+
+  // Paragraph variance: some variance = more human-like
+  if (metrics.paraLengthVariance > 15) score += 5;
+  else if (metrics.paraLengthVariance > 8) score += 3;
+  else if (metrics.paraLengthVariance < 3 && metrics.paragraphCount > 2) score -= 4;
+
+  // Sentence length spread (max - min): wider = more human-like
+  const spread = metrics.maxSentenceLength - metrics.minSentenceLength;
+  if (spread > 20) score += 5;
+  else if (spread > 12) score += 3;
+  else if (spread < 5) score -= 5;
+
+  return Math.max(0, Math.min(100, score));
+}
+
+// ─── AI Detection Prompt ─────────────────────────────────────────────
+
+const AI_DETECTION_SYSTEM_PROMPT = `You are an advanced AI content detection analyst. Your job is to determine how likely text is AI-generated vs. human-written.
+
+You will receive BOTH the text AND pre-computed linguistic statistics. Use the statistics as concrete evidence — do NOT guess these values.
+
+Analyze the text considering:
+1. **Perplexity**: How predictable are word choices? Low perplexity (predictable) = more AI-like.
+2. **Burstiness**: Variation in sentence complexity. Low burstiness (uniform) = more AI-like.
+3. **Vocabulary patterns**: Does the text use "AI-safe" generic vocabulary or natural, varied word choices?
+4. **Structural patterns**: Are paragraphs suspiciously balanced? Do sentences follow repetitive templates?
+5. **Tone consistency**: Human writing naturally shifts tone; AI maintains perfect consistency.
+6. **Transition patterns**: Formulaic transitions ("Furthermore", "Moreover") are AI indicators.
+
+Score 0-100 where 0 = definitely AI-generated, 100 = definitely human-written.
+
+Be honest and precise. Consider ALL signals. The computed statistics provide ground truth — weight them heavily.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -185,11 +290,28 @@ This text has ALREADY been humanized ${iteration - 1} time(s). It still has dete
       throw new Error("No output received from AI");
     }
 
-    // Step 2: Analyze the humanized text using AI-based detection (Turnitin-style)
-    let estimatedHumanScore = 85;
+    // Step 2: Compute deterministic text metrics
+    const metrics = computeTextMetrics(humanizedText);
+    const heuristicScore = computeHeuristicScore(metrics);
+
+    // Step 3: AI-based detection using a DIFFERENT model to avoid self-judgment bias
+    let aiJudgmentScore: number | null = null;
     let analysisResult: Record<string, any> = {};
 
     try {
+      const metricsContext = `
+Here are the computed text statistics for this text:
+- Sentence count: ${metrics.sentenceCount}
+- Average sentence length: ${metrics.avgSentenceLength} words
+- Sentence length std deviation: ${metrics.sentenceLengthStdDev}
+- Min sentence length: ${metrics.minSentenceLength} words, Max: ${metrics.maxSentenceLength} words
+- Vocabulary richness (unique/total): ${metrics.vocabularyRichness} (${metrics.uniqueWords} unique out of ${metrics.totalWords} total)
+- Unique sentence openers: ${metrics.openerDiversity}%
+- Transition word density: ${metrics.transitionDensity}%
+- Paragraph count: ${metrics.paragraphCount}, paragraph length variance: ${metrics.paraLengthVariance}
+
+Based on these concrete metrics AND your own deep linguistic analysis, provide your honest assessment.`;
+
       const detectionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -197,10 +319,10 @@ This text has ALREADY been humanized ${iteration - 1} time(s). It still has dete
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "openai/gpt-5-mini", // Different model to avoid self-judgment bias
           messages: [
             { role: "system", content: AI_DETECTION_SYSTEM_PROMPT },
-            { role: "user", content: `Analyze this text for AI detection:\n\n${humanizedText}` },
+            { role: "user", content: `${metricsContext}\n\nAnalyze this text for AI detection:\n\n${humanizedText}` },
           ],
           tools: [
             {
@@ -213,39 +335,14 @@ This text has ALREADY been humanized ${iteration - 1} time(s). It still has dete
                   properties: {
                     human_score: {
                       type: "number",
-                      description: "Score from 0-100 where 0=definitely AI, 100=definitely human"
-                    },
-                    perplexity: {
-                      type: "string",
-                      enum: ["very_low", "low", "moderate", "high", "very_high"],
-                      description: "How unpredictable/varied the word choices are. Higher = more human-like."
-                    },
-                    burstiness: {
-                      type: "string",
-                      enum: ["very_low", "low", "moderate", "high", "very_high"],
-                      description: "Variation in sentence length and complexity. Higher = more human-like."
-                    },
-                    vocabulary_diversity: {
-                      type: "string",
-                      enum: ["poor", "fair", "good", "excellent"],
-                      description: "How diverse and natural the vocabulary is."
-                    },
-                    sentence_uniformity: {
-                      type: "string",
-                      enum: ["very_high", "high", "moderate", "low", "very_low"],
-                      description: "How uniform/repetitive sentence patterns are. Lower = more human-like."
-                    },
-                    structural_regularity: {
-                      type: "string",
-                      enum: ["very_high", "high", "moderate", "low", "very_low"],
-                      description: "How regular/predictable the paragraph structure is. Lower = more human-like."
+                      description: "Score from 0-100 where 0=definitely AI, 100=definitely human. Be precise — use the computed metrics as evidence."
                     },
                     overall_assessment: {
                       type: "string",
-                      description: "Brief 1-2 sentence assessment of the text's human-likeness."
+                      description: "Brief 2-3 sentence assessment of the text's human-likeness, referencing specific evidence from the metrics and linguistic patterns observed."
                     }
                   },
-                  required: ["human_score", "perplexity", "burstiness", "vocabulary_diversity", "sentence_uniformity", "structural_regularity", "overall_assessment"],
+                  required: ["human_score", "overall_assessment"],
                   additionalProperties: false
                 }
               }
@@ -261,15 +358,8 @@ This text has ALREADY been humanized ${iteration - 1} time(s). It still has dete
         const toolCall = detectionData.choices?.[0]?.message?.tool_calls?.[0];
         if (toolCall?.function?.arguments) {
           const parsed = JSON.parse(toolCall.function.arguments);
-          estimatedHumanScore = Math.max(0, Math.min(100, Math.round(parsed.human_score)));
-          analysisResult = {
-            perplexity: parsed.perplexity,
-            burstiness: parsed.burstiness,
-            vocabulary_diversity: parsed.vocabulary_diversity,
-            sentence_uniformity: parsed.sentence_uniformity,
-            structural_regularity: parsed.structural_regularity,
-            overall_assessment: parsed.overall_assessment,
-          };
+          aiJudgmentScore = Math.max(0, Math.min(100, Math.round(parsed.human_score)));
+          analysisResult.overall_assessment = parsed.overall_assessment || "";
         }
       } else {
         const errText = await detectionResponse.text();
@@ -277,8 +367,33 @@ This text has ALREADY been humanized ${iteration - 1} time(s). It still has dete
       }
     } catch (detectionError) {
       console.error("Detection analysis failed:", detectionError);
-      // Fallback: keep default score
     }
+
+    // Step 4: Weighted final score (40% heuristic, 60% AI judgment)
+    let estimatedHumanScore: number | null = null;
+    if (aiJudgmentScore !== null) {
+      estimatedHumanScore = Math.round(heuristicScore * 0.4 + aiJudgmentScore * 0.6);
+    } else {
+      // If AI detection failed, use only heuristic (no fake fallback)
+      estimatedHumanScore = heuristicScore;
+    }
+
+    // Build comprehensive analysis with real metrics
+    const fullAnalysis = {
+      overall_assessment: analysisResult.overall_assessment || null,
+      // Computed metrics (real numbers)
+      sentence_count: metrics.sentenceCount,
+      avg_sentence_length: metrics.avgSentenceLength,
+      sentence_length_std_dev: metrics.sentenceLengthStdDev,
+      vocabulary_richness: metrics.vocabularyRichness,
+      opener_diversity: metrics.openerDiversity,
+      transition_density: metrics.transitionDensity,
+      paragraph_count: metrics.paragraphCount,
+      para_length_variance: metrics.paraLengthVariance,
+      // Score breakdown
+      heuristic_score: heuristicScore,
+      ai_judgment_score: aiJudgmentScore,
+    };
 
     // Log usage to database
     try {
@@ -302,14 +417,14 @@ This text has ALREADY been humanized ${iteration - 1} time(s). It still has dete
         word_count: wordCount,
         mode: selectedMode,
         increase_human_score: increaseHumanScore || false,
-        estimated_score: estimatedHumanScore,
+        estimated_score: estimatedHumanScore ?? 0,
       });
     } catch (logError) {
       console.error("Failed to log humanizer usage:", logError);
     }
 
     return new Response(
-      JSON.stringify({ humanizedText, estimatedHumanScore, analysis: analysisResult }),
+      JSON.stringify({ humanizedText, estimatedHumanScore, analysis: fullAnalysis }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
