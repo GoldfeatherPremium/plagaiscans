@@ -170,99 +170,138 @@ serve(async (req) => {
       throw new Error("No output received from AI");
     }
 
-    // Step 2: Analyze the humanized text using AI-based detection (Turnitin-style)
+    // Step 2: Analyze BOTH original and humanized text using AI-based detection (Turnitin-style)
     let estimatedHumanScore = 85;
     let analysisResult: Record<string, any> = {};
+    let beforeScore = 0;
+    let beforeAnalysis: Record<string, any> = {};
 
-    try {
-      const detectionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            { role: "system", content: AI_DETECTION_SYSTEM_PROMPT },
-            { role: "user", content: `Analyze this text for AI detection:\n\n${humanizedText}` },
-          ],
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "report_ai_detection_score",
-                description: "Report the AI detection analysis results for the given text.",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    human_score: {
-                      type: "number",
-                      description: "Score from 0-100 where 0=definitely AI, 100=definitely human"
-                    },
-                    perplexity: {
-                      type: "string",
-                      enum: ["very_low", "low", "moderate", "high", "very_high"],
-                      description: "How unpredictable/varied the word choices are. Higher = more human-like."
-                    },
-                    burstiness: {
-                      type: "string",
-                      enum: ["very_low", "low", "moderate", "high", "very_high"],
-                      description: "Variation in sentence length and complexity. Higher = more human-like."
-                    },
-                    vocabulary_diversity: {
-                      type: "string",
-                      enum: ["poor", "fair", "good", "excellent"],
-                      description: "How diverse and natural the vocabulary is."
-                    },
-                    sentence_uniformity: {
-                      type: "string",
-                      enum: ["very_high", "high", "moderate", "low", "very_low"],
-                      description: "How uniform/repetitive sentence patterns are. Lower = more human-like."
-                    },
-                    structural_regularity: {
-                      type: "string",
-                      enum: ["very_high", "high", "moderate", "low", "very_low"],
-                      description: "How regular/predictable the paragraph structure is. Lower = more human-like."
-                    },
-                    overall_assessment: {
-                      type: "string",
-                      description: "Brief 1-2 sentence assessment of the text's human-likeness."
-                    }
-                  },
-                  required: ["human_score", "perplexity", "burstiness", "vocabulary_diversity", "sentence_uniformity", "structural_regularity", "overall_assessment"],
-                  additionalProperties: false
-                }
+    const detectionTools = [
+      {
+        type: "function",
+        function: {
+          name: "report_ai_detection_score",
+          description: "Report the AI detection analysis results for the given text.",
+          parameters: {
+            type: "object",
+            properties: {
+              human_score: {
+                type: "number",
+                description: "Score from 0-100 where 0=definitely AI, 100=definitely human"
+              },
+              perplexity: {
+                type: "string",
+                enum: ["very_low", "low", "moderate", "high", "very_high"],
+                description: "How unpredictable/varied the word choices are. Higher = more human-like."
+              },
+              burstiness: {
+                type: "string",
+                enum: ["very_low", "low", "moderate", "high", "very_high"],
+                description: "Variation in sentence length and complexity. Higher = more human-like."
+              },
+              vocabulary_diversity: {
+                type: "string",
+                enum: ["poor", "fair", "good", "excellent"],
+                description: "How diverse and natural the vocabulary is."
+              },
+              sentence_uniformity: {
+                type: "string",
+                enum: ["very_high", "high", "moderate", "low", "very_low"],
+                description: "How uniform/repetitive sentence patterns are. Lower = more human-like."
+              },
+              structural_regularity: {
+                type: "string",
+                enum: ["very_high", "high", "moderate", "low", "very_low"],
+                description: "How regular/predictable the paragraph structure is. Lower = more human-like."
+              },
+              overall_assessment: {
+                type: "string",
+                description: "Brief 1-2 sentence assessment of the text's human-likeness."
               }
-            }
-          ],
-          tool_choice: { type: "function", function: { name: "report_ai_detection_score" } },
-          stream: false,
-        }),
-      });
+            },
+            required: ["human_score", "perplexity", "burstiness", "vocabulary_diversity", "sentence_uniformity", "structural_regularity", "overall_assessment"],
+            additionalProperties: false
+          }
+        }
+      }
+    ];
 
-      if (detectionResponse.ok) {
-        const detectionData = await detectionResponse.json();
-        const toolCall = detectionData.choices?.[0]?.message?.tool_calls?.[0];
-        if (toolCall?.function?.arguments) {
-          const parsed = JSON.parse(toolCall.function.arguments);
-          estimatedHumanScore = Math.max(0, Math.min(100, Math.round(parsed.human_score)));
-          analysisResult = {
+    const detectionRequestBody = (textToAnalyze: string) => ({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: AI_DETECTION_SYSTEM_PROMPT },
+        { role: "user", content: `Analyze this text for AI detection:\n\n${textToAnalyze}` },
+      ],
+      tools: detectionTools,
+      tool_choice: { type: "function", function: { name: "report_ai_detection_score" } },
+      stream: false,
+    });
+
+    const parseDetectionResponse = (detectionData: any) => {
+      const toolCall = detectionData.choices?.[0]?.message?.tool_calls?.[0];
+      if (toolCall?.function?.arguments) {
+        const parsed = JSON.parse(toolCall.function.arguments);
+        return {
+          score: Math.max(0, Math.min(100, Math.round(parsed.human_score))),
+          analysis: {
             perplexity: parsed.perplexity,
             burstiness: parsed.burstiness,
             vocabulary_diversity: parsed.vocabulary_diversity,
             sentence_uniformity: parsed.sentence_uniformity,
             structural_regularity: parsed.structural_regularity,
             overall_assessment: parsed.overall_assessment,
-          };
+          }
+        };
+      }
+      return null;
+    };
+
+    try {
+      // Run both analyses in parallel
+      const [beforeResponse, afterResponse] = await Promise.all([
+        fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(detectionRequestBody(text)),
+        }),
+        fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(detectionRequestBody(humanizedText)),
+        }),
+      ]);
+
+      if (beforeResponse.ok) {
+        const beforeData = await beforeResponse.json();
+        const parsed = parseDetectionResponse(beforeData);
+        if (parsed) {
+          beforeScore = parsed.score;
+          beforeAnalysis = parsed.analysis;
         }
       } else {
-        const errText = await detectionResponse.text();
-        console.error("Detection analysis error:", detectionResponse.status, errText);
+        const errText = await beforeResponse.text();
+        console.error("Before detection error:", beforeResponse.status, errText);
+      }
+
+      if (afterResponse.ok) {
+        const afterData = await afterResponse.json();
+        const parsed = parseDetectionResponse(afterData);
+        if (parsed) {
+          estimatedHumanScore = parsed.score;
+          analysisResult = parsed.analysis;
+        }
+      } else {
+        const errText = await afterResponse.text();
+        console.error("After detection error:", afterResponse.status, errText);
       }
     } catch (detectionError) {
       console.error("Detection analysis failed:", detectionError);
-      // Fallback: keep default score
     }
 
     // Log usage to database
@@ -294,7 +333,13 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ humanizedText, estimatedHumanScore, analysis: analysisResult }),
+      JSON.stringify({
+        humanizedText,
+        estimatedHumanScore,
+        analysis: analysisResult,
+        beforeScore,
+        beforeAnalysis,
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
