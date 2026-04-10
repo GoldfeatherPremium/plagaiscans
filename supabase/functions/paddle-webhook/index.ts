@@ -158,7 +158,9 @@ serve(async (req) => {
 
           const customData = eventData?.custom_data || {};
           const userId = customData.user_id;
-          const credits = parseInt(customData.credits || "0", 10);
+          const itemQuantity = eventData?.items?.[0]?.quantity || 1;
+          const baseCredits = parseInt(customData.credits || "0", 10);
+          const credits = baseCredits * itemQuantity;
           const creditType = customData.credit_type || "full";
           const transactionId = eventData?.id;
           const paddleCustomerId = eventData?.customer_id;
