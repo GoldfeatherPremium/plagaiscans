@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import Navigation from "@/components/Navigation";
-import { Footer } from "@/components/Footer";
+import Footer from "@/components/Footer";
 import { SEO, generateWebPageSchema } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";

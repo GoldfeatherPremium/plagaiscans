@@ -91,6 +91,12 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://plagaiscans.com/ai-humanizer</loc>
+    <lastmod>2026-04-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://plagaiscans.com/refund-policy</loc>
     <lastmod>2026-02-21</lastmod>
     <changefreq>yearly</changefreq>
