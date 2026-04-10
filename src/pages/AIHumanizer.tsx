@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Copy, Download, FileText, Sparkles, Shield, GraduationCap, Users, Loader2, ChevronDown, ChevronUp, ArrowRight, CheckCircle } from "lucide-react";
+import { Copy, Download, FileText, Sparkles, Shield, GraduationCap, Users, Loader2, ChevronDown, ChevronUp, ArrowRight, CheckCircle, X, RefreshCw } from "lucide-react";
 
 /** Simple word-level diff: highlights words in humanized text that differ from original */
 function highlightDiff(original: string, humanized: string) {
@@ -52,6 +52,26 @@ const AIHumanizer = () => {
   const [increaseHumanScore, setIncreaseHumanScore] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [humanizeCount, setHumanizeCount] = useState(0);
+
+  const handleClearAll = () => {
+    setInputText("");
+    setOutputText("");
+    setHumanScore(null);
+    setAnalysis(null);
+    setHumanizeCount(0);
+  };
+
+  const handleReHumanize = () => {
+    setInputText(outputText);
+    setOutputText("");
+    setHumanScore(null);
+    setAnalysis(null);
+    // Will trigger humanize via useEffect or manual call after state update
+    setTimeout(() => {
+      document.getElementById('humanize-btn')?.click();
+    }, 100);
+  };
 
   const wordCount = inputText.trim() ? inputText.trim().split(/\s+/).length : 0;
   const charCount = inputText.length;
@@ -71,9 +91,12 @@ const AIHumanizer = () => {
     setHumanScore(null);
     setAnalysis(null);
 
+    const currentCount = humanizeCount + 1;
+    setHumanizeCount(currentCount);
+
     try {
       const { data, error } = await supabase.functions.invoke("humanize-text", {
-        body: { text: inputText, mode, increaseHumanScore },
+        body: { text: inputText, mode, increaseHumanScore, iterationCount: currentCount },
       });
 
       if (error) {
@@ -215,14 +238,30 @@ const AIHumanizer = () => {
           {/* Input */}
           <Card>
             <CardContent className="p-4">
-              <Textarea
-                placeholder="Paste your AI-generated content here..."
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                className="min-h-[200px] border-0 shadow-none focus-visible:ring-0 resize-y text-base"
-              />
+              <div className="relative">
+                <Textarea
+                  placeholder="Paste your AI-generated content here..."
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  className="min-h-[200px] border-0 shadow-none focus-visible:ring-0 resize-y text-base pr-10"
+                />
+                {inputText && (
+                  <button
+                    onClick={handleClearAll}
+                    className="absolute top-2 right-2 p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    title="Clear all"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
               <div className="flex justify-between items-center mt-2 text-sm text-muted-foreground">
-                <span>{charCount} characters</span>
+                <span>
+                  {charCount} characters
+                  {humanizeCount > 0 && (
+                    <span className="ml-2 text-primary font-medium">· Pass {humanizeCount}</span>
+                  )}
+                </span>
                 <span className={wordCount > MAX_WORDS ? "text-destructive font-medium" : ""}>
                   {wordCount} / {MAX_WORDS} words
                 </span>
@@ -233,6 +272,7 @@ const AIHumanizer = () => {
           {/* Humanize Button */}
           <div className="text-center">
             <Button
+              id="humanize-btn"
               variant="hero"
               size="xl"
               onClick={handleHumanize}
@@ -276,6 +316,22 @@ const AIHumanizer = () => {
                   <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                     <mark className="bg-primary/15 rounded px-1">Highlighted words</mark> indicate humanized changes from your original text.
                   </p>
+                  {/* Re-Humanize Button */}
+                  <div className="mt-4 flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      Not satisfied? Re-humanize to further improve the score.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleReHumanize}
+                      disabled={isProcessing}
+                      className="gap-1.5"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Re-Humanize (Pass {humanizeCount + 1})
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
