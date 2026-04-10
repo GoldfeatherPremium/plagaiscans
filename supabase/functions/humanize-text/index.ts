@@ -36,6 +36,13 @@ Follow these detailed instructions:
 21. Allow slight inconsistency in flow to mimic real human writing.
 22. Avoid maintaining identical writing style across all paragraphs.
 23. Introduce subtle, natural shifts in voice and pacing.
+24. Limit use of casual filler phrases; keep them occasional, not frequent.
+25. Occasionally blend two ideas within the same paragraph instead of strictly separating them.
+26. Replace common AI-safe words (e.g., "important", "significant") with more natural alternatives.
+27. Allow slight topic drift within paragraphs while maintaining overall coherence.
+28. Avoid excessive use of strong emphasis words (e.g., "massive", "incredible", "extremely").
+29. Occasionally leave minor ideas slightly implied rather than fully explained.
+30. Use simpler phrasing in some sentences instead of consistently expressive language.
 
 Before finalizing, lightly disrupt perfect structure and introduce subtle human-like irregularities without reducing clarity.
 
