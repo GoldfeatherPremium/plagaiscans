@@ -38,6 +38,7 @@ const Navigation = () => {
   const navLinks = [
     { href: "/how-it-works", label: t('nav.howItWorks'), isRoute: true },
     { href: "/use-cases", label: "Use Cases", isRoute: true },
+    { href: "/ai-humanizer", label: "AI Humanizer", isRoute: true },
     { href: "/faq", label: t('nav.faq'), isRoute: true },
     { href: "/pricing", label: t('nav.pricing'), isRoute: true },
   ];

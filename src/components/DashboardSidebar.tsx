@@ -46,6 +46,7 @@ import {
   CalendarClock,
   Trash2,
   Puzzle,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStaffScanTypes } from '@/hooks/useStaffScanTypes';
@@ -310,6 +311,7 @@ export const DashboardSidebar: React.FC = () => {
     // Add remaining links
     links.push(
       { to: '/dashboard/documents', icon: FileText, label: t('sidebar.myDocuments') },
+      { to: '/ai-humanizer', icon: Sparkles, label: 'AI Humanizer' },
       { to: '/dashboard/credits', icon: CreditCard, label: t('sidebar.buyCredits') },
       { to: '/dashboard/payments', icon: Receipt, label: t('sidebar.paymentHistory') },
       { to: '/dashboard/my-tickets', icon: MessageSquare, label: 'Support Tickets' },
