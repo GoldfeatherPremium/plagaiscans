@@ -25,6 +25,11 @@ Follow these detailed instructions:
 10. Preserve the original meaning strictly — do not add or remove key information.
 11. Improve flow and readability while keeping a natural tone.
 12. Avoid common AI phrases and generic filler expressions.
+13. Occasionally break perfect paragraph flow slightly (make it feel less structured).
+14. Avoid standard transition phrases like "in conclusion", "another important point", "looking ahead".
+15. Allow minor unevenness in sentence structure to mimic real human writing.
+16. Do not make every paragraph perfectly balanced or symmetrical.
+17. Reduce over-explanation; keep some sentences slightly concise or implicit.
 
 Return ONLY the final rewritten text. Do not include explanations.`;
 
