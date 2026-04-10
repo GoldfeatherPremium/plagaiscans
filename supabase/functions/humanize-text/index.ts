@@ -58,6 +58,34 @@ const systemPrompts: Record<string, string> = {
   advanced: coreRules + `\n\nMode: Advanced — maximize variation, reduce predictability further, and increase human-like randomness.`,
 };
 
+const AI_DETECTION_SYSTEM_PROMPT = `You are an advanced AI content detector that uses the same methodology as Turnitin's AI detection system.
+
+Your job is to analyze text and determine how likely it is to be AI-generated vs. human-written.
+
+Analyze the following linguistic signals that real AI detectors use:
+
+1. **Perplexity Analysis**: Measure how predictable the word choices are. AI text tends to have LOW perplexity (very predictable next-word choices). Human text has HIGHER perplexity (more surprising, varied word choices).
+
+2. **Burstiness Analysis**: Measure variation in sentence length and complexity. AI text tends to have LOW burstiness (uniform sentence lengths, consistent complexity). Human text has HIGH burstiness (mix of very short and very long sentences, varying complexity).
+
+3. **Sentence Uniformity**: Check if sentences follow similar patterns (subject-verb-object consistently, similar openings, parallel structure throughout). High uniformity = more likely AI.
+
+4. **Vocabulary Predictability**: Analyze if the text uses "AI-safe" vocabulary — overly common, generic words that AI models favor (e.g., "significant", "crucial", "furthermore", "in conclusion"). More predictable vocabulary = more likely AI.
+
+5. **Structural Regularity**: Check paragraph structure — are all paragraphs similar in length? Do they follow a predictable pattern (intro sentence, supporting sentences, conclusion sentence)? High regularity = more likely AI.
+
+6. **Transition Patterns**: Look for formulaic transitions ("Furthermore", "Moreover", "In addition", "It is worth noting"). Frequent use of these = more likely AI.
+
+7. **Tone Consistency**: Human writing naturally shifts in tone across paragraphs. AI tends to maintain a perfectly consistent tone throughout. Check for natural tone variation.
+
+8. **Repetitive Phrasing Patterns**: AI often repeats structural patterns (e.g., starting multiple sentences the same way, using the same sentence rhythm). Detect these patterns.
+
+Score the text on a scale of 0-100 where:
+- 0 = Definitely AI-generated
+- 100 = Definitely human-written
+
+Be precise and analytical. Consider ALL signals together. A text can score high on some signals and low on others — weight them appropriately.`;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -100,6 +128,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    // Step 1: Humanize the text
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -141,22 +170,103 @@ serve(async (req) => {
       throw new Error("No output received from AI");
     }
 
-    // Calculate estimated human score based on mode
-    const baseScores: Record<string, [number, number]> = {
-      standard: [82, 88],
-      advanced: [88, 94],
-      academic: [85, 91],
-      creative: [86, 92],
-    };
-    const [min, max] = baseScores[selectedMode] || [82, 88];
-    let estimatedHumanScore = min + Math.floor(Math.random() * (max - min + 1));
-    if (increaseHumanScore) {
-      estimatedHumanScore = Math.min(99, estimatedHumanScore + Math.floor(Math.random() * 3) + 3);
+    // Step 2: Analyze the humanized text using AI-based detection (Turnitin-style)
+    let estimatedHumanScore = 85;
+    let analysisResult: Record<string, any> = {};
+
+    try {
+      const detectionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: AI_DETECTION_SYSTEM_PROMPT },
+            { role: "user", content: `Analyze this text for AI detection:\n\n${humanizedText}` },
+          ],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "report_ai_detection_score",
+                description: "Report the AI detection analysis results for the given text.",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    human_score: {
+                      type: "number",
+                      description: "Score from 0-100 where 0=definitely AI, 100=definitely human"
+                    },
+                    perplexity: {
+                      type: "string",
+                      enum: ["very_low", "low", "moderate", "high", "very_high"],
+                      description: "How unpredictable/varied the word choices are. Higher = more human-like."
+                    },
+                    burstiness: {
+                      type: "string",
+                      enum: ["very_low", "low", "moderate", "high", "very_high"],
+                      description: "Variation in sentence length and complexity. Higher = more human-like."
+                    },
+                    vocabulary_diversity: {
+                      type: "string",
+                      enum: ["poor", "fair", "good", "excellent"],
+                      description: "How diverse and natural the vocabulary is."
+                    },
+                    sentence_uniformity: {
+                      type: "string",
+                      enum: ["very_high", "high", "moderate", "low", "very_low"],
+                      description: "How uniform/repetitive sentence patterns are. Lower = more human-like."
+                    },
+                    structural_regularity: {
+                      type: "string",
+                      enum: ["very_high", "high", "moderate", "low", "very_low"],
+                      description: "How regular/predictable the paragraph structure is. Lower = more human-like."
+                    },
+                    overall_assessment: {
+                      type: "string",
+                      description: "Brief 1-2 sentence assessment of the text's human-likeness."
+                    }
+                  },
+                  required: ["human_score", "perplexity", "burstiness", "vocabulary_diversity", "sentence_uniformity", "structural_regularity", "overall_assessment"],
+                  additionalProperties: false
+                }
+              }
+            }
+          ],
+          tool_choice: { type: "function", function: { name: "report_ai_detection_score" } },
+          stream: false,
+        }),
+      });
+
+      if (detectionResponse.ok) {
+        const detectionData = await detectionResponse.json();
+        const toolCall = detectionData.choices?.[0]?.message?.tool_calls?.[0];
+        if (toolCall?.function?.arguments) {
+          const parsed = JSON.parse(toolCall.function.arguments);
+          estimatedHumanScore = Math.max(0, Math.min(100, Math.round(parsed.human_score)));
+          analysisResult = {
+            perplexity: parsed.perplexity,
+            burstiness: parsed.burstiness,
+            vocabulary_diversity: parsed.vocabulary_diversity,
+            sentence_uniformity: parsed.sentence_uniformity,
+            structural_regularity: parsed.structural_regularity,
+            overall_assessment: parsed.overall_assessment,
+          };
+        }
+      } else {
+        const errText = await detectionResponse.text();
+        console.error("Detection analysis error:", detectionResponse.status, errText);
+      }
+    } catch (detectionError) {
+      console.error("Detection analysis failed:", detectionError);
+      // Fallback: keep default score
     }
 
     // Log usage to database
     try {
-      // Extract user_id from JWT if available
       let userId: string | null = null;
       const authHeader = req.headers.get("authorization");
       if (authHeader) {
@@ -181,11 +291,10 @@ serve(async (req) => {
       });
     } catch (logError) {
       console.error("Failed to log humanizer usage:", logError);
-      // Don't fail the request if logging fails
     }
 
     return new Response(
-      JSON.stringify({ humanizedText, estimatedHumanScore }),
+      JSON.stringify({ humanizedText, estimatedHumanScore, analysis: analysisResult }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
