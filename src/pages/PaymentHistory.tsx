@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 import { toast } from '@/hooks/use-toast';
@@ -287,217 +287,129 @@ export default function PaymentHistory() {
           </Card>
         </div>
 
-        {/* Payment Tabs */}
+        {/* All Transactions */}
         <Card>
-          <Tabs defaultValue="paddle" className="w-full">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>All Transactions</CardTitle>
-                  <CardDescription>View your payment history by method</CardDescription>
-                </div>
-                <TabsList className="flex-wrap">
-                  <TabsTrigger value="paddle" className="gap-2">
-                    <CreditCard className="h-4 w-4" />
-                    Paddle
-                  </TabsTrigger>
-                  <TabsTrigger value="binance" className="gap-2">
-                    <Wallet className="h-4 w-4" />
-                    Binance
-                  </TabsTrigger>
-                </TabsList>
+          <CardHeader>
+            <CardTitle>All Transactions</CardTitle>
+            <CardDescription>Your complete payment history</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {manualPayments.length === 0 && paddlePayments.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Wallet className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No transactions yet</p>
               </div>
-            </CardHeader>
-            <CardContent>
-              {/* Paddle Payments Tab */}
-              <TabsContent value="paddle" className="mt-0">
-                {paddlePayments.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <CreditCard className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No Paddle transactions yet</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Credits</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Receipt</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paddlePayments.map((payment) => (
-                          <TableRow key={payment.id}>
-                            <TableCell>
-                              <div className="text-sm">
-                                <div>{format(new Date(payment.created_at), 'MMM dd, yyyy')}</div>
-                                <div className="text-muted-foreground">
-                                  {format(new Date(payment.created_at), 'HH:mm')}
-                                </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead>Credits</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Receipt</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[
+                      ...paddlePayments.map(p => ({
+                        id: p.id,
+                        source: 'Paddle' as const,
+                        credits: p.credits,
+                        amount_usd: p.amount_usd,
+                        currency: p.currency,
+                        status: p.status,
+                        created_at: p.created_at,
+                        transaction_id: p.transaction_id,
+                        receipt_url: p.receipt_url,
+                      })),
+                      ...manualPayments.map(p => ({
+                        id: p.id,
+                        source: 'Binance' as const,
+                        credits: p.credits,
+                        amount_usd: p.amount_usd,
+                        currency: p.currency,
+                        status: p.status,
+                        created_at: p.created_at,
+                        transaction_id: p.transaction_id,
+                        receipt_url: null as string | null,
+                      })),
+                    ]
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                      .map((payment) => (
+                        <TableRow key={payment.id}>
+                          <TableCell>
+                            <div className="text-sm">
+                              <div>{format(new Date(payment.created_at), 'MMM dd, yyyy')}</div>
+                              <div className="text-muted-foreground">
+                                {format(new Date(payment.created_at), 'HH:mm')}
                               </div>
-                            </TableCell>
-                            <TableCell className="font-semibold text-green-600">+{payment.credits}</TableCell>
-                            <TableCell>
-                              {payment.currency && payment.currency !== 'USD' ? (
-                                <div>
-                                  <div>{payment.amount_usd} {payment.currency}</div>
-                                </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={payment.source === 'Paddle' ? 'default' : 'secondary'}>
+                              {payment.source === 'Paddle' ? (
+                                <><CreditCard className="h-3 w-3 mr-1" /> Paddle</>
                               ) : (
-                                `$${payment.amount_usd}`
+                                <><Wallet className="h-3 w-3 mr-1" /> Binance</>
                               )}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="secondary" className="capitalize">
-                                {payment.credit_type}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                            <TableCell>
-                              {(() => {
-                                const receipt = findReceiptForPayment(payment.id, payment.transaction_id);
-                                if (receipt) {
-                                  return (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleDownloadReceipt(receipt.id)}
-                                      disabled={downloadingId === receipt.id}
-                                      className="gap-1"
-                                    >
-                                      {downloadingId === receipt.id ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        <Download className="h-4 w-4" />
-                                      )}
-                                      Receipt
-                                    </Button>
-                                  );
-                                }
-                                if (payment.receipt_url) {
-                                  return (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => window.open(payment.receipt_url!, '_blank')}
-                                      className="gap-1"
-                                    >
-                                      <ExternalLink className="h-4 w-4" />
-                                      View
-                                    </Button>
-                                  );
-                                }
-                                return <span className="text-muted-foreground">-</span>;
-                              })()}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </TabsContent>
-
-              {/* Binance Pay Tab */}
-              <TabsContent value="binance" className="mt-0">
-                {manualPayments.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Wallet className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No Binance Pay transactions yet</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Credits</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Order ID</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Verified At</TableHead>
-                          <TableHead>Receipt</TableHead>
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-semibold text-green-600">+{payment.credits}</TableCell>
+                          <TableCell>
+                            {payment.currency && payment.currency !== 'USD' ? (
+                              <div>{payment.amount_usd} {payment.currency}</div>
+                            ) : (
+                              `$${payment.amount_usd}`
+                            )}
+                          </TableCell>
+                          <TableCell>{getStatusBadge(payment.status)}</TableCell>
+                          <TableCell>
+                            {(() => {
+                              const receipt = findReceiptForPayment(payment.id, payment.transaction_id);
+                              if (receipt) {
+                                return (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDownloadReceipt(receipt.id)}
+                                    disabled={downloadingId === receipt.id}
+                                    className="gap-1"
+                                  >
+                                    {downloadingId === receipt.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Download className="h-4 w-4" />
+                                    )}
+                                    Receipt
+                                  </Button>
+                                );
+                              }
+                              if (payment.receipt_url) {
+                                return (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => window.open(payment.receipt_url!, '_blank')}
+                                    className="gap-1"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                    View
+                                  </Button>
+                                );
+                              }
+                              return <span className="text-muted-foreground">-</span>;
+                            })()}
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {manualPayments.map((payment) => (
-                          <TableRow key={payment.id}>
-                            <TableCell>
-                              <div className="text-sm">
-                                <div>{format(new Date(payment.created_at), 'MMM dd, yyyy')}</div>
-                                <div className="text-muted-foreground">
-                                  {format(new Date(payment.created_at), 'HH:mm')}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-semibold">{payment.credits}</TableCell>
-                            <TableCell>
-                              {payment.currency && payment.currency !== 'USD' ? (
-                                <div>
-                                  <div>{payment.amount_usd} {payment.currency}</div>
-                                </div>
-                              ) : (
-                                `$${payment.amount_usd}`
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {payment.transaction_id ? (
-                                <code className="text-xs bg-muted px-2 py-1 rounded">
-                                  {payment.transaction_id}
-                                </code>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                            <TableCell>
-                              {payment.verified_at ? (
-                                <div className="text-sm">
-                                  <div>{format(new Date(payment.verified_at), 'MMM dd, yyyy')}</div>
-                                  <div className="text-muted-foreground">
-                                    {format(new Date(payment.verified_at), 'HH:mm')}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {(() => {
-                                const receipt = findReceiptForPayment(payment.id, payment.transaction_id);
-                                if (receipt) {
-                                  return (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleDownloadReceipt(receipt.id)}
-                                      disabled={downloadingId === receipt.id}
-                                      className="gap-1"
-                                    >
-                                      {downloadingId === receipt.id ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        <Download className="h-4 w-4" />
-                                      )}
-                                      Receipt
-                                    </Button>
-                                  );
-                                }
-                                return <span className="text-muted-foreground">-</span>;
-                              })()}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </TabsContent>
-            </CardContent>
-          </Tabs>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
         </Card>
       </div>
     </DashboardLayout>
