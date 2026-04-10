@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -90,7 +91,7 @@ serve(async (req) => {
     const wordCount = text.trim().split(/\s+/).length;
     if (wordCount > 1000) {
       return new Response(
-        JSON.stringify({ error: "Free usage is limited to 1,000 words per request. Please shorten your text or upgrade to Premium." }),
+        JSON.stringify({ error: "Free usage is limited to 1,000 words per request. Please shorten your text." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -166,6 +167,36 @@ serve(async (req) => {
     let estimatedHumanScore = min + Math.floor(Math.random() * (max - min + 1));
     if (increaseHumanScore) {
       estimatedHumanScore = Math.min(99, estimatedHumanScore + Math.floor(Math.random() * 3) + 3);
+    }
+
+    // Log usage to database
+    try {
+      // Extract user_id from JWT if available
+      let userId: string | null = null;
+      const authHeader = req.headers.get("authorization");
+      if (authHeader) {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+        const token = authHeader.replace("Bearer ", "");
+        const { data: userData } = await supabaseClient.auth.getUser(token);
+        userId = userData?.user?.id || null;
+      }
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+      
+      await adminClient.from("humanizer_usage_logs").insert({
+        user_id: userId,
+        word_count: wordCount,
+        mode: selectedMode,
+        increase_human_score: increaseHumanScore || false,
+        estimated_score: estimatedHumanScore,
+      });
+    } catch (logError) {
+      console.error("Failed to log humanizer usage:", logError);
+      // Don't fail the request if logging fails
     }
 
     return new Response(
