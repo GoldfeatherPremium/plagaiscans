@@ -27,6 +27,7 @@ import {
   Trash2,
   Mail,
   MessageSquare,
+  Sparkles,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -343,9 +344,13 @@ export default function GuestUpload() {
         )}
 
         <Tabs defaultValue="upload" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
+          <TabsList className="grid w-full max-w-lg grid-cols-4">
             <TabsTrigger value="upload">Upload</TabsTrigger>
             <TabsTrigger value="documents">My Documents</TabsTrigger>
+            <TabsTrigger value="humanizer" className="gap-1">
+              <Sparkles className="h-3 w-3" />
+              Humanizer
+            </TabsTrigger>
             <TabsTrigger value="pricing">Pricing</TabsTrigger>
           </TabsList>
 
