@@ -415,6 +415,7 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/reports', icon: FileDown, label: 'Reports' },
         { to: '/dashboard/activity-logs', icon: Activity, label: 'Activity Logs' },
         { to: '/dashboard/system-health', icon: Server, label: 'System Health' },
+        { to: '/dashboard/humanizer-analytics', icon: Sparkles, label: 'Humanizer Analytics' },
       ],
     },
     {

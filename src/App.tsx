@@ -104,6 +104,7 @@ const AdminDeletedDocuments = lazy(() => import("./pages/AdminDeletedDocuments")
 const AdminExtensionDownload = lazy(() => import("./pages/AdminExtensionDownload"));
 const BlogWhatIsPlagiarism = lazy(() => import("./pages/BlogWhatIsPlagiarism"));
 const AIHumanizer = lazy(() => import("./pages/AIHumanizer"));
+const AdminHumanizerAnalytics = lazy(() => import("./pages/AdminHumanizerAnalytics"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -346,6 +347,7 @@ const AppRoutes = () => (
         <Route path="/dashboard/credit-validity" element={<ProtectedRoute allowedRoles={['admin']}><AdminCreditValidity /></ProtectedRoute>} />
         <Route path="/dashboard/deleted-documents" element={<ProtectedRoute allowedRoles={['admin']}><AdminDeletedDocuments /></ProtectedRoute>} />
         <Route path="/dashboard/extension-download" element={<ProtectedRoute allowedRoles={['admin']}><AdminExtensionDownload /></ProtectedRoute>} />
+        <Route path="/dashboard/humanizer-analytics" element={<ProtectedRoute allowedRoles={['admin']}><AdminHumanizerAnalytics /></ProtectedRoute>} />
       <Route path="/dashboard/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       
       <Route path="*" element={<NotFound />} />
