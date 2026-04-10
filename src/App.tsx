@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
-import { RefreshProgressBar } from "@/components/RefreshProgressBar";
+
 
 // Lazy load non-critical components
 const InstallPromptBanner = lazy(() => import("@/components/InstallPromptBanner").then(m => ({ default: m.InstallPromptBanner })));
@@ -359,7 +359,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
           <AuthProvider>
-            <RefreshProgressBar />
+            
             <Suspense fallback={null}>
               <DocumentCompletionNotifier />
             </Suspense>
