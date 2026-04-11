@@ -162,103 +162,168 @@ function findBestMatch(
 }
 
 /**
- * Analyze PDF page 2 to classify report type and extract percentage
+ * Analyze PDF to classify report type and extract percentage.
+ * Strategy:
+ *   1. Try page 2 (Modern View) first
+ *   2. If inconclusive, scan last 10 pages backwards (Classical View)
  */
-async function analyzePdfPage2(pdfBuffer: ArrayBuffer): Promise<ReportAnalysis> {
+async function analyzePdf(pdfBuffer: ArrayBuffer): Promise<ReportAnalysis> {
   try {
     const pdf = await getDocument({ data: new Uint8Array(pdfBuffer), useSystemFonts: true }).promise;
-    
-    // Only read page 2 (index 1)
-    if (pdf.numPages < 2) {
-      console.log('PDF has less than 2 pages, cannot analyze');
-      return { reportType: 'unknown', percentage: null, textSnippet: 'insufficient pages' };
-    }
-    
-    const page = await pdf.getPage(2);
-    const textContent = await page.getTextContent();
-    // deno-lint-ignore no-explicit-any
-    const text = (textContent.items as any[])
-      .map((item) => item.str || '')
-      .join(' ')
-      .toLowerCase();
-    
-    console.log('Page 2 text excerpt:', text.substring(0, 500));
-    
-    // Enhanced classification keywords
-    const similarityKeywords = [
-      'overall similarity', 'match groups', 'integrity overview', 'similarity index', 
-      'matching text', 'turnitin similarity', 'originality', 'sources overview',
-      'internet sources', 'publications', 'student papers'
-    ];
-    const aiKeywords = [
-      'detected as ai', 'ai writing overview', 'detection groups', 'ai-generated', 
-      'ai writing detection', 'ai writing', 'human writing', 'chat gpt', 'chatgpt',
-      'ai detection', 'ai content'
-    ];
-    
-    const isSimilarity = similarityKeywords.some(kw => text.includes(kw));
-    const isAI = aiKeywords.some(kw => text.includes(kw));
-    
-    let reportType: 'similarity' | 'ai' | 'unknown' = 'unknown';
-    let percentage: number | null = null;
-    
-    if (isSimilarity && !isAI) {
-      reportType = 'similarity';
-      // Extract similarity percentage - try multiple patterns
-      const patterns = [
-        /(\d+(?:\.\d+)?)\s*%\s*(?:overall\s+)?similarity/,
-        /similarity[:\s]+(\d+(?:\.\d+)?)\s*%/,
-        /(\d+(?:\.\d+)?)\s*%\s*match/,
-      ];
-      for (const pattern of patterns) {
-        const match = text.match(pattern);
-        if (match) {
-          percentage = parseFloat(match[1]);
-          break;
-        }
-      }
-    } else if (isAI && !isSimilarity) {
-      reportType = 'ai';
-      // Extract AI percentage - try multiple patterns
-      const patterns = [
-        /(\d+(?:\.\d+)?)\s*%\s*(?:detected\s+as\s+)?ai/,
-        /ai[:\s]+(\d+(?:\.\d+)?)\s*%/,
-        /(\d+(?:\.\d+)?)\s*%\s*ai(?:\s+writing)?/,
-      ];
-      for (const pattern of patterns) {
-        const match = text.match(pattern);
-        if (match) {
-          percentage = parseFloat(match[1]);
-          break;
-        }
-      }
-    } else if (isSimilarity && isAI) {
-      // Both keywords found - classify based on which appears first
-      const similarityIndex = Math.min(...similarityKeywords.map(kw => {
-        const idx = text.indexOf(kw);
-        return idx === -1 ? Infinity : idx;
-      }));
-      const aiIndex = Math.min(...aiKeywords.map(kw => {
-        const idx = text.indexOf(kw);
-        return idx === -1 ? Infinity : idx;
-      }));
-      
-      if (similarityIndex < aiIndex) {
-        reportType = 'similarity';
-        const similarityMatch = text.match(/(\d+(?:\.\d+)?)\s*%\s*(?:overall\s+)?similarity/);
-        if (similarityMatch) percentage = parseFloat(similarityMatch[1]);
-      } else {
-        reportType = 'ai';
-        const aiMatch = text.match(/(\d+(?:\.\d+)?)\s*%\s*(?:detected\s+as\s+)?ai/);
-        if (aiMatch) percentage = parseFloat(aiMatch[1]);
+
+    // ─── Step 1: Modern View (page 2) ───
+    if (pdf.numPages >= 2) {
+      const result = await analyzeModernView(pdf);
+      if (result.reportType !== 'unknown') {
+        return result;
       }
     }
-    
-    return { reportType, percentage, textSnippet: text.substring(0, 200) };
+
+    // ─── Step 2: Classical View (last 10 pages, backwards) ───
+    const classicalResult = await analyzeClassicalView(pdf);
+    if (classicalResult.reportType !== 'unknown') {
+      return classicalResult;
+    }
+
+    console.log('PDF analysis: no report type detected on page 2 or last pages');
+    return { reportType: 'unknown', percentage: null, textSnippet: 'no markers found' };
   } catch (error) {
     console.error('PDF analysis error:', error);
     return { reportType: 'unknown', percentage: null, textSnippet: 'error: ' + (error as Error).message };
   }
+}
+
+// deno-lint-ignore no-explicit-any
+async function extractPageText(pdf: any, pageNum: number): string {
+  const page = await pdf.getPage(pageNum);
+  const textContent = await page.getTextContent();
+  // deno-lint-ignore no-explicit-any
+  return (textContent.items as any[]).map((item) => item.str || '').join(' ');
+}
+
+/**
+ * Modern View detection — reads page 2
+ */
+// deno-lint-ignore no-explicit-any
+async function analyzeModernView(pdf: any): Promise<ReportAnalysis> {
+  const rawText = await extractPageText(pdf, 2);
+  const text = rawText.toLowerCase();
+  console.log('Page 2 text excerpt:', text.substring(0, 500));
+
+  const similarityKeywords = [
+    'overall similarity', 'match groups', 'integrity overview', 'similarity index',
+    'matching text', 'turnitin similarity', 'originality', 'sources overview',
+    'internet sources', 'publications', 'student papers'
+  ];
+  const aiKeywords = [
+    'detected as ai', 'ai writing overview', 'detection groups', 'ai-generated',
+    'ai writing detection', 'ai writing', 'human writing', 'chat gpt', 'chatgpt',
+    'ai detection', 'ai content'
+  ];
+
+  const isSimilarity = similarityKeywords.some(kw => text.includes(kw));
+  const isAI = aiKeywords.some(kw => text.includes(kw));
+
+  let reportType: 'similarity' | 'ai' | 'unknown' = 'unknown';
+  let percentage: number | null = null;
+
+  if (isSimilarity && !isAI) {
+    reportType = 'similarity';
+    percentage = extractSimilarityPercentage(text);
+  } else if (isAI && !isSimilarity) {
+    reportType = 'ai';
+    percentage = extractAIPercentage(text);
+  } else if (isSimilarity && isAI) {
+    const similarityIndex = Math.min(...similarityKeywords.map(kw => {
+      const idx = text.indexOf(kw);
+      return idx === -1 ? Infinity : idx;
+    }));
+    const aiIndex = Math.min(...aiKeywords.map(kw => {
+      const idx = text.indexOf(kw);
+      return idx === -1 ? Infinity : idx;
+    }));
+    if (similarityIndex < aiIndex) {
+      reportType = 'similarity';
+      percentage = extractSimilarityPercentage(text);
+    } else {
+      reportType = 'ai';
+      percentage = extractAIPercentage(text);
+    }
+  }
+
+  return { reportType, percentage, textSnippet: text.substring(0, 200) };
+}
+
+/**
+ * Classical View detection — scans last 10 pages backwards looking for
+ * "ORIGINALITY REPORT" / "SIMILARITY INDEX" markers.
+ */
+// deno-lint-ignore no-explicit-any
+async function analyzeClassicalView(pdf: any): Promise<ReportAnalysis> {
+  const lastPageStart = Math.max(1, pdf.numPages - 9);
+
+  for (let pageNum = pdf.numPages; pageNum >= lastPageStart; pageNum--) {
+    const rawText = await extractPageText(pdf, pageNum);
+    const text = rawText.toLowerCase();
+
+    // Classical view markers
+    const hasOrigReport = text.includes('originality report');
+    const hasSimilarityIndex = text.includes('similarity index');
+    const hasPrimarySources = text.includes('primary sources');
+    const hasInternetSources = text.includes('internet sources');
+
+    if ((hasOrigReport || hasPrimarySources) && (hasSimilarityIndex || hasInternetSources)) {
+      console.log(`Classical view detected on page ${pageNum}`);
+
+      // Extract similarity index percentage
+      const patterns = [
+        /(\d+)\s*%\s*similarity\s*index/,
+        /similarity\s*index\s*(\d+)\s*%/,
+        /similarity\s*index[:\s]*(\d+(?:\.\d+)?)\s*%/,
+        /(\d+(?:\.\d+)?)\s*%?\s*similarity\s*index/,
+      ];
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+          const pct = parseFloat(match[1]);
+          console.log(`Classical view similarity: ${pct}% (page ${pageNum})`);
+          return { reportType: 'similarity', percentage: pct, textSnippet: text.substring(0, 200) };
+        }
+      }
+
+      // Markers found but no percentage extracted — still classify as similarity
+      console.log(`Classical view markers found on page ${pageNum} but no percentage extracted`);
+      return { reportType: 'similarity', percentage: null, textSnippet: text.substring(0, 200) };
+    }
+  }
+
+  return { reportType: 'unknown', percentage: null, textSnippet: '' };
+}
+
+function extractSimilarityPercentage(text: string): number | null {
+  const patterns = [
+    /(\d+(?:\.\d+)?)\s*%\s*(?:overall\s+)?similarity/,
+    /similarity[:\s]+(\d+(?:\.\d+)?)\s*%/,
+    /(\d+(?:\.\d+)?)\s*%\s*match/,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return parseFloat(match[1]);
+  }
+  return null;
+}
+
+function extractAIPercentage(text: string): number | null {
+  const patterns = [
+    /(\d+(?:\.\d+)?)\s*%\s*(?:detected\s+as\s+)?ai/,
+    /ai[:\s]+(\d+(?:\.\d+)?)\s*%/,
+    /(\d+(?:\.\d+)?)\s*%\s*ai(?:\s+writing)?/,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return parseFloat(match[1]);
+  }
+  return null;
 }
 
 serve(async (req: Request) => {
