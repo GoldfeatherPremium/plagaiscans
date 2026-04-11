@@ -436,7 +436,7 @@ serve(async (req: Request) => {
       } else {
         // Analyze PDF page 2
         const buffer = await pdfData.arrayBuffer();
-        analysis = await analyzePdfPage2(buffer);
+        analysis = await analyzePdf(buffer);
         console.log(`Analysis result for ${report.fileName}:`, analysis);
       }
 
