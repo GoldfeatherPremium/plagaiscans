@@ -173,24 +173,7 @@ function computeHeuristicScore(metrics: ReturnType<typeof computeTextMetrics>): 
   return Math.max(0, Math.min(100, score));
 }
 
-// ─── AI Detection Prompt ─────────────────────────────────────────────
-
-const AI_DETECTION_SYSTEM_PROMPT = `You are an advanced AI writing classifier.
-
-Your ONLY task is to classify the given text into one of three categories based on its writing style:
-
-1. "ai-like" — Highly structured, formal, predictable, uniform sentence patterns, formulaic transitions, low burstiness
-2. "balanced" — Semi-natural, some variation but still somewhat organized, moderate burstiness
-3. "human-like" — Conversational, varied, imperfect, high burstiness, natural irregularities, genuine voice
-
-You will also receive pre-computed linguistic statistics. Use them as evidence to support your classification.
-
-Rules:
-- Be honest and accurate in your classification
-- Consider sentence structure variation, vocabulary style, transition patterns, and overall naturalness
-- Do NOT default to "balanced" — commit to a classification
-- Write a SHORT natural explanation (2 lines max) mentioning 2-3 specific traits
-- Simple language, not technical jargon`;
+// ─── Score Generation ─────────────────────────────────────────────
 
 // Helper: random integer in range [min, max] inclusive
 function randomInRange(min: number, max: number): number {
