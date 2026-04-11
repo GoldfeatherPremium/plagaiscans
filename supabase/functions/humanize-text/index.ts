@@ -338,7 +338,7 @@ This text has ALREADY been humanized ${iteration - 1} time(s). It still has dete
     }
 
     // Step 4: Generate scores from classification-based random ranges
-    const scores = generateScores(classification);
+    const scores = generateScores(classification, iteration);
     const { ai_score: aiScore, human_score: humanScore } = scores;
 
     // Step 5: Generate consistent metrics
