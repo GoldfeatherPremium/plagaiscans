@@ -371,31 +371,31 @@ const AIHumanizer = () => {
                               {analysis.vocabulary_richness != null && (
                                 <div className="bg-background rounded-md p-2 text-center">
                                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Vocabulary Richness</p>
-                                  <p className="text-sm font-bold text-foreground">{(analysis.vocabulary_richness * 100).toFixed(0)}%</p>
+                                  <p className="text-sm font-bold text-foreground">{Math.round(analysis.vocabulary_richness)}%</p>
                                 </div>
                               )}
-                              {analysis.sentence_length_std_dev != null && (
+                              {analysis.sentence_variance != null && (
                                 <div className="bg-background rounded-md p-2 text-center">
                                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Sentence Variance</p>
-                                  <p className="text-sm font-bold text-foreground">{analysis.sentence_length_std_dev}</p>
+                                  <p className="text-sm font-bold text-foreground">{Number(analysis.sentence_variance).toFixed(1)}</p>
                                 </div>
                               )}
                               {analysis.opener_diversity != null && (
                                 <div className="bg-background rounded-md p-2 text-center">
                                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Opener Diversity</p>
-                                  <p className="text-sm font-bold text-foreground">{analysis.opener_diversity}%</p>
+                                  <p className="text-sm font-bold text-foreground">{Math.round(analysis.opener_diversity)}%</p>
                                 </div>
                               )}
                               {analysis.transition_density != null && (
                                 <div className="bg-background rounded-md p-2 text-center">
                                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Transition Density</p>
-                                  <p className="text-sm font-bold text-foreground">{analysis.transition_density}%</p>
+                                  <p className="text-sm font-bold text-foreground">{Math.round(analysis.transition_density)}%</p>
                                 </div>
                               )}
                               {analysis.avg_sentence_length != null && (
                                 <div className="bg-background rounded-md p-2 text-center">
                                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Avg Sentence Len</p>
-                                  <p className="text-sm font-bold text-foreground">{analysis.avg_sentence_length}w</p>
+                                  <p className="text-sm font-bold text-foreground">{Math.round(analysis.avg_sentence_length)}w</p>
                                 </div>
                               )}
                               {analysis.paragraph_count != null && (
@@ -405,18 +405,6 @@ const AIHumanizer = () => {
                                 </div>
                               )}
                             </div>
-
-                            {/* Score breakdown */}
-                            {(analysis.heuristic_score != null || analysis.ai_judgment_score != null) && (
-                              <div className="flex gap-3 mb-3 text-xs text-muted-foreground">
-                                {analysis.heuristic_score != null && (
-                                  <span>Stats Score: <strong className="text-foreground">{analysis.heuristic_score}</strong></span>
-                                )}
-                                {analysis.ai_judgment_score != null && (
-                                  <span>AI Judge: <strong className="text-foreground">{analysis.ai_judgment_score}</strong></span>
-                                )}
-                              </div>
-                            )}
                           </>
                         )}
 
