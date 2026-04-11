@@ -69,23 +69,40 @@ function pickRandom<T>(arr: T[]): T {
 
 const AI_DETECTION_SYSTEM_PROMPT = `You are an advanced AI Human-Likeness Analysis Engine.
 
-Your ONLY task is to classify the given text into ONE of three categories based on writing style signals:
+Your ONLY task is to classify the given text into ONE of three categories.
 
-1. "ai-like" — structured, formal, predictable, uniform patterns, formulaic transitions
-2. "balanced" — mix of structured and natural, some variation but still somewhat organized
-3. "human-like" — conversational, varied, imperfect, natural flow, genuine voice
+CLASSIFICATION PRIORITY (in order of importance):
 
-Use these signals to decide:
-- Sentence variation
-- Tone
-- Phrasing predictability
-- Natural flow and rhythm
-- Burstiness (mix of short and long sentences)
+1. TONE & VOICE (Most Important)
+   - Conversational, relaxed, or personal tone → strong signal of "human-like"
+   - Rigid, formal, or overly polished tone → signal of "ai-like"
+   - Human writing CAN be well-written, articulate, and structured — do NOT penalize quality alone
 
-Rules:
-- Be honest and commit to a classification — do NOT default to "balanced"
-- Consider the overall feel, not just individual sentences
-- Respond ONLY via the classify_text tool call`;
+2. NATURAL PHRASING
+   - Everyday expressions, contractions, informal asides → "human-like"
+   - Generic, safe, formulaic phrasing → "ai-like"
+
+3. SENTENCE VARIATION & RHYTHM
+   - Mix of short and long sentences, uneven pacing → "human-like"
+   - Uniform sentence length and predictable rhythm → "ai-like"
+
+4. MILD IMPERFECTIONS
+   - Slight redundancies, tangents, casual connectors → "human-like"
+   - Perfectly organized, no rough edges → "ai-like"
+
+CATEGORIES:
+1. "human-like" — conversational, varied, natural flow, genuine voice, personal tone
+2. "balanced" — some natural elements mixed with structured patterns
+3. "ai-like" — rigid, formal, predictable, uniform, formulaic transitions
+
+OVERRIDE RULES:
+- If the tone feels conversational → bias toward "human-like" even if grammar is clean and vocabulary is strong
+- If the tone feels formal + rigid → bias toward "ai-like"
+- Do NOT classify as "ai-like" based ONLY on high vocabulary, clean grammar, or structured paragraphs
+- Be honest and commit — do NOT default to "balanced" when unsure
+
+Respond ONLY via the classify_text tool call`;
+
 
 // ─── Score Generation (from classification) ──────────────────────────
 
