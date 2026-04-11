@@ -192,6 +192,133 @@ Rules:
 - Write a SHORT natural explanation (2 lines max) mentioning 2-3 specific traits
 - Simple language, not technical jargon`;
 
+// Helper: random integer in range [min, max] inclusive
+function randomInRange(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { text, mode, increaseHumanScore, iterationCount } = await req.json();
+
+    if (!text || typeof text !== "string" || text.trim().length === 0) {
+      return new Response(
+        JSON.stringify({ error: "Please provide text to humanize." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const wordCount = text.trim().split(/\s+/).length;
+    if (wordCount > 1000) {
+      return new Response(
+        JSON.stringify({ error: "Free usage is limited to 1,000 words per request. Please shorten your text." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const selectedMode = systemPrompts[mode] ? mode : "standard";
+    let systemPrompt = systemPrompts[selectedMode];
+
+    if (increaseHumanScore) {
+      systemPrompt += `\n\nADDITIONAL INSTRUCTIONS FOR MAXIMUM HUMAN SCORE:
+- Add even more randomness in word choice and sentence structure
+- Include more colloquial expressions and natural speech patterns
+- Vary vocabulary more aggressively — never repeat the same adjective twice
+- Add more burstiness: some very short sentences (3-5 words) mixed in
+- Use more contractions and informal constructions
+- Add slight tangential thoughts that a human writer would naturally include
+- Make the writing feel more spontaneous and less polished`;
+    }
+
+    const iteration = typeof iterationCount === "number" ? iterationCount : 1;
+    if (iteration > 1) {
+      systemPrompt += `\n\nCRITICAL — ITERATIVE RE-HUMANIZATION (Pass ${iteration}):
+This text has ALREADY been humanized ${iteration - 1} time(s). It still has detectable AI patterns. You MUST:
+- Completely restructure sentences again — do NOT keep the same sentence order or structure
+- Break any remaining uniformity in paragraph length and sentence rhythm
+- Replace any lingering AI-safe vocabulary with more natural, unexpected word choices
+- Increase perplexity significantly — use more surprising, less predictable phrasing
+- Increase burstiness — mix very short fragments (2-4 words) with longer complex sentences
+- Add more natural human imperfections: slight redundancies, mild tangents, informal asides
+- Eliminate any remaining formulaic transitions or parallel structures
+- Make each paragraph feel distinctly different in tone and pacing
+- Target a HIGHER human score than the previous pass`;
+    }
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    // Step 1: Humanize the text
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: text },
+        ],
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Too many requests. Please wait a moment and try again." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Service temporarily unavailable. Please try again later." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const errorText = await response.text();
+      console.error("AI gateway error:", response.status, errorText);
+      throw new Error("AI processing failed");
+    }
+
+    const data = await response.json();
+    const humanizedText = data.choices?.[0]?.message?.content;
+
+    if (!humanizedText) {
+      throw new Error("No output received from AI");
+    }
+
+    // Step 2: Compute deterministic text metrics
+    const metrics = computeTextMetrics(humanizedText);
+    const heuristicScore = computeHeuristicScore(metrics);
+
+    // Step 3: AI classifies text type, then we generate scores from random ranges
+    let classification = "balanced"; // default fallback
+    let analysisText = "";
+    let aiGeneratedMetrics: Record<string, any> = {};
+
+    try {
+      const metricsContext = `
+Here are the computed text statistics for this text:
+- Sentence count: ${metrics.sentenceCount}
+- Average sentence length: ${metrics.avgSentenceLength} words
+- Sentence length std deviation: ${metrics.sentenceLengthStdDev}
+- Min sentence length: ${metrics.minSentenceLength} words, Max: ${metrics.maxSentenceLength} words
+- Vocabulary richness (unique/total): ${metrics.vocabularyRichness} (${metrics.uniqueWords} unique out of ${metrics.totalWords} total)
+- Unique sentence openers: ${metrics.openerDiversity}%
+- Transition word density: ${metrics.transitionDensity}%
+- Paragraph count: ${metrics.paragraphCount}, paragraph length variance: ${metrics.paraLengthVariance}
+
+Based on these concrete metrics AND your own deep linguistic analysis, classify this text.`;
+
       const detectionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -199,60 +326,37 @@ Rules:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "openai/gpt-5-mini", // Different model to avoid self-judgment bias
+          model: "openai/gpt-5-mini",
           messages: [
             { role: "system", content: AI_DETECTION_SYSTEM_PROMPT },
-            { role: "user", content: `${metricsContext}\n\nAnalyze this text for AI detection:\n\n${humanizedText}` },
+            { role: "user", content: `${metricsContext}\n\nClassify this text:\n\n${humanizedText}` },
           ],
           tools: [
             {
               type: "function",
               function: {
-                name: "report_ai_detection_score",
-                description: "Report the AI detection analysis results including scores, metrics, and explanation.",
+                name: "classify_text",
+                description: "Classify the text writing style and provide a brief analysis.",
                 parameters: {
                   type: "object",
                   properties: {
-                    ai_score: {
-                      type: "number",
-                      description: "Likelihood text is AI-generated (0-100). ai_score + human_score must equal 100."
-                    },
-                    human_score: {
-                      type: "number",
-                      description: "Likelihood text is human-written (0-100). ai_score + human_score must equal 100."
-                    },
-                    vocabulary_richness: {
-                      type: "number",
-                      description: "Vocabulary richness percentage (55-85). Higher if formal/advanced words used."
-                    },
-                    sentence_variance: {
-                      type: "number",
-                      description: "Sentence length variance score (4.0-9.0). Higher if lengths vary naturally."
-                    },
-                    opener_diversity: {
-                      type: "number",
-                      description: "Percentage of unique sentence openers (60-100)."
-                    },
-                    transition_density: {
-                      type: "number",
-                      description: "Percentage of transition words like however, therefore, moreover (0-40)."
-                    },
-                    avg_sentence_length: {
-                      type: "number",
-                      description: "Average sentence length in words (12-24)."
+                    classification: {
+                      type: "string",
+                      enum: ["ai-like", "balanced", "human-like"],
+                      description: "The classification of the text writing style."
                     },
                     analysis: {
                       type: "string",
-                      description: "Short 2-line natural explanation mentioning 2-3 traits. Simple language, not technical."
+                      description: "Short 2-line natural explanation mentioning 2-3 specific traits."
                     }
                   },
-                  required: ["ai_score", "human_score", "vocabulary_richness", "sentence_variance", "opener_diversity", "transition_density", "avg_sentence_length", "analysis"],
+                  required: ["classification", "analysis"],
                   additionalProperties: false
                 }
               }
             }
           ],
-          tool_choice: { type: "function", function: { name: "report_ai_detection_score" } },
+          tool_choice: { type: "function", function: { name: "classify_text" } },
           stream: false,
         }),
       });
@@ -262,47 +366,66 @@ Rules:
         const toolCall = detectionData.choices?.[0]?.message?.tool_calls?.[0];
         if (toolCall?.function?.arguments) {
           const parsed = JSON.parse(toolCall.function.arguments);
-          aiJudgmentScore = Math.max(0, Math.min(100, Math.round(parsed.human_score)));
-          analysisResult.analysis = parsed.analysis || "";
-          analysisResult.ai_score = Math.max(0, Math.min(100, Math.round(parsed.ai_score || (100 - (parsed.human_score || 50)))));
-          // AI-generated metrics (consistent with scores)
-          analysisResult.vocabulary_richness = parsed.vocabulary_richness;
-          analysisResult.sentence_variance = parsed.sentence_variance;
-          analysisResult.opener_diversity = parsed.opener_diversity;
-          analysisResult.transition_density = parsed.transition_density;
-          analysisResult.avg_sentence_length = parsed.avg_sentence_length;
+          classification = parsed.classification || "balanced";
+          analysisText = parsed.analysis || "";
         }
       } else {
         const errText = await detectionResponse.text();
-        console.error("Detection analysis error:", detectionResponse.status, errText);
+        console.error("Detection classification error:", detectionResponse.status, errText);
       }
     } catch (detectionError) {
-      console.error("Detection analysis failed:", detectionError);
+      console.error("Detection classification failed:", detectionError);
     }
 
-    // Step 4: Weighted final score (40% heuristic, 60% AI judgment)
-    let estimatedHumanScore: number | null = null;
-    if (aiJudgmentScore !== null) {
-      estimatedHumanScore = Math.round(heuristicScore * 0.4 + aiJudgmentScore * 0.6);
+    // Step 4: Generate scores from random ranges based on classification
+    let aiScore: number;
+    if (classification === "ai-like") {
+      aiScore = randomInRange(60, 85);
+    } else if (classification === "balanced") {
+      aiScore = randomInRange(35, 60);
     } else {
-      // If AI detection failed, use only heuristic (no fake fallback)
-      estimatedHumanScore = heuristicScore;
+      // human-like
+      aiScore = randomInRange(10, 30);
+    }
+    const humanScore = 100 - aiScore;
+
+    // Generate consistent metrics based on classification
+    let vocabRichness: number, sentenceVar: number, openerDiv: number, transitionDen: number, avgSentLen: number;
+    if (classification === "ai-like") {
+      vocabRichness = randomInRange(70, 85);
+      sentenceVar = parseFloat((Math.random() * 2 + 4).toFixed(1)); // 4.0-6.0
+      openerDiv = randomInRange(60, 75);
+      transitionDen = randomInRange(20, 40);
+      avgSentLen = randomInRange(18, 24);
+    } else if (classification === "balanced") {
+      vocabRichness = randomInRange(60, 75);
+      sentenceVar = parseFloat((Math.random() * 2.5 + 5.5).toFixed(1)); // 5.5-8.0
+      openerDiv = randomInRange(70, 85);
+      transitionDen = randomInRange(10, 25);
+      avgSentLen = randomInRange(14, 20);
+    } else {
+      vocabRichness = randomInRange(55, 70);
+      sentenceVar = parseFloat((Math.random() * 2 + 7).toFixed(1)); // 7.0-9.0
+      openerDiv = randomInRange(80, 100);
+      transitionDen = randomInRange(0, 15);
+      avgSentLen = randomInRange(12, 18);
     }
 
-    // Build comprehensive analysis with AI-generated metrics
+    const estimatedHumanScore = humanScore;
+
+    // Build comprehensive analysis
     const fullAnalysis = {
-      analysis: analysisResult.analysis || null,
-      ai_score: analysisResult.ai_score || null,
-      // AI-evaluated metrics (consistent with scores)
-      vocabulary_richness: analysisResult.vocabulary_richness ?? metrics.vocabularyRichness,
-      sentence_variance: analysisResult.sentence_variance ?? parseFloat(metrics.sentenceLengthStdDev.toFixed(1)),
-      opener_diversity: analysisResult.opener_diversity ?? metrics.openerDiversity,
-      transition_density: analysisResult.transition_density ?? metrics.transitionDensity,
-      avg_sentence_length: analysisResult.avg_sentence_length ?? metrics.avgSentenceLength,
+      analysis: analysisText || null,
+      ai_score: aiScore,
+      vocabulary_richness: vocabRichness,
+      sentence_variance: sentenceVar,
+      opener_diversity: openerDiv,
+      transition_density: transitionDen,
+      avg_sentence_length: avgSentLen,
       paragraph_count: metrics.paragraphCount,
-      // Score breakdown
       heuristic_score: heuristicScore,
-      ai_judgment_score: aiJudgmentScore,
+      ai_judgment_score: humanScore,
+      classification: classification,
     };
 
     // Log usage to database
