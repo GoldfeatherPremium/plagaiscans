@@ -407,7 +407,6 @@ export const useSimilarityDocuments = () => {
       if (cancelError) throw cancelError;
 
       // 6. Log to deleted_documents_log
-      const profileInfo = docData.profiles as { email?: string; full_name?: string } | null;
       await supabase.from('deleted_documents_log').insert({
         original_document_id: documentId,
         user_id: docData.user_id,
