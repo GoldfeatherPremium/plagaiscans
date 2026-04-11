@@ -412,7 +412,7 @@ const AIHumanizer = () => {
                           <p className="text-sm text-muted-foreground italic mb-2">"{analysis.analysis}"</p>
                         )}
                         <p className="text-sm text-muted-foreground">
-                          This is an <strong>AI-based estimate</strong> of the humanized output. For the <strong>actual AI percentage</strong> detected by Turnitin, get your content officially scanned.
+                          Your score can be improved further.
                         </p>
                       </div>
                     </div>
@@ -427,27 +427,24 @@ const AIHumanizer = () => {
                 </Card>
               ) : null}
 
-              {/* CTA: Get Official AI Detection */}
+              {/* CTA: Get Verified AI Report */}
               <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
                 <CardContent className="p-6 text-center">
                   <Shield className="w-10 h-10 text-primary mx-auto mb-3" />
                   <h3 className="text-lg font-bold text-foreground mb-2">
-                    Want to Know the Actual AI Percentage?
+                    Get Your Verified AI Report
                   </h3>
                   <p className="text-sm text-muted-foreground mb-4 max-w-lg mx-auto">
-                    Get your content officially checked with Turnitin's AI detection. Know your exact AI score before submitting your work.
+                    Check your content officially from Turnitin.com before submission.
                   </p>
                   <Button
                     size="lg"
                     className="gap-2"
                     onClick={() => navigate(user ? '/dashboard/upload' : '/auth')}
                   >
-                    Get Official AI Detection Report
+                    Check Now
                     <ArrowRight className="w-4 h-4" />
                   </Button>
-                  <p className="text-xs text-muted-foreground mt-3">
-                    Starting from just 1 credit per scan · Instant results
-                  </p>
                 </CardContent>
               </Card>
             </>
