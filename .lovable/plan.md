@@ -1,45 +1,43 @@
 
 
-## Plan: Upgrade AI Detection Prompt to Professional Detection Engine
+## Plan: Support Classical View Reports in AI Scan Bulk Upload
 
 ### Problem
-The current detection prompt is generic and produces repetitive scores. The user has provided a comprehensive, professional-grade detection prompt that mirrors real AI detection tools.
+The bulk report processor (`process-bulk-reports`) only reads page 2 of PDFs to detect report type and extract percentages. This works for Modern View reports but fails for Classical View similarity reports where the similarity index appears in the last pages (as shown in the screenshot: "ORIGINALITY REPORT" section with "SIMILARITY INDEX" percentage).
 
-### Changes
+### What Changes
 
-**1. `supabase/functions/humanize-text/index.ts`**
+**File: `supabase/functions/process-bulk-reports/index.ts`**
 
-Replace the current `AI_DETECTION_SYSTEM_PROMPT` (lines 178-192) with the user's professional prompt, adapted for the tool-calling format:
+Upgrade the `analyzePdfPage2` function to a smarter `analyzePdf` function that:
 
-- New prompt includes explicit scoring logic with defined ranges (60-90 for structured text, 30-60 for balanced, 5-30 for conversational)
-- Requires analysis of 9 specific criteria (sentence structure variation, predictability, repetition, vocabulary style, flow/rhythm, imperfections, tone variation, paragraph structure, burstiness)
-- Enforces `ai_score + human_score = 100` constraint
-- Mandates short 1-2 sentence explanations mentioning 2-3 specific signals
-- Adds ±5 variation requirement to avoid repeating same scores
-- Output via tool calling already in place — update the tool schema to return both `ai_score` and `human_score` plus `analysis` text
+1. **Try page 2 first** (Modern View detection) -- keep existing logic
+2. **If page 2 returns `unknown` or no percentage found**, fall back to scanning the last 10 pages backwards (Classical View detection)
+3. In the classical view pages, look for keywords like:
+   - `originality report`
+   - `similarity index` followed by a percentage
+   - `internet sources`, `publications`, `student papers`
+4. Extract the similarity percentage from patterns like `N% SIMILARITY INDEX` or `SIMILARITY INDEX ... N%`
+5. Classify as `similarity` report type when classical view markers are found
 
-Update the tool-calling schema (lines 327-349) to match the new prompt's output format:
-- Add `ai_score` (number 0-100) property
-- Keep `human_score` (number 0-100) property  
-- Rename `overall_assessment` to `analysis` (short natural explanation)
+### Detection Logic (Classical View)
 
-Update the response processing (lines 356-366) to use `analysis` instead of `overall_assessment`.
+From the screenshot reference, classical view reports contain:
+- Header: document filename
+- "ORIGINALITY REPORT" label
+- Percentage values for: SIMILARITY INDEX, INTERNET SOURCES, PUBLICATIONS, STUDENT PAPERS
+- "PRIMARY SOURCES" section with source details
 
-Update `fullAnalysis` object (lines 382-396) to include the new `ai_score` field.
-
-**2. `src/pages/AIHumanizer.tsx`**
-
-- Display both AI Score and Human Score from the analysis
-- Use `analysis` field name instead of `overall_assessment` for the text explanation
-- Add AI Score indicator alongside the existing Human Score display
+The function will scan last 10 pages for these patterns and extract the main similarity index percentage.
 
 ### Technical Details
-- The detection model remains `openai/gpt-5-mini` (different from the humanizer model) to avoid self-judgment bias
-- Computed heuristic metrics still feed into the prompt as context
-- Weighted scoring (40% heuristic + 60% AI judgment) remains unchanged
-- The structured prompt with scoring ranges should eliminate the repetitive 25/65/85 pattern
 
-### Files Modified
-1. `supabase/functions/humanize-text/index.ts` — replace detection prompt, update tool schema
-2. `src/pages/AIHumanizer.tsx` — display both scores and updated analysis field
+- Rename `analyzePdfPage2` to `analyzePdf`
+- Add backward page scanning when page 2 analysis is inconclusive
+- Add regex patterns for classical view format: `/(\d+)\s*%\s*similarity\s*index/`, `/similarity\s*index\s*(\d+)\s*%/`
+- Classical view keywords: `originality report`, `similarity index`, `primary sources`
+- No database or UI changes needed -- only the edge function logic
+
+### Deployment
+- Redeploy `process-bulk-reports` edge function
 
