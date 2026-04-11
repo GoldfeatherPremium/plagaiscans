@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { FileText, Shield, Clock, Users, ArrowRight, AlertCircle, Sparkles } from "lucide-react";
+import { FileText, Shield, Clock, Users, ArrowRight, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
 import Footer from "@/components/Footer";
