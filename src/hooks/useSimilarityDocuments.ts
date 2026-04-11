@@ -307,12 +307,23 @@ export const useSimilarityDocuments = () => {
       // 1. Fetch document details
       const { data: docData, error: fetchError } = await supabase
         .from('documents')
-        .select('*, profiles:user_id(email, full_name)')
+        .select('*')
         .eq('id', documentId)
-        .single();
+        .maybeSingle();
 
       if (fetchError || !docData) {
         throw new Error('Document not found');
+      }
+
+      // Fetch profile info separately if user_id exists
+      let profileInfo: { email?: string; full_name?: string } | null = null;
+      if (docData.user_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email, full_name')
+          .eq('id', docData.user_id)
+          .maybeSingle();
+        profileInfo = profile;
       }
 
       // Only allow cancellation of pending/in_progress documents
@@ -396,7 +407,6 @@ export const useSimilarityDocuments = () => {
       if (cancelError) throw cancelError;
 
       // 6. Log to deleted_documents_log
-      const profileInfo = docData.profiles as { email?: string; full_name?: string } | null;
       await supabase.from('deleted_documents_log').insert({
         original_document_id: documentId,
         user_id: docData.user_id,
