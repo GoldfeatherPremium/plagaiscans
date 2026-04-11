@@ -251,29 +251,13 @@ This text has ALREADY been humanized ${iteration - 1} time(s). It still has dete
       throw new Error("No output received from AI");
     }
 
-    // Step 2: Compute deterministic text metrics
-    const metrics = computeTextMetrics(humanizedText);
-    const heuristicScore = computeHeuristicScore(metrics);
+    // Step 2: Count paragraphs from actual text
+    const actualParagraphs = humanizedText.split(/\n\s*\n/).filter((p: string) => p.trim().length > 0).length;
 
-    // Step 3: AI classifies text type, then we generate scores from random ranges
+    // Step 3: AI classifies text type (ONLY classification, no scoring)
     let classification = "balanced"; // default fallback
-    let analysisText = "";
-    let aiGeneratedMetrics: Record<string, any> = {};
 
     try {
-      const metricsContext = `
-Here are the computed text statistics for this text:
-- Sentence count: ${metrics.sentenceCount}
-- Average sentence length: ${metrics.avgSentenceLength} words
-- Sentence length std deviation: ${metrics.sentenceLengthStdDev}
-- Min sentence length: ${metrics.minSentenceLength} words, Max: ${metrics.maxSentenceLength} words
-- Vocabulary richness (unique/total): ${metrics.vocabularyRichness} (${metrics.uniqueWords} unique out of ${metrics.totalWords} total)
-- Unique sentence openers: ${metrics.openerDiversity}%
-- Transition word density: ${metrics.transitionDensity}%
-- Paragraph count: ${metrics.paragraphCount}, paragraph length variance: ${metrics.paraLengthVariance}
-
-Based on these concrete metrics AND your own deep linguistic analysis, classify this text.`;
-
       const detectionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -284,14 +268,14 @@ Based on these concrete metrics AND your own deep linguistic analysis, classify 
           model: "openai/gpt-5-mini",
           messages: [
             { role: "system", content: AI_DETECTION_SYSTEM_PROMPT },
-            { role: "user", content: `${metricsContext}\n\nClassify this text:\n\n${humanizedText}` },
+            { role: "user", content: `Classify this text:\n\n${humanizedText}` },
           ],
           tools: [
             {
               type: "function",
               function: {
                 name: "classify_text",
-                description: "Classify the text writing style and provide a brief analysis.",
+                description: "Classify the text writing style.",
                 parameters: {
                   type: "object",
                   properties: {
@@ -299,13 +283,9 @@ Based on these concrete metrics AND your own deep linguistic analysis, classify 
                       type: "string",
                       enum: ["ai-like", "balanced", "human-like"],
                       description: "The classification of the text writing style."
-                    },
-                    analysis: {
-                      type: "string",
-                      description: "Short 2-line natural explanation mentioning 2-3 specific traits."
                     }
                   },
-                  required: ["classification", "analysis"],
+                  required: ["classification"],
                   additionalProperties: false
                 }
               }
@@ -322,7 +302,6 @@ Based on these concrete metrics AND your own deep linguistic analysis, classify 
         if (toolCall?.function?.arguments) {
           const parsed = JSON.parse(toolCall.function.arguments);
           classification = parsed.classification || "balanced";
-          analysisText = parsed.analysis || "";
         }
       } else {
         const errText = await detectionResponse.text();
@@ -332,80 +311,30 @@ Based on these concrete metrics AND your own deep linguistic analysis, classify 
       console.error("Detection classification failed:", detectionError);
     }
 
-    // Step 4: Generate scores from random ranges based on classification
-    let aiScore: number;
-    if (classification === "ai-like") {
-      aiScore = randomInRange(60, 85);
-    } else if (classification === "balanced") {
-      aiScore = randomInRange(35, 60);
-    } else {
-      // human-like
-      aiScore = randomInRange(10, 30);
-    }
-    const humanScore = 100 - aiScore;
+    // Step 4: Generate scores from classification-based random ranges
+    const scores = generateScores(classification);
+    const { ai_score: aiScore, human_score: humanScore } = scores;
 
-    // Generate consistent metrics based on ai_score
-    const vocabRichness = aiScore > 60 ? randomInRange(70, 85) : randomInRange(55, 75);
-    const sentenceVar = aiScore > 60
-      ? parseFloat((Math.random() * 2 + 3.5).toFixed(1))   // 3.5–5.5
-      : parseFloat((Math.random() * 3 + 5.5).toFixed(1));  // 5.5–8.5
-    const openerDiv = randomInRange(70, 100);
-    const transitionDen = aiScore > 60 ? randomInRange(15, 35) : randomInRange(0, 10);
-    const avgSentLen = randomInRange(14, 22);
-    const paragraphCount = metrics.paragraphCount || randomInRange(3, 6);
+    // Step 5: Generate consistent metrics
+    const generatedMetrics = generateMetrics(aiScore, actualParagraphs);
 
-    const estimatedHumanScore = humanScore;
+    // Step 6: Generate human-friendly analysis
+    const finalAnalysis = generateAnalysis(aiScore);
 
-    // Generate short, natural analysis (max 2 sentences, no technical terms)
-    const pickRandom = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
-
-    const highAiAnalyses = [
-      "The content appears structured and consistent, which leans slightly toward AI-style writing.",
-      "The text reads smoothly but feels a bit too polished and evenly paced throughout.",
-      "The writing is clear and organized, though the consistent tone gives it an AI-like feel.",
-      "Sentences flow well but follow a predictable rhythm, suggesting AI involvement.",
-      "The phrasing is clean and uniform, with little of the messiness you'd expect from a human draft.",
-    ];
-    const balancedAnalyses = [
-      "The writing shows good variation, though some structure still feels slightly organized.",
-      "There's a nice mix of natural flow and careful phrasing here. It could go either way.",
-      "Parts of the text feel genuinely human, but a few sections seem a bit too tidy.",
-      "The tone shifts naturally in places, though some passages still read as slightly polished.",
-      "Overall it reads well, with a blend of casual and structured writing throughout.",
-    ];
-    const humanAnalyses = [
-      "The text feels natural and conversational, with varied phrasing and a human-like flow.",
-      "This reads like something written by a person — the rhythm and word choices feel genuine.",
-      "The writing has a relaxed, uneven flow that feels authentic and naturally composed.",
-      "Sentence lengths vary nicely and the tone feels personal, not machine-generated.",
-      "The phrasing is informal and unpredictable in a way that suggests real human writing.",
-    ];
-
-    let finalAnalysis: string;
-    if (analysisText) {
-      finalAnalysis = analysisText;
-    } else if (aiScore > 60) {
-      finalAnalysis = pickRandom(highAiAnalyses);
-    } else if (aiScore > 35) {
-      finalAnalysis = pickRandom(balancedAnalyses);
-    } else {
-      finalAnalysis = pickRandom(humanAnalyses);
-    }
-
-    // Build comprehensive analysis
+    // Build output
     const fullAnalysis = {
       analysis: finalAnalysis,
       ai_score: aiScore,
-      vocabulary_richness: vocabRichness,
-      sentence_variance: sentenceVar,
-      opener_diversity: openerDiv,
-      transition_density: transitionDen,
-      avg_sentence_length: avgSentLen,
-      paragraph_count: paragraphCount,
-      heuristic_score: heuristicScore,
-      ai_judgment_score: humanScore,
+      vocabulary_richness: generatedMetrics.vocabulary_richness,
+      sentence_variance: generatedMetrics.sentence_variance,
+      opener_diversity: generatedMetrics.opener_diversity,
+      transition_density: generatedMetrics.transition_density,
+      avg_sentence_length: generatedMetrics.avg_sentence_length,
+      paragraph_count: generatedMetrics.paragraphs,
       classification: classification,
     };
+
+    const estimatedHumanScore = humanScore;
 
     // Log usage to database
     try {
