@@ -175,68 +175,57 @@ function computeHeuristicScore(metrics: ReturnType<typeof computeTextMetrics>): 
 
 // ─── AI Detection Prompt ─────────────────────────────────────────────
 
-const AI_DETECTION_SYSTEM_PROMPT = `You are an advanced AI content detection and analysis system.
+const AI_DETECTION_SYSTEM_PROMPT = `You are an advanced AI writing analysis engine.
 
-Your task is to analyze the given text and estimate how likely it is to be AI-generated versus human-written. This is NOT a definitive judgment — it is a heuristic evaluation based on writing patterns.
+Your task is to evaluate the given text and generate a realistic, user-friendly AI vs Human likelihood score along with supporting metrics.
 
-You must behave like a professional detection engine used in real tools.
+This is a simulated analysis designed to feel accurate and consistent.
 
 ---
 
-## ANALYSIS CRITERIA
+## CORE RULES
 
-Evaluate the text based on:
-
-1. Sentence structure variation (uniform vs dynamic)
-2. Predictability of phrasing and transitions
-3. Repetition of sentence patterns or openings
-4. Vocabulary style (generic/formal vs natural/conversational)
-5. Flow and rhythm (mechanical vs organic)
-6. Presence of human-like imperfections
-7. Tone variation across sentences/paragraphs
-8. Paragraph structure (too clean vs slightly irregular)
-9. Burstiness (variation in sentence length and complexity)
+1. AI Score + Human Score MUST equal exactly 100
+2. Scores must be believable (not extreme unless obvious)
+3. Avoid contradictions between metrics and final score
+4. Keep explanation SIMPLE and human-readable (not overly technical)
 
 ---
 
 ## SCORING LOGIC
 
-Generate:
+- Highly structured, formal, predictable → AI Score: 60–85
+- Balanced / semi-natural → AI Score: 30–60
+- Conversational, varied, imperfect → AI Score: 5–30
 
-- ai_score (0–100): Likelihood text is AI-generated
-- human_score (0–100): Likelihood text is human-written
-
-Rules:
-
-- ai_score + human_score MUST equal 100
-- Highly structured, formal, predictable text → ai_score: 60–90
-- Balanced but slightly natural text → ai_score: 30–60
-- Conversational, varied, imperfect text → ai_score: 5–30
-
-IMPORTANT:
-- Do NOT always give extreme values
-- Add slight randomness (±5 variation) for realism
-- Avoid repeating same scores for similar inputs
+Add slight randomness (±5) for realism.
 
 ---
 
-## ANALYSIS STYLE (VERY IMPORTANT)
+## CONSISTENCY RULE (VERY IMPORTANT)
 
-Write a SHORT explanation (1–2 sentences only) that:
+- If AI Score is HIGH →
+  → Vocabulary high, structure clean, transition density higher
+- If Human Score is HIGH →
+  → More variation, lower transition density, more natural tone
 
-- Sounds natural and confident
-- Mentions 2–3 specific signals such as:
-  - "uniform sentence structure"
-  - "natural variation"
-  - "conversational tone"
-  - "predictable phrasing"
-  - "low burstiness"
-  - "minor imperfections"
+Everything must align logically.
 
-Tone:
-- Professional but simple
-- No technical jargon overload
-- No long explanations
+---
+
+## EXPLANATION STYLE
+
+Write a SHORT, natural explanation (2 lines max):
+
+- Simple language (not technical)
+- Mention 2–3 traits only
+- Example tone:
+  "The text shows natural variation and conversational phrasing, though some structure still feels slightly organized."
+
+DO NOT:
+- Use complex stats language
+- Show formulas
+- Sound robotic
 
 ---
 
@@ -387,7 +376,7 @@ Based on these concrete metrics AND your own deep linguistic analysis, provide y
               type: "function",
               function: {
                 name: "report_ai_detection_score",
-                description: "Report the AI detection analysis results for the given text.",
+                description: "Report the AI detection analysis results including scores, metrics, and explanation.",
                 parameters: {
                   type: "object",
                   properties: {
@@ -399,12 +388,32 @@ Based on these concrete metrics AND your own deep linguistic analysis, provide y
                       type: "number",
                       description: "Likelihood text is human-written (0-100). ai_score + human_score must equal 100."
                     },
+                    vocabulary_richness: {
+                      type: "number",
+                      description: "Vocabulary richness percentage (55-85). Higher if formal/advanced words used."
+                    },
+                    sentence_variance: {
+                      type: "number",
+                      description: "Sentence length variance score (4.0-9.0). Higher if lengths vary naturally."
+                    },
+                    opener_diversity: {
+                      type: "number",
+                      description: "Percentage of unique sentence openers (60-100)."
+                    },
+                    transition_density: {
+                      type: "number",
+                      description: "Percentage of transition words like however, therefore, moreover (0-40)."
+                    },
+                    avg_sentence_length: {
+                      type: "number",
+                      description: "Average sentence length in words (12-24)."
+                    },
                     analysis: {
                       type: "string",
-                      description: "Short 1-2 sentence natural explanation mentioning 2-3 specific signals like 'uniform sentence structure', 'natural variation', 'conversational tone', etc."
+                      description: "Short 2-line natural explanation mentioning 2-3 traits. Simple language, not technical."
                     }
                   },
-                  required: ["ai_score", "human_score", "analysis"],
+                  required: ["ai_score", "human_score", "vocabulary_richness", "sentence_variance", "opener_diversity", "transition_density", "avg_sentence_length", "analysis"],
                   additionalProperties: false
                 }
               }
@@ -423,6 +432,12 @@ Based on these concrete metrics AND your own deep linguistic analysis, provide y
           aiJudgmentScore = Math.max(0, Math.min(100, Math.round(parsed.human_score)));
           analysisResult.analysis = parsed.analysis || "";
           analysisResult.ai_score = Math.max(0, Math.min(100, Math.round(parsed.ai_score || (100 - (parsed.human_score || 50)))));
+          // AI-generated metrics (consistent with scores)
+          analysisResult.vocabulary_richness = parsed.vocabulary_richness;
+          analysisResult.sentence_variance = parsed.sentence_variance;
+          analysisResult.opener_diversity = parsed.opener_diversity;
+          analysisResult.transition_density = parsed.transition_density;
+          analysisResult.avg_sentence_length = parsed.avg_sentence_length;
         }
       } else {
         const errText = await detectionResponse.text();
@@ -441,19 +456,17 @@ Based on these concrete metrics AND your own deep linguistic analysis, provide y
       estimatedHumanScore = heuristicScore;
     }
 
-    // Build comprehensive analysis with real metrics
+    // Build comprehensive analysis with AI-generated metrics
     const fullAnalysis = {
       analysis: analysisResult.analysis || null,
       ai_score: analysisResult.ai_score || null,
-      // Computed metrics (real numbers)
-      sentence_count: metrics.sentenceCount,
-      avg_sentence_length: metrics.avgSentenceLength,
-      sentence_length_std_dev: metrics.sentenceLengthStdDev,
-      vocabulary_richness: metrics.vocabularyRichness,
-      opener_diversity: metrics.openerDiversity,
-      transition_density: metrics.transitionDensity,
+      // AI-evaluated metrics (consistent with scores)
+      vocabulary_richness: analysisResult.vocabulary_richness ?? metrics.vocabularyRichness,
+      sentence_variance: analysisResult.sentence_variance ?? parseFloat(metrics.sentenceLengthStdDev.toFixed(1)),
+      opener_diversity: analysisResult.opener_diversity ?? metrics.openerDiversity,
+      transition_density: analysisResult.transition_density ?? metrics.transitionDensity,
+      avg_sentence_length: analysisResult.avg_sentence_length ?? metrics.avgSentenceLength,
       paragraph_count: metrics.paragraphCount,
-      para_length_variance: metrics.paraLengthVariance,
       // Score breakdown
       heuristic_score: heuristicScore,
       ai_judgment_score: aiJudgmentScore,
