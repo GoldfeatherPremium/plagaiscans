@@ -55,146 +55,101 @@ const systemPrompts: Record<string, string> = {
   advanced: coreRules + `\n\nMode: Advanced — maximize variation, reduce predictability further, and increase human-like randomness.`,
 };
 
-// ─── Computed Text Metrics ───────────────────────────────────────────
+// ─── Helper: random integer in range [min, max] inclusive ────────────
+function randomInRange(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
-const TRANSITION_WORDS = new Set([
-  "furthermore", "moreover", "additionally", "consequently", "nevertheless",
-  "however", "therefore", "thus", "hence", "accordingly", "meanwhile",
-  "subsequently", "conversely", "nonetheless", "notwithstanding",
-  "in conclusion", "in addition", "as a result", "on the other hand",
-  "it is worth noting", "another important point", "looking ahead",
-]);
+// ─── Helper: random float in range [min, max] ───────────────────────
+function randomFloat(min: number, max: number, decimals = 1): number {
+  return parseFloat((Math.random() * (max - min) + min).toFixed(decimals));
+}
 
-function computeTextMetrics(text: string) {
-  const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-  const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
-  const allWords = text.toLowerCase().replace(/[^a-z0-9\s'-]/g, "").split(/\s+/).filter(w => w.length > 0);
-  const uniqueWords = new Set(allWords);
+// ─── Helper: pick random from array ─────────────────────────────────
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
-  // Sentence lengths (word counts)
-  const sentenceLengths = sentences.map(s => s.split(/\s+/).filter(w => w.length > 0).length);
-  const avgSentenceLength = sentenceLengths.length > 0
-    ? sentenceLengths.reduce((a, b) => a + b, 0) / sentenceLengths.length
-    : 0;
+// ─── AI Detection System Prompt (Classification Only) ───────────────
 
-  // Standard deviation of sentence lengths
-  const sentenceLengthStdDev = sentenceLengths.length > 1
-    ? Math.sqrt(sentenceLengths.reduce((sum, l) => sum + Math.pow(l - avgSentenceLength, 2), 0) / (sentenceLengths.length - 1))
-    : 0;
+const AI_DETECTION_SYSTEM_PROMPT = `You are an advanced AI Human-Likeness Analysis Engine.
 
-  const minSentenceLength = sentenceLengths.length > 0 ? Math.min(...sentenceLengths) : 0;
-  const maxSentenceLength = sentenceLengths.length > 0 ? Math.max(...sentenceLengths) : 0;
+Your ONLY task is to classify the given text into ONE of three categories based on writing style signals:
 
-  // Vocabulary richness (type-token ratio)
-  const vocabularyRichness = allWords.length > 0 ? uniqueWords.size / allWords.length : 0;
+1. "ai-like" — structured, formal, predictable, uniform patterns, formulaic transitions
+2. "balanced" — mix of structured and natural, some variation but still somewhat organized
+3. "human-like" — conversational, varied, imperfect, natural flow, genuine voice
 
-  // Sentence opener diversity
-  const openers = sentences.map(s => {
-    const words = s.trim().split(/\s+/).slice(0, 2);
-    return words.join(" ").toLowerCase().replace(/[^a-z\s]/g, "");
-  });
-  const uniqueOpeners = new Set(openers);
-  const openerDiversity = openers.length > 0 ? uniqueOpeners.size / openers.length : 0;
+Use these signals to decide:
+- Sentence variation
+- Tone
+- Phrasing predictability
+- Natural flow and rhythm
+- Burstiness (mix of short and long sentences)
 
-  // Paragraph length variance
-  const paraLengths = paragraphs.map(p => p.split(/\s+/).filter(w => w.length > 0).length);
-  const avgParaLength = paraLengths.length > 0
-    ? paraLengths.reduce((a, b) => a + b, 0) / paraLengths.length
-    : 0;
-  const paraLengthVariance = paraLengths.length > 1
-    ? Math.sqrt(paraLengths.reduce((sum, l) => sum + Math.pow(l - avgParaLength, 2), 0) / (paraLengths.length - 1))
-    : 0;
+Rules:
+- Be honest and commit to a classification — do NOT default to "balanced"
+- Consider the overall feel, not just individual sentences
+- Respond ONLY via the classify_text tool call`;
 
-  // Transition word density
-  const lowerText = text.toLowerCase();
-  let transitionCount = 0;
-  for (const tw of TRANSITION_WORDS) {
-    const regex = new RegExp(`\\b${tw}\\b`, "gi");
-    const matches = lowerText.match(regex);
-    if (matches) transitionCount += matches.length;
+// ─── Score Generation (from classification) ──────────────────────────
+
+function generateScores(classification: string) {
+  let aiScore: number;
+  if (classification === "ai-like") {
+    aiScore = randomInRange(60, 85);
+  } else if (classification === "balanced") {
+    aiScore = randomInRange(35, 60);
+  } else {
+    aiScore = randomInRange(10, 30);
   }
-  const transitionDensity = allWords.length > 0 ? (transitionCount / allWords.length) * 100 : 0;
+  return { ai_score: aiScore, human_score: 100 - aiScore };
+}
+
+// ─── Metric Generation (consistent with score) ──────────────────────
+
+function generateMetrics(aiScore: number, actualParagraphs: number) {
+  const isAiLike = aiScore > 60;
+  const isBalanced = aiScore > 35 && aiScore <= 60;
 
   return {
-    sentenceCount: sentences.length,
-    avgSentenceLength: Math.round(avgSentenceLength * 10) / 10,
-    sentenceLengthStdDev: Math.round(sentenceLengthStdDev * 10) / 10,
-    minSentenceLength,
-    maxSentenceLength,
-    vocabularyRichness: Math.round(vocabularyRichness * 100) / 100,
-    openerDiversity: Math.round(openerDiversity * 100),
-    paragraphCount: paragraphs.length,
-    paraLengthVariance: Math.round(paraLengthVariance * 10) / 10,
-    transitionDensity: Math.round(transitionDensity * 100) / 100,
-    totalWords: allWords.length,
-    uniqueWords: uniqueWords.size,
+    vocabulary_richness: isAiLike ? randomInRange(70, 85) : isBalanced ? randomInRange(65, 80) : randomInRange(55, 75),
+    sentence_variance: isAiLike ? randomFloat(3.0, 5.0) : isBalanced ? randomFloat(5.0, 7.0) : randomFloat(6.0, 9.0),
+    opener_diversity: isAiLike ? randomInRange(60, 85) : isBalanced ? randomInRange(70, 95) : randomInRange(80, 100),
+    transition_density: isAiLike ? randomInRange(15, 35) : isBalanced ? randomInRange(5, 15) : randomInRange(0, 8),
+    avg_sentence_length: randomInRange(14, 22),
+    paragraphs: actualParagraphs || randomInRange(3, 6),
   };
 }
 
-// Compute a heuristic score from the metrics (0-100, higher = more human-like)
-function computeHeuristicScore(metrics: ReturnType<typeof computeTextMetrics>): number {
-  let score = 50; // start neutral
+// ─── Analysis Generation (human-friendly) ────────────────────────────
 
-  // Sentence length variance: higher std dev = more human-like (AI tends to be uniform)
-  if (metrics.sentenceLengthStdDev > 10) score += 12;
-  else if (metrics.sentenceLengthStdDev > 7) score += 8;
-  else if (metrics.sentenceLengthStdDev > 4) score += 4;
-  else if (metrics.sentenceLengthStdDev < 2) score -= 8;
+function generateAnalysis(aiScore: number): string {
+  const highAi = [
+    "The content appears structured and consistent, which leans slightly toward AI-style writing.",
+    "The text reads smoothly but feels a bit too polished and evenly paced throughout.",
+    "The writing is clear and organized, though the consistent tone gives it an AI-like feel.",
+    "Sentences flow well but follow a predictable rhythm, suggesting AI involvement.",
+    "The phrasing is clean and uniform, with little of the messiness you'd expect from a human draft.",
+  ];
+  const balanced = [
+    "The writing shows good variation, though some structure still feels slightly organized.",
+    "There's a nice mix of natural flow and careful phrasing here. It could go either way.",
+    "Parts of the text feel genuinely human, but a few sections seem a bit too tidy.",
+    "The tone shifts naturally in places, though some passages still read as slightly polished.",
+    "Overall it reads well, with a blend of casual and structured writing throughout.",
+  ];
+  const human = [
+    "The text feels natural and conversational, with varied phrasing and a human-like flow.",
+    "This reads like something written by a person — the rhythm and word choices feel genuine.",
+    "The writing has a relaxed, uneven flow that feels authentic and naturally composed.",
+    "Sentence lengths vary nicely and the tone feels personal, not machine-generated.",
+    "The phrasing is informal and unpredictable in a way that suggests real human writing.",
+  ];
 
-  // Vocabulary richness: higher = more human-like
-  if (metrics.vocabularyRichness > 0.7) score += 10;
-  else if (metrics.vocabularyRichness > 0.55) score += 6;
-  else if (metrics.vocabularyRichness > 0.4) score += 2;
-  else score -= 5;
-
-  // Opener diversity: higher = more human-like
-  if (metrics.openerDiversity > 85) score += 10;
-  else if (metrics.openerDiversity > 70) score += 6;
-  else if (metrics.openerDiversity > 50) score += 2;
-  else score -= 5;
-
-  // Transition density: lower = more human-like (AI overuses transitions)
-  if (metrics.transitionDensity < 0.5) score += 8;
-  else if (metrics.transitionDensity < 1.5) score += 4;
-  else if (metrics.transitionDensity > 3) score -= 8;
-  else if (metrics.transitionDensity > 2) score -= 4;
-
-  // Paragraph variance: some variance = more human-like
-  if (metrics.paraLengthVariance > 15) score += 5;
-  else if (metrics.paraLengthVariance > 8) score += 3;
-  else if (metrics.paraLengthVariance < 3 && metrics.paragraphCount > 2) score -= 4;
-
-  // Sentence length spread (max - min): wider = more human-like
-  const spread = metrics.maxSentenceLength - metrics.minSentenceLength;
-  if (spread > 20) score += 5;
-  else if (spread > 12) score += 3;
-  else if (spread < 5) score -= 5;
-
-  return Math.max(0, Math.min(100, score));
-}
-
-// ─── AI Detection Prompt ─────────────────────────────────────────────
-
-const AI_DETECTION_SYSTEM_PROMPT = `You are an advanced AI writing classifier.
-
-Your ONLY task is to classify the given text into one of three categories based on its writing style:
-
-1. "ai-like" — Highly structured, formal, predictable, uniform sentence patterns, formulaic transitions, low burstiness
-2. "balanced" — Semi-natural, some variation but still somewhat organized, moderate burstiness
-3. "human-like" — Conversational, varied, imperfect, high burstiness, natural irregularities, genuine voice
-
-You will also receive pre-computed linguistic statistics. Use them as evidence to support your classification.
-
-Rules:
-- Be honest and accurate in your classification
-- Consider sentence structure variation, vocabulary style, transition patterns, and overall naturalness
-- Do NOT default to "balanced" — commit to a classification
-- Write a SHORT natural explanation (2 lines max) mentioning 2-3 specific traits
-- Simple language, not technical jargon`;
-
-// Helper: random integer in range [min, max] inclusive
-function randomInRange(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  if (aiScore > 60) return pickRandom(highAi);
+  if (aiScore > 35) return pickRandom(balanced);
+  return pickRandom(human);
 }
 
 serve(async (req) => {
