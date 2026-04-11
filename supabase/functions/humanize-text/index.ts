@@ -300,93 +300,8 @@ This text has ALREADY been humanized ${iteration - 1} time(s). It still has dete
     const metrics = computeTextMetrics(humanizedText);
     const heuristicScore = computeHeuristicScore(metrics);
 
-    // Step 3: AI classifies text type, then we generate scores from random ranges
-    let classification = "balanced"; // default fallback
-    let analysisText = "";
-    let aiGeneratedMetrics: Record<string, any> = {};
-
-    try {
-      const metricsContext = `
-Here are the computed text statistics for this text:
-- Sentence count: ${metrics.sentenceCount}
-- Average sentence length: ${metrics.avgSentenceLength} words
-- Sentence length std deviation: ${metrics.sentenceLengthStdDev}
-- Min sentence length: ${metrics.minSentenceLength} words, Max: ${metrics.maxSentenceLength} words
-- Vocabulary richness (unique/total): ${metrics.vocabularyRichness} (${metrics.uniqueWords} unique out of ${metrics.totalWords} total)
-- Unique sentence openers: ${metrics.openerDiversity}%
-- Transition word density: ${metrics.transitionDensity}%
-- Paragraph count: ${metrics.paragraphCount}, paragraph length variance: ${metrics.paraLengthVariance}
-
-Based on these concrete metrics AND your own deep linguistic analysis, classify this text.`;
-
-      const detectionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-5-mini",
-          messages: [
-            { role: "system", content: AI_DETECTION_SYSTEM_PROMPT },
-            { role: "user", content: `${metricsContext}\n\nClassify this text:\n\n${humanizedText}` },
-          ],
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "classify_text",
-                description: "Classify the text writing style and provide a brief analysis.",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    classification: {
-                      type: "string",
-                      enum: ["ai-like", "balanced", "human-like"],
-                      description: "The classification of the text writing style."
-                    },
-                    analysis: {
-                      type: "string",
-                      description: "Short 2-line natural explanation mentioning 2-3 specific traits."
-                    }
-                  },
-                  required: ["classification", "analysis"],
-                  additionalProperties: false
-                }
-              }
-            }
-          ],
-          tool_choice: { type: "function", function: { name: "classify_text" } },
-          stream: false,
-        }),
-      });
-
-      if (detectionResponse.ok) {
-        const detectionData = await detectionResponse.json();
-        const toolCall = detectionData.choices?.[0]?.message?.tool_calls?.[0];
-        if (toolCall?.function?.arguments) {
-          const parsed = JSON.parse(toolCall.function.arguments);
-          classification = parsed.classification || "balanced";
-          analysisText = parsed.analysis || "";
-        }
-      } else {
-        const errText = await detectionResponse.text();
-        console.error("Detection classification error:", detectionResponse.status, errText);
-      }
-    } catch (detectionError) {
-      console.error("Detection classification failed:", detectionError);
-    }
-
-    // Step 4: Generate scores from random ranges based on classification
-    let aiScore: number;
-    if (classification === "ai-like") {
-      aiScore = randomInRange(60, 85);
-    } else if (classification === "balanced") {
-      aiScore = randomInRange(35, 60);
-    } else {
-      // human-like
-      aiScore = randomInRange(10, 30);
-    }
+    // Step 3: Generate random ai_score and derive everything from it
+    const aiScore = randomInRange(15, 75);
     const humanScore = 100 - aiScore;
 
     // Generate consistent metrics based on ai_score
@@ -403,9 +318,7 @@ Based on these concrete metrics AND your own deep linguistic analysis, classify 
 
     // Generate analysis text based on ai_score
     let finalAnalysis: string;
-    if (analysisText) {
-      finalAnalysis = analysisText;
-    } else if (aiScore > 60) {
+    if (aiScore > 60) {
       finalAnalysis = "The text feels structured and slightly formal, with consistent phrasing that leans toward AI-style writing.";
     } else if (aiScore > 35) {
       finalAnalysis = "The writing shows a mix of natural variation and some structured patterns, making it moderately human-like.";
