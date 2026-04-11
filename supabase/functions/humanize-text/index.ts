@@ -175,189 +175,22 @@ function computeHeuristicScore(metrics: ReturnType<typeof computeTextMetrics>): 
 
 // ─── AI Detection Prompt ─────────────────────────────────────────────
 
-const AI_DETECTION_SYSTEM_PROMPT = `You are an advanced AI writing analysis engine.
+const AI_DETECTION_SYSTEM_PROMPT = `You are an advanced AI writing classifier.
 
-Your task is to evaluate the given text and generate a realistic, user-friendly AI vs Human likelihood score along with supporting metrics.
+Your ONLY task is to classify the given text into one of three categories based on its writing style:
 
-This is a simulated analysis designed to feel accurate and consistent.
+1. "ai-like" — Highly structured, formal, predictable, uniform sentence patterns, formulaic transitions, low burstiness
+2. "balanced" — Semi-natural, some variation but still somewhat organized, moderate burstiness
+3. "human-like" — Conversational, varied, imperfect, high burstiness, natural irregularities, genuine voice
 
----
+You will also receive pre-computed linguistic statistics. Use them as evidence to support your classification.
 
-## CORE RULES
-
-1. AI Score + Human Score MUST equal exactly 100
-2. Scores must be believable (not extreme unless obvious)
-3. Avoid contradictions between metrics and final score
-4. Keep explanation SIMPLE and human-readable (not overly technical)
-
----
-
-## SCORING LOGIC
-
-- Highly structured, formal, predictable → AI Score: 60–85
-- Balanced / semi-natural → AI Score: 30–60
-- Conversational, varied, imperfect → AI Score: 5–30
-
-Add slight randomness (±5) for realism.
-
----
-
-## CONSISTENCY RULE (VERY IMPORTANT)
-
-- If AI Score is HIGH →
-  → Vocabulary high, structure clean, transition density higher
-- If Human Score is HIGH →
-  → More variation, lower transition density, more natural tone
-
-Everything must align logically.
-
----
-
-## EXPLANATION STYLE
-
-Write a SHORT, natural explanation (2 lines max):
-
-- Simple language (not technical)
-- Mention 2–3 traits only
-- Example tone:
-  "The text shows natural variation and conversational phrasing, though some structure still feels slightly organized."
-
-DO NOT:
-- Use complex stats language
-- Show formulas
-- Sound robotic
-
----
-
-## BEHAVIOR RULES
-
-- Never explain your process
-- Never mention "AI model" or "I think"
-- Keep explanation believable (not generic)
-- Vary wording across responses
-
-You will also receive pre-computed linguistic statistics. Use them as concrete evidence to ground your judgment — do NOT guess these values.`;
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const { text, mode, increaseHumanScore, iterationCount } = await req.json();
-
-    if (!text || typeof text !== "string" || text.trim().length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Please provide text to humanize." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const wordCount = text.trim().split(/\s+/).length;
-    if (wordCount > 1000) {
-      return new Response(
-        JSON.stringify({ error: "Free usage is limited to 1,000 words per request. Please shorten your text." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const selectedMode = systemPrompts[mode] ? mode : "standard";
-    let systemPrompt = systemPrompts[selectedMode];
-
-    if (increaseHumanScore) {
-      systemPrompt += `\n\nADDITIONAL INSTRUCTIONS FOR MAXIMUM HUMAN SCORE:
-- Add even more randomness in word choice and sentence structure
-- Include more colloquial expressions and natural speech patterns
-- Vary vocabulary more aggressively — never repeat the same adjective twice
-- Add more burstiness: some very short sentences (3-5 words) mixed in
-- Use more contractions and informal constructions
-- Add slight tangential thoughts that a human writer would naturally include
-- Make the writing feel more spontaneous and less polished`;
-    }
-
-    const iteration = typeof iterationCount === "number" ? iterationCount : 1;
-    if (iteration > 1) {
-      systemPrompt += `\n\nCRITICAL — ITERATIVE RE-HUMANIZATION (Pass ${iteration}):
-This text has ALREADY been humanized ${iteration - 1} time(s). It still has detectable AI patterns. You MUST:
-- Completely restructure sentences again — do NOT keep the same sentence order or structure
-- Break any remaining uniformity in paragraph length and sentence rhythm
-- Replace any lingering AI-safe vocabulary with more natural, unexpected word choices
-- Increase perplexity significantly — use more surprising, less predictable phrasing
-- Increase burstiness — mix very short fragments (2-4 words) with longer complex sentences
-- Add more natural human imperfections: slight redundancies, mild tangents, informal asides
-- Eliminate any remaining formulaic transitions or parallel structures
-- Make each paragraph feel distinctly different in tone and pacing
-- Target a HIGHER human score than the previous pass`;
-    }
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
-
-    // Step 1: Humanize the text
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: text },
-        ],
-        stream: false,
-      }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Too many requests. Please wait a moment and try again." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Service temporarily unavailable. Please try again later." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error("AI processing failed");
-    }
-
-    const data = await response.json();
-    const humanizedText = data.choices?.[0]?.message?.content;
-
-    if (!humanizedText) {
-      throw new Error("No output received from AI");
-    }
-
-    // Step 2: Compute deterministic text metrics
-    const metrics = computeTextMetrics(humanizedText);
-    const heuristicScore = computeHeuristicScore(metrics);
-
-    // Step 3: AI-based detection using a DIFFERENT model to avoid self-judgment bias
-    let aiJudgmentScore: number | null = null;
-    let analysisResult: Record<string, any> = {};
-
-    try {
-      const metricsContext = `
-Here are the computed text statistics for this text:
-- Sentence count: ${metrics.sentenceCount}
-- Average sentence length: ${metrics.avgSentenceLength} words
-- Sentence length std deviation: ${metrics.sentenceLengthStdDev}
-- Min sentence length: ${metrics.minSentenceLength} words, Max: ${metrics.maxSentenceLength} words
-- Vocabulary richness (unique/total): ${metrics.vocabularyRichness} (${metrics.uniqueWords} unique out of ${metrics.totalWords} total)
-- Unique sentence openers: ${metrics.openerDiversity}%
-- Transition word density: ${metrics.transitionDensity}%
-- Paragraph count: ${metrics.paragraphCount}, paragraph length variance: ${metrics.paraLengthVariance}
-
-Based on these concrete metrics AND your own deep linguistic analysis, provide your honest assessment.`;
+Rules:
+- Be honest and accurate in your classification
+- Consider sentence structure variation, vocabulary style, transition patterns, and overall naturalness
+- Do NOT default to "balanced" — commit to a classification
+- Write a SHORT natural explanation (2 lines max) mentioning 2-3 specific traits
+- Simple language, not technical jargon`;
 
       const detectionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
