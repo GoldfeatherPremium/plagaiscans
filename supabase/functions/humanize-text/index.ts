@@ -410,7 +410,7 @@ Based on these concrete metrics AND your own deep linguistic analysis, classify 
       opener_diversity: openerDiv,
       transition_density: transitionDen,
       avg_sentence_length: avgSentLen,
-      paragraph_count: metrics.paragraphCount,
+      paragraph_count: paragraphCount,
       heuristic_score: heuristicScore,
       ai_judgment_score: humanScore,
       classification: classification,
