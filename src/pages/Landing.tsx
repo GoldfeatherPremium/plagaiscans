@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { FileText, Shield, Clock, Users, ArrowRight, AlertCircle, Sparkles } from "lucide-react";
+import { FileText, Shield, Clock, Users, ArrowRight, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
 import Footer from "@/components/Footer";
@@ -221,27 +221,6 @@ const Landing = () => {
             </div>
           </section>
 
-          {/* AI Humanizer Section */}
-          <section className="py-20 px-4 bg-primary/5">
-            <div className="max-w-3xl mx-auto text-center">
-              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium mb-6">
-                <Sparkles className="w-4 h-4" />
-                Free Tool
-              </div>
-              <h2 className="text-3xl sm:text-4xl font-display font-bold text-foreground mb-4">
-                AI Humanizer – Make AI Text Sound Human
-              </h2>
-              <p className="text-muted-foreground text-lg mb-8">
-                Transform your AI-generated content into natural, human-like writing. Free to use, no login required.
-              </p>
-              <Link to="/ai-humanizer">
-                <Button size="lg" className="rounded-full gap-2">
-                  <Sparkles className="w-5 h-5" />
-                  Try AI Humanizer Free
-                </Button>
-              </Link>
-            </div>
-          </section>
 
           {/* CTA to Pricing Section */}
           <section className="py-20 px-4 bg-muted/30">
