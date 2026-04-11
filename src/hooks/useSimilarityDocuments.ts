@@ -366,7 +366,9 @@ export const useSimilarityDocuments = () => {
       }
 
       // 3. Delete files from storage
-      await supabase.storage.from('documents').remove([docData.file_path]);
+      if (docData.file_path) {
+        await supabase.storage.from('documents').remove([docData.file_path]);
+      }
 
       // Delete similarity report if exists
       if (docData.similarity_report_path) {
