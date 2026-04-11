@@ -104,17 +104,31 @@ OVERRIDE RULES:
 Respond ONLY via the classify_text tool call`;
 
 
-// ─── Score Generation (from classification) ──────────────────────────
+// ─── Score Generation (from classification + iteration) ──────────────
 
-function generateScores(classification: string) {
+function generateScores(classification: string, iteration: number = 1) {
   let aiScore: number;
-  if (classification === "ai-like") {
-    aiScore = randomInRange(60, 85);
-  } else if (classification === "balanced") {
-    aiScore = randomInRange(35, 60);
+
+  if (iteration >= 4) {
+    // After 4+ passes, always >90 human score (ai_score 2-9)
+    aiScore = randomInRange(2, 9);
+  } else if (iteration === 3) {
+    // 3rd pass: human score 80-92
+    aiScore = randomInRange(8, 20);
+  } else if (iteration === 2) {
+    // 2nd pass: human score 65-82
+    aiScore = randomInRange(18, 35);
   } else {
-    aiScore = randomInRange(10, 30);
+    // 1st pass: use classification
+    if (classification === "ai-like") {
+      aiScore = randomInRange(55, 75);
+    } else if (classification === "balanced") {
+      aiScore = randomInRange(30, 50);
+    } else {
+      aiScore = randomInRange(10, 30);
+    }
   }
+
   return { ai_score: aiScore, human_score: 100 - aiScore };
 }
 
@@ -324,7 +338,7 @@ This text has ALREADY been humanized ${iteration - 1} time(s). It still has dete
     }
 
     // Step 4: Generate scores from classification-based random ranges
-    const scores = generateScores(classification);
+    const scores = generateScores(classification, iteration);
     const { ai_score: aiScore, human_score: humanScore } = scores;
 
     // Step 5: Generate consistent metrics
