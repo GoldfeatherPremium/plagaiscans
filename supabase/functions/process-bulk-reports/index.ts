@@ -166,6 +166,8 @@ function findBestMatch(
  * Strategy:
  *   1. Try page 2 (Modern View) first
  *   2. If inconclusive, scan last 10 pages backwards (Classical View)
+ *   3. If still nothing, do a full-page brute-force scan for any percentage
+ *   4. If absolutely nothing found, return 'unknown' — caller will still complete the document
  */
 async function analyzePdf(pdfBuffer: ArrayBuffer): Promise<ReportAnalysis> {
   try {
@@ -185,12 +187,58 @@ async function analyzePdf(pdfBuffer: ArrayBuffer): Promise<ReportAnalysis> {
       return classicalResult;
     }
 
-    console.log('PDF analysis: no report type detected on page 2 or last pages');
+    // ─── Step 3: Brute-force scan ALL pages for any percentage ───
+    const bruteResult = await bruteForceScan(pdf);
+    if (bruteResult.reportType !== 'unknown') {
+      return bruteResult;
+    }
+
+    console.log('PDF analysis: no report type detected anywhere — will still complete document');
     return { reportType: 'unknown', percentage: null, textSnippet: 'no markers found' };
   } catch (error) {
     console.error('PDF analysis error:', error);
     return { reportType: 'unknown', percentage: null, textSnippet: 'error: ' + (error as Error).message };
   }
+}
+
+/**
+ * Brute-force: scan every page for any similarity or AI percentage pattern.
+ * Used as a last resort when modern + classical view detection both fail.
+ */
+// deno-lint-ignore no-explicit-any
+async function bruteForceScan(pdf: any): Promise<ReportAnalysis> {
+  const simPatterns = [
+    /(\d+(?:\.\d+)?)\s*%\s*(?:overall\s+)?similarity/,
+    /similarity[:\s]+(\d+(?:\.\d+)?)\s*%/,
+    /(\d+(?:\.\d+)?)\s*%\s*similarity\s*index/,
+    /similarity\s*index[:\s]*(\d+(?:\.\d+)?)\s*%/,
+  ];
+  const aiPatterns = [
+    /(\d+(?:\.\d+)?)\s*%\s*(?:detected\s+as\s+)?ai/,
+    /ai[:\s]+(\d+(?:\.\d+)?)\s*%/,
+    /(\d+(?:\.\d+)?)\s*%\s*ai(?:\s+writing)?/,
+  ];
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const text = (await extractPageText(pdf, pageNum)).toLowerCase();
+
+    for (const p of simPatterns) {
+      const m = text.match(p);
+      if (m) {
+        console.log(`Brute-force: similarity ${m[1]}% found on page ${pageNum}`);
+        return { reportType: 'similarity', percentage: parseFloat(m[1]), textSnippet: text.substring(0, 200) };
+      }
+    }
+    for (const p of aiPatterns) {
+      const m = text.match(p);
+      if (m) {
+        console.log(`Brute-force: AI ${m[1]}% found on page ${pageNum}`);
+        return { reportType: 'ai', percentage: parseFloat(m[1]), textSnippet: text.substring(0, 200) };
+      }
+    }
+  }
+
+  return { reportType: 'unknown', percentage: null, textSnippet: '' };
 }
 
 // deno-lint-ignore no-explicit-any
