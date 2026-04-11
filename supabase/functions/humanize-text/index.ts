@@ -109,11 +109,11 @@ Respond ONLY via the classify_text tool call`;
 function generateScores(classification: string) {
   let aiScore: number;
   if (classification === "ai-like") {
-    aiScore = randomInRange(55, 75);
+    aiScore = randomInRange(60, 85);
   } else if (classification === "balanced") {
-    aiScore = randomInRange(30, 50);
+    aiScore = randomInRange(35, 60);
   } else {
-    aiScore = randomInRange(10, 25);
+    aiScore = randomInRange(10, 30);
   }
   return { ai_score: aiScore, human_score: 100 - aiScore };
 }
