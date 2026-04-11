@@ -401,9 +401,21 @@ Based on these concrete metrics AND your own deep linguistic analysis, classify 
 
     const estimatedHumanScore = humanScore;
 
+    // Generate analysis text based on ai_score
+    let finalAnalysis: string;
+    if (analysisText) {
+      finalAnalysis = analysisText;
+    } else if (aiScore > 60) {
+      finalAnalysis = "The text feels structured and slightly formal, with consistent phrasing that leans toward AI-style writing.";
+    } else if (aiScore > 35) {
+      finalAnalysis = "The writing shows a mix of natural variation and some structured patterns, making it moderately human-like.";
+    } else {
+      finalAnalysis = "The text feels natural and conversational, with varied phrasing and a more human writing style.";
+    }
+
     // Build comprehensive analysis
     const fullAnalysis = {
-      analysis: analysisText || null,
+      analysis: finalAnalysis,
       ai_score: aiScore,
       vocabulary_richness: vocabRichness,
       sentence_variance: sentenceVar,
