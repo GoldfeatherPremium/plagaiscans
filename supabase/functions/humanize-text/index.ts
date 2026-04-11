@@ -401,16 +401,40 @@ Based on these concrete metrics AND your own deep linguistic analysis, classify 
 
     const estimatedHumanScore = humanScore;
 
-    // Generate analysis text based on ai_score
+    // Generate short, natural analysis (max 2 sentences, no technical terms)
+    const pickRandom = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+
+    const highAiAnalyses = [
+      "The content appears structured and consistent, which leans slightly toward AI-style writing.",
+      "The text reads smoothly but feels a bit too polished and evenly paced throughout.",
+      "The writing is clear and organized, though the consistent tone gives it an AI-like feel.",
+      "Sentences flow well but follow a predictable rhythm, suggesting AI involvement.",
+      "The phrasing is clean and uniform, with little of the messiness you'd expect from a human draft.",
+    ];
+    const balancedAnalyses = [
+      "The writing shows good variation, though some structure still feels slightly organized.",
+      "There's a nice mix of natural flow and careful phrasing here. It could go either way.",
+      "Parts of the text feel genuinely human, but a few sections seem a bit too tidy.",
+      "The tone shifts naturally in places, though some passages still read as slightly polished.",
+      "Overall it reads well, with a blend of casual and structured writing throughout.",
+    ];
+    const humanAnalyses = [
+      "The text feels natural and conversational, with varied phrasing and a human-like flow.",
+      "This reads like something written by a person — the rhythm and word choices feel genuine.",
+      "The writing has a relaxed, uneven flow that feels authentic and naturally composed.",
+      "Sentence lengths vary nicely and the tone feels personal, not machine-generated.",
+      "The phrasing is informal and unpredictable in a way that suggests real human writing.",
+    ];
+
     let finalAnalysis: string;
     if (analysisText) {
       finalAnalysis = analysisText;
     } else if (aiScore > 60) {
-      finalAnalysis = "The text feels structured and slightly formal, with consistent phrasing that leans toward AI-style writing.";
+      finalAnalysis = pickRandom(highAiAnalyses);
     } else if (aiScore > 35) {
-      finalAnalysis = "The writing shows a mix of natural variation and some structured patterns, making it moderately human-like.";
+      finalAnalysis = pickRandom(balancedAnalyses);
     } else {
-      finalAnalysis = "The text feels natural and conversational, with varied phrasing and a more human writing style.";
+      finalAnalysis = pickRandom(humanAnalyses);
     }
 
     // Build comprehensive analysis
