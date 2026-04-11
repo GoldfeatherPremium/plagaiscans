@@ -311,7 +311,6 @@ export const DashboardSidebar: React.FC = () => {
     // Add remaining links
     links.push(
       { to: '/dashboard/documents', icon: FileText, label: t('sidebar.myDocuments') },
-      { to: '/ai-humanizer', icon: Sparkles, label: 'AI Humanizer' },
       { to: '/dashboard/credits', icon: CreditCard, label: t('sidebar.buyCredits') },
       { to: '/dashboard/payments', icon: Receipt, label: t('sidebar.paymentHistory') },
       { to: '/dashboard/my-tickets', icon: MessageSquare, label: 'Support Tickets' },
@@ -415,7 +414,6 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/reports', icon: FileDown, label: 'Reports' },
         { to: '/dashboard/activity-logs', icon: Activity, label: 'Activity Logs' },
         { to: '/dashboard/system-health', icon: Server, label: 'System Health' },
-        { to: '/dashboard/humanizer-analytics', icon: Sparkles, label: 'Humanizer Analytics' },
       ],
     },
     {

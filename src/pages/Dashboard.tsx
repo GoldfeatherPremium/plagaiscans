@@ -497,27 +497,6 @@ export default function Dashboard() {
         })()}
 
         {/* AI Humanizer CTA for customers */}
-        {role === 'customer' && (
-          <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
-            <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-6">
-              <div className="flex-shrink-0 p-3 rounded-full bg-primary/10">
-                <Sparkles className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg">AI % is high? Don't worry!</h3>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Use our free AI Humanizer tool to reduce AI detection in your content — unlimited requests, no cost.
-                </p>
-              </div>
-              <Button asChild className="flex-shrink-0">
-                <Link to="/ai-humanizer">
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Try AI Humanizer
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Recent Documents */}
         <Card>
