@@ -433,6 +433,19 @@ export default function GuestUpload() {
                 </Card>
               )}
 
+              {/* No Repository Notice */}
+              <Card className="border-green-500/50 bg-green-500/5">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-green-700 dark:text-green-400">Your document will NOT be stored in any repository</p>
+                    <p className="text-sm text-muted-foreground">
+                      We process documents in non-repository instructor accounts. Your files are never saved to any database or repository.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Options (exclusion) */}
               {canUpload && (
                 <>
@@ -655,7 +668,7 @@ export default function GuestUpload() {
                                     {file.similarity_percentage}%
                                   </Badge>
                                 ) : (
-                                  <span className="text-muted-foreground">N/A</span>
+                                  <span className="text-muted-foreground">·</span>
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
