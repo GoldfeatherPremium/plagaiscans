@@ -2161,8 +2161,11 @@ export type Database = {
           completed_at: string | null
           created_at: string | null
           credits_earned: number | null
+          fraud_flagged: boolean | null
+          fraud_reason: string | null
           id: string
           referral_code: string
+          referred_ip: string | null
           referred_user_id: string | null
           referrer_id: string
           reward_given_to_referred: boolean | null
@@ -2172,8 +2175,11 @@ export type Database = {
           completed_at?: string | null
           created_at?: string | null
           credits_earned?: number | null
+          fraud_flagged?: boolean | null
+          fraud_reason?: string | null
           id?: string
           referral_code: string
+          referred_ip?: string | null
           referred_user_id?: string | null
           referrer_id: string
           reward_given_to_referred?: boolean | null
@@ -2183,8 +2189,11 @@ export type Database = {
           completed_at?: string | null
           created_at?: string | null
           credits_earned?: number | null
+          fraud_flagged?: boolean | null
+          fraud_reason?: string | null
           id?: string
           referral_code?: string
+          referred_ip?: string | null
           referred_user_id?: string | null
           referrer_id?: string
           reward_given_to_referred?: boolean | null
