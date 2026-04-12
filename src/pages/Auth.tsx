@@ -221,7 +221,7 @@ export default function Auth() {
 
         // Server-side fraud validation
         const { data: validationResult } = await supabase.functions.invoke('validate-referral', {
-          body: { referralCode, email: signupData.email, ip: userIp }
+          body: { referralCode: usedReferralCode, email: signupData.email, ip: userIp }
         });
 
         if (validationResult?.valid && validationResult?.referrerId) {
@@ -239,7 +239,7 @@ export default function Auth() {
             await supabase.from('referrals').insert({
               referrer_id: validationResult.referrerId,
               referred_user_id: newUserId,
-              referral_code: referralCode,
+              referral_code: usedReferralCode,
               status: 'pending',
               credits_earned: 0,
               referred_ip: userIp,
