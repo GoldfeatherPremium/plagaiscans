@@ -803,6 +803,17 @@ export default function Auth() {
                     </div>
                     {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="referralCode">Referral Code (Optional)</Label>
+                    <Input
+                      id="referralCode"
+                      type="text"
+                      placeholder="e.g. REF1A2B3C4D"
+                      value={signupData.referralCode}
+                      onChange={(e) => setSignupData({ ...signupData, referralCode: e.target.value.toUpperCase() })}
+                    />
+                    <p className="text-xs text-muted-foreground">Have a friend's referral code? Enter it to earn bonus credits!</p>
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     {t('signup.termsText')}{' '}
                     <Link to="/terms" className="text-primary hover:underline">{t('signup.termsLink')}</Link>{' '}
