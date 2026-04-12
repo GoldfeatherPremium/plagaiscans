@@ -83,6 +83,14 @@ export default function UploadDocument() {
   const addFiles = (newFiles: File[]) => {
     setUploadResults(null);
 
+    // Block .doc files (only .docx is allowed)
+    const docFiles = newFiles.filter((f) => /\.doc$/i.test(f.name));
+    if (docFiles.length > 0) {
+      toast.error('.doc format is not supported. Please convert to .docx and try again.');
+      newFiles = newFiles.filter((f) => !/\.doc$/i.test(f.name));
+      if (newFiles.length === 0) return;
+    }
+
     setSelectedFiles((prev) => {
       // Avoid accidentally re-adding the same file multiple times
       const existingKeys = new Set(prev.map((f) => `${f.name}::${f.size}::${f.lastModified}`));
@@ -333,7 +341,7 @@ export default function UploadDocument() {
               ref={inputRef}
               type="file"
               className="hidden"
-              accept=".pdf,.doc,.docx,.txt,.xlsx,.pptx,.html,.rtf,.odt"
+              accept=".pdf,.docx,.txt,.xlsx,.pptx,.html,.rtf,.odt"
               onChange={handleChange}
               disabled={!hasCredits || selectedFiles.length >= maxFilesAllowed}
               multiple

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -157,8 +158,13 @@ export default function GuestUpload() {
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setSelectedFile(e.dataTransfer.files[0]);
-      setUploadSuccess(false);
+      const file = e.dataTransfer.files[0];
+      if (/\.doc$/i.test(file.name)) {
+        toast.error('.doc format is not supported. Please convert to .docx and try again.');
+      } else {
+        setSelectedFile(file);
+        setUploadSuccess(false);
+      }
     }
     if (inputRef.current) inputRef.current.value = '';
   };
@@ -166,8 +172,13 @@ export default function GuestUpload() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-      setUploadSuccess(false);
+      const file = e.target.files[0];
+      if (/\.doc$/i.test(file.name)) {
+        toast.error('.doc format is not supported. Please convert to .docx and try again.');
+      } else {
+        setSelectedFile(file);
+        setUploadSuccess(false);
+      }
     }
     // Clear to avoid stale FileList sticking around
     if (inputRef.current) inputRef.current.value = '';
@@ -504,7 +515,7 @@ export default function GuestUpload() {
                         ref={inputRef}
                         type="file"
                         className="hidden"
-                        accept=".pdf,.doc,.docx,.txt,.xlsx,.pptx,.html,.rtf,.odt"
+                        accept=".pdf,.docx,.txt,.xlsx,.pptx,.html,.rtf,.odt"
                         onChange={handleChange}
                       />
                       
