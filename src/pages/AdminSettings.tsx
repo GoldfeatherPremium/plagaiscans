@@ -663,6 +663,45 @@ export default function AdminSettings() {
               </CardContent>
             </Card>
 
+            {/* ★ Customer Payment Methods */}
+            <Card className="ring-2 ring-amber-400/30">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
+                  ★ Customer Payment Methods
+                </CardTitle>
+                <CardDescription>Payment options available exclusively for ★ customers</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[
+                  { label: 'WhatsApp Payment', checked: specialWhatsappEnabled, onChange: setSpecialWhatsappEnabled, icon: MessageCircle, color: '#25D366' },
+                  { label: 'USDT Payment (TRC20)', checked: specialUsdtEnabled, onChange: setSpecialUsdtEnabled, icon: Bitcoin, color: undefined },
+                  { label: 'Binance Pay', checked: specialBinanceEnabled, onChange: setSpecialBinanceEnabled, icon: Wallet, color: '#F0B90B' },
+                  { label: 'Viva.com', checked: specialVivaEnabled, onChange: setSpecialVivaEnabled, icon: Globe, color: '#1A1F71' },
+                  { label: 'Stripe', checked: specialStripeEnabled, onChange: setSpecialStripeEnabled, icon: Zap, color: '#635BFF' },
+                  { label: 'Dodo Payments', checked: specialDodoEnabled, onChange: setSpecialDodoEnabled, icon: Bird, color: undefined },
+                  { label: 'PayPal', checked: specialPaypalEnabled, onChange: setSpecialPaypalEnabled, icon: Wallet, color: '#003087' },
+                  { label: 'Paddle', checked: specialPaddleEnabled, onChange: setSpecialPaddleEnabled, icon: Sailboat, color: '#FFC439' },
+                  { label: 'USDT Transfer (TRC20)', checked: specialUsdtManualEnabled, onChange: setSpecialUsdtManualEnabled, icon: Wallet, color: '#26A17B' },
+                  { label: 'Bank Transfer', checked: specialBankTransferEnabled, onChange: setSpecialBankTransferEnabled, icon: Landmark, color: undefined },
+                ].map((pm) => (
+                  <div key={pm.label} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${!pm.color ? 'bg-primary/10' : ''}`} style={{ backgroundColor: pm.color ? `${pm.color}15` : undefined }}>
+                        <pm.icon className={`h-4 w-4 ${!pm.color ? 'text-primary' : ''}`} style={pm.color ? { color: pm.color } : undefined} />
+                      </div>
+                      <p className="font-medium text-sm">{pm.label}</p>
+                    </div>
+                    <Switch checked={pm.checked} onCheckedChange={pm.onChange} />
+                  </div>
+                ))}
+                <Button onClick={saveSpecialPaymentMethods} disabled={savingSpecialPayments} className="mt-2">
+                  {savingSpecialPayments ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  Save ★ Payment Settings
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* Payment Handling Fees */}
             <Card>
               <CardHeader>
