@@ -86,6 +86,7 @@ export default function Auth() {
     phone: '',
     password: '',
     confirmPassword: '',
+    referralCode: referralCode || '',
   });
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
 
