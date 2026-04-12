@@ -241,6 +241,8 @@ export default function Auth() {
               status: 'pending',
               credits_earned: 0,
               referred_ip: userIp,
+              ip_cluster_id: validationResult.ipClusterId || null,
+              reward_status: 'pending',
             } as any);
 
             // Log IP in referral_ip_log via edge function (service role)
