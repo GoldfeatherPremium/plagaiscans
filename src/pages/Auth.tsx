@@ -204,65 +204,52 @@ export default function Auth() {
       referralCode || undefined
     );
 
-    // After signup, if referral code was used, create referral record and log IP
+    // After signup, if referral code was used, validate via server-side edge function
     if (!error && referralCode) {
       try {
         // Get the user's IP
-        const ipResponse = await fetch('https://api.ipify.org?format=json');
-        const ipData = await ipResponse.json();
-        const userIp = ipData.ip;
+        let userIp = '';
+        try {
+          const ipResponse = await fetch('https://api.ipify.org?format=json');
+          const ipData = await ipResponse.json();
+          userIp = ipData.ip;
+        } catch (ipErr) {
+          console.warn('Could not fetch IP:', ipErr);
+        }
 
-        // Look up referrer by code
-        const { data: referrerProfile } = await supabase
-          .from('profiles')
-          .select('id, signup_ip')
-          .eq('referral_code', referralCode)
-          .maybeSingle();
+        // Server-side fraud validation
+        const { data: validationResult } = await supabase.functions.invoke('validate-referral', {
+          body: { referralCode, email: signupData.email, ip: userIp }
+        });
 
-        if (referrerProfile) {
-          // IP fraud check: check if same IP was used by referrer
-          const referrerIp = referrerProfile.signup_ip;
-          let isFraud = referrerIp === userIp;
+        if (validationResult?.valid && validationResult?.referrerId) {
+          const { data: { session } } = await supabase.auth.getSession();
+          const newUserId = session?.user?.id;
 
-          if (!isFraud) {
-            // Check if this IP was already used in a referral to this referrer
-            const { data: existingIpLog } = await supabase
-              .from('referral_ip_log')
-              .select('id')
-              .eq('ip_address', userIp)
-              .eq('referrer_id', referrerProfile.id)
-              .maybeSingle();
-            
-            if (existingIpLog) isFraud = true;
+          if (newUserId) {
+            // Update profile with referred_by and IP
+            await supabase
+              .from('profiles')
+              .update({ referred_by: validationResult.referrerId, signup_ip: userIp })
+              .eq('id', newUserId);
+
+            // Create pending referral with IP tracking
+            await supabase.from('referrals').insert({
+              referrer_id: validationResult.referrerId,
+              referred_user_id: newUserId,
+              referral_code: referralCode,
+              status: 'pending',
+              credits_earned: 0,
+              referred_ip: userIp,
+            } as any);
+
+            // Log IP in referral_ip_log via edge function (service role)
+            await supabase.functions.invoke('validate-referral', {
+              body: { action: 'log_ip', ip: userIp, userId: newUserId, referrerId: validationResult.referrerId }
+            });
           }
-
-          if (!isFraud) {
-            // Get the newly created user's session
-            const { data: { session } } = await supabase.auth.getSession();
-            const newUserId = session?.user?.id;
-
-            if (newUserId) {
-              // Update profile with referred_by
-              await supabase
-                .from('profiles')
-                .update({ referred_by: referrerProfile.id, signup_ip: userIp })
-                .eq('id', newUserId);
-
-              // Create pending referral
-              await supabase.from('referrals').insert({
-                referrer_id: referrerProfile.id,
-                referred_user_id: newUserId,
-                referral_code: referralCode,
-                status: 'pending',
-                credits_earned: 0,
-              });
-
-              // Log IP for fraud detection (use service role via edge function not needed, RLS allows admin insert)
-              // We'll store it via the profile update above - signup_ip
-            }
-          } else {
-            console.log('Referral fraud detected - same IP', { userIp, referralCode });
-          }
+        } else {
+          console.log('Referral rejected by server:', validationResult?.reason);
         }
       } catch (refError) {
         console.error('Error processing referral:', refError);
