@@ -1,86 +1,65 @@
 
 
-## Plan: Comprehensive Referral System
+## Plan: Comprehensive Referral Fraud Protection System
 
-### What You Get
-- IP-based fraud detection prevents the same person from self-referring with multiple emails
-- Both referrer and referred user get 1 free credit when the referred user makes their first purchase
-- Referral credits expire in 3 days
-- Full tracking in the existing referral UI and admin panel
+### Current State
+- Basic IP check: compares referrer's signup IP with referred user's IP
+- IP log table exists but is not being populated (only signup_ip on profile)
+- No rate limiting, email domain checks, device fingerprinting, or admin fraud controls
 
-### Database Changes (3 migrations)
+### New Protections
 
-**Migration 1: Add IP tracking to profiles**
+**1. Server-side fraud validation (new edge function: `validate-referral`)**
+Move all fraud detection from client-side (Auth.tsx) to a secure edge function that cannot be bypassed. Checks:
+- IP match against referrer's IP
+- IP already used in any referral to the same referrer
+- Same IP used across multiple referral signups (configurable threshold, default 3)
+- Email domain similarity detection (e.g., same base email with +alias like john@gmail vs john+1@gmail)
+- Self-referral prevention (referrer cannot refer themselves)
+- Rate limiting: max referrals per referrer per day (default 5)
+- Disposable email domain blocking (common throwaway domains list)
+- Properly logs IP to `referral_ip_log` table on every referral attempt
+
+**2. Database changes (2 migrations)**
+
+Migration 1: Add fraud tracking columns to `referrals`
 ```sql
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS signup_ip text;
+ALTER TABLE public.referrals 
+  ADD COLUMN IF NOT EXISTS referred_ip text,
+  ADD COLUMN IF NOT EXISTS fraud_flagged boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS fraud_reason text;
 ```
 
-**Migration 2: Create referral IP tracking table**
+Migration 2: Add referral limits to a settings approach + index
 ```sql
-CREATE TABLE public.referral_ip_log (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  ip_address text NOT NULL,
-  user_id uuid NOT NULL,
-  referrer_id uuid,
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE public.referral_ip_log ENABLE ROW LEVEL SECURITY;
--- Admin-only read policy
-CREATE POLICY "Admins can view referral IPs" ON public.referral_ip_log
-  FOR SELECT TO authenticated
-  USING (public.has_role(auth.uid(), 'admin'));
+CREATE INDEX IF NOT EXISTS idx_referral_ip_log_ip 
+  ON public.referral_ip_log(ip_address);
+CREATE INDEX IF NOT EXISTS idx_referral_ip_log_referrer 
+  ON public.referral_ip_log(referrer_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_referrer_created 
+  ON public.referrals(referrer_id, created_at);
 ```
 
-**Migration 3: Add `reward_given_to_referred` column to referrals**
-```sql
-ALTER TABLE public.referrals ADD COLUMN IF NOT EXISTS reward_given_to_referred boolean DEFAULT false;
-```
+**3. Auth.tsx changes**
+- Replace client-side fraud checks with a single call to the `validate-referral` edge function
+- Pass IP, email, referral code to the edge function
+- Edge function returns whether to proceed or reject
 
-### Edge Function: `process-referral-reward`
-New edge function triggered after any successful payment (Stripe, Paddle, PayPal, Dodo, manual). It will:
-1. Look up the paying user's `referred_by` field in profiles
-2. Check if the referral is still `pending` (first purchase only)
-3. Award 1 credit to referrer (profile balance + credit_validity with 3-day expiry + credit_transaction)
-4. Award 1 credit to referred user (same pattern, 3-day expiry)
-5. Update referral record: status = 'completed', credits_earned = 1, reward_given_to_referred = true
-6. Send notifications to both users
+**4. Enhanced `process-referral-reward` checks**
+- Before awarding credits, re-verify the referral is not fraud-flagged
+- Check referrer hasn't exceeded maximum completed referrals (e.g., 20 lifetime)
 
-### Auth.tsx Changes
-- Read `?ref=` query param on signup page
-- Store referral code in `signUp()` metadata
-- After signup, look up referrer by code, set `referred_by` on profile, create pending referral record, capture IP
-
-### handle_new_user Trigger Update
-- Extract `referred_by` from user metadata and save to profile
-- Capture signup IP from metadata
-
-### Webhook Integration (Stripe, Paddle, PayPal, Dodo, manual payments)
-After credits are added successfully, call `process-referral-reward` to check and award referral bonuses. This is done by adding a helper function call in each webhook's payment success path.
-
-### IP Fraud Detection Logic (in Auth.tsx + edge function)
-- On signup with a referral code, capture the user's IP via a lightweight edge function
-- Store IP in `referral_ip_log`
-- Before creating the referral, check if the same IP was already used by the referrer or any other account that referred to the same referrer — if so, reject the referral silently (account still created, but no referral link established)
-
-### ReferralProgram.tsx Updates
-- Change `REFERRAL_BONUS` from 5 to 1
-- Add note about 3-day credit expiry in the "How It Works" section
-- Update text to reflect both parties getting 1 credit
-
-### AdminReferrals.tsx Updates  
-- Show IP address column for fraud monitoring
-- Show whether referred user reward was given
+**5. AdminReferrals.tsx enhancements**
+- Add fraud flag column with visual indicator (red badge)
+- Show fraud reason tooltip
+- Add ability to manually flag/unflag referrals
+- Show IP match warnings (highlight when referrer and referred share IP)
+- Add fraud stats card (total flagged, blocked attempts)
 
 ### Files Modified
-1. `src/pages/Auth.tsx` — capture ref code, pass in signup metadata, record IP
-2. `src/pages/ReferralProgram.tsx` — update bonus amount, add expiry info
-3. `src/pages/AdminReferrals.tsx` — add IP column, reward status
-4. `src/contexts/AuthContext.tsx` — pass referral metadata in signUp
-5. `supabase/functions/process-referral-reward/index.ts` — new edge function
-6. `supabase/functions/stripe-webhook/index.ts` — call referral reward after payment
-7. `supabase/functions/paddle-webhook/index.ts` — call referral reward after payment
-8. `supabase/functions/dodo-webhook/index.ts` — call referral reward after payment
-9. `supabase/functions/paypal-webhook/index.ts` — call referral reward after payment
-10. Database: 3 migrations (IP column, IP log table, referral reward column)
-11. Trigger update: `handle_new_user` to store referred_by and IP
+1. `supabase/functions/validate-referral/index.ts` — new edge function for server-side fraud detection
+2. `supabase/functions/process-referral-reward/index.ts` — add fraud-flag check before awarding
+3. `src/pages/Auth.tsx` — replace client-side checks with edge function call
+4. `src/pages/AdminReferrals.tsx` — add fraud monitoring UI
+5. Database: 2 migrations (fraud columns + indexes)
 
