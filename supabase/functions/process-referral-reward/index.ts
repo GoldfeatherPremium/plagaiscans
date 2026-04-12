@@ -103,7 +103,7 @@ async function calculateActivityScore(userId: string): Promise<number> {
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("created_at")
-    .eq("id", viserId)
+    .eq("id", userId)
     .single();
 
   if (profile) {
