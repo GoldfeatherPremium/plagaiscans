@@ -70,7 +70,7 @@ const UploadSimilarity: React.FC = () => {
 
     const validFiles = fileArray.filter(file => {
       const ext = file.name.toLowerCase().split('.').pop();
-      return ['pdf', 'docx', 'txt', 'rtf'].includes(ext || '');
+      return ['pdf', 'docx', 'txt', 'rtf', 'xlsx', 'pptx', 'ps', 'html', 'odt', 'hwp'].includes(ext || '');
     });
 
     if (validFiles.length !== fileArray.length - docFiles.length) {
@@ -301,7 +301,7 @@ const UploadSimilarity: React.FC = () => {
               <input
                 type="file"
                 multiple
-                accept=".pdf,.docx,.txt,.rtf"
+                accept=".pdf,.docx,.txt,.rtf,.xlsx,.pptx,.ps,.html,.odt,.hwp"
                 onChange={handleChange}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 disabled={similarityCreditBalance === 0}
@@ -309,7 +309,7 @@ const UploadSimilarity: React.FC = () => {
               <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-lg font-medium">{t('uploadSimilarity.dropHere')}</p>
               <p className="text-sm text-muted-foreground mt-1">
-                PDF, DOC, DOCX, TXT, RTF • {t('uploadSimilarity.maxFiles', { count: maxFilesAllowed })}
+                .docx, .xlsx, .pptx, .ps, .pdf, .html, .rtf, .odt, .hwp, .txt • {t('uploadSimilarity.maxFiles', { count: maxFilesAllowed })}
               </p>
               <Badge variant="secondary" className="mt-3">
                 <Search className="h-3 w-3 mr-1" />

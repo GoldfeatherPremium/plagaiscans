@@ -515,7 +515,7 @@ export default function GuestUpload() {
                         ref={inputRef}
                         type="file"
                         className="hidden"
-                        accept=".pdf,.docx,.txt,.xlsx,.pptx,.html,.rtf,.odt"
+                        accept=".pdf,.docx,.txt,.xlsx,.pptx,.ps,.html,.rtf,.odt,.hwp"
                         onChange={handleChange}
                       />
                       
