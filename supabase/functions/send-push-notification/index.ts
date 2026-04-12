@@ -227,10 +227,23 @@ serve(async (req) => {
     const enabledUserIds = targetUserIds.filter((id) => prefMap.get(id) === true);
     console.log(`${enabledUserIds.length} users have notifications enabled for this type`);
 
-    const { data: subscriptions, error: fetchError } = await supabase
+    // Fetch subscriptions, limited to 2 most recent per user to avoid stale endpoint bloat
+    const { data: allSubscriptions, error: fetchError } = await supabase
       .from("push_subscriptions")
       .select("*")
-      .in("user_id", enabledUserIds);
+      .in("user_id", enabledUserIds)
+      .order("created_at", { ascending: false });
+
+    // Deduplicate: keep at most 2 subscriptions per user
+    const subsByUser = new Map<string, typeof allSubscriptions>();
+    for (const sub of allSubscriptions || []) {
+      const existing = subsByUser.get(sub.user_id) || [];
+      if (existing.length < 2) {
+        existing.push(sub);
+        subsByUser.set(sub.user_id, existing);
+      }
+    }
+    const subscriptions = Array.from(subsByUser.values()).flat();
 
     if (fetchError) {
       console.error("Error fetching subscriptions:", fetchError);
