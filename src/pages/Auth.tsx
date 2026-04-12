@@ -207,7 +207,7 @@ export default function Auth() {
     );
 
     // After signup, if referral code was used, validate via server-side edge function
-    if (!error && referralCode) {
+    if (!error && usedReferralCode) {
       try {
         // Get the user's IP
         let userIp = '';
