@@ -312,6 +312,15 @@ export const useDocuments = () => {
         console.log('Push notification trigger failed (non-critical):', err);
       }
 
+      // Notify customer if credits hit zero (non-critical)
+      try {
+        await supabase.functions.invoke('notify-zero-credits', {
+          body: { userId: user.id, creditType: 'full' },
+        });
+      } catch (err) {
+        console.log('Zero credits notification failed (non-critical):', err);
+      }
+
       return { success: true };
     } catch (error) {
       return fail('Upload failed', 'Unexpected error while uploading. Please try again.', error);
@@ -448,6 +457,15 @@ export const useDocuments = () => {
         await supabase.functions.invoke('notify-document-upload');
       } catch (err) {
         console.log('Push notification trigger failed (non-critical):', err);
+      }
+
+      // Notify customer if credits hit zero (non-critical)
+      try {
+        await supabase.functions.invoke('notify-zero-credits', {
+          body: { userId: user.id, creditType: 'full' },
+        });
+      } catch (err) {
+        console.log('Zero credits notification failed (non-critical):', err);
       }
 
       toast({
