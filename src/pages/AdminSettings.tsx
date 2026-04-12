@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench, Mail, FileText, Chrome, Eye, EyeOff, Zap, Bird, Sailboat, Landmark, Plus, X } from 'lucide-react';
+import { MessageCircle, Save, Loader2, Clock, CreditCard, Bitcoin, Wallet, Globe, Percent, AlertTriangle, Bell, Send, Wrench, Mail, FileText, Chrome, Eye, EyeOff, Zap, Bird, Sailboat, Landmark, Plus, X, Star } from 'lucide-react';
 import { BANK_TRANSFER_COUNTRY_CODES } from '@/data/bankTransferCountries';
 import { countries } from '@/data/countries';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -68,6 +68,19 @@ export default function AdminSettings() {
   const [paddleClientToken, setPaddleClientToken] = useState('');
   const [paddleEnvironment, setPaddleEnvironment] = useState('sandbox');
   const [savingPaddle, setSavingPaddle] = useState(false);
+
+  // ★ Customer payment settings
+  const [specialWhatsappEnabled, setSpecialWhatsappEnabled] = useState(false);
+  const [specialUsdtEnabled, setSpecialUsdtEnabled] = useState(false);
+  const [specialBinanceEnabled, setSpecialBinanceEnabled] = useState(false);
+  const [specialVivaEnabled, setSpecialVivaEnabled] = useState(false);
+  const [specialStripeEnabled, setSpecialStripeEnabled] = useState(false);
+  const [specialDodoEnabled, setSpecialDodoEnabled] = useState(false);
+  const [specialPaypalEnabled, setSpecialPaypalEnabled] = useState(false);
+  const [specialPaddleEnabled, setSpecialPaddleEnabled] = useState(false);
+  const [specialUsdtManualEnabled, setSpecialUsdtManualEnabled] = useState(false);
+  const [specialBankTransferEnabled, setSpecialBankTransferEnabled] = useState(false);
+  const [savingSpecialPayments, setSavingSpecialPayments] = useState(false);
 
   const [vapidPublicKey, setVapidPublicKey] = useState('');
   const [savingVapid, setSavingVapid] = useState(false);
@@ -138,6 +151,17 @@ export default function AdminSettings() {
       'usdt_manual_wallet_address',
       'payment_bank_transfer_enabled',
       'bank_transfer_countries',
+      // ★ Customer payment settings
+      'special_payment_whatsapp_enabled',
+      'special_payment_usdt_enabled',
+      'special_payment_binance_enabled',
+      'special_payment_viva_enabled',
+      'special_payment_stripe_enabled',
+      'special_payment_dodo_enabled',
+      'special_payment_paypal_enabled',
+      'special_payment_paddle_enabled',
+      'special_payment_usdt_manual_enabled',
+      'special_payment_bank_transfer_enabled',
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
@@ -235,6 +259,18 @@ export default function AdminSettings() {
           if (Array.isArray(parsed)) setBankTransferCountries(parsed);
         } catch {}
       }
+
+      // ★ Customer payment settings
+      setSpecialWhatsappEnabled(data.find(s => s.key === 'special_payment_whatsapp_enabled')?.value === 'true');
+      setSpecialUsdtEnabled(data.find(s => s.key === 'special_payment_usdt_enabled')?.value === 'true');
+      setSpecialBinanceEnabled(data.find(s => s.key === 'special_payment_binance_enabled')?.value === 'true');
+      setSpecialVivaEnabled(data.find(s => s.key === 'special_payment_viva_enabled')?.value === 'true');
+      setSpecialStripeEnabled(data.find(s => s.key === 'special_payment_stripe_enabled')?.value === 'true');
+      setSpecialDodoEnabled(data.find(s => s.key === 'special_payment_dodo_enabled')?.value === 'true');
+      setSpecialPaypalEnabled(data.find(s => s.key === 'special_payment_paypal_enabled')?.value === 'true');
+      setSpecialPaddleEnabled(data.find(s => s.key === 'special_payment_paddle_enabled')?.value === 'true');
+      setSpecialUsdtManualEnabled(data.find(s => s.key === 'special_payment_usdt_manual_enabled')?.value === 'true');
+      setSpecialBankTransferEnabled(data.find(s => s.key === 'special_payment_bank_transfer_enabled')?.value === 'true');
     }
     setLoading(false);
   };
@@ -284,6 +320,29 @@ export default function AdminSettings() {
       toast({ title: 'Error', description: 'Failed to save payment settings', variant: 'destructive' });
     } else {
       toast({ title: 'Success', description: 'Payment methods updated' });
+    }
+  };
+
+  const saveSpecialPaymentMethods = async () => {
+    setSavingSpecialPayments(true);
+    const updates = [
+      supabase.from('settings').upsert({ key: 'special_payment_whatsapp_enabled', value: specialWhatsappEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_usdt_enabled', value: specialUsdtEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_binance_enabled', value: specialBinanceEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_viva_enabled', value: specialVivaEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_stripe_enabled', value: specialStripeEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_dodo_enabled', value: specialDodoEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_paypal_enabled', value: specialPaypalEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_paddle_enabled', value: specialPaddleEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_usdt_manual_enabled', value: specialUsdtManualEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_bank_transfer_enabled', value: specialBankTransferEnabled.toString() }, { onConflict: 'key' }),
+    ];
+    const results = await Promise.all(updates);
+    setSavingSpecialPayments(false);
+    if (results.some(r => r.error)) {
+      toast({ title: 'Error', description: 'Failed to save ★ payment settings', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: '★ Customer payment methods updated' });
     }
   };
 
@@ -600,6 +659,45 @@ export default function AdminSettings() {
                 <Button onClick={savePaymentMethods} disabled={savingPaymentMethods} className="mt-2">
                   {savingPaymentMethods ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                   Save Payment Settings
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* ★ Customer Payment Methods */}
+            <Card className="ring-2 ring-amber-400/30">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
+                  ★ Customer Payment Methods
+                </CardTitle>
+                <CardDescription>Payment options available exclusively for ★ customers</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[
+                  { label: 'WhatsApp Payment', checked: specialWhatsappEnabled, onChange: setSpecialWhatsappEnabled, icon: MessageCircle, color: '#25D366' },
+                  { label: 'USDT Payment (TRC20)', checked: specialUsdtEnabled, onChange: setSpecialUsdtEnabled, icon: Bitcoin, color: undefined },
+                  { label: 'Binance Pay', checked: specialBinanceEnabled, onChange: setSpecialBinanceEnabled, icon: Wallet, color: '#F0B90B' },
+                  { label: 'Viva.com', checked: specialVivaEnabled, onChange: setSpecialVivaEnabled, icon: Globe, color: '#1A1F71' },
+                  { label: 'Stripe', checked: specialStripeEnabled, onChange: setSpecialStripeEnabled, icon: Zap, color: '#635BFF' },
+                  { label: 'Dodo Payments', checked: specialDodoEnabled, onChange: setSpecialDodoEnabled, icon: Bird, color: undefined },
+                  { label: 'PayPal', checked: specialPaypalEnabled, onChange: setSpecialPaypalEnabled, icon: Wallet, color: '#003087' },
+                  { label: 'Paddle', checked: specialPaddleEnabled, onChange: setSpecialPaddleEnabled, icon: Sailboat, color: '#FFC439' },
+                  { label: 'USDT Transfer (TRC20)', checked: specialUsdtManualEnabled, onChange: setSpecialUsdtManualEnabled, icon: Wallet, color: '#26A17B' },
+                  { label: 'Bank Transfer', checked: specialBankTransferEnabled, onChange: setSpecialBankTransferEnabled, icon: Landmark, color: undefined },
+                ].map((pm) => (
+                  <div key={pm.label} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${!pm.color ? 'bg-primary/10' : ''}`} style={{ backgroundColor: pm.color ? `${pm.color}15` : undefined }}>
+                        <pm.icon className={`h-4 w-4 ${!pm.color ? 'text-primary' : ''}`} style={pm.color ? { color: pm.color } : undefined} />
+                      </div>
+                      <p className="font-medium text-sm">{pm.label}</p>
+                    </div>
+                    <Switch checked={pm.checked} onCheckedChange={pm.onChange} />
+                  </div>
+                ))}
+                <Button onClick={saveSpecialPaymentMethods} disabled={savingSpecialPayments} className="mt-2">
+                  {savingSpecialPayments ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  Save ★ Payment Settings
                 </Button>
               </CardContent>
             </Card>
