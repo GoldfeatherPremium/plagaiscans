@@ -182,6 +182,15 @@ export const useSimilarityDocuments = () => {
 
     await refreshProfile();
     await fetchDocuments();
+
+    // Notify customer if similarity credits hit zero (non-critical)
+    try {
+      await supabase.functions.invoke('notify-zero-credits', {
+        body: { userId: user.id, creditType: 'similarity_only' },
+      });
+    } catch (err) {
+      console.log('Zero credits notification failed (non-critical):', err);
+    }
   };
 
   const uploadSimilarityReport = async (
