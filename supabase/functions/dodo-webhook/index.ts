@@ -267,6 +267,20 @@ Deno.serve(async (req) => {
         console.error('Failed to create credit validity record:', cvError);
       }
 
+      // Process referral reward
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/process-referral-reward`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+          body: JSON.stringify({ userId }),
+        });
+      } catch (refErr) {
+        console.error('Failed to process referral reward:', refErr);
+      }
+
       console.log('Payment processed successfully:', { paymentId, userId, credits });
 
       return new Response(

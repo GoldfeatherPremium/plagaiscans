@@ -375,6 +375,20 @@ serve(async (req) => {
             }
           }
 
+          // Process referral reward
+          try {
+            await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/process-referral-reward`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              },
+              body: JSON.stringify({ userId }),
+            });
+          } catch (refErr) {
+            logStep("Failed to process referral reward", { error: refErr });
+          }
+
           logStep("Credits added", { userId, credits, newBalance });
           break;
         }
