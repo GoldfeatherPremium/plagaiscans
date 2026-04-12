@@ -1,27 +1,63 @@
 
 
-## Push Notification Reliability Fix
+## Special Customer Pricing System
 
-### Root Cause
+### Overview
+Add a "special customer" flag to profiles, allow admin to toggle it during pre-registration and user management, create separate pricing packages visible only to special customers, and hide normal pricing from them.
 
-The database has **massive subscription bloat** — one user alone has **25 stale push subscriptions**. When a notification is sent, it goes to all stored endpoints for a user. Most of these endpoints belong to old/expired browser sessions. The push service (FCM/WNS) silently accepts messages to stale endpoints (returns HTTP 201) but never actually delivers them. Since the system sees "success," it never cleans them up.
+### Database Changes
 
-This is why ~60% of notifications never appear — the push is "sent successfully" server-side, but the endpoint is dead.
+**1. Add `is_special` column to `profiles`**
+```sql
+ALTER TABLE public.profiles ADD COLUMN is_special boolean NOT NULL DEFAULT false;
+```
 
-### Fix Plan
+**2. Add `is_special` column to `pricing_packages`**
+```sql
+ALTER TABLE public.pricing_packages ADD COLUMN is_special boolean NOT NULL DEFAULT false;
+```
 
-**1. Deduplicate subscriptions on subscribe**
-In `usePushNotifications.ts`, when a user subscribes, delete ALL existing subscriptions for that user before inserting the new one. A user only has one active browser at a time that should receive pushes. This immediately prevents accumulation.
+**3. Update RLS on `pricing_packages`**
+Replace the "Everyone can view active packages" policy so users only see packages matching their special status:
+- Special customers see only `is_special = true` packages
+- Normal customers see only `is_special = false` packages
+- Non-authenticated users see only `is_special = false` packages
 
-**2. Sync subscription on every page load**  
-In `usePushSubscriptionHealth.ts`, on every visibility/load check, compare the current browser's push endpoint with what's stored in the DB. If the endpoint differs, update the DB record and remove stale entries. This ensures the DB always has the latest active endpoint.
+### Frontend Changes
 
-**3. One-time database cleanup**  
-Run a migration to remove duplicate subscriptions, keeping only the most recently created one per user. This will immediately fix the 25-subscription-per-user problem.
+**4. Pre-Registration Dialog (`PreRegisterCreditDialog.tsx`)**
+- Add a toggle/switch: "Mark as special customer" (with a star icon, no "special" label — just a `★` indicator)
 
-**4. Limit subscriptions per user server-side**  
-In `send-push-notification/index.ts`, when fetching subscriptions, order by `created_at DESC` and limit to 2 per user (allowing for one desktop + one mobile). This prevents sending to dozens of stale endpoints even if cleanup fails.
+**5. Edge Function (`create-user-with-credits/index.ts`)**
+- Accept `isSpecial` parameter and set `is_special = true` on the created profile
 
-### Technical Details
+**6. Admin Users Page (`AdminUsers.tsx`)**
+- Show a `★` badge next to special customers in the user list
+- Add ability to toggle special status (promote/demote) from user detail view
 
-- **File
+**7. Admin Pricing Page (`AdminPricing.tsx`)**
+- Add `is_special` toggle when creating/editing packages (labeled with `★` icon)
+- Show a `★` badge on special-only packages to distinguish them
+
+**8. Buy Credits Page (`BuyCredits.tsx`)**
+- Filter packages based on user's `is_special` flag from profile
+- Special users only see `is_special = true` packages
+- Normal users only see `is_special = false` packages
+
+**9. Auth Context (`AuthContext.tsx`)**
+- Add `is_special` to the profile type and fetch it alongside other profile data
+
+### UI Approach
+- No "special" text anywhere visible to customers
+- Use `★` star icon/badge to indicate special status in admin panels
+- Special pricing cards get a subtle gold/amber border or highlight so admin can distinguish them, but customers just see normal-looking pricing
+
+### Files Modified
+- `supabase/migrations/` — 1 new migration
+- `src/contexts/AuthContext.tsx` — add `is_special` to profile
+- `src/pages/BuyCredits.tsx` — filter by special status
+- `src/pages/AdminPricing.tsx` — add special toggle
+- `src/pages/AdminUsers.tsx` — show/toggle special status
+- `src/components/PreRegisterCreditDialog.tsx` — add special checkbox
+- `supabase/functions/create-user-with-credits/index.ts` — handle `isSpecial`
+
