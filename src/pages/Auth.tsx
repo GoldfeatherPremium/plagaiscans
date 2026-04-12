@@ -604,7 +604,7 @@ export default function Auth() {
             </Link>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login">
+            <Tabs defaultValue={referralCode ? "signup" : "login"}>
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="login">{t('login.tabLogin')}</TabsTrigger>
                 <TabsTrigger value="signup">{t('login.tabSignup')}</TabsTrigger>
