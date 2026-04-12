@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { email, creditAmount, creditType, expiryDays } = await req.json();
+    const { email, creditAmount, creditType, expiryDays, isSpecial } = await req.json();
 
     if (!email || !creditAmount || creditAmount <= 0) {
       return new Response(JSON.stringify({ error: 'Email and valid credit amount are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -137,6 +137,7 @@ Deno.serve(async (req) => {
       phone: null,
       credit_balance: creditType === 'full' ? creditAmount : 0,
       similarity_credit_balance: creditType === 'similarity_only' ? creditAmount : 0,
+      is_special: isSpecial === true,
     }, { onConflict: 'id' });
 
     // Assign customer role

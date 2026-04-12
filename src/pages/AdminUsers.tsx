@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Loader2, User, Mail, Phone, CreditCard, Calendar, History, TrendingUp, TrendingDown, ArrowUpDown, UserPlus, Clock, Users, Settings2, Save, ChevronLeft, ChevronRight, Shield, ShieldCheck, ShieldX, UserCog } from 'lucide-react';
+import { Search, Loader2, User, Mail, Phone, CreditCard, Calendar, History, TrendingUp, TrendingDown, ArrowUpDown, UserPlus, Clock, Users, Settings2, Save, ChevronLeft, ChevronRight, Shield, ShieldCheck, ShieldX, UserCog, Star } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -36,6 +36,7 @@ interface UserProfile {
   similarity_credit_balance: number;
   created_at: string;
   role?: 'admin' | 'staff' | 'customer';
+  is_special?: boolean;
 }
 
 interface CreditTransaction {
@@ -115,7 +116,8 @@ export default function AdminUsers() {
       
       const usersWithRoles = profiles.map(profile => ({
         ...profile,
-        role: roleMap.get(profile.id) || 'customer'
+        role: roleMap.get(profile.id) || 'customer',
+        is_special: (profile as any).is_special ?? false,
       }));
       
       setUsers(usersWithRoles);
@@ -433,7 +435,10 @@ export default function AdminUsers() {
                           <TableRow key={user.id}>
                             <TableCell className="text-center font-medium">{(currentPage - 1) * USERS_PER_PAGE + index + 1}</TableCell>
                             <TableCell className="font-medium">
-                              {user.full_name || <span className="text-muted-foreground">No name</span>}
+                              <div className="flex items-center gap-1.5">
+                                {user.full_name || <span className="text-muted-foreground">No name</span>}
+                                {user.is_special && <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />}
+                              </div>
                             </TableCell>
                             <TableCell>{user.email}</TableCell>
                             <TableCell>
@@ -459,7 +464,7 @@ export default function AdminUsers() {
                               <span className="text-lg font-bold text-blue-600">{user.similarity_credit_balance}</span>
                             </TableCell>
                             <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-2">
+                              <div className="flex items-center justify-center gap-1">
                                 <Button
                                   size="sm"
                                   variant="ghost"
@@ -467,6 +472,19 @@ export default function AdminUsers() {
                                   title="View History"
                                 >
                                   <History className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  title={user.is_special ? 'Remove ★ status' : 'Mark as ★'}
+                                  onClick={async () => {
+                                    const newVal = !user.is_special;
+                                    await supabase.from('profiles').update({ is_special: newVal } as any).eq('id', user.id);
+                                    toast({ title: newVal ? '★ status added' : '★ status removed' });
+                                    fetchUsers();
+                                  }}
+                                >
+                                  <Star className={`h-4 w-4 ${user.is_special ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground'}`} />
                                 </Button>
                                 <Button
                                   size="sm"
