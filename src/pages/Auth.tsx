@@ -86,6 +86,7 @@ export default function Auth() {
     phone: '',
     password: '',
     confirmPassword: '',
+    referralCode: referralCode || '',
   });
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
 
@@ -196,16 +197,17 @@ export default function Auth() {
     }
 
     setLoading(true);
+    const usedReferralCode = signupData.referralCode.trim() || referralCode || undefined;
     const { error } = await signUp(
       signupData.email,
       signupData.password,
       signupData.fullName,
       signupData.phone,
-      referralCode || undefined
+      usedReferralCode
     );
 
     // After signup, if referral code was used, validate via server-side edge function
-    if (!error && referralCode) {
+    if (!error && usedReferralCode) {
       try {
         // Get the user's IP
         let userIp = '';
@@ -219,7 +221,7 @@ export default function Auth() {
 
         // Server-side fraud validation
         const { data: validationResult } = await supabase.functions.invoke('validate-referral', {
-          body: { referralCode, email: signupData.email, ip: userIp }
+          body: { referralCode: usedReferralCode, email: signupData.email, ip: userIp }
         });
 
         if (validationResult?.valid && validationResult?.referrerId) {
@@ -237,7 +239,7 @@ export default function Auth() {
             await supabase.from('referrals').insert({
               referrer_id: validationResult.referrerId,
               referred_user_id: newUserId,
-              referral_code: referralCode,
+              referral_code: usedReferralCode,
               status: 'pending',
               credits_earned: 0,
               referred_ip: userIp,
@@ -800,6 +802,17 @@ export default function Auth() {
                       </Button>
                     </div>
                     {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="referralCode">Referral Code (Optional)</Label>
+                    <Input
+                      id="referralCode"
+                      type="text"
+                      placeholder="e.g. REF1A2B3C4D"
+                      value={signupData.referralCode}
+                      onChange={(e) => setSignupData({ ...signupData, referralCode: e.target.value.toUpperCase() })}
+                    />
+                    <p className="text-xs text-muted-foreground">Have a friend's referral code? Enter it to earn bonus credits!</p>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {t('signup.termsText')}{' '}

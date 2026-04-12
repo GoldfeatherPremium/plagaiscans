@@ -38,6 +38,40 @@ interface ManualPayment {
   created_at: string;
 }
 
+function ReferralQuickCopy({ userId }: { userId?: string }) {
+  const [code, setCode] = useState('');
+  useEffect(() => {
+    if (!userId) return;
+    supabase.from('profiles').select('referral_code').eq('id', userId).single()
+      .then(({ data }) => { if (data?.referral_code) setCode(data.referral_code); });
+  }, [userId]);
+
+  if (!code) return null;
+
+  const link = `https://www.plagaiscans.com/auth?ref=${code}`;
+
+  return (
+    <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-border/50">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">Your code:</span>
+        <code className="bg-muted px-2 py-1 rounded text-xs font-mono font-bold">{code}</code>
+      </div>
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">Link:</span>
+        <code className="bg-muted px-2 py-1 rounded text-xs truncate flex-1">{link}</code>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          onClick={() => { navigator.clipboard.writeText(link); }}
+        >
+          <Copy className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { role, profile, user, loading: authLoading } = useAuth();
   const { documents, loading: docsLoading, downloadFile } = useDocuments();
@@ -398,22 +432,26 @@ export default function Dashboard() {
         {/* Referral Banner - Customer Only */}
         {role === 'customer' && profile && (
           <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5 overflow-hidden">
-            <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <Gift className="h-6 w-6 text-primary" />
+            <CardContent className="p-5 space-y-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Gift className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base">Refer a Friend & Both Get Free Credits! 🎉</h3>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Share your referral link. When your friend makes their first purchase, you both get 1 free credit (valid for 3 days).
+                  </p>
+                </div>
+                <Button asChild size="sm" className="shrink-0">
+                  <Link to="/dashboard/referrals">
+                    <Crown className="h-4 w-4 mr-1" />
+                    View & Share
+                  </Link>
+                </Button>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-base">Refer a Friend & Both Get Free Credits! 🎉</h3>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Share your referral link. When your friend makes their first purchase, you both get 1 free credit (valid for 3 days).
-                </p>
-              </div>
-              <Button asChild size="sm" className="shrink-0">
-                <Link to="/dashboard/referrals">
-                  <Crown className="h-4 w-4 mr-1" />
-                  View & Share
-                </Link>
-              </Button>
+              {/* Inline referral code + link */}
+              <ReferralQuickCopy userId={user?.id} />
             </CardContent>
           </Card>
         )}

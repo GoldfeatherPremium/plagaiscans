@@ -76,14 +76,16 @@ export default function ReferralProgram() {
     enabled: !!user
   });
 
+  const getReferralLink = () => `https://www.plagaiscans.com/auth?ref=${data?.myCode}`;
+
   const copyReferralLink = () => {
-    const link = `${window.location.origin}/auth?ref=${data?.myCode}`;
+    const link = getReferralLink();
     navigator.clipboard.writeText(link);
     toast.success('Referral link copied to clipboard!');
   };
 
   const shareReferral = async () => {
-    const link = `${window.location.origin}/auth?ref=${data?.myCode}`;
+    const link = getReferralLink();
     if (navigator.share) {
       try {
         await navigator.share({
@@ -147,7 +149,7 @@ export default function ReferralProgram() {
             </div>
             <p className="text-sm text-muted-foreground">
               Your referral link: <code className="bg-muted px-2 py-1 rounded text-xs">
-                {window.location.origin}/auth?ref={data?.myCode}
+                https://www.plagaiscans.com/auth?ref={data?.myCode}
               </code>
             </p>
           </CardContent>
