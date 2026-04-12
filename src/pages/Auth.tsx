@@ -197,12 +197,13 @@ export default function Auth() {
     }
 
     setLoading(true);
+    const usedReferralCode = signupData.referralCode.trim() || referralCode || undefined;
     const { error } = await signUp(
       signupData.email,
       signupData.password,
       signupData.fullName,
       signupData.phone,
-      referralCode || undefined
+      usedReferralCode
     );
 
     // After signup, if referral code was used, validate via server-side edge function

@@ -149,7 +149,7 @@ export default function ReferralProgram() {
             </div>
             <p className="text-sm text-muted-foreground">
               Your referral link: <code className="bg-muted px-2 py-1 rounded text-xs">
-                {window.location.origin}/auth?ref={data?.myCode}
+                https://www.plagaiscans.com/auth?ref={data?.myCode}
               </code>
             </p>
           </CardContent>
