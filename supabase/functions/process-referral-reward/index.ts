@@ -15,6 +15,8 @@ const logStep = (step: string, details?: any) => {
   console.log(`[REFERRAL-REWARD] ${step}${detailsStr}`);
 };
 
+const MAX_LIFETIME_REWARDS = 20;
+
 async function awardReferralCredit(userId: string, description: string, creditType: string = "full") {
   const balanceField = creditType === "similarity_only" ? "similarity_credit_balance" : "credit_balance";
   
@@ -111,7 +113,50 @@ Deno.serve(async (req) => {
       });
     }
 
+    // FRAUD CHECK: Verify referral is not fraud-flagged
+    if ((referral as any).fraud_flagged) {
+      logStep("Referral is fraud-flagged, skipping reward", { reason: (referral as any).fraud_reason });
+      return new Response(JSON.stringify({ success: false, message: "Referral flagged as fraudulent" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const referrerId = referral.referrer_id;
+
+    // LIFETIME LIMIT CHECK: Check referrer hasn't exceeded max completed referrals
+    const { count: completedCount } = await supabaseAdmin
+      .from("referrals")
+      .select("id", { count: "exact", head: true })
+      .eq("referrer_id", referrerId)
+      .eq("status", "completed");
+
+    if ((completedCount || 0) >= MAX_LIFETIME_REWARDS) {
+      logStep("Referrer exceeded lifetime reward limit", { completedCount });
+      
+      // Still mark as completed but don't award to referrer
+      await supabaseAdmin
+        .from("referrals")
+        .update({
+          status: "completed",
+          credits_earned: 0,
+          reward_given_to_referred: true,
+        })
+        .eq("id", referral.id);
+
+      // Still award to referred user
+      await awardReferralCredit(userId, "Referral bonus - first purchase reward");
+
+      await supabaseAdmin.from("user_notifications").insert({
+        user_id: userId,
+        title: "Welcome Bonus! 🎁",
+        message: "You earned 1 bonus credit for your first purchase via referral! (valid for 3 days)",
+      });
+
+      return new Response(
+        JSON.stringify({ success: true, referrerAwarded: false, referredAwarded: true, reason: "Referrer limit reached" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Award 1 credit to referrer
     const referrerAwarded = await awardReferralCredit(
