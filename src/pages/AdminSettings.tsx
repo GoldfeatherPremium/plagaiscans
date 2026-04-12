@@ -259,6 +259,18 @@ export default function AdminSettings() {
           if (Array.isArray(parsed)) setBankTransferCountries(parsed);
         } catch {}
       }
+
+      // ★ Customer payment settings
+      setSpecialWhatsappEnabled(data.find(s => s.key === 'special_payment_whatsapp_enabled')?.value === 'true');
+      setSpecialUsdtEnabled(data.find(s => s.key === 'special_payment_usdt_enabled')?.value === 'true');
+      setSpecialBinanceEnabled(data.find(s => s.key === 'special_payment_binance_enabled')?.value === 'true');
+      setSpecialVivaEnabled(data.find(s => s.key === 'special_payment_viva_enabled')?.value === 'true');
+      setSpecialStripeEnabled(data.find(s => s.key === 'special_payment_stripe_enabled')?.value === 'true');
+      setSpecialDodoEnabled(data.find(s => s.key === 'special_payment_dodo_enabled')?.value === 'true');
+      setSpecialPaypalEnabled(data.find(s => s.key === 'special_payment_paypal_enabled')?.value === 'true');
+      setSpecialPaddleEnabled(data.find(s => s.key === 'special_payment_paddle_enabled')?.value === 'true');
+      setSpecialUsdtManualEnabled(data.find(s => s.key === 'special_payment_usdt_manual_enabled')?.value === 'true');
+      setSpecialBankTransferEnabled(data.find(s => s.key === 'special_payment_bank_transfer_enabled')?.value === 'true');
     }
     setLoading(false);
   };
