@@ -19,7 +19,7 @@ import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
 
-const REFERRAL_BONUS = 5; // Credits given for successful referral
+const REFERRAL_BONUS = 1; // Credits given for successful referral
 
 export default function ReferralProgram() {
   const { t } = useTranslation('dashboard');
@@ -218,9 +218,9 @@ export default function ReferralProgram() {
                 <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
                   <span className="text-xl font-bold text-primary">3</span>
                 </div>
-                <h3 className="font-medium">Earn Credits</h3>
+                <h3 className="font-medium">Both Earn Credits</h3>
                 <p className="text-sm text-muted-foreground">
-                  Get {REFERRAL_BONUS} credits when they make their first purchase
+                  You and your friend each get {REFERRAL_BONUS} free credit when they make their first purchase. Credits expire in 3 days.
                 </p>
               </div>
             </div>

@@ -58,6 +58,7 @@ export default function Auth() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const isResetMode = searchParams.get('reset') === 'true';
+  const referralCode = searchParams.get('ref') || '';
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation('auth');
@@ -199,8 +200,75 @@ export default function Auth() {
       signupData.email,
       signupData.password,
       signupData.fullName,
-      signupData.phone
+      signupData.phone,
+      referralCode || undefined
     );
+
+    // After signup, if referral code was used, create referral record and log IP
+    if (!error && referralCode) {
+      try {
+        // Get the user's IP
+        const ipResponse = await fetch('https://api.ipify.org?format=json');
+        const ipData = await ipResponse.json();
+        const userIp = ipData.ip;
+
+        // Look up referrer by code
+        const { data: referrerProfile } = await supabase
+          .from('profiles')
+          .select('id, signup_ip')
+          .eq('referral_code', referralCode)
+          .maybeSingle();
+
+        if (referrerProfile) {
+          // IP fraud check: check if same IP was used by referrer
+          const referrerIp = referrerProfile.signup_ip;
+          let isFraud = referrerIp === userIp;
+
+          if (!isFraud) {
+            // Check if this IP was already used in a referral to this referrer
+            const { data: existingIpLog } = await supabase
+              .from('referral_ip_log')
+              .select('id')
+              .eq('ip_address', userIp)
+              .eq('referrer_id', referrerProfile.id)
+              .maybeSingle();
+            
+            if (existingIpLog) isFraud = true;
+          }
+
+          if (!isFraud) {
+            // Get the newly created user's session
+            const { data: { session } } = await supabase.auth.getSession();
+            const newUserId = session?.user?.id;
+
+            if (newUserId) {
+              // Update profile with referred_by
+              await supabase
+                .from('profiles')
+                .update({ referred_by: referrerProfile.id, signup_ip: userIp })
+                .eq('id', newUserId);
+
+              // Create pending referral
+              await supabase.from('referrals').insert({
+                referrer_id: referrerProfile.id,
+                referred_user_id: newUserId,
+                referral_code: referralCode,
+                status: 'pending',
+                credits_earned: 0,
+              });
+
+              // Log IP for fraud detection (use service role via edge function not needed, RLS allows admin insert)
+              // We'll store it via the profile update above - signup_ip
+            }
+          } else {
+            console.log('Referral fraud detected - same IP', { userIp, referralCode });
+          }
+        }
+      } catch (refError) {
+        console.error('Error processing referral:', refError);
+      }
+    }
+
     setLoading(false);
 
     if (error) {

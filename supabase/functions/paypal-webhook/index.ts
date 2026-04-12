@@ -247,6 +247,20 @@ serve(async (req) => {
           console.error('Failed to create credit validity record:', cvError);
         }
 
+        // Process referral reward
+        try {
+          await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/process-referral-reward`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            },
+            body: JSON.stringify({ userId }),
+          });
+        } catch (refErr) {
+          console.error('Failed to process referral reward:', refErr);
+        }
+
         console.log('PayPal payment completed:', orderId, 'Credits added:', credits);
       } else if (eventType === 'CHECKOUT.ORDER.APPROVED') {
         // Order approved, update status but don't add credits yet
