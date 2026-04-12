@@ -73,7 +73,25 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { referralCode, email, ip } = await req.json();
+    const body = await req.json();
+    const { referralCode, email, ip, action } = body;
+
+    // Handle IP logging action
+    if (action === "log_ip") {
+      const { ip: logIp, userId, referrerId } = body;
+      if (logIp && userId) {
+        await supabaseAdmin.from("referral_ip_log").insert({
+          ip_address: logIp,
+          user_id: userId,
+          referrer_id: referrerId || null,
+        });
+        logStep("IP logged", { ip: logIp, userId });
+      }
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!referralCode || !email) {
       return new Response(
