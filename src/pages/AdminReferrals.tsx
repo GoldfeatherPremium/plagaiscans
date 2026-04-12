@@ -31,14 +31,14 @@ export default function AdminReferrals() {
       const referrerIds = [...new Set(referrals?.map(r => r.referrer_id) || [])];
       const { data: referrerProfiles } = await supabase
         .from('profiles')
-        .select('id, email, full_name')
+        .select('id, email, full_name, signup_ip')
         .in('id', referrerIds);
 
       // Get referred user profiles
       const referredIds = referrals?.filter(r => r.referred_user_id).map(r => r.referred_user_id) || [];
       const { data: referredProfiles } = await supabase
         .from('profiles')
-        .select('id, email, full_name')
+        .select('id, email, full_name, signup_ip')
         .in('id', referredIds);
 
       const referrerMap = new Map(referrerProfiles?.map(p => [p.id, p]) || []);
@@ -141,8 +141,10 @@ export default function AdminReferrals() {
                   <TableHead>Referrer</TableHead>
                   <TableHead>Code</TableHead>
                   <TableHead>Referred User</TableHead>
+                  <TableHead>IP Address</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Credits Earned</TableHead>
+                  <TableHead>Referrer Reward</TableHead>
+                  <TableHead>Referred Reward</TableHead>
                   <TableHead>Date</TableHead>
                 </TableRow>
               </TableHeader>
@@ -169,6 +171,11 @@ export default function AdminReferrals() {
                       )}
                     </TableCell>
                     <TableCell>
+                      <code className="bg-muted px-2 py-1 rounded text-xs">
+                        {referral.referred?.signup_ip || referral.referrer?.signup_ip || '-'}
+                      </code>
+                    </TableCell>
+                    <TableCell>
                       <Badge variant={referral.status === 'completed' ? 'default' : 'secondary'}>
                         {referral.status === 'completed' ? (
                           <><CheckCircle className="h-3 w-3 mr-1" /> Completed</>
@@ -184,6 +191,13 @@ export default function AdminReferrals() {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
+                    <TableCell>
+                      {referral.reward_given_to_referred ? (
+                        <Badge variant="default"><CheckCircle className="h-3 w-3 mr-1" /> Yes</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">No</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {format(new Date(referral.created_at), 'MMM dd, yyyy')}
                     </TableCell>
@@ -191,7 +205,7 @@ export default function AdminReferrals() {
                 ))}
                 {(!data?.referrals || data.referrals.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       No referrals yet
                     </TableCell>
                   </TableRow>
