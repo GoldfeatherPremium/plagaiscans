@@ -43,6 +43,7 @@ export default function Checkout() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { profile, user } = useAuth();
+  const isSpecial = profile?.is_special ?? false;
   const { openWhatsAppCustom } = useWhatsApp();
   const { 
     validatingPromo, 
@@ -164,15 +165,27 @@ export default function Checkout() {
 
   useEffect(() => {
     const fetchSettings = async () => {
+      const settingKeys = [
+        'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled', 'payment_paypal_enabled', 'payment_paddle_enabled', 'payment_bank_transfer_enabled', 'payment_usdt_manual_enabled', 'usdt_manual_wallet_address', 'bank_transfer_countries',
+        'binance_pay_id', 'binance_discount_percent',
+        'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe', 'fee_dodo', 'fee_paypal', 'fee_paddle',
+        'paddle_client_token', 'paddle_environment',
+      ];
+
+      // If user is ★, also fetch special payment settings
+      if (isSpecial) {
+        settingKeys.push(
+          'special_payment_whatsapp_enabled', 'special_payment_usdt_enabled', 'special_payment_binance_enabled',
+          'special_payment_viva_enabled', 'special_payment_stripe_enabled', 'special_payment_dodo_enabled',
+          'special_payment_paypal_enabled', 'special_payment_paddle_enabled',
+          'special_payment_usdt_manual_enabled', 'special_payment_bank_transfer_enabled',
+        );
+      }
+
       const { data: settings } = await supabase
         .from('settings')
         .select('key, value')
-        .in('key', [
-          'payment_whatsapp_enabled', 'payment_usdt_enabled', 'payment_binance_enabled', 'payment_viva_enabled', 'payment_stripe_enabled', 'payment_dodo_enabled', 'payment_paypal_enabled', 'payment_paddle_enabled', 'payment_bank_transfer_enabled', 'payment_usdt_manual_enabled', 'usdt_manual_wallet_address', 'bank_transfer_countries',
-          'binance_pay_id', 'binance_discount_percent',
-          'fee_whatsapp', 'fee_usdt', 'fee_binance', 'fee_viva', 'fee_stripe', 'fee_dodo', 'fee_paypal', 'fee_paddle',
-          'paddle_client_token', 'paddle_environment'
-        ]);
+        .in('key', settingKeys);
 
       if (settings) {
         const whatsapp = settings.find(s => s.key === 'payment_whatsapp_enabled');
