@@ -69,6 +69,19 @@ export default function AdminSettings() {
   const [paddleEnvironment, setPaddleEnvironment] = useState('sandbox');
   const [savingPaddle, setSavingPaddle] = useState(false);
 
+  // ★ Customer payment settings
+  const [specialWhatsappEnabled, setSpecialWhatsappEnabled] = useState(false);
+  const [specialUsdtEnabled, setSpecialUsdtEnabled] = useState(false);
+  const [specialBinanceEnabled, setSpecialBinanceEnabled] = useState(false);
+  const [specialVivaEnabled, setSpecialVivaEnabled] = useState(false);
+  const [specialStripeEnabled, setSpecialStripeEnabled] = useState(false);
+  const [specialDodoEnabled, setSpecialDodoEnabled] = useState(false);
+  const [specialPaypalEnabled, setSpecialPaypalEnabled] = useState(false);
+  const [specialPaddleEnabled, setSpecialPaddleEnabled] = useState(false);
+  const [specialUsdtManualEnabled, setSpecialUsdtManualEnabled] = useState(false);
+  const [specialBankTransferEnabled, setSpecialBankTransferEnabled] = useState(false);
+  const [savingSpecialPayments, setSavingSpecialPayments] = useState(false);
+
   const [vapidPublicKey, setVapidPublicKey] = useState('');
   const [savingVapid, setSavingVapid] = useState(false);
   const [testingPush, setTestingPush] = useState(false);
@@ -138,6 +151,17 @@ export default function AdminSettings() {
       'usdt_manual_wallet_address',
       'payment_bank_transfer_enabled',
       'bank_transfer_countries',
+      // ★ Customer payment settings
+      'special_payment_whatsapp_enabled',
+      'special_payment_usdt_enabled',
+      'special_payment_binance_enabled',
+      'special_payment_viva_enabled',
+      'special_payment_stripe_enabled',
+      'special_payment_dodo_enabled',
+      'special_payment_paypal_enabled',
+      'special_payment_paddle_enabled',
+      'special_payment_usdt_manual_enabled',
+      'special_payment_bank_transfer_enabled',
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
