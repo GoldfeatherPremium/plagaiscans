@@ -1846,6 +1846,7 @@ export type Database = {
           phone: string | null
           referral_code: string | null
           referred_by: string | null
+          shadow_banned: boolean | null
           signup_ip: string | null
           similarity_credit_balance: number
           updated_at: string
@@ -1861,6 +1862,7 @@ export type Database = {
           phone?: string | null
           referral_code?: string | null
           referred_by?: string | null
+          shadow_banned?: boolean | null
           signup_ip?: string | null
           similarity_credit_balance?: number
           updated_at?: string
@@ -1876,6 +1878,7 @@ export type Database = {
           phone?: string | null
           referral_code?: string | null
           referred_by?: string | null
+          shadow_banned?: boolean | null
           signup_ip?: string | null
           similarity_credit_balance?: number
           updated_at?: string
@@ -2132,6 +2135,47 @@ export type Database = {
           },
         ]
       }
+      referral_fraud_logs: {
+        Row: {
+          check_result: string
+          check_type: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          referral_id: string | null
+          referred_user_id: string | null
+          referrer_id: string | null
+        }
+        Insert: {
+          check_result: string
+          check_type: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          referral_id?: string | null
+          referred_user_id?: string | null
+          referrer_id?: string | null
+        }
+        Update: {
+          check_result?: string
+          check_type?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          referral_id?: string | null
+          referred_user_id?: string | null
+          referrer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_fraud_logs_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "referrals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referral_ip_log: {
         Row: {
           created_at: string | null
@@ -2158,45 +2202,60 @@ export type Database = {
       }
       referrals: {
         Row: {
+          activity_score: number | null
           completed_at: string | null
           created_at: string | null
           credits_earned: number | null
           fraud_flagged: boolean | null
           fraud_reason: string | null
           id: string
+          ip_cluster_id: string | null
+          payment_amount_usd: number | null
           referral_code: string
           referred_ip: string | null
           referred_user_id: string | null
           referrer_id: string
+          reward_delay_until: string | null
           reward_given_to_referred: boolean | null
+          reward_status: string | null
           status: string
         }
         Insert: {
+          activity_score?: number | null
           completed_at?: string | null
           created_at?: string | null
           credits_earned?: number | null
           fraud_flagged?: boolean | null
           fraud_reason?: string | null
           id?: string
+          ip_cluster_id?: string | null
+          payment_amount_usd?: number | null
           referral_code: string
           referred_ip?: string | null
           referred_user_id?: string | null
           referrer_id: string
+          reward_delay_until?: string | null
           reward_given_to_referred?: boolean | null
+          reward_status?: string | null
           status?: string
         }
         Update: {
+          activity_score?: number | null
           completed_at?: string | null
           created_at?: string | null
           credits_earned?: number | null
           fraud_flagged?: boolean | null
           fraud_reason?: string | null
           id?: string
+          ip_cluster_id?: string | null
+          payment_amount_usd?: number | null
           referral_code?: string
           referred_ip?: string | null
           referred_user_id?: string | null
           referrer_id?: string
+          reward_delay_until?: string | null
           reward_given_to_referred?: boolean | null
+          reward_status?: string | null
           status?: string
         }
         Relationships: []
