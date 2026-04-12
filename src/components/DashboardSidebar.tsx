@@ -381,7 +381,7 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/staff-permissions', icon: Shield, label: 'Permissions' },
         { to: '/dashboard/blocked-users', icon: ShieldBan, label: 'Blocked Users' },
         { to: '/dashboard/credit-validity', icon: CalendarClock, label: 'Credit Expiry' },
-        { to: '/dashboard/referrals', icon: Crown, label: 'Referrals' },
+        { to: '/dashboard/admin-referrals', icon: Crown, label: 'Referrals' },
       ],
     },
     {

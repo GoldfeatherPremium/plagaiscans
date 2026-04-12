@@ -292,7 +292,7 @@ const AppRoutes = () => (
       <Route path="/dashboard/payment-success" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><PaymentSuccess /></ProtectedRoute>} />
       <Route path="/dashboard/subscription" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><SubscriptionManagement /></ProtectedRoute>} />
       <Route path="/dashboard/analytics" element={<ProtectedRoute allowedRoles={['customer']}><CustomerDocumentAnalytics /></ProtectedRoute>} />
-      <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['customer']}><ReferralProgram /></ProtectedRoute>} />
+      <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><ReferralProgram /></ProtectedRoute>} />
       <Route path="/dashboard/my-tickets" element={<ProtectedRoute allowedRoles={['customer']}><MySupportTickets /></ProtectedRoute>} />
       
       {/* Staff Routes */}
@@ -332,7 +332,7 @@ const AppRoutes = () => (
       <Route path="/dashboard/unmatched-reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminUnmatchedReports /></ProtectedRoute>} />
       <Route path="/dashboard/needs-review" element={<ProtectedRoute allowedRoles={['admin']}><AdminNeedsReview /></ProtectedRoute>} />
       <Route path="/dashboard/site-content" element={<ProtectedRoute allowedRoles={['admin']}><AdminSiteContent /></ProtectedRoute>} />
-      <Route path="/dashboard/referrals" element={<ProtectedRoute allowedRoles={['admin']}><AdminReferrals /></ProtectedRoute>} />
+      <Route path="/dashboard/admin-referrals" element={<ProtectedRoute allowedRoles={['admin']}><AdminReferrals /></ProtectedRoute>} />
         <Route path="/dashboard/refund-requests" element={<ProtectedRoute allowedRoles={['admin']}><AdminRefundRequests /></ProtectedRoute>} />
         <Route path="/dashboard/stripe-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminStripePayments /></ProtectedRoute>} />
         <Route path="/dashboard/paddle-payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminPaddlePayments /></ProtectedRoute>} />
