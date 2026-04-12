@@ -45,26 +45,54 @@ const DISPOSABLE_DOMAINS = new Set([
   "uggsrock.com",
 ]);
 
-// Max referrals per referrer per day
 const MAX_REFERRALS_PER_DAY = 5;
-// Max IPs for same referral chain
 const MAX_IP_USES = 3;
+const IP_CLUSTER_WINDOW_HOURS = 24;
+const MAX_ACCOUNTS_PER_IP_CLUSTER = 3;
 
 function normalizeEmail(email: string): string {
   const [localPart, domain] = email.toLowerCase().trim().split("@");
   if (!domain) return email.toLowerCase().trim();
-  // Remove +alias for gmail-like providers
   const gmailLike = ["gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "protonmail.com"];
   let normalized = localPart;
   if (gmailLike.includes(domain)) {
     normalized = localPart.split("+")[0];
-    // Also remove dots for gmail
     if (domain === "gmail.com" || domain === "googlemail.com") {
       normalized = normalized.replace(/\./g, "");
     }
   }
   const normalizedDomain = domain === "googlemail.com" ? "gmail.com" : domain;
   return `${normalized}@${normalizedDomain}`;
+}
+
+// Log a fraud check result for audit trail
+async function logFraudCheck(
+  referralId: string | null,
+  referrerId: string,
+  referredUserId: string | null,
+  checkType: string,
+  checkResult: string,
+  details: any
+) {
+  try {
+    await supabaseAdmin.from("referral_fraud_logs").insert({
+      referral_id: referralId,
+      referrer_id: referrerId,
+      referred_user_id: referredUserId,
+      check_type: checkType,
+      check_result: checkResult,
+      details,
+    });
+  } catch (e) {
+    console.error("Failed to log fraud check:", e);
+  }
+}
+
+// Get IP cluster ID (first 3 octets for IPv4)
+function getIpCluster(ip: string): string {
+  const parts = ip.split(".");
+  if (parts.length === 4) return parts.slice(0, 3).join(".");
+  return ip; // For IPv6, use full IP
 }
 
 Deno.serve(async (req) => {
@@ -102,10 +130,12 @@ Deno.serve(async (req) => {
 
     logStep("Validating referral", { referralCode, email: email.substring(0, 3) + "***", ip });
 
+    const fraudChecks: { type: string; result: string; details: any }[] = [];
+
     // 1. Look up referrer by code
     const { data: referrer } = await supabaseAdmin
       .from("profiles")
-      .select("id, email, signup_ip")
+      .select("id, email, signup_ip, shadow_banned")
       .eq("referral_code", referralCode)
       .maybeSingle();
 
@@ -117,11 +147,24 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Check if referrer is shadow banned - silently reject
+    if (referrer.shadow_banned) {
+      logStep("Referrer is shadow banned - silent reject");
+      fraudChecks.push({ type: "shadow_ban", result: "REJECT", details: { referrerId: referrer.id } });
+      await logFraudCheck(null, referrer.id, null, "shadow_ban", "REJECT", { reason: "Referrer shadow banned" });
+      // Return valid: true but the referral won't actually be created (silent enforcement)
+      return new Response(
+        JSON.stringify({ valid: false, reason: "Invalid referral code", silent: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // 2. Self-referral check
     const normalizedNewEmail = normalizeEmail(email);
     const normalizedReferrerEmail = normalizeEmail(referrer.email);
     if (normalizedNewEmail === normalizedReferrerEmail) {
       logStep("Self-referral detected via email");
+      await logFraudCheck(null, referrer.id, null, "self_referral", "REJECT", { email: normalizedNewEmail });
       return new Response(
         JSON.stringify({ valid: false, reason: "Self-referral detected", referrerId: referrer.id }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -132,36 +175,42 @@ Deno.serve(async (req) => {
     const emailDomain = email.toLowerCase().split("@")[1];
     if (DISPOSABLE_DOMAINS.has(emailDomain)) {
       logStep("Disposable email detected", { domain: emailDomain });
+      await logFraudCheck(null, referrer.id, null, "disposable_email", "REJECT", { domain: emailDomain });
       return new Response(
         JSON.stringify({ valid: false, reason: "Disposable email not allowed", referrerId: referrer.id }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // 4. Email alias detection - check if normalized email matches referrer's or any existing referred user
+    // 4. Email alias detection
     const { data: existingProfiles } = await supabaseAdmin
       .from("profiles")
       .select("email")
       .eq("referred_by", referrer.id);
 
     const existingNormalized = new Set(
-      (existingProfiles || []).map((p) => normalizeEmail(p.email))
+      (existingProfiles || []).map((p: any) => normalizeEmail(p.email))
     );
     existingNormalized.add(normalizedReferrerEmail);
 
     if (existingNormalized.has(normalizedNewEmail)) {
       logStep("Email alias of existing user detected");
+      await logFraudCheck(null, referrer.id, null, "email_alias", "REJECT", { normalizedEmail: normalizedNewEmail });
       return new Response(
         JSON.stringify({ valid: false, reason: "Email alias of existing account detected", referrerId: referrer.id }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // 5. IP-based fraud checks (if IP provided)
+    // 5. IP-based fraud checks
+    let ipClusterId: string | null = null;
     if (ip) {
+      ipClusterId = getIpCluster(ip);
+
       // Check if referrer has same IP
       if (referrer.signup_ip === ip) {
         logStep("IP matches referrer's signup IP");
+        await logFraudCheck(null, referrer.id, null, "ip_match_referrer", "REJECT", { ip });
         return new Response(
           JSON.stringify({ valid: false, reason: "Same IP as referrer", referrerId: referrer.id }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -176,6 +225,7 @@ Deno.serve(async (req) => {
 
       if ((ipUseCount || 0) >= MAX_IP_USES) {
         logStep("IP used too many times", { count: ipUseCount });
+        await logFraudCheck(null, referrer.id, null, "ip_overuse", "REJECT", { ip, count: ipUseCount });
         return new Response(
           JSON.stringify({ valid: false, reason: "IP address used too many times for referrals", referrerId: referrer.id }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -192,8 +242,37 @@ Deno.serve(async (req) => {
 
       if (existingIpForReferrer) {
         logStep("IP already used for this referrer");
+        await logFraudCheck(null, referrer.id, null, "ip_duplicate_referrer", "REJECT", { ip });
         return new Response(
           JSON.stringify({ valid: false, reason: "IP already used for this referrer", referrerId: referrer.id }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // 7. NETWORK ABUSE: Check IP cluster - multiple accounts from same subnet
+      const clusterWindow = new Date();
+      clusterWindow.setHours(clusterWindow.getHours() - IP_CLUSTER_WINDOW_HOURS);
+
+      const { count: clusterCount } = await supabaseAdmin
+        .from("referral_ip_log")
+        .select("id", { count: "exact", head: true })
+        .like("ip_address", `${ipClusterId}.%`)
+        .gte("created_at", clusterWindow.toISOString());
+
+      if ((clusterCount || 0) >= MAX_ACCOUNTS_PER_IP_CLUSTER) {
+        logStep("IP cluster abuse detected", { cluster: ipClusterId, count: clusterCount });
+        await logFraudCheck(null, referrer.id, null, "ip_cluster_abuse", "REJECT", { 
+          cluster: ipClusterId, count: clusterCount 
+        });
+
+        // Shadow ban the referrer if cluster abuse detected
+        await supabaseAdmin
+          .from("profiles")
+          .update({ shadow_banned: true })
+          .eq("id", referrer.id);
+
+        return new Response(
+          JSON.stringify({ valid: false, reason: "Network abuse detected", referrerId: referrer.id }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -211,6 +290,7 @@ Deno.serve(async (req) => {
 
     if ((recentCount || 0) >= MAX_REFERRALS_PER_DAY) {
       logStep("Rate limit exceeded", { recentCount });
+      await logFraudCheck(null, referrer.id, null, "rate_limit", "REJECT", { recentCount });
       return new Response(
         JSON.stringify({ valid: false, reason: "Referrer rate limit exceeded", referrerId: referrer.id }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -218,9 +298,12 @@ Deno.serve(async (req) => {
     }
 
     // All checks passed
+    await logFraudCheck(null, referrer.id, null, "validation_complete", "APPROVE", { 
+      ip, ipClusterId, email: email.substring(0, 3) + "***" 
+    });
     logStep("Referral validated successfully");
     return new Response(
-      JSON.stringify({ valid: true, referrerId: referrer.id }),
+      JSON.stringify({ valid: true, referrerId: referrer.id, ipClusterId }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
