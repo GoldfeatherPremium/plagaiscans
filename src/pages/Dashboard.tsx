@@ -38,6 +38,40 @@ interface ManualPayment {
   created_at: string;
 }
 
+function ReferralQuickCopy({ userId }: { userId?: string }) {
+  const [code, setCode] = useState('');
+  useEffect(() => {
+    if (!userId) return;
+    supabase.from('profiles').select('referral_code').eq('id', userId).single()
+      .then(({ data }) => { if (data?.referral_code) setCode(data.referral_code); });
+  }, [userId]);
+
+  if (!code) return null;
+
+  const link = `https://www.plagaiscans.com/auth?ref=${code}`;
+
+  return (
+    <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-border/50">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">Your code:</span>
+        <code className="bg-muted px-2 py-1 rounded text-xs font-mono font-bold">{code}</code>
+      </div>
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">Link:</span>
+        <code className="bg-muted px-2 py-1 rounded text-xs truncate flex-1">{link}</code>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          onClick={() => { navigator.clipboard.writeText(link); }}
+        >
+          <Copy className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { role, profile, user, loading: authLoading } = useAuth();
   const { documents, loading: docsLoading, downloadFile } = useDocuments();
