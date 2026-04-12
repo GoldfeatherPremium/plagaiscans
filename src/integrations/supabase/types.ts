@@ -1846,6 +1846,7 @@ export type Database = {
           phone: string | null
           referral_code: string | null
           referred_by: string | null
+          signup_ip: string | null
           similarity_credit_balance: number
           updated_at: string
         }
@@ -1860,6 +1861,7 @@ export type Database = {
           phone?: string | null
           referral_code?: string | null
           referred_by?: string | null
+          signup_ip?: string | null
           similarity_credit_balance?: number
           updated_at?: string
         }
@@ -1874,6 +1876,7 @@ export type Database = {
           phone?: string | null
           referral_code?: string | null
           referred_by?: string | null
+          signup_ip?: string | null
           similarity_credit_balance?: number
           updated_at?: string
         }
@@ -2129,6 +2132,30 @@ export type Database = {
           },
         ]
       }
+      referral_ip_log: {
+        Row: {
+          created_at: string | null
+          id: string
+          ip_address: string
+          referrer_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ip_address: string
+          referrer_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ip_address?: string
+          referrer_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       referrals: {
         Row: {
           completed_at: string | null
@@ -2138,6 +2165,7 @@ export type Database = {
           referral_code: string
           referred_user_id: string | null
           referrer_id: string
+          reward_given_to_referred: boolean | null
           status: string
         }
         Insert: {
@@ -2148,6 +2176,7 @@ export type Database = {
           referral_code: string
           referred_user_id?: string | null
           referrer_id: string
+          reward_given_to_referred?: boolean | null
           status?: string
         }
         Update: {
@@ -2158,6 +2187,7 @@ export type Database = {
           referral_code?: string
           referred_user_id?: string | null
           referrer_id?: string
+          reward_given_to_referred?: boolean | null
           status?: string
         }
         Relationships: []
