@@ -57,12 +57,23 @@ const UploadSimilarity: React.FC = () => {
 
   const addFiles = useCallback((files: FileList | File[]) => {
     const fileArray = Array.from(files);
+
+    // Block .doc files (only .docx is allowed)
+    const docFiles = fileArray.filter(file => /\.doc$/i.test(file.name));
+    if (docFiles.length > 0) {
+      toast({
+        title: '.doc format not supported',
+        description: 'Please convert your .doc files to .docx and try again.',
+        variant: 'destructive',
+      });
+    }
+
     const validFiles = fileArray.filter(file => {
       const ext = file.name.toLowerCase().split('.').pop();
-      return ['pdf', 'doc', 'docx', 'txt', 'rtf'].includes(ext || '');
+      return ['pdf', 'docx', 'txt', 'rtf'].includes(ext || '');
     });
 
-    if (validFiles.length !== fileArray.length) {
+    if (validFiles.length !== fileArray.length - docFiles.length) {
       toast({
         title: t('uploadSimilarity.invalidFiles'),
         description: t('uploadSimilarity.invalidFilesDesc'),
@@ -290,7 +301,7 @@ const UploadSimilarity: React.FC = () => {
               <input
                 type="file"
                 multiple
-                accept=".pdf,.doc,.docx,.txt,.rtf"
+                accept=".pdf,.docx,.txt,.rtf"
                 onChange={handleChange}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 disabled={similarityCreditBalance === 0}
