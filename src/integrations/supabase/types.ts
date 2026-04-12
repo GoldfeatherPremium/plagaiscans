@@ -1785,6 +1785,7 @@ export type Database = {
           features: string[] | null
           id: string
           is_active: boolean
+          is_special: boolean
           name: string | null
           package_type: string
           paddle_price_id: string | null
@@ -1804,6 +1805,7 @@ export type Database = {
           features?: string[] | null
           id?: string
           is_active?: boolean
+          is_special?: boolean
           name?: string | null
           package_type?: string
           paddle_price_id?: string | null
@@ -1823,6 +1825,7 @@ export type Database = {
           features?: string[] | null
           id?: string
           is_active?: boolean
+          is_special?: boolean
           name?: string | null
           package_type?: string
           paddle_price_id?: string | null
@@ -1842,6 +1845,7 @@ export type Database = {
           email_unsubscribed: boolean | null
           full_name: string | null
           id: string
+          is_special: boolean
           paddle_customer_id: string | null
           phone: string | null
           referral_code: string | null
@@ -1858,6 +1862,7 @@ export type Database = {
           email_unsubscribed?: boolean | null
           full_name?: string | null
           id: string
+          is_special?: boolean
           paddle_customer_id?: string | null
           phone?: string | null
           referral_code?: string | null
@@ -1874,6 +1879,7 @@ export type Database = {
           email_unsubscribed?: boolean | null
           full_name?: string | null
           id?: string
+          is_special?: boolean
           paddle_customer_id?: string | null
           phone?: string | null
           referral_code?: string | null
@@ -3266,6 +3272,7 @@ export type Database = {
         Returns: boolean
       }
       increment_promo_uses: { Args: { promo_id: string }; Returns: undefined }
+      is_special_user: { Args: { _user_id: string }; Returns: boolean }
       normalize_filename: { Args: { filename: string }; Returns: string }
     }
     Enums: {
