@@ -1,10 +1,13 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePushNotifications } from './usePushNotifications';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Hook to monitor and maintain push subscription health
- * Automatically re-subscribes if subscription is lost
+ * Hook to monitor and maintain push subscription health.
+ * On each check, compares the browser's current push endpoint with what's
+ * stored in the DB for this user. If they differ, cleans stale entries and
+ * upserts the current one. Also re-subscribes if subscription is lost.
  */
 export const usePushSubscriptionHealth = () => {
   const { user } = useAuth();
@@ -13,13 +16,10 @@ export const usePushSubscriptionHealth = () => {
   const isCheckingRef = useRef(false);
 
   const checkSubscriptionHealth = useCallback(async () => {
-    // Prevent concurrent checks
     if (isCheckingRef.current) return;
-    
-    // Skip if not supported or no user
     if (!isSupported || !user) return;
 
-    // Rate limit checks to every 5 minutes minimum
+    // Rate limit checks to every 5 minutes
     const now = Date.now();
     if (now - lastCheckRef.current < 5 * 60 * 1000) return;
 
@@ -27,20 +27,49 @@ export const usePushSubscriptionHealth = () => {
     lastCheckRef.current = now;
 
     try {
-      // Check if service worker is ready
       const registration = await navigator.serviceWorker.ready;
-      
-      // Get current subscription from browser
       const currentSubscription = await registration.pushManager.getSubscription();
-      
+
       if (!currentSubscription) {
-        console.log('[PushHealth] No active subscription found, attempting to re-subscribe...');
-        
-        // Only re-subscribe if user was previously subscribed
+        console.log('[PushHealth] No active subscription found');
         if (isSubscribed) {
+          console.log('[PushHealth] Re-subscribing...');
           await subscribe();
-          console.log('[PushHealth] Re-subscription successful');
         }
+        return;
+      }
+
+      const currentEndpoint = currentSubscription.endpoint;
+
+      // Check if DB has this exact endpoint for the user
+      const { data: dbSubs } = await supabase
+        .from('push_subscriptions')
+        .select('id, endpoint')
+        .eq('user_id', user.id);
+
+      if (!dbSubs || dbSubs.length === 0) {
+        // No DB record — re-subscribe to create one
+        console.log('[PushHealth] No DB subscription, re-subscribing...');
+        await subscribe();
+        return;
+      }
+
+      const matching = dbSubs.find(s => s.endpoint === currentEndpoint);
+      const stale = dbSubs.filter(s => s.endpoint !== currentEndpoint);
+
+      // Remove stale entries
+      if (stale.length > 0) {
+        console.log(`[PushHealth] Removing ${stale.length} stale subscription(s)`);
+        await supabase
+          .from('push_subscriptions')
+          .delete()
+          .in('id', stale.map(s => s.id));
+      }
+
+      // If current endpoint isn't in DB, re-subscribe
+      if (!matching) {
+        console.log('[PushHealth] Current endpoint not in DB, re-subscribing...');
+        await subscribe();
       } else {
         console.log('[PushHealth] Subscription is healthy');
       }
@@ -55,12 +84,10 @@ export const usePushSubscriptionHealth = () => {
   useEffect(() => {
     if (!user || !isSupported) return;
 
-    // Initial check after a short delay
     const initialTimer = setTimeout(() => {
       checkSubscriptionHealth();
     }, 5000);
 
-    // Periodic check every 30 minutes
     const intervalTimer = setInterval(() => {
       checkSubscriptionHealth();
     }, 30 * 60 * 1000);
@@ -77,17 +104,12 @@ export const usePushSubscriptionHealth = () => {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // Delay check to let other operations settle
-        setTimeout(() => {
-          checkSubscriptionHealth();
-        }, 2000);
+        setTimeout(() => checkSubscriptionHealth(), 2000);
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [user, isSupported, checkSubscriptionHealth]);
 
   // Check when coming back online
@@ -96,18 +118,12 @@ export const usePushSubscriptionHealth = () => {
 
     const handleOnline = () => {
       console.log('[PushHealth] Back online, checking subscription...');
-      setTimeout(() => {
-        checkSubscriptionHealth();
-      }, 3000);
+      setTimeout(() => checkSubscriptionHealth(), 3000);
     };
 
     window.addEventListener('online', handleOnline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-    };
+    return () => window.removeEventListener('online', handleOnline);
   }, [user, isSupported, checkSubscriptionHealth]);
 
-  return {
-    checkSubscriptionHealth,
-  };
+  return { checkSubscriptionHealth };
 };

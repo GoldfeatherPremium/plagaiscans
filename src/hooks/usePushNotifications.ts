@@ -240,41 +240,29 @@ export const usePushNotifications = () => {
       const p256dh = subscriptionJson.keys?.p256dh || '';
       const auth = subscriptionJson.keys?.auth || '';
 
-      // Check if subscription already exists for this user
-      const { data: existing } = await supabase
+      // Delete ALL existing subscriptions for this user to prevent bloat
+      // A user should only have one active push endpoint at a time
+      const { error: deleteError } = await supabase
         .from('push_subscriptions')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('endpoint', endpoint)
-        .maybeSingle();
+        .delete()
+        .eq('user_id', user.id);
 
-      if (existing) {
-        // Update existing subscription
-        const { error: updateError } = await supabase
-          .from('push_subscriptions')
-          .update({
-            p256dh,
-            auth,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existing.id);
-
-        if (updateError) throw updateError;
-        console.log('Subscription updated in database');
-      } else {
-        // Insert new subscription
-        const { error: insertError } = await supabase
-          .from('push_subscriptions')
-          .insert({
-            user_id: user.id,
-            endpoint,
-            p256dh,
-            auth,
-          });
-
-        if (insertError) throw insertError;
-        console.log('Subscription saved to database');
+      if (deleteError) {
+        console.warn('Failed to clean old subscriptions:', deleteError);
       }
+
+      // Insert new subscription
+      const { error: insertError } = await supabase
+        .from('push_subscriptions')
+        .insert({
+          user_id: user.id,
+          endpoint,
+          p256dh,
+          auth,
+        });
+
+      if (insertError) throw insertError;
+      console.log('Subscription saved to database (old entries cleaned)');
 
       setSubscription(pushSubscription);
       setIsSubscribed(true);
