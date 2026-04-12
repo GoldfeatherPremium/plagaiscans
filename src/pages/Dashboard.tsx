@@ -48,7 +48,7 @@ function ReferralQuickCopy({ userId }: { userId?: string }) {
 
   if (!code) return null;
 
-  const link = `https://www.plagaiscans.com/auth?ref=${code}`;
+  const link = `https://plagaiscans.com/auth?ref=${code}`;
 
   return (
     <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-border/50">

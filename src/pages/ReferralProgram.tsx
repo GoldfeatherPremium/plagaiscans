@@ -76,7 +76,7 @@ export default function ReferralProgram() {
     enabled: !!user
   });
 
-  const getReferralLink = () => `https://www.plagaiscans.com/auth?ref=${data?.myCode}`;
+  const getReferralLink = () => `https://plagaiscans.com/auth?ref=${data?.myCode}`;
 
   const copyReferralLink = () => {
     const link = getReferralLink();
@@ -149,7 +149,7 @@ export default function ReferralProgram() {
             </div>
             <p className="text-sm text-muted-foreground">
               Your referral link: <code className="bg-muted px-2 py-1 rounded text-xs">
-                https://www.plagaiscans.com/auth?ref={data?.myCode}
+                https://plagaiscans.com/auth?ref={data?.myCode}
               </code>
             </p>
           </CardContent>
