@@ -414,7 +414,7 @@ export default function MyDocuments() {
                                     </Button>
                                   </PopoverTrigger>
                                   <PopoverContent className="w-80">
-                                    <p className="text-sm">{doc.remarks}</p>
+                                    <p className="text-sm whitespace-pre-wrap">{doc.remarks}</p>
                                   </PopoverContent>
                                 </Popover>
                               ) : doc.error_message ? (
