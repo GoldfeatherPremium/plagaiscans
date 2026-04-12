@@ -250,11 +250,26 @@ export default function Checkout() {
           paypal: parseFloat(feePaypal?.value || '0') || 0,
           paddle: parseFloat(feePaddleSetting?.value || '0') || 0,
         });
+
+        // Override with ★ customer payment settings if applicable
+        if (isSpecial) {
+          const sp = (key: string) => settings.find(s => s.key === key)?.value === 'true';
+          setWhatsappEnabled(sp('special_payment_whatsapp_enabled'));
+          setUsdtEnabled(sp('special_payment_usdt_enabled'));
+          setBinanceEnabled(sp('special_payment_binance_enabled'));
+          setVivaEnabled(sp('special_payment_viva_enabled'));
+          setStripeEnabled(sp('special_payment_stripe_enabled'));
+          setDodoEnabled(sp('special_payment_dodo_enabled'));
+          setPaypalEnabled(sp('special_payment_paypal_enabled'));
+          setPaddleEnabled(sp('special_payment_paddle_enabled'));
+          setUsdtManualEnabled(sp('special_payment_usdt_manual_enabled'));
+          setBankTransferEnabled(sp('special_payment_bank_transfer_enabled'));
+        }
       }
       setLoading(false);
     };
     fetchSettings();
-  }, []);
+  }, [isSpecial]);
 
   const createCryptoPayment = async () => {
     if (!user || !selectedPackage) return;
