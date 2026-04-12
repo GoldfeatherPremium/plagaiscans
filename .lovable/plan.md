@@ -1,65 +1,27 @@
 
 
-## Plan: Comprehensive Referral Fraud Protection System
+## Push Notification Reliability Fix
 
-### Current State
-- Basic IP check: compares referrer's signup IP with referred user's IP
-- IP log table exists but is not being populated (only signup_ip on profile)
-- No rate limiting, email domain checks, device fingerprinting, or admin fraud controls
+### Root Cause
 
-### New Protections
+The database has **massive subscription bloat** — one user alone has **25 stale push subscriptions**. When a notification is sent, it goes to all stored endpoints for a user. Most of these endpoints belong to old/expired browser sessions. The push service (FCM/WNS) silently accepts messages to stale endpoints (returns HTTP 201) but never actually delivers them. Since the system sees "success," it never cleans them up.
 
-**1. Server-side fraud validation (new edge function: `validate-referral`)**
-Move all fraud detection from client-side (Auth.tsx) to a secure edge function that cannot be bypassed. Checks:
-- IP match against referrer's IP
-- IP already used in any referral to the same referrer
-- Same IP used across multiple referral signups (configurable threshold, default 3)
-- Email domain similarity detection (e.g., same base email with +alias like john@gmail vs john+1@gmail)
-- Self-referral prevention (referrer cannot refer themselves)
-- Rate limiting: max referrals per referrer per day (default 5)
-- Disposable email domain blocking (common throwaway domains list)
-- Properly logs IP to `referral_ip_log` table on every referral attempt
+This is why ~60% of notifications never appear — the push is "sent successfully" server-side, but the endpoint is dead.
 
-**2. Database changes (2 migrations)**
+### Fix Plan
 
-Migration 1: Add fraud tracking columns to `referrals`
-```sql
-ALTER TABLE public.referrals 
-  ADD COLUMN IF NOT EXISTS referred_ip text,
-  ADD COLUMN IF NOT EXISTS fraud_flagged boolean DEFAULT false,
-  ADD COLUMN IF NOT EXISTS fraud_reason text;
-```
+**1. Deduplicate subscriptions on subscribe**
+In `usePushNotifications.ts`, when a user subscribes, delete ALL existing subscriptions for that user before inserting the new one. A user only has one active browser at a time that should receive pushes. This immediately prevents accumulation.
 
-Migration 2: Add referral limits to a settings approach + index
-```sql
-CREATE INDEX IF NOT EXISTS idx_referral_ip_log_ip 
-  ON public.referral_ip_log(ip_address);
-CREATE INDEX IF NOT EXISTS idx_referral_ip_log_referrer 
-  ON public.referral_ip_log(referrer_id);
-CREATE INDEX IF NOT EXISTS idx_referrals_referrer_created 
-  ON public.referrals(referrer_id, created_at);
-```
+**2. Sync subscription on every page load**  
+In `usePushSubscriptionHealth.ts`, on every visibility/load check, compare the current browser's push endpoint with what's stored in the DB. If the endpoint differs, update the DB record and remove stale entries. This ensures the DB always has the latest active endpoint.
 
-**3. Auth.tsx changes**
-- Replace client-side fraud checks with a single call to the `validate-referral` edge function
-- Pass IP, email, referral code to the edge function
-- Edge function returns whether to proceed or reject
+**3. One-time database cleanup**  
+Run a migration to remove duplicate subscriptions, keeping only the most recently created one per user. This will immediately fix the 25-subscription-per-user problem.
 
-**4. Enhanced `process-referral-reward` checks**
-- Before awarding credits, re-verify the referral is not fraud-flagged
-- Check referrer hasn't exceeded maximum completed referrals (e.g., 20 lifetime)
+**4. Limit subscriptions per user server-side**  
+In `send-push-notification/index.ts`, when fetching subscriptions, order by `created_at DESC` and limit to 2 per user (allowing for one desktop + one mobile). This prevents sending to dozens of stale endpoints even if cleanup fails.
 
-**5. AdminReferrals.tsx enhancements**
-- Add fraud flag column with visual indicator (red badge)
-- Show fraud reason tooltip
-- Add ability to manually flag/unflag referrals
-- Show IP match warnings (highlight when referrer and referred share IP)
-- Add fraud stats card (total flagged, blocked attempts)
+### Technical Details
 
-### Files Modified
-1. `supabase/functions/validate-referral/index.ts` — new edge function for server-side fraud detection
-2. `supabase/functions/process-referral-reward/index.ts` — add fraud-flag check before awarding
-3. `src/pages/Auth.tsx` — replace client-side checks with edge function call
-4. `src/pages/AdminReferrals.tsx` — add fraud monitoring UI
-5. Database: 2 migrations (fraud columns + indexes)
-
+- **File
