@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserPlus, Mail, CreditCard, Calendar, Copy, Check } from 'lucide-react';
+import { Loader2, UserPlus, Mail, CreditCard, Calendar, Copy, Check, Star } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
 interface PreRegisterCreditDialogProps {
   open: boolean;
@@ -20,6 +21,7 @@ export function PreRegisterCreditDialog({ open, onOpenChange, onSuccess }: PreRe
   const [creditAmount, setCreditAmount] = useState('');
   const [creditType, setCreditType] = useState<'full' | 'similarity_only'>('full');
   const [expiryDays, setExpiryDays] = useState('');
+  const [isSpecial, setIsSpecial] = useState(false);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'form' | 'confirm' | 'success'>('form');
   const [result, setResult] = useState<{ password: string; emailSent: boolean } | null>(null);
@@ -30,6 +32,7 @@ export function PreRegisterCreditDialog({ open, onOpenChange, onSuccess }: PreRe
     setCreditAmount('');
     setCreditType('full');
     setExpiryDays('');
+    setIsSpecial(false);
     setStep('form');
     setResult(null);
     setCopied(false);
@@ -65,6 +68,7 @@ export function PreRegisterCreditDialog({ open, onOpenChange, onSuccess }: PreRe
           creditAmount: parseInt(creditAmount),
           creditType,
           expiryDays: expiryDays ? parseInt(expiryDays) : null,
+          isSpecial,
         }),
       });
 
@@ -178,6 +182,14 @@ export function PreRegisterCreditDialog({ open, onOpenChange, onSuccess }: PreRe
               </div>
             </div>
 
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="flex items-center gap-2">
+                <Star className="h-4 w-4 text-amber-500" />
+                <Label htmlFor="is-special" className="text-sm font-medium cursor-pointer">★ Customer</Label>
+              </div>
+              <Switch id="is-special" checked={isSpecial} onCheckedChange={setIsSpecial} />
+            </div>
+
             <DialogFooter>
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
               <Button onClick={handleConfirm}>Review & Confirm</Button>
@@ -192,6 +204,7 @@ export function PreRegisterCreditDialog({ open, onOpenChange, onSuccess }: PreRe
               <div className="flex justify-between"><span className="text-muted-foreground">Credit Type:</span><span className="font-medium">{creditTypeLabel}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Amount:</span><span className="font-medium">{creditAmount} credits</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Validity:</span><span className="font-medium">{validityText}</span></div>
+              {isSpecial && <div className="flex justify-between"><span className="text-muted-foreground">Status:</span><span className="font-medium text-amber-600">★ Customer</span></div>}
             </div>
             <p className="text-xs text-muted-foreground">
               A password will be auto-generated and the customer will receive an email with login details.

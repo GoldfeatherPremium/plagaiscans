@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Trash2, CreditCard, Clock, RefreshCw, Sparkles, Calendar, Edit2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, CreditCard, Clock, RefreshCw, Sparkles, Calendar, Edit2, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -46,6 +46,7 @@ interface PricingPackage {
   description: string | null;
   features: string[];
   credit_type: CreditType;
+  is_special: boolean;
 }
 
 const CREDIT_TYPE_CONFIG = {
@@ -113,6 +114,7 @@ export default function AdminPricing() {
     description: '',
     features: '',
     credit_type: 'full' as CreditType,
+    is_special: false,
   });
 
   useEffect(() => {
@@ -150,6 +152,7 @@ export default function AdminPricing() {
       description: '',
       features: '',
       credit_type: 'full',
+      is_special: false,
     });
     setEditingPackage(null);
   };
@@ -170,6 +173,7 @@ export default function AdminPricing() {
       description: pkg.description || '',
       features: pkg.features?.join('\n') || '',
       credit_type: pkg.credit_type || 'full',
+      is_special: (pkg as any).is_special ?? false,
     });
     setDialogOpen(true);
   };
@@ -200,6 +204,7 @@ export default function AdminPricing() {
       description: formData.description || null,
       features: formData.features.split('\n').filter(f => f.trim()),
       credit_type: formData.credit_type,
+      is_special: formData.is_special,
     };
 
     let error;
@@ -566,6 +571,18 @@ export default function AdminPricing() {
                   </div>
                 </div>
 
+                {/* ★ Customer Toggle */}
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-2">
+                    <Star className="h-4 w-4 text-amber-500" />
+                    <Label className="text-sm font-medium">★ Customer Only</Label>
+                  </div>
+                  <Switch
+                    checked={formData.is_special}
+                    onCheckedChange={(v) => setFormData(prev => ({ ...prev, is_special: v }))}
+                  />
+                </div>
+
                 <Button className="w-full" onClick={handleSavePackage} disabled={saving}>
                   {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                   {editingPackage ? 'Update Package' : 'Create Package'}
@@ -612,7 +629,7 @@ export default function AdminPricing() {
               const typeConfig = PACKAGE_TYPE_CONFIG[pkg.package_type];
               const TypeIcon = typeConfig.icon;
               return (
-                <Card key={pkg.id} className={`relative ${!pkg.is_active ? 'opacity-60' : ''}`}>
+                <Card key={pkg.id} className={`relative ${!pkg.is_active ? 'opacity-60' : ''} ${(pkg as any).is_special ? 'ring-2 ring-amber-400/50' : ''}`}>
                   <div className={`absolute top-0 left-0 right-0 h-1 ${typeConfig.color} rounded-t-lg`} />
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
@@ -621,7 +638,10 @@ export default function AdminPricing() {
                           <TypeIcon className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                          <CardTitle className="text-base">{pkg.name || `${pkg.credits} Credits`}</CardTitle>
+                          <div className="flex items-center gap-1.5">
+                            <CardTitle className="text-base">{pkg.name || `${pkg.credits} Credits`}</CardTitle>
+                            {(pkg as any).is_special && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
+                          </div>
                           <Badge variant="outline" className="text-xs mt-1">
                             {typeConfig.label}
                           </Badge>

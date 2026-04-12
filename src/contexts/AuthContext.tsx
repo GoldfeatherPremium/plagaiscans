@@ -15,6 +15,7 @@ interface AuthContextType {
     phone: string | null;
     credit_balance: number;
     similarity_credit_balance: number;
+    is_special: boolean;
   } | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string, phone: string, referralCode?: string) => Promise<{ error: Error | null }>;
@@ -81,6 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           phone: profileResult.data.phone,
           credit_balance: profileResult.data.credit_balance,
           similarity_credit_balance: profileResult.data.similarity_credit_balance,
+          is_special: profileResult.data.is_special ?? false,
         });
       }
 
