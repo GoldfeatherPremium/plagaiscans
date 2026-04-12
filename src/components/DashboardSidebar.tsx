@@ -312,6 +312,7 @@ export const DashboardSidebar: React.FC = () => {
     links.push(
       { to: '/dashboard/documents', icon: FileText, label: t('sidebar.myDocuments') },
       { to: '/dashboard/credits', icon: CreditCard, label: t('sidebar.buyCredits') },
+      { to: '/dashboard/referrals', icon: Crown, label: 'Referral Program' },
       { to: '/dashboard/payments', icon: Receipt, label: t('sidebar.paymentHistory') },
       { to: '/dashboard/my-tickets', icon: MessageSquare, label: 'Support Tickets' },
       { to: '/dashboard/profile', icon: User, label: t('sidebar.profile') },
