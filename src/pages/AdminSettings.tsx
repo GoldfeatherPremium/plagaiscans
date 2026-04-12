@@ -323,6 +323,29 @@ export default function AdminSettings() {
     }
   };
 
+  const saveSpecialPaymentMethods = async () => {
+    setSavingSpecialPayments(true);
+    const updates = [
+      supabase.from('settings').upsert({ key: 'special_payment_whatsapp_enabled', value: specialWhatsappEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_usdt_enabled', value: specialUsdtEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_binance_enabled', value: specialBinanceEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_viva_enabled', value: specialVivaEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_stripe_enabled', value: specialStripeEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_dodo_enabled', value: specialDodoEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_paypal_enabled', value: specialPaypalEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_paddle_enabled', value: specialPaddleEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_usdt_manual_enabled', value: specialUsdtManualEnabled.toString() }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'special_payment_bank_transfer_enabled', value: specialBankTransferEnabled.toString() }, { onConflict: 'key' }),
+    ];
+    const results = await Promise.all(updates);
+    setSavingSpecialPayments(false);
+    if (results.some(r => r.error)) {
+      toast({ title: 'Error', description: 'Failed to save ★ payment settings', variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: '★ Customer payment methods updated' });
+    }
+  };
+
   const saveBinanceSettings = async () => {
     setSavingBinance(true);
     const results = await Promise.all([
