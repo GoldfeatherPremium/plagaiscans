@@ -1397,6 +1397,7 @@ export type Database = {
           guest_email: string | null
           guest_name: string | null
           id: string
+          is_special: boolean
           max_uploads: number
           status: string
           token: string
@@ -1410,6 +1411,7 @@ export type Database = {
           guest_email?: string | null
           guest_name?: string | null
           id?: string
+          is_special?: boolean
           max_uploads?: number
           status?: string
           token: string
@@ -1423,6 +1425,7 @@ export type Database = {
           guest_email?: string | null
           guest_name?: string | null
           id?: string
+          is_special?: boolean
           max_uploads?: number
           status?: string
           token?: string

@@ -120,20 +120,24 @@ export default function GuestUpload() {
     validate();
   }, [token]);
 
-  // Fetch pricing packages
+  // Fetch pricing packages based on link's special status
   useEffect(() => {
     const fetchPackages = async () => {
+      const isSpecial = linkData?.is_special || false;
       const { data } = await supabase
         .from('pricing_packages')
         .select('*')
         .eq('is_active', true)
+        .eq('is_special', isSpecial)
         .order('credits', { ascending: true });
       
       setPackages(data || []);
       setLoadingPackages(false);
     };
-    fetchPackages();
-  }, []);
+    if (linkData !== null) {
+      fetchPackages();
+    }
+  }, [linkData]);
 
   // Refresh files after upload
   const refreshFiles = async () => {
