@@ -276,6 +276,7 @@ export default function Auth() {
         } catch (refError) {
           console.error('Error processing referral:', refError);
         }
+      }
     }
 
     setLoading(false);
