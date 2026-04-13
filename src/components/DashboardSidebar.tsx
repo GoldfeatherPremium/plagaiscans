@@ -303,8 +303,8 @@ export const DashboardSidebar: React.FC = () => {
       links.push({ to: '/dashboard/upload', icon: Upload, label: t('sidebar.uploadFull') });
     }
     
-    // Show Similarity upload if: has similarity credits OR has no credits at all
-    if (hasSimilarityCredits || hasNoCredits) {
+    // Show Similarity upload only if user has similarity credits
+    if (hasSimilarityCredits) {
       links.push({ to: '/dashboard/upload-similarity', icon: FileCheck, label: t('sidebar.uploadSimilarity') });
     }
     

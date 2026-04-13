@@ -429,31 +429,11 @@ export default function Dashboard() {
         {/* Credit Expiration Warning - Customer Only */}
         {role === 'customer' && <CreditExpirationCard />}
 
-        {/* Referral Banner - Customer Only */}
-        {role === 'customer' && profile && (
-          <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5 overflow-hidden">
-            <CardContent className="p-5 space-y-3">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <Gift className="h-6 w-6 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base">Refer a Friend & Both Get Free Credits! 🎉</h3>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Share your referral link. When your friend makes their first purchase, you both get 1 free credit (valid for 3 days).
-                  </p>
-                </div>
-                <Button asChild size="sm" className="shrink-0">
-                  <Link to="/dashboard/referrals">
-                    <Crown className="h-4 w-4 mr-1" />
-                    View & Share
-                  </Link>
-                </Button>
-              </div>
-              {/* Inline referral code + link */}
-              <ReferralQuickCopy userId={user?.id} />
-            </CardContent>
-          </Card>
+        {/* Referral Line - Customer Only */}
+        {role === 'customer' && (
+          <p className="text-sm text-muted-foreground text-center">
+            🎁 <Link to="/dashboard/referrals" className="text-primary hover:underline font-medium">Earn free credits by referring friends</Link>
+          </p>
         )}
 
         {/* Quick Actions */}
