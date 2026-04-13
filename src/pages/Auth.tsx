@@ -204,27 +204,12 @@ export default function Auth() {
       signupData.password,
       signupData.fullName,
       signupData.phone,
-      usedReferralCode
+      usedReferralCode,
+      guestSpecial
     );
 
     // After signup, handle referral code and guest_special flag
     if (!error) {
-      // If guest came from a special link, mark them as special
-      if (guestSpecial) {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          const newUserId = session?.user?.id;
-          if (newUserId) {
-            await supabase
-              .from('profiles')
-              .update({ is_special: true } as any)
-              .eq('id', newUserId);
-          }
-        } catch (err) {
-          console.error('Error setting special status:', err);
-        }
-      }
-
       if (usedReferralCode) {
         try {
           // Get the user's IP
