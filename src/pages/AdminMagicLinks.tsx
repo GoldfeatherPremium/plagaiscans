@@ -317,7 +317,7 @@ export default function AdminMagicLinks() {
                             <code className="text-xs bg-muted px-2 py-1 rounded">
                               {link.token.substring(0, 12)}...
                             </code>
-                            {(link as any).is_special && (
+                            {link.is_special && (
                               <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
                             )}
                           </div>
