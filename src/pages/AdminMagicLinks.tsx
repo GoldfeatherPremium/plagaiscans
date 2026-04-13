@@ -36,6 +36,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Link2,
   Copy,
@@ -48,6 +49,7 @@ import {
   FileText,
   ExternalLink,
   RefreshCw,
+  Star,
 } from 'lucide-react';
 
 export default function AdminMagicLinks() {
@@ -66,6 +68,7 @@ export default function AdminMagicLinks() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [maxUploads, setMaxUploads] = useState(1);
   const [expiresInHours, setExpiresInHours] = useState<number | undefined>(undefined);
+  const [isSpecialLink, setIsSpecialLink] = useState(false);
   const [creating, setCreating] = useState(false);
   const [viewingFiles, setViewingFiles] = useState<{ link: MagicUploadLink; files: any[] } | null>(null);
   const [loadingFiles, setLoadingFiles] = useState(false);
@@ -75,11 +78,12 @@ export default function AdminMagicLinks() {
 
   const handleCreate = async () => {
     setCreating(true);
-    await createMagicLink(maxUploads, expiresInHours);
+    await createMagicLink(maxUploads, expiresInHours, isSpecialLink);
     setCreating(false);
     setShowCreateDialog(false);
     setMaxUploads(1);
     setExpiresInHours(undefined);
+    setIsSpecialLink(false);
   };
 
   const copyLink = (token: string) => {
@@ -192,6 +196,17 @@ export default function AdminMagicLinks() {
                     Default: 720 hours (1 month)
                   </p>
                 </div>
+                <div className="flex items-center justify-between border rounded-lg p-3 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+                  <div className="flex items-center gap-2">
+                    <Star className="h-4 w-4 text-amber-500" />
+                    <Label htmlFor="isSpecialLink" className="font-normal cursor-pointer">★ Customer Link</Label>
+                  </div>
+                  <Switch
+                    id="isSpecialLink"
+                    checked={isSpecialLink}
+                    onCheckedChange={setIsSpecialLink}
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
@@ -298,9 +313,14 @@ export default function AdminMagicLinks() {
                     {magicLinks.map((link) => (
                       <TableRow key={link.id}>
                         <TableCell>
-                          <code className="text-xs bg-muted px-2 py-1 rounded">
-                            {link.token.substring(0, 12)}...
-                          </code>
+                          <div className="flex items-center gap-1.5">
+                            <code className="text-xs bg-muted px-2 py-1 rounded">
+                              {link.token.substring(0, 12)}...
+                            </code>
+                            {(link as any).is_special && (
+                              <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">
                           <span className="font-medium">

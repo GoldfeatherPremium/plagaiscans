@@ -14,6 +14,7 @@ export interface MagicUploadLink {
   updated_at: string;
   guest_email?: string | null;
   guest_name?: string | null;
+  is_special?: boolean;
 }
 
 export interface MagicUploadFile {
@@ -77,7 +78,7 @@ export const useMagicLinks = () => {
     }
   };
 
-  const createMagicLink = async (maxUploads: number, expiresInHours?: number) => {
+  const createMagicLink = async (maxUploads: number, expiresInHours?: number, isSpecial?: boolean) => {
     try {
       const token = generateSecureToken();
       
@@ -97,6 +98,7 @@ export const useMagicLinks = () => {
           expires_at: expiresAt,
           status: 'active',
           created_by: userData.user?.id || null,
+          is_special: isSpecial || false,
         })
         .select()
         .single();
