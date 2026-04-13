@@ -204,7 +204,8 @@ export default function Auth() {
       signupData.password,
       signupData.fullName,
       signupData.phone,
-      usedReferralCode
+      usedReferralCode,
+      guestSpecial
     );
 
     // After signup, handle referral code and guest_special flag
