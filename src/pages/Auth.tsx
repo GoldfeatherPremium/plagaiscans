@@ -210,6 +210,7 @@ export default function Auth() {
 
     // After signup, handle referral code and guest_special flag
     if (!error) {
+      if (usedReferralCode) {
         try {
           // Get the user's IP
           let userIp = '';
