@@ -74,6 +74,7 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'staff' | 'customer'>('all');
+  const [specialFilter, setSpecialFilter] = useState<'all' | 'special' | 'normal'>('all');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
@@ -171,6 +172,11 @@ export default function AdminUsers() {
     if (roleFilter !== 'all') {
       result = result.filter(u => (u.role || 'customer') === roleFilter);
     }
+    if (specialFilter === 'special') {
+      result = result.filter(u => u.is_special);
+    } else if (specialFilter === 'normal') {
+      result = result.filter(u => !u.is_special);
+    }
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
@@ -181,12 +187,12 @@ export default function AdminUsers() {
       );
     }
     return result;
-  }, [users, searchQuery, roleFilter]);
+  }, [users, searchQuery, roleFilter, specialFilter]);
 
   // Reset page when search/filter changes
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, roleFilter]);
+  }, [searchQuery, roleFilter, specialFilter]);
 
   const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
   const paginatedUsers = useMemo(() => {
@@ -358,6 +364,24 @@ export default function AdminUsers() {
                     {role !== 'all' && (
                       <Badge variant="secondary" className="ml-1.5 text-xs px-1.5 py-0">
                         {users.filter(u => (u.role || 'customer') === role).length}
+                      </Badge>
+                    )}
+                  </Button>
+                ))}
+                <div className="h-6 border-l border-border mx-1" />
+                {(['all', 'special', 'normal'] as const).map((filter) => (
+                  <Button
+                    key={filter}
+                    size="sm"
+                    variant={specialFilter === filter ? 'default' : 'outline'}
+                    onClick={() => setSpecialFilter(filter)}
+                    className={filter === 'special' ? 'gap-1' : ''}
+                  >
+                    {filter === 'special' && <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />}
+                    {filter === 'all' ? 'All Types' : filter === 'special' ? '★' : 'Normal'}
+                    {filter !== 'all' && (
+                      <Badge variant="secondary" className="ml-1.5 text-xs px-1.5 py-0">
+                        {users.filter(u => filter === 'special' ? u.is_special : !u.is_special).length}
                       </Badge>
                     )}
                   </Button>

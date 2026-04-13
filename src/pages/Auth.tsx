@@ -59,6 +59,7 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
   const isResetMode = searchParams.get('reset') === 'true';
   const referralCode = searchParams.get('ref') || '';
+  const guestSpecial = searchParams.get('guest_special') === 'true';
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation('auth');
@@ -206,58 +207,75 @@ export default function Auth() {
       usedReferralCode
     );
 
-    // After signup, if referral code was used, validate via server-side edge function
-    if (!error && usedReferralCode) {
-      try {
-        // Get the user's IP
-        let userIp = '';
+    // After signup, handle referral code and guest_special flag
+    if (!error) {
+      // If guest came from a special link, mark them as special
+      if (guestSpecial) {
         try {
-          const ipResponse = await fetch('https://api.ipify.org?format=json');
-          const ipData = await ipResponse.json();
-          userIp = ipData.ip;
-        } catch (ipErr) {
-          console.warn('Could not fetch IP:', ipErr);
-        }
-
-        // Server-side fraud validation
-        const { data: validationResult } = await supabase.functions.invoke('validate-referral', {
-          body: { referralCode: usedReferralCode, email: signupData.email, ip: userIp }
-        });
-
-        if (validationResult?.valid && validationResult?.referrerId) {
           const { data: { session } } = await supabase.auth.getSession();
           const newUserId = session?.user?.id;
-
           if (newUserId) {
-            // Update profile with referred_by and IP
             await supabase
               .from('profiles')
-              .update({ referred_by: validationResult.referrerId, signup_ip: userIp })
+              .update({ is_special: true } as any)
               .eq('id', newUserId);
-
-            // Create pending referral with IP tracking
-            await supabase.from('referrals').insert({
-              referrer_id: validationResult.referrerId,
-              referred_user_id: newUserId,
-              referral_code: usedReferralCode,
-              status: 'pending',
-              credits_earned: 0,
-              referred_ip: userIp,
-              ip_cluster_id: validationResult.ipClusterId || null,
-              reward_status: 'pending',
-            } as any);
-
-            // Log IP in referral_ip_log via edge function (service role)
-            await supabase.functions.invoke('validate-referral', {
-              body: { action: 'log_ip', ip: userIp, userId: newUserId, referrerId: validationResult.referrerId }
-            });
           }
-        } else {
-          console.log('Referral rejected by server:', validationResult?.reason);
+        } catch (err) {
+          console.error('Error setting special status:', err);
         }
-      } catch (refError) {
-        console.error('Error processing referral:', refError);
       }
+
+      if (usedReferralCode) {
+        try {
+          // Get the user's IP
+          let userIp = '';
+          try {
+            const ipResponse = await fetch('https://api.ipify.org?format=json');
+            const ipData = await ipResponse.json();
+            userIp = ipData.ip;
+          } catch (ipErr) {
+            console.warn('Could not fetch IP:', ipErr);
+          }
+
+          // Server-side fraud validation
+          const { data: validationResult } = await supabase.functions.invoke('validate-referral', {
+            body: { referralCode: usedReferralCode, email: signupData.email, ip: userIp }
+          });
+
+          if (validationResult?.valid && validationResult?.referrerId) {
+            const { data: { session } } = await supabase.auth.getSession();
+            const newUserId = session?.user?.id;
+
+            if (newUserId) {
+              // Update profile with referred_by and IP
+              await supabase
+                .from('profiles')
+                .update({ referred_by: validationResult.referrerId, signup_ip: userIp })
+                .eq('id', newUserId);
+
+              // Create pending referral with IP tracking
+              await supabase.from('referrals').insert({
+                referrer_id: validationResult.referrerId,
+                referred_user_id: newUserId,
+                referral_code: usedReferralCode,
+                status: 'pending',
+                credits_earned: 0,
+                referred_ip: userIp,
+                ip_cluster_id: validationResult.ipClusterId || null,
+                reward_status: 'pending',
+              } as any);
+
+              // Log IP in referral_ip_log via edge function (service role)
+              await supabase.functions.invoke('validate-referral', {
+                body: { action: 'log_ip', ip: userIp, userId: newUserId, referrerId: validationResult.referrerId }
+              });
+            }
+          } else {
+            console.log('Referral rejected by server:', validationResult?.reason);
+          }
+        } catch (refError) {
+          console.error('Error processing referral:', refError);
+        }
     }
 
     setLoading(false);

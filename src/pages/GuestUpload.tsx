@@ -281,7 +281,7 @@ export default function GuestUpload() {
               <span className="font-display font-bold text-lg">PlagaiScans</span>
             </Link>
             <Button asChild>
-              <Link to="/auth">Sign In</Link>
+             <Link to="/auth">Sign In</Link>
             </Button>
           </div>
         </header>
@@ -323,7 +323,7 @@ export default function GuestUpload() {
               Guest Access
             </Badge>
             <Button asChild variant="outline">
-              <Link to="/auth">Sign In for More</Link>
+              <Link to={linkData?.is_special ? "/auth?guest_special=true" : "/auth"}>Sign In for More</Link>
             </Button>
           </div>
         </div>
@@ -427,7 +427,7 @@ export default function GuestUpload() {
                       </p>
                     </div>
                     <Button asChild>
-                      <Link to="/auth">Sign Up</Link>
+                      <Link to={linkData?.is_special ? "/auth?guest_special=true" : "/auth"}>Sign Up</Link>
                     </Button>
                   </CardContent>
                 </Card>
@@ -832,7 +832,7 @@ export default function GuestUpload() {
                   </div>
                 </div>
                 <Button asChild variant="secondary">
-                  <Link to="/auth">Sign Up Now</Link>
+                  <Link to={linkData?.is_special ? "/auth?guest_special=true" : "/auth"}>Sign Up Now</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -907,7 +907,7 @@ export default function GuestUpload() {
                           variant={isPopular ? "default" : "outline"}
                           asChild
                         >
-                          <Link to="/auth">Sign Up to Purchase</Link>
+                          <Link to={linkData?.is_special ? "/auth?guest_special=true" : "/auth"}>Sign Up to Purchase</Link>
                         </Button>
                       </CardContent>
                     </Card>
