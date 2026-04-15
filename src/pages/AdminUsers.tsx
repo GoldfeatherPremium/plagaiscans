@@ -982,6 +982,13 @@ export default function AdminUsers() {
         onOpenChange={setPreRegisterOpen}
         onSuccess={fetchUsers}
       />
+
+      {/* Reset Password Dialog */}
+      <AdminResetPasswordDialog
+        open={!!resetPasswordUser}
+        onOpenChange={(val) => { if (!val) setResetPasswordUser(null); }}
+        user={resetPasswordUser}
+      />
     </DashboardLayout>
   );
 }
