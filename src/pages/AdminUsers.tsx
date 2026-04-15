@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Loader2, User, Mail, Phone, CreditCard, Calendar, History, TrendingUp, TrendingDown, ArrowUpDown, UserPlus, Clock, Users, Settings2, Save, ChevronLeft, ChevronRight, Shield, ShieldCheck, ShieldX, UserCog, Star } from 'lucide-react';
+import { Search, Loader2, User, Mail, Phone, CreditCard, Calendar, History, TrendingUp, TrendingDown, ArrowUpDown, UserPlus, Clock, Users, Settings2, Save, ChevronLeft, ChevronRight, Shield, ShieldCheck, ShieldX, UserCog, Star, KeyRound } from 'lucide-react';
+import { AdminResetPasswordDialog } from '@/components/AdminResetPasswordDialog';
 import {
   Table,
   TableBody,
@@ -93,6 +94,7 @@ export default function AdminUsers() {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [savingStaffId, setSavingStaffId] = useState<string | null>(null);
   const [preRegisterOpen, setPreRegisterOpen] = useState(false);
+  const [resetPasswordUser, setResetPasswordUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -516,6 +518,14 @@ export default function AdminUsers() {
                                 >
                                   <CreditCard className="h-4 w-4 mr-1" />
                                   Manage Credits
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setResetPasswordUser(user)}
+                                  title="Reset Password"
+                                >
+                                  <KeyRound className="h-4 w-4" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -971,6 +981,13 @@ export default function AdminUsers() {
         open={preRegisterOpen}
         onOpenChange={setPreRegisterOpen}
         onSuccess={fetchUsers}
+      />
+
+      {/* Reset Password Dialog */}
+      <AdminResetPasswordDialog
+        open={!!resetPasswordUser}
+        onOpenChange={(val) => { if (!val) setResetPasswordUser(null); }}
+        user={resetPasswordUser}
       />
     </DashboardLayout>
   );
