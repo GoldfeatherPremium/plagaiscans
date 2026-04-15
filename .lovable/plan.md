@@ -1,34 +1,30 @@
 
 
-## Admin Password Reset for Customers
+## Fix: Guest Documents Leaking Into Customer Accounts
 
-### Problem
-Customers forget passwords. Admins cannot retrieve passwords (they are irreversibly hashed). 
+### Root Cause
+Two issues combine to cause this bug:
 
-### Solution
-Add a "Reset Password" action in the Admin Users page that lets an admin set a new temporary password for a customer and see/copy it to share with them.
+1. **Missing role assignment**: User `mhhashim471@gmail.com` has no entry in `user_roles`, so their role resolves to `null`.
+2. **Incomplete filter logic**: In `useDocuments.ts`, the `user_id` filter only applies when `role === 'customer'`. When role is `null`, no user filter is applied, and the RLS policy "Anyone can view documents via active magic link" returns all guest documents.
 
-### Implementation
+### Fix Plan
 
-**1. Edge Function: `admin-reset-user-password`**
-- Accepts `userId` and optionally a custom `newPassword` (or auto-generates a secure random one)
-- Uses `supabase.auth.admin.updateUserById()` to set the new password
-- Returns the new password so the admin can share it with the customer
-- Validates that the caller is an admin via JWT + role check
+**1. Fix the filter logic in `useDocuments.ts` (line ~87)**
+Change the condition from:
+```typescript
+if (role === 'customer') {
+```
+to:
+```typescript
+if (role !== 'staff' && role !== 'admin') {
+```
+This ensures that any non-staff/non-admin user (including those with `null` role) only sees their own documents. This is the defensive, correct approach — only explicitly privileged roles should see all documents.
 
-**2. Admin Users Page Update (`AdminUsers.tsx`)**
-- Add a "Reset Password" button/action per user row (or in a user detail dialog)
-- On click, opens a dialog showing:
-  - Option to auto-generate a strong password or enter a custom one
-  - After reset: displays the new password with a "Copy" button
-  - Warning: "Share this password securely with the customer. They should change it after logging in."
+**2. Assign the missing role for this user**
+Run a database migration to insert the `customer` role for user `mhhashim471@gmail.com` so their account works correctly going forward.
 
-### Security
-- Admin-only access enforced server-side via role check in the edge function
-- Password is shown once to the admin, never stored in plaintext
-
-### Files to Create/Edit
-- `supabase/functions/admin-reset-user-password/index.ts` — new edge function
-- `src/pages/AdminUsers.tsx` — add reset password action
-- New component: `src/components/AdminResetPasswordDialog.tsx`
+### Files to Modify
+- `src/hooks/useDocuments.ts` — line 87: change role check condition
+- Database: insert missing `user_roles` record for user `25b6bb00-ce4e-4b52-93c3-035108e410cf`
 
