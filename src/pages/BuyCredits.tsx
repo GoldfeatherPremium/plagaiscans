@@ -68,18 +68,19 @@ export default function BuyCredits() {
 
   useEffect(() => {
     const fetchData = async () => {
+      const isSpecial = profile?.is_special ?? false;
       const { data: packagesData } = await supabase
         .from('pricing_packages')
         .select('*')
         .eq('is_active', true)
-        .eq('is_special', false)
+        .eq('is_special', isSpecial)
         .order('price', { ascending: true });
       
       setPackages((packagesData as PricingPackage[]) || []);
       setLoading(false);
     };
     fetchData();
-  }, []);
+  }, [profile?.is_special]);
 
   const handleBuyNow = (plan: PricingPackage) => {
     navigate(`/dashboard/checkout?packageId=${plan.id}`);
