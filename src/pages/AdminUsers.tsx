@@ -94,6 +94,7 @@ export default function AdminUsers() {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [savingStaffId, setSavingStaffId] = useState<string | null>(null);
   const [preRegisterOpen, setPreRegisterOpen] = useState(false);
+  const [resetPasswordUser, setResetPasswordUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -517,6 +518,14 @@ export default function AdminUsers() {
                                 >
                                   <CreditCard className="h-4 w-4 mr-1" />
                                   Manage Credits
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setResetPasswordUser(user)}
+                                  title="Reset Password"
+                                >
+                                  <KeyRound className="h-4 w-4" />
                                 </Button>
                               </div>
                             </TableCell>
