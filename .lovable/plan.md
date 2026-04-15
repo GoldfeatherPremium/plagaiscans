@@ -1,39 +1,34 @@
 
 
-## Special Pricing for Guest Upload Links
+## Admin Password Reset for Customers
 
-### What This Does
-When an admin creates a guest upload link, they can mark it as "★" (special). Guests using that link will see special pricing packages instead of normal ones — both on the guest upload page and if they later sign up.
+### Problem
+Customers forget passwords. Admins cannot retrieve passwords (they are irreversibly hashed). 
 
-### Database Changes
+### Solution
+Add a "Reset Password" action in the Admin Users page that lets an admin set a new temporary password for a customer and see/copy it to share with them.
 
-**1. Add `is_special` column to `magic_upload_links`**
-```sql
-ALTER TABLE public.magic_upload_links ADD COLUMN is_special boolean NOT NULL DEFAULT false;
-```
+### Implementation
 
-### Code Changes
+**1. Edge Function: `admin-reset-user-password`**
+- Accepts `userId` and optionally a custom `newPassword` (or auto-generates a secure random one)
+- Uses `supabase.auth.admin.updateUserById()` to set the new password
+- Returns the new password so the admin can share it with the customer
+- Validates that the caller is an admin via JWT + role check
 
-**2. `src/hooks/useMagicLinks.ts`**
-- Update `MagicUploadLink` interface to include `is_special`
-- Update `createMagicLink` to accept and pass `isSpecial` parameter
+**2. Admin Users Page Update (`AdminUsers.tsx`)**
+- Add a "Reset Password" button/action per user row (or in a user detail dialog)
+- On click, opens a dialog showing:
+  - Option to auto-generate a strong password or enter a custom one
+  - After reset: displays the new password with a "Copy" button
+  - Warning: "Share this password securely with the customer. They should change it after logging in."
 
-**3. `src/pages/AdminMagicLinks.tsx`**
-- Add a ★ toggle in the create dialog
-- Show ★ badge on special links in the table
-- Pass `isSpecial` to `createMagicLink`
+### Security
+- Admin-only access enforced server-side via role check in the edge function
+- Password is shown once to the admin, never stored in plaintext
 
-**4. `src/pages/GuestUpload.tsx`**
-- Read `linkData.is_special` from the validated magic link
-- Filter pricing packages: if `is_special` is true, fetch only `is_special = true` packages; otherwise fetch only `is_special = false` packages
-- Since guests are unauthenticated and RLS blocks them from special packages, use a direct filter: `.eq('is_special', linkData.is_special)`
-
-**5. RLS Policy Update**
-- Update the anonymous/public SELECT policy on `pricing_packages` to allow viewing `is_special = true` packages (currently anonymous users can only see `is_special = false`). The guest page will filter client-side based on the link's special status, but RLS needs to permit the query. Alternative: add a policy that allows selecting special packages when accessed via a valid special magic link token.
-
-### Files Modified
-- 1 new migration
-- `src/hooks/useMagicLinks.ts`
-- `src/pages/AdminMagicLinks.tsx`
-- `src/pages/GuestUpload.tsx`
+### Files to Create/Edit
+- `supabase/functions/admin-reset-user-password/index.ts` — new edge function
+- `src/pages/AdminUsers.tsx` — add reset password action
+- New component: `src/components/AdminResetPasswordDialog.tsx`
 
