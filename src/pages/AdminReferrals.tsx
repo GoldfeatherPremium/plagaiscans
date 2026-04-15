@@ -255,7 +255,8 @@ export default function AdminReferrals() {
                     <TableHead>Referrer</TableHead>
                     <TableHead>Code</TableHead>
                     <TableHead>Referred User</TableHead>
-                    <TableHead>IP</TableHead>
+                    <TableHead>Referrer IP</TableHead>
+                    <TableHead>Referred IP</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Reward</TableHead>
                     <TableHead>Fraud</TableHead>
@@ -306,6 +307,11 @@ export default function AdminReferrals() {
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <code className="bg-muted px-1 py-0.5 rounded text-[10px]">
+                            {referral.referrer?.signup_ip || '-'}
+                          </code>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
