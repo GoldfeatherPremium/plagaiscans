@@ -84,7 +84,7 @@ export const useDocuments = () => {
       while (hasMore && allDocs.length < MAX_DOCS) {
         let query = supabase.from('documents').select('*');
 
-        if (role === 'customer') {
+        if (role !== 'staff' && role !== 'admin') {
           query = query.eq('user_id', user.id).or('deleted_by_user.is.null,deleted_by_user.eq.false');
         }
 
