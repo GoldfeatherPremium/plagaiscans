@@ -18,7 +18,7 @@ interface AuthContextType {
     is_special: boolean;
   } | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, phone: string, referralCode?: string, guestSpecial?: boolean) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, phone: string, referrerId?: string, guestSpecial?: boolean, referralCode?: string, signupIp?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -174,7 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [fetchUserData]);
 
-  const signUp = async (email: string, password: string, fullName: string, phone: string, referralCode?: string, guestSpecial?: boolean) => {
+  const signUp = async (email: string, password: string, fullName: string, phone: string, referrerId?: string, guestSpecial?: boolean, referralCode?: string, signupIp?: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { error, data } = await supabase.auth.signUp({
@@ -185,8 +185,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         data: {
           full_name: fullName,
           phone: phone,
-          ...(referralCode ? { referred_by: referralCode } : {}),
+          ...(referrerId ? { referred_by: referrerId } : {}),
           ...(guestSpecial ? { guest_special: true } : {}),
+          ...(referralCode ? { referral_code: referralCode } : {}),
+          ...(signupIp ? { signup_ip: signupIp } : {}),
         },
       },
     });
