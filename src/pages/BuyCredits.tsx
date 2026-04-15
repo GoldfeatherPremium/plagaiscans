@@ -72,6 +72,7 @@ export default function BuyCredits() {
         .from('pricing_packages')
         .select('*')
         .eq('is_active', true)
+        .eq('is_special', false)
         .order('price', { ascending: true });
       
       setPackages((packagesData as PricingPackage[]) || []);
