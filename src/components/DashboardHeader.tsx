@@ -78,6 +78,9 @@ export const DashboardHeader: React.FC = () => {
           )}
 
 
+          {/* Service Status Pill */}
+          <ServiceStatusPill />
+
           {/* Language Switcher */}
           <LanguageSwitcher />
 
