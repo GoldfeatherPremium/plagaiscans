@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AdminRemarkPresets } from '@/components/AdminRemarkPresets';
+import { AdminServiceStatusToggle } from '@/components/AdminServiceStatusToggle';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function AdminSettings() {
@@ -550,6 +551,9 @@ export default function AdminSettings() {
 
           {/* ==================== GENERAL TAB ==================== */}
           <TabsContent value="general" className="space-y-6 mt-6">
+            {/* Service Status (Online/Offline indicator for customers) */}
+            <AdminServiceStatusToggle />
+
             {/* Maintenance Mode */}
             <Card className={maintenanceEnabled ? 'border-amber-500/50 bg-amber-500/5' : ''}>
               <CardHeader>
