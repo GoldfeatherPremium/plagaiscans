@@ -58,7 +58,7 @@ export const ServiceStatusBanner: React.FC = () => {
             Service Online
           </p>
           <p className="text-xs text-green-700/80 dark:text-green-400/80">
-            Our team is online — your uploads will be processed promptly.
+            The system is online — your uploads will be processed promptly.
           </p>
         </div>
       </div>
