@@ -13,6 +13,7 @@ import { useSimilarityDocuments } from '@/hooks/useSimilarityDocuments';
 import { toast } from '@/hooks/use-toast';
 import { SEO } from '@/components/SEO';
 import { useTranslation } from 'react-i18next';
+import { ServiceStatusBanner } from '@/components/ServiceStatusBanner';
 
 const UploadSimilarity: React.FC = () => {
   const navigate = useNavigate();

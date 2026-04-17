@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { StatusBadge } from '@/components/StatusBadge';
 import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { PushNotificationBanner } from '@/components/PushNotificationBanner';
+import { ServiceStatusBanner } from '@/components/ServiceStatusBanner';
 import { CreditExpirationCard } from '@/components/CreditExpirationCard';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -193,6 +194,9 @@ export default function Dashboard() {
       <div className="space-y-8">
         {/* Announcements */}
         <AnnouncementBanner />
+
+        {/* Service Status (Online/Offline) for customers */}
+        {role === 'customer' && <ServiceStatusBanner />}
 
         {/* Push Notification Prompt for Customers */}
         {role === 'customer' && <PushNotificationBanner />}
