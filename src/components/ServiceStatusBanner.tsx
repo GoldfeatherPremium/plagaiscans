@@ -103,21 +103,8 @@ export const ServiceStatusBanner: React.FC = () => {
 
   if (!state) return null;
 
-  if (state.status === 'online') {
-    return (
-      <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 flex items-start gap-3">
-        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-green-700 dark:text-green-400">
-            Service Online
-          </p>
-          <p className="text-xs text-green-700/80 dark:text-green-400/80">
-            The system is online — your uploads will be processed promptly.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Online state is shown via the compact ServiceStatusPill in the header.
+  if (state.status === 'online') return null;
 
   // Offline — compute optional countdown
   let countdown: { rel: string; abs: string } | null = null;
