@@ -1,30 +1,58 @@
 
+The user wants an admin-controlled online/offline system status that:
+- Admins can toggle online/offline with a button
+- Customers see the current status in their dashboard
+- When offline, customers know not to expect immediate processing
+- Real-time updates when admin toggles status
 
-## Fix: Guest Documents Leaking Into Customer Accounts
+I already see there's a `settings` table being used (for `maintenance_mode_enabled` and `maintenance_message`). I'll reuse this pattern for a new `service_status` setting. This is much lighter than maintenance mode (which blocks the whole site) — this just shows a status banner.
 
-### Root Cause
-Two issues combine to cause this bug:
+Let me design this concisely.
 
-1. **Missing role assignment**: User `mhhashim471@gmail.com` has no entry in `user_roles`, so their role resolves to `null`.
-2. **Incomplete filter logic**: In `useDocuments.ts`, the `user_id` filter only applies when `role === 'customer'`. When role is `null`, no user filter is applied, and the RLS policy "Anyone can view documents via active magic link" returns all guest documents.
+## System Service Status (Online/Offline Indicator)
 
-### Fix Plan
+### What it does
+- Admins toggle a "Service Online/Offline" switch from the admin panel
+- Customers see a clear status banner on their dashboard ("✅ Service Online — uploads will be processed promptly" / "🌙 Service Offline — uploads queued, will be processed when we're back")
+- Status updates in real-time (no refresh needed) via Supabase Realtime
+- Optional custom offline message (e.g. "We're offline until 9 AM GMT")
 
-**1. Fix the filter logic in `useDocuments.ts` (line ~87)**
-Change the condition from:
-```typescript
-if (role === 'customer') {
-```
-to:
-```typescript
-if (role !== 'staff' && role !== 'admin') {
-```
-This ensures that any non-staff/non-admin user (including those with `null` role) only sees their own documents. This is the defensive, correct approach — only explicitly privileged roles should see all documents.
+### Implementation
 
-**2. Assign the missing role for this user**
-Run a database migration to insert the `customer` role for user `mhhashim471@gmail.com` so their account works correctly going forward.
+**1. Database (settings table)**
+Add 3 new keys to existing `settings` table (no schema change needed — already key/value):
+- `service_status` → `'online'` or `'offline'`
+- `service_offline_message` → custom message shown when offline
+- `service_status_updated_at` → timestamp of last change
 
-### Files to Modify
-- `src/hooks/useDocuments.ts` — line 87: change role check condition
-- Database: insert missing `user_roles` record for user `25b6bb00-ce4e-4b52-93c3-035108e410cf`
+Enable Realtime on `settings` table (if not already).
+
+**2. Admin Toggle UI**
+Add a new card on `AdminSettings.tsx` (or `AdminDashboardOverview.tsx` for quick access):
+- Big switch: "Service Online" / "Service Offline"
+- Textarea for custom offline message
+- Shows "Last changed by [admin] at [time]"
+
+**3. Customer Status Banner**
+New component `ServiceStatusBanner.tsx` shown on customer dashboard pages:
+- Green banner when online: "✅ Service Online — your uploads are being processed"
+- Amber banner when offline: "🌙 Service Offline — [custom message]. Your uploads will be queued."
+- Subscribes to Realtime updates so changes appear instantly
+
+**4. Where banner appears**
+- Customer Dashboard (`Dashboard.tsx`)
+- Upload pages (`UploadDocument.tsx`, `UploadSimilarity.tsx`) — most relevant moment
+- Optional: also on guest upload page
+
+### Files to create/edit
+- New: `src/components/ServiceStatusBanner.tsx` — customer-facing banner with Realtime subscription
+- New: `src/components/AdminServiceStatusToggle.tsx` — admin toggle card
+- Edit: `src/pages/AdminSettings.tsx` — add the toggle card
+- Edit: `src/pages/Dashboard.tsx`, `src/pages/UploadDocument.tsx`, `src/pages/UploadSimilarity.tsx` — show banner
+- Migration: insert 3 default settings rows + enable Realtime on `settings` table
+
+### Notes
+- Going "offline" does NOT block uploads — customers can still upload, it just sets expectations
+- This is separate from the existing Maintenance Mode (which blocks the site entirely)
+- Both admins and staff can see/toggle it; only admins control it (read-only display for staff in UI)
 
