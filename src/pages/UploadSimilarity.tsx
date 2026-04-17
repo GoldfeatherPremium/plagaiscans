@@ -177,6 +177,7 @@ const UploadSimilarity: React.FC = () => {
       />
       
       <div className="space-y-6">
+        <ServiceStatusBanner />
         <div>
           <h1 className="text-3xl font-display font-bold">{t('uploadSimilarity.title')}</h1>
           <p className="text-muted-foreground mt-1">{t('uploadSimilarity.subtitle')}</p>
