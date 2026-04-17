@@ -3,6 +3,7 @@ import { Moon, Sun, Coins, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from './NotificationBell';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { ServiceStatusPill } from './ServiceStatusPill';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
