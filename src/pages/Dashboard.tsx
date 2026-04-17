@@ -393,42 +393,8 @@ export default function Dashboard() {
         </div>
         )}
 
-        {/* Pending Payments - Customer Only */}
-        {role === 'customer' && pendingPayments.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-[#F0B90B]" />
-                {t('overview.myPayments')}
-              </CardTitle>
-              <CardDescription>{t('overview.trackPayments')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {pendingPayments.map((payment, index) => (
-                  <div 
-                    key={payment.id}
-                    className="flex items-center justify-between p-4 border rounded-lg transition-all duration-300 hover:bg-muted/50 hover:border-primary/20 hover:-translate-x-1"
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center transition-transform duration-300 hover:scale-110">
-                        <Wallet className="h-5 w-5 text-accent" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{payment.credits} {t('overview.credits')}</p>
-                        <p className="text-sm text-muted-foreground">
-                          ${payment.amount_usd} • {format(new Date(payment.created_at), 'MMM dd, HH:mm')}
-                        </p>
-                      </div>
-                    </div>
-                    {getPaymentStatusBadge(payment.status)}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+
+
 
         {/* Credit Expiration Warning - Customer Only */}
         {role === 'customer' && <CreditExpirationCard />}
