@@ -168,12 +168,8 @@
     "a4": "Most reports are delivered in 2–5 minutes. Larger or more complex documents may take a little longer during peak hours.",
     "q5": "Will my paper be stored or shared?",
     "a5": "No. We use a no-repository submission method, so your paper is never added to the Turnitin student database and cannot be flagged later by your school.",
-    "q6": "Can I still use the free AI detector?",
-    "a6": "Yes. Our standalone AI detector remains available for quick checks. The paid Turnitin report adds full similarity matching and the official report PDF.",
     "q7": "What if I'm not satisfied with my report?",
-    "a7": "If a technical issue prevents your report from being generated, contact support and we'll re-run the scan or refund the credit used.",
-    "q8": "Is this affiliated with Turnitin?",
-    "a8": "No. PlagaiScans is an independent service and is not affiliated with, endorsed by, or sponsored by Turnitin LLC. All trademarks belong to their respective owners."
+    "a7": "If a technical issue prevents your report from being generated, contact support and we'll re-run the scan or refund the credit used."
   },
   "pricing": {
     "title": "Pricing",
