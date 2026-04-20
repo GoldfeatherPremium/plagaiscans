@@ -1,0 +1,1 @@
+ALTER TABLE public.pricing_packages ADD COLUMN IF NOT EXISTS is_most_popular boolean NOT NULL DEFAULT false;
