@@ -213,6 +213,34 @@ export default function MyDocuments() {
           )}
         </div>
 
+        {/* Thesis Elite — research support nudge for customers */}
+        {role === 'customer' && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-start gap-3">
+                <Sparkles className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm sm:text-base font-semibold text-foreground mb-1">
+                    Got a high AI or similarity score?
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Reduce AI-generated content and improve originality with{' '}
+                    <a
+                      href="https://thesiselite.com"
+                      target="_blank"
+                      rel="noopener"
+                      className="text-primary hover:underline font-medium"
+                    >
+                      research support for PhD scholars
+                    </a>{' '}
+                    from Thesis Elite — covering thesis editing, paraphrasing assistance, and journal-ready revisions.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Search Filters */}
         <DocumentSearchFilters 
           filters={filters} 

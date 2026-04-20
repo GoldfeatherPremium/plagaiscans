@@ -156,6 +156,30 @@ const Footer = () => {
           </div>
         </div>
 
+        {/* Recommended for Researchers */}
+        <div className="pt-8 border-t border-border mb-8">
+          <div className="max-w-3xl mx-auto rounded-lg border border-border bg-muted/30 p-6">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 font-medium">
+              Recommended for Researchers
+            </p>
+            <h3 className="text-lg font-display font-semibold mb-2 text-foreground">
+              Need help beyond plagiarism checks?
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Thesis Elite supports PhD scholars with thesis editing, journal publication, patent filing,
+              and research assistance across 20+ countries.
+            </p>
+            <a
+              href="https://thesiselite.com"
+              target="_blank"
+              rel="noopener"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              Visit Thesis Elite →
+            </a>
+          </div>
+        </div>
+
         {/* Paddle MoR Statement */}
         <div className="pt-6 border-t border-border mb-6">
           <p className="text-xs text-muted-foreground text-center max-w-3xl mx-auto mb-2">
