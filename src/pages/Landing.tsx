@@ -171,20 +171,30 @@ const Landing = () => {
                     </button>
                   </SheetTrigger>
                   <SheetContent side="right" className="w-64">
-                    <div className="flex flex-col gap-4 mt-8 text-base font-medium">
-                      <Link to="/ai-content-detection" className="text-foreground">
-                        {t("nav.aiDetector")}
-                      </Link>
+                    <div className="flex flex-col gap-5 mt-8 text-base font-medium">
                       <Link to="/" className="text-foreground">
                         {t("nav.turnitinReport")}
                       </Link>
                       <Link to="/pricing" className="text-foreground">
                         {t("nav.pricing")}
                       </Link>
-                      {!user && (
-                        <Link to="/auth" className="text-foreground">
-                          {t("nav.signIn")}
+                      {user ? (
+                        <Link to="/dashboard">
+                          <Button className="w-full rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+                            {t("nav.dashboard")}
+                          </Button>
                         </Link>
+                      ) : (
+                        <>
+                          <Link to="/auth" className="text-foreground">
+                            {t("nav.signIn")}
+                          </Link>
+                          <Link to="/auth">
+                            <Button className="w-full rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
+                              {t("nav.signUp", { defaultValue: "Sign Up" })}
+                            </Button>
+                          </Link>
+                        </>
                       )}
                     </div>
                   </SheetContent>
