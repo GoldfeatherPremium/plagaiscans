@@ -298,8 +298,35 @@ export default function Pricing() {
             </>
           )}
 
+          {/* No Repository = Safe to Submit Later */}
+          <section className="mb-16 max-w-3xl mx-auto">
+            <Card className="border-secondary/20 bg-gradient-to-br from-secondary/5 to-primary/5 p-6 sm:p-10">
+              <div className="h-14 w-14 rounded-2xl bg-secondary flex items-center justify-center mb-6">
+                <Lock className="h-7 w-7 text-secondary-foreground" />
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-display font-bold mb-5 text-foreground leading-tight">
+                No Repository = Safe to Submit Later
+              </h2>
+              <p className="text-base sm:text-lg text-muted-foreground leading-relaxed mb-6">
+                <span className="font-bold text-foreground">This is the key difference.</span> Your paper is NOT added to any database. Check your work here first, then submit to your university with complete confidence.
+              </p>
+              <ul className="space-y-3">
+                {[
+                  'Professor will never know you pre-checked',
+                  'Zero self-plagiarism risk',
+                  "Paper won't match against itself",
+                  'Complete privacy guaranteed',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-secondary shrink-0 mt-0.5" />
+                    <span className="text-muted-foreground">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </section>
 
-          {/* Features Section */}
+
           <div className="mb-16">
             <h2 className="text-2xl font-display font-bold text-center mb-8">
               {t('pricing.features.title')}
