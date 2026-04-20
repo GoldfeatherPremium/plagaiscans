@@ -509,6 +509,38 @@ export default function Dashboard() {
 
         {/* AI Humanizer CTA for customers */}
 
+        {/* ThesisElite backlink promo */}
+        {role === 'customer' && (
+          <Card className="border-primary/30 bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
+            <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6">
+              <div className="flex items-start gap-3">
+                <div className="rounded-full bg-primary/10 p-2 shrink-0">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-base leading-tight">
+                    Got a high AI or similarity score?
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Or need help with your assignment? Our partners at ThesisElite can help.
+                  </p>
+                </div>
+              </div>
+              <Button asChild className="shrink-0 w-full sm:w-auto">
+                <a
+                  href="https://thesiselite.com"
+                  target="_blank"
+                  rel="noopener"
+                  aria-label="Visit ThesisElite for assignment help"
+                >
+                  Get Help
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Recent Documents */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
