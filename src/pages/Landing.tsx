@@ -206,20 +206,20 @@ const Landing = () => {
 
         <main>
           {/* Hero */}
-          <section className="pt-16 pb-12 px-4">
+          <section className="pt-12 sm:pt-20 pb-10 sm:pb-16 px-4">
             <div className="max-w-3xl mx-auto text-center">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary text-secondary-foreground text-[11px] font-bold tracking-widest uppercase mb-8">
+              <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-secondary text-secondary-foreground text-[13px] font-bold tracking-wide uppercase mb-6 font-sans">
                 {t("hero.badge")}
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold mb-6 leading-tight">
-                <span className="text-muted-foreground">{t("hero.titleLine1")}</span>
-                <br />
-                <span className="text-primary">{t("hero.titleLine2")}</span>
+              <h1 className="font-sans font-bold tracking-tight leading-[1.05] text-[44px] sm:text-[56px] lg:text-[64px] mb-5">
+                <span className="block text-gray-500 dark:text-gray-400">{t("hero.titleLine1")}</span>
+                <span className="block text-primary">{t("hero.titleLine2")}</span>
               </h1>
 
-              <p className="text-base sm:text-lg text-muted-foreground mb-10 max-w-2xl mx-auto">
-                {t("hero.subtitle")}
+              <p className="font-sans text-[17px] sm:text-[18px] leading-[1.6] text-gray-600 dark:text-gray-400 mb-10 max-w-xl mx-auto">
+                Upload your document or paste text. Get the{" "}
+                <span className="font-bold text-foreground">exact same report</span> your professor sees—AI detection and similarity scores included.
               </p>
 
               {/* Upload card */}
