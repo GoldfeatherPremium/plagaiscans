@@ -1,54 +1,73 @@
 
-## Make Landing Page a Closer Replica of reilaa.com/turnitin-report
+## Match reilaa.com hero typography exactly + side-menu cleanup + remove "Credits never expire"
 
-The current landing already matches the reference's layout, copy, theme, and section order. To bring it the rest of the way to a replica, I'll apply five tightly scoped changes — all to the landing route only, so the rest of the app (dashboard, auth, admin) is untouched.
+Three tightly scoped edits, all to the landing page only.
 
-### 1. Replace the top nav (landing only)
-The reference uses a minimal top bar: small dark logo on the left, then `AI Detector · Turnitin Report · Pricing · 🌙 · Sign in · Get Started`. Our landing currently shows our richer global nav.
+### 1. Hero — match reference typography, color, spacing
+File: `src/pages/Landing.tsx` (hero section, lines 199–246) and `src/index.css` (font family).
 
-- In `src/pages/Landing.tsx`, the existing inline `<nav>` already exists — restyle it to match:
-  - Left: small circular dark logo with downward triangle mark + no brand text (matches reference) — fall back to "PlagaiScans" text on mobile.
-  - Center/right links: `AI Detector` → `/ai-content-detection`, `Turnitin Report` → `/` (current), `Pricing` → `/pricing`.
-  - Theme toggle button (sun/moon).
-  - `Sign in` (text link → `/auth`) and `Get Started` (solid dark pill button → `/auth`).
-- Mobile: collapse links into hamburger; keep theme + Get Started visible.
+**Font**: reference uses **Inter** as body font (`font-inter`). Our `font-display` currently maps to a different family. Switch the hero `<h1>`, badge and subtitle to use Inter via Tailwind's default `font-sans` (already Inter-like) — explicitly add `font-sans` and remove `font-display` on hero text so it renders in the same geometric sans as reilaa. (Project-wide font tokens stay untouched.)
 
-### 2. Update FAQ to the reference's exact 8 questions
-Replace current 5 FAQs with the 8 from the reference, with our own concise answers (so we don't reproduce reilaa's body text):
+**Badge** (`REAL TURNITIN • NO REPOSITORY`):
+- Smaller pill: `px-5 py-2`, `text-[13px]`, `font-bold`, `tracking-wide` (not widest), uppercase, solid blue `bg-secondary text-secondary-foreground`, `rounded-full`.
+- Margin below: `mb-6` (was `mb-8`).
 
-1. What is a full Turnitin report?
-2. How accurate is the Turnitin report?
-3. How much does a full Turnitin report cost?
-4. How long does it take to get my report?
-5. Will my paper be stored or shared?
-6. Can I still use the free AI detector?
-7. What if I'm not satisfied with my report?
-8. Is this affiliated with Turnitin?
+**Heading** (`<h1>`):
+- Sizes: `text-[44px] sm:text-[56px] lg:text-[64px]` with `leading-[1.05]` and `tracking-tight` to match the reference's tight, large display.
+- Weight: `font-bold` (700, matches reference).
+- Line 1 color: gray `text-gray-500 dark:text-gray-400` (lighter than our current `text-muted-foreground`).
+- Line 2 color: keep `text-primary` (green) — matches reference green.
+- Spacing: `mb-5` between heading and subtitle.
 
-Update `src/i18n/locales/en/landing.json` `faq.q1..q8` / `faq.a1..a8`. Map the FAQ array in `Landing.tsx` to render all 8.
+**Subtitle**:
+- Size: `text-[17px] sm:text-[18px]`, `leading-[1.6]`, `text-gray-600 dark:text-gray-400`.
+- Width: `max-w-xl mx-auto` (slightly tighter than current `max-w-2xl`).
+- Margin: `mb-10` to upload card.
+- Render with bold span on "exact same report" via `<Trans>` or a small inline split (split the i18n string into 3 parts: prefix, bold, suffix) so it visually matches reference.
 
-### 3. Add "Learn More About Turnitin Reports" block
-After the "Ready for Your Full Report?" CTA and before the FAQ, add a 2-card row (matches the reference's bottom cross-link strip):
-- **AI Detection Report** → links to `/ai-content-detection`
-- **Similarity Report** → links to `/plagiarism-checker`
+**Hero section padding**: `pt-12 sm:pt-20 pb-10 sm:pb-16` (reference is fairly tight at top on mobile, generous on desktop).
 
-Each card: small heading + short description + arrow. Same card style as the rest of the page.
+**Upload card** stays as-is (already matches reference well: dashed green border, green circle upload icon, two pill buttons).
 
-### 4. Tighten hero badge style
-Match reference's blue solid pill more closely — currently `bg-secondary/10 text-secondary`; switch to solid `bg-secondary text-secondary-foreground` rounded-full pill with uppercase tracking.
+### 2. Remove "Credits never expire"
+File: `src/i18n/locales/en/landing.json`
 
-### 5. Hide global Navigation on the landing route
-We currently render the inline nav inside `Landing.tsx` (good). Confirm `App.tsx` doesn't also stack the global `Navigation` component on `/` — quick verification, no expected change.
+- `ready.subtitle`: change from  
+  `"Get complete AI detection and similarity analysis for just $3.99. Credits never expire."`  
+  to  
+  `"Get complete AI detection and similarity analysis for just $3.99."`
+- `faq.a3`: change from  
+  `"Just $3.99 per report. There are no subscriptions, no recurring charges, and credits never expire."`  
+  to  
+  `"Just $3.99 per report. There are no subscriptions, no recurring charges, and no hidden fees."`
+
+No other locale files touched.
+
+### 3. Side menu (mobile sheet) — remove AI Detector, add Pricing + Sign Up/Login
+File: `src/pages/Landing.tsx` (Sheet content, lines 173–190)
+
+New mobile menu order:
+1. **Turnitin Report** → `/`
+2. **Pricing** → `/pricing` (kept)
+3. **Sign In** → `/auth` (text link)
+4. **Sign Up** → `/auth` (solid green pill button, full width)
+
+(Removed: AI Detector link.)
+
+When `user` is logged in, replace the Sign In / Sign Up rows with a single **Dashboard** button → `/dashboard`.
+
+Desktop top-nav links (visible from md+) are **not changed** in this round per the user's wording ("in side menu") — only the mobile sheet is modified.
 
 ### Files
 **Edit**
-- `src/pages/Landing.tsx` — restyle inline nav, add Learn More block, render 8 FAQs, tighten badge
-- `src/i18n/locales/en/landing.json` — add `nav.aiDetector`, `nav.turnitinReport`, `nav.getStarted`; add `learnMore.title`, `learnMore.aiTitle`, `learnMore.aiDesc`, `learnMore.simTitle`, `learnMore.simDesc`; expand `faq.q1..q8` / `faq.a1..a8`
+- `src/pages/Landing.tsx` — hero typography classes, subtitle bold-span split, mobile Sheet menu items
+- `src/i18n/locales/en/landing.json` — `ready.subtitle`, `faq.a3` text only
 
 ### Out of scope
-- No changes to dashboard, auth, admin, blog, footer, theme tokens, or other locale files.
-- No copying of reilaa's exact answer text — we write our own concise answers to the same questions.
-- No image/asset copying from reilaa.com.
+- Theme tokens, other pages, dashboard, footer, desktop nav, other locales.
+- No new components or routes.
 
-### Verification
-After build, view `/` at 411px and desktop and confirm: minimal top nav, hero badge as solid blue pill, "Learn More" cross-link cards above FAQ, and 8 FAQ items rendering.
+### Verification (after build)
+- View `/` at 411px and 1280px: hero badge is solid blue pill, "Submit Your Paper" is light gray, "Get Your Full Turnitin Report" is bold green, subtitle has bold "exact same report".
+- Open mobile hamburger → menu shows Turnitin Report, Pricing, Sign In, Sign Up (no AI Detector).
+- "Credits never expire" no longer appears anywhere on `/`.
