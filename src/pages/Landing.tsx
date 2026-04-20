@@ -9,10 +9,15 @@ import {
   Upload,
   Zap,
   CheckCircle2,
+  Moon,
+  Sun,
+  Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
 import Footer from "@/components/Footer";
+import { useEffect, useState } from "react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   SEO,
@@ -69,7 +74,24 @@ const Landing = () => {
     { q: t("faq.q3"), a: t("faq.a3") },
     { q: t("faq.q4"), a: t("faq.a4") },
     { q: t("faq.q5"), a: t("faq.a5") },
+    { q: t("faq.q6"), a: t("faq.a6") },
+    { q: t("faq.q7"), a: t("faq.a7") },
+    { q: t("faq.q8"), a: t("faq.a8") },
   ];
+
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains("dark"));
+  }, []);
+  const toggleTheme = () => {
+    const root = document.documentElement;
+    const next = !root.classList.contains("dark");
+    root.classList.toggle("dark", next);
+    setIsDark(next);
+    try {
+      localStorage.setItem("theme", next ? "dark" : "light");
+    } catch {}
+  };
 
   return (
     <>
@@ -85,48 +107,88 @@ const Landing = () => {
         }}
       />
       <div className="min-h-screen bg-background">
-        {/* Navigation */}
+        {/* Minimal Top Nav */}
         <nav className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-primary-foreground" />
+            <div className="flex justify-between items-center h-14">
+              <Link to="/" className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-foreground rounded-full flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-background" />
                 </div>
-                <span className="text-xl font-display font-bold text-foreground">
+                <span className="text-base font-display font-bold text-foreground sm:hidden">
                   PlagaiScans
                 </span>
-              </div>
-              <div className="flex items-center gap-6">
-                <Link
-                  to="/how-it-works"
-                  className="text-muted-foreground hover:text-foreground font-medium hidden md:block transition-colors duration-200"
-                >
-                  {t("nav.howItWorks")}
+              </Link>
+
+              <div className="hidden md:flex items-center gap-7 text-sm font-medium">
+                <Link to="/ai-content-detection" className="text-foreground/80 hover:text-foreground transition-colors">
+                  {t("nav.aiDetector")}
                 </Link>
-                <Link
-                  to="/pricing"
-                  className="text-muted-foreground hover:text-foreground font-medium hidden sm:block transition-colors duration-200"
-                >
+                <Link to="/" className="text-foreground transition-colors">
+                  {t("nav.turnitinReport")}
+                </Link>
+                <Link to="/pricing" className="text-foreground/80 hover:text-foreground transition-colors">
                   {t("nav.pricing")}
                 </Link>
+              </div>
+
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button
+                  onClick={toggleTheme}
+                  aria-label="Toggle theme"
+                  className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center text-foreground transition-colors"
+                >
+                  {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </button>
                 {user ? (
                   <Link to="/dashboard">
-                    <Button className="rounded-full px-6">{t("nav.dashboard")}</Button>
+                    <Button size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90 px-4">
+                      {t("nav.dashboard")}
+                    </Button>
                   </Link>
                 ) : (
                   <>
                     <Link
                       to="/auth"
-                      className="text-muted-foreground hover:text-foreground font-medium transition-colors duration-200"
+                      className="hidden sm:inline text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
                     >
-                      {t("nav.login")}
+                      {t("nav.signIn")}
                     </Link>
                     <Link to="/auth">
-                      <Button className="rounded-full px-6">{t("nav.signUp")}</Button>
+                      <Button size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90 px-4">
+                        {t("nav.getStarted")}
+                      </Button>
                     </Link>
                   </>
                 )}
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <button
+                      aria-label="Open menu"
+                      className="md:hidden w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center text-foreground"
+                    >
+                      <Menu className="w-5 h-5" />
+                    </button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-64">
+                    <div className="flex flex-col gap-4 mt-8 text-base font-medium">
+                      <Link to="/ai-content-detection" className="text-foreground">
+                        {t("nav.aiDetector")}
+                      </Link>
+                      <Link to="/" className="text-foreground">
+                        {t("nav.turnitinReport")}
+                      </Link>
+                      <Link to="/pricing" className="text-foreground">
+                        {t("nav.pricing")}
+                      </Link>
+                      {!user && (
+                        <Link to="/auth" className="text-foreground">
+                          {t("nav.signIn")}
+                        </Link>
+                      )}
+                    </div>
+                  </SheetContent>
+                </Sheet>
               </div>
             </div>
           </div>
@@ -136,7 +198,7 @@ const Landing = () => {
           {/* Hero */}
           <section className="pt-16 pb-12 px-4">
             <div className="max-w-3xl mx-auto text-center">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary/10 text-secondary text-xs font-semibold tracking-wide mb-8">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary text-secondary-foreground text-[11px] font-bold tracking-widest uppercase mb-8">
                 {t("hero.badge")}
               </div>
 
@@ -330,6 +392,57 @@ const Landing = () => {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          </section>
+
+          {/* Learn More Cross-Links */}
+          <section className="py-12 px-4">
+            <div className="max-w-4xl mx-auto">
+              <h2 className="text-2xl sm:text-3xl font-display font-bold mb-8 text-foreground text-center">
+                {t("learnMore.title")}
+              </h2>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Link to="/ai-content-detection" className="group">
+                  <Card className="border-border hover:border-primary/50 transition-colors h-full">
+                    <CardContent className="p-6 flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                        <Zap className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <h3 className="text-base font-display font-semibold text-foreground">
+                            {t("learnMore.aiTitle")}
+                          </h3>
+                          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {t("learnMore.aiDesc")}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+                <Link to="/plagiarism-checker" className="group">
+                  <Card className="border-border hover:border-primary/50 transition-colors h-full">
+                    <CardContent className="p-6 flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <h3 className="text-base font-display font-semibold text-foreground">
+                            {t("learnMore.simTitle")}
+                          </h3>
+                          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {t("learnMore.simDesc")}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </div>
             </div>
           </section>
 
