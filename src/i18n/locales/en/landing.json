@@ -9,12 +9,62 @@
     "dashboard": "Dashboard"
   },
   "hero": {
-    "titleLine1": "Text Similarity Checking",
-    "titleLine2": "and Content Review",
-    "subtitle": "A document analysis platform that compares your text against indexed sources and generates similarity indicators for your review.",
+    "badge": "REAL TURNITIN • NO REPOSITORY",
+    "titleLine1": "Submit Your Paper",
+    "titleLine2": "Get Your Full Turnitin Report",
+    "subtitle": "Upload your document or paste text. Get the exact same report your professor sees—AI detection and similarity scores included.",
+    "uploadTitle": "Submit Your Paper for Analysis",
+    "uploadDesc": "Get your official Turnitin report with AI detection and similarity scores.",
+    "signIn": "Sign In to Submit",
+    "create": "Create Account",
     "ctaPrimary": "Create Account",
     "ctaSecondary": "How It Works",
     "disclaimer": "Reports are provided for informational purposes only. Results depend on available indexed sources. Final responsibility for content review lies with the user."
+  },
+  "pro": {
+    "title": "Know What Your Professor Will See",
+    "subtitle": "Don't submit blindly. Get the same Turnitin analysis your institution uses, with complete AI detection and similarity reports.",
+    "aiTitle": "AI Detection",
+    "aiDesc": "Full AI detection report showing exactly which parts of your paper are flagged as AI-generated, with sentence-level highlighting.",
+    "simTitle": "Similarity Check",
+    "simDesc": "Complete similarity analysis against billions of web pages, academic papers, and student submissions with source links.",
+    "fastTitle": "Fast Results",
+    "fastDesc": "Get your complete report in just 2-5 minutes. Perfect for last-minute checks before submission deadlines."
+  },
+  "report": {
+    "title": "What's in Your Full Report",
+    "subtitle": "Everything you need for complete peace of mind",
+    "aiTitle": "AI Detection Report",
+    "aiBullets": [
+      "Overall AI percentage score matching Turnitin's analysis",
+      "Sentence-by-sentence highlighting of flagged content",
+      "Confidence levels for each detection",
+      "Section-by-section breakdown"
+    ],
+    "simTitle": "Similarity Report",
+    "simBullets": [
+      "Overall similarity percentage score",
+      "Source URLs for all matching content",
+      "Matches from academic publications and journals",
+      "Student paper database matches"
+    ]
+  },
+  "trust": {
+    "title": "Why Students Trust PlagaiScans",
+    "privacyTitle": "Complete Privacy",
+    "privacyDesc": "Your papers are processed and immediately deleted. No storage, no sharing, no database retention.",
+    "accurateTitle": "Accurate Results",
+    "accurateDesc": "Same detection technology institutions use. Know your real scores before submission.",
+    "fastTitle": "Fast Turnaround",
+    "fastDesc": "Get your complete report in 2-5 minutes. Perfect for tight deadlines.",
+    "priceTitle": "Student-Friendly Pricing",
+    "priceDesc": "Just $3.99 per report. No subscriptions, no recurring charges, no hidden fees."
+  },
+  "ready": {
+    "title": "Ready for Your Full Report?",
+    "subtitle": "Get complete AI detection and similarity analysis for just $3.99. Credits never expire.",
+    "pricing": "View Pricing",
+    "create": "Create Free Account"
   },
   "features": {
     "title": "Document Analysis Features",
@@ -89,13 +139,23 @@
     "step4Desc": "Download and manually review the findings. Interpretation is your responsibility."
   },
   "faq": {
-    "title": "Frequently Asked",
+    "title": "Frequently Asked Questions",
     "titleHighlight": "Questions",
     "subtitle": "Find answers to common questions about our document analysis service.",
     "backToHome": "Back to Home",
     "stillHaveQuestions": "Still have questions?",
     "supportTeamReady": "Our support team is available to help with additional inquiries.",
-    "contactSupport": "Contact Support"
+    "contactSupport": "Contact Support",
+    "q1": "Is this the real Turnitin report?",
+    "a1": "Yes. You receive the official Turnitin report — the same one your institution uses — covering both AI detection and similarity analysis.",
+    "q2": "Will my paper be saved to any repository?",
+    "a2": "No. We use a no-repository submission method, so your paper is never stored in the Turnitin student database and cannot be flagged later by your school.",
+    "q3": "How long does it take to get the report?",
+    "a3": "Most reports are delivered in 2-5 minutes. Larger documents may take slightly longer.",
+    "q4": "How much does one report cost?",
+    "a4": "Just $3.99 per report. No subscriptions, no recurring charges, and credits never expire.",
+    "q5": "What file formats are supported?",
+    "a5": "We support common document formats including PDF, DOCX, DOC, and TXT files."
   },
   "pricing": {
     "title": "Pricing",
