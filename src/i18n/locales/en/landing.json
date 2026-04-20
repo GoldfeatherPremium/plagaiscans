@@ -6,7 +6,18 @@
     "pricing": "Pricing",
     "login": "Login",
     "signUp": "Sign Up",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "aiDetector": "AI Detector",
+    "turnitinReport": "Turnitin Report",
+    "signIn": "Sign in",
+    "getStarted": "Get Started"
+  },
+  "learnMore": {
+    "title": "Learn More About Turnitin Reports",
+    "aiTitle": "AI Detection Report",
+    "aiDesc": "Understand how AI-generated content is identified and scored across your paper.",
+    "simTitle": "Similarity Report",
+    "simDesc": "See how source matching works against web pages, journals, and student papers."
   },
   "hero": {
     "badge": "REAL TURNITIN • NO REPOSITORY",
@@ -146,16 +157,22 @@
     "stillHaveQuestions": "Still have questions?",
     "supportTeamReady": "Our support team is available to help with additional inquiries.",
     "contactSupport": "Contact Support",
-    "q1": "Is this the real Turnitin report?",
-    "a1": "Yes. You receive the official Turnitin report — the same one your institution uses — covering both AI detection and similarity analysis.",
-    "q2": "Will my paper be saved to any repository?",
-    "a2": "No. We use a no-repository submission method, so your paper is never stored in the Turnitin student database and cannot be flagged later by your school.",
-    "q3": "How long does it take to get the report?",
-    "a3": "Most reports are delivered in 2-5 minutes. Larger documents may take slightly longer.",
-    "q4": "How much does one report cost?",
-    "a4": "Just $3.99 per report. No subscriptions, no recurring charges, and credits never expire.",
-    "q5": "What file formats are supported?",
-    "a5": "We support common document formats including PDF, DOCX, DOC, and TXT files."
+    "q1": "What is a full Turnitin report?",
+    "a1": "A full Turnitin report includes the complete similarity analysis and AI detection breakdown — the same document your institution receives, with source links and sentence-level highlighting.",
+    "q2": "How accurate is the Turnitin report?",
+    "a2": "The report uses Turnitin's own detection engine, so the percentages and matched sources are identical to what your professor would see when running the same paper.",
+    "q3": "How much does a full Turnitin report cost?",
+    "a3": "Just $3.99 per report. There are no subscriptions, no recurring charges, and credits never expire.",
+    "q4": "How long does it take to get my report?",
+    "a4": "Most reports are delivered in 2–5 minutes. Larger or more complex documents may take a little longer during peak hours.",
+    "q5": "Will my paper be stored or shared?",
+    "a5": "No. We use a no-repository submission method, so your paper is never added to the Turnitin student database and cannot be flagged later by your school.",
+    "q6": "Can I still use the free AI detector?",
+    "a6": "Yes. Our standalone AI detector remains available for quick checks. The paid Turnitin report adds full similarity matching and the official report PDF.",
+    "q7": "What if I'm not satisfied with my report?",
+    "a7": "If a technical issue prevents your report from being generated, contact support and we'll re-run the scan or refund the credit used.",
+    "q8": "Is this affiliated with Turnitin?",
+    "a8": "No. PlagaiScans is an independent service and is not affiliated with, endorsed by, or sponsored by Turnitin LLC. All trademarks belong to their respective owners."
   },
   "pricing": {
     "title": "Pricing",
