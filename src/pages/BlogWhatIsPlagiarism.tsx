@@ -230,6 +230,20 @@ export default function BlogWhatIsPlagiarism() {
                 Ready to ensure your content is original? <Link to="/plagiarism-checker" className="text-primary hover:underline font-medium">Try Plagaiscans now</Link> and check plagiarism online in just a few clicks.
               </p>
 
+              {/* Partner mention */}
+              <p className="text-foreground/90 leading-relaxed">
+                For PhD scholars and researchers who need more than a similarity report, partners such as Thesis Elite offer{' '}
+                <a
+                  href="https://thesiselite.com"
+                  target="_blank"
+                  rel="noopener"
+                  className="text-primary hover:underline font-medium"
+                >
+                  thesis editing and journal publication services
+                </a>{' '}
+                — covering structural revisions, citation cleanup, and submission-ready manuscripts that complement an originality check.
+              </p>
+
               {/* FAQ Section */}
               <h2 className="text-2xl font-display font-bold mt-10 mb-4">Frequently Asked Questions</h2>
               <Accordion type="single" collapsible className="w-full">
