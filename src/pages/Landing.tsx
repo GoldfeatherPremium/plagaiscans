@@ -170,11 +170,20 @@ const Landing = () => {
                   </SheetTrigger>
                   <SheetContent side="right" className="w-64">
                     <div className="flex flex-col gap-5 mt-8 text-base font-medium">
-                      <Link to="/" className="text-foreground">
-                        {t("nav.turnitinReport")}
+                      <Link to="/how-it-works" className="text-foreground">
+                        {t("nav.howItWorks")}
+                      </Link>
+                      <Link to="/use-cases" className="text-foreground">
+                        {t("nav.useCases")}
                       </Link>
                       <Link to="/pricing" className="text-foreground">
                         {t("nav.pricing")}
+                      </Link>
+                      <Link to="/faq" className="text-foreground">
+                        {t("nav.faq")}
+                      </Link>
+                      <Link to="/contact" className="text-foreground">
+                        Contact
                       </Link>
                       {user ? (
                         <Link to="/dashboard">
