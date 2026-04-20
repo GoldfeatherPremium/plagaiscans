@@ -181,7 +181,7 @@ const Landing = () => {
           </section>
 
           {/* Know What Your Professor Will See */}
-          <section className="py-16 px-4 bg-muted/40">
+          <section className="py-16 px-4">
             <div className="max-w-5xl mx-auto">
               <div className="text-center mb-12 max-w-2xl mx-auto">
                 <h2 className="text-3xl sm:text-4xl font-display font-bold mb-4 text-foreground">
@@ -190,31 +190,29 @@ const Landing = () => {
                 <p className="text-muted-foreground">{t("pro.subtitle")}</p>
               </div>
 
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-3 gap-10">
                 {proFeatures.map((f, i) => (
-                  <Card key={i} className="border-border text-center">
-                    <CardContent className="p-6">
-                      <div
-                        className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${f.color}`}
-                      >
-                        <f.icon className="w-7 h-7" />
-                      </div>
-                      <h3 className="text-lg font-display font-semibold mb-2 text-foreground">
-                        {f.title}
-                      </h3>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {f.desc}
-                      </p>
-                    </CardContent>
-                  </Card>
+                  <div key={i} className="text-center">
+                    <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+                      <f.icon className="w-7 h-7" />
+                    </div>
+                    <h3 className="text-lg font-display font-semibold mb-2 text-foreground">
+                      {f.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {f.desc}
+                    </p>
+                  </div>
                 ))}
               </div>
             </div>
           </section>
 
+          <div className="max-w-4xl mx-auto border-t border-border" />
+
           {/* What's in Your Full Report */}
           <section className="py-16 px-4">
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-3xl mx-auto">
               <div className="text-center mb-12 max-w-2xl mx-auto">
                 <h2 className="text-3xl sm:text-4xl font-display font-bold mb-4 text-foreground">
                   {t("report.title")}
@@ -222,54 +220,52 @@ const Landing = () => {
                 <p className="text-muted-foreground">{t("report.subtitle")}</p>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                <Card className="border-border">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
-                        <Zap className="w-5 h-5" />
-                      </div>
-                      <h3 className="text-lg font-display font-semibold text-foreground">
-                        {t("report.aiTitle")}
-                      </h3>
+              <div className="space-y-10">
+                <div>
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                      <Zap className="w-5 h-5" />
                     </div>
-                    <ul className="space-y-3">
-                      {aiBullets.map((b, i) => (
-                        <li key={i} className="flex gap-2 text-sm text-foreground">
-                          <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                          <span>{b}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
+                    <h3 className="text-lg font-display font-semibold text-foreground">
+                      {t("report.aiTitle")}
+                    </h3>
+                  </div>
+                  <ul className="space-y-3 pl-1">
+                    {aiBullets.map((b, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-foreground">
+                        <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                        <span>{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
 
-                <Card className="border-border">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
-                        <FileText className="w-5 h-5" />
-                      </div>
-                      <h3 className="text-lg font-display font-semibold text-foreground">
-                        {t("report.simTitle")}
-                      </h3>
+                <div>
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                      <FileText className="w-5 h-5" />
                     </div>
-                    <ul className="space-y-3">
-                      {simBullets.map((b, i) => (
-                        <li key={i} className="flex gap-2 text-sm text-foreground">
-                          <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                          <span>{b}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
+                    <h3 className="text-lg font-display font-semibold text-foreground">
+                      {t("report.simTitle")}
+                    </h3>
+                  </div>
+                  <ul className="space-y-3 pl-1">
+                    {simBullets.map((b, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-foreground">
+                        <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                        <span>{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </div>
           </section>
 
+          <div className="max-w-4xl mx-auto border-t border-border" />
+
           {/* Why Students Trust */}
-          <section className="py-16 px-4 bg-muted/40">
+          <section className="py-16 px-4">
             <div className="max-w-4xl mx-auto">
               <div className="text-center mb-12">
                 <h2 className="text-3xl sm:text-4xl font-display font-bold text-foreground">
@@ -277,7 +273,7 @@ const Landing = () => {
                 </h2>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-6">
+              <div className="grid sm:grid-cols-2 gap-x-10 gap-y-8">
                 {trust.map((tr, i) => (
                   <div key={i} className="flex gap-4">
                     <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
@@ -297,41 +293,41 @@ const Landing = () => {
             </div>
           </section>
 
+          <div className="max-w-4xl mx-auto border-t border-border" />
+
           {/* Ready CTA */}
           <section className="py-16 px-4">
-            <div className="max-w-3xl mx-auto">
-              <Card className="border-2 border-primary/30 bg-primary/5">
-                <CardContent className="p-8 sm:p-12 text-center">
-                  <h2 className="text-2xl sm:text-3xl font-display font-bold mb-4 text-foreground">
-                    {t("ready.title")}
-                  </h2>
-                  <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-                    {t("ready.subtitle")}
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                    <Link to="/pricing" className="w-full sm:w-auto">
-                      <Button size="lg" className="rounded-full w-full sm:w-auto">
-                        {t("ready.pricing")}
-                        <ArrowRight className="w-5 h-5 ml-2" />
-                      </Button>
-                    </Link>
-                    <Link to="/auth" className="w-full sm:w-auto">
-                      <Button
-                        size="lg"
-                        variant="outline"
-                        className="rounded-full w-full sm:w-auto border-primary text-primary hover:bg-primary/5"
-                      >
-                        {t("ready.create")}
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="max-w-2xl mx-auto text-center">
+              <h2 className="text-2xl sm:text-3xl font-display font-bold mb-4 text-foreground">
+                {t("ready.title")}
+              </h2>
+              <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
+                {t("ready.subtitle")}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link to="/pricing" className="w-full sm:w-auto">
+                  <Button size="lg" className="rounded-full w-full sm:w-auto">
+                    {t("ready.pricing")}
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </Link>
+                <Link to="/auth" className="w-full sm:w-auto">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="rounded-full w-full sm:w-auto border-primary text-primary hover:bg-primary/5"
+                  >
+                    {t("ready.create")}
+                  </Button>
+                </Link>
+              </div>
             </div>
           </section>
 
+          <div className="max-w-4xl mx-auto border-t border-border" />
+
           {/* FAQ */}
-          <section className="py-16 px-4 bg-muted/40">
+          <section className="py-16 px-4">
             <div className="max-w-2xl mx-auto">
               <h2 className="text-3xl sm:text-4xl font-display font-bold mb-8 text-foreground text-center">
                 {t("faq.title")}
