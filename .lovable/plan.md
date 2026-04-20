@@ -1,56 +1,89 @@
 
+## Redesign Landing Page to Match reilaa.com Style
 
-## Add Thesis Elite Backlinks (SEO Partner Section)
+I'll redesign the PlagaiScans landing page to mirror the visual style and copy from the reference screenshots. The new layout uses a clean white background, bold dark headings, a green accent color, and the exact section structure shown in the images.
 
-Add a "Recommended for Researchers" partner card to the global Footer plus contextual in-context backlinks on the customer documents page and the existing blog post. Also create a new dedicated blog post that naturally links to Thesis Elite.
+### Theme update
+**`src/index.css`** — adjust light theme tokens:
+- Background: pure white / very light gray (`#F8FAFC`)
+- Foreground: deep navy (`#0B1B2B`)
+- Primary accent: green (`#16A34A` / emerald-600) — used for the highlighted heading word, primary CTA button, success icons
+- Secondary accent: blue (`#2563EB`) for the "REAL TURNITIN • NO REPOSITORY" pill and the AI Detection icon
+- Card backgrounds: white with subtle border, generous rounded corners (`rounded-2xl`)
+- Soft pastel icon circles: green-100, blue-100, purple-100 backgrounds for feature icons
 
-### 1. Footer partner card — appears on every page
-Edit `src/components/Footer.tsx`. Insert a new section directly above the "Paddle MoR Statement" block (and above the bottom copyright line):
+### Landing page structure (`src/pages/Landing.tsx`)
 
-- A single bordered Card titled **"Recommended for Researchers"** (small label) with:
-  - Heading: **"Need help beyond plagiarism checks?"**
-  - Body: *"Thesis Elite supports PhD scholars with thesis editing, journal publication, patent filing, and research assistance across 20+ countries."*
-  - CTA button: **"Visit Thesis Elite →"** → `https://thesiselite.com`, `target="_blank"`, `rel="noopener"` (no `nofollow`).
+Replace current sections with this exact order, using copy from the screenshots:
 
-### 2. Contextual backlink on customer documents area
-Edit `src/pages/MyDocuments.tsx` — add a small dismissible-looking info card at the top (below the page header, above the table) that's only shown when `role === 'customer'`:
+**1. Hero**
+- Blue pill badge: **"REAL TURNITIN • NO REPOSITORY"**
+- Heading line 1 (gray): **"Submit Your Paper"**
+- Heading line 2 (green): **"Get Your Full Turnitin Report"**
+- Subtitle: *"Upload your document or paste text. Get the **exact same report** your professor sees—AI detection and similarity scores included."*
+- Dashed-border card with green upload icon containing:
+  - **"Submit Your Paper for Analysis"**
+  - *"Get your **official Turnitin report** with AI detection and similarity scores."*
+  - Primary green button: **"Sign In to Submit"** → `/auth`
+  - Outlined green button: **"Create Account"** → `/auth`
 
-- Headline: **"Got a high AI or similarity score?"**
-- Body: *"Reduce AI-generated content and improve originality with [research support for PhD scholars] from Thesis Elite — covering thesis editing, paraphrasing assistance, and journal-ready revisions."* (anchor `research support for PhD scholars` → `https://thesiselite.com`, `rel="noopener"`)
+**2. "Know What Your Professor Will See" section**
+- Heading: **"Know What Your Professor Will See"**
+- Subheading: *"Don't submit blindly. Get the same Turnitin analysis your institution uses, with complete AI detection and similarity reports."*
+- 3 stacked feature blocks (centered, icon-on-top), each with pastel circle icon:
+  - Blue lightning → **AI Detection** — *"Full AI detection report showing exactly which parts of your paper are flagged as AI-generated, with sentence-level highlighting."*
+  - Purple document → **Similarity Check** — *"Complete similarity analysis against billions of web pages, academic papers, and student submissions with source links."*
+  - Green clock → **Fast Results** — *"Get your complete report in just 2-5 minutes. Perfect for last-minute checks before submission deadlines."*
 
-This single placement covers both customer "AI scan" and "similarity" results since `MyDocuments` is the unified customer view of both scan types. (The staff-facing `DocumentQueue` and `SimilarityQueue` pages are intentionally NOT touched — staff/admin pages shouldn't carry external promo backlinks.)
+**3. "What's in Your Full Report" section**
+- Heading: **"What's in Your Full Report"**
+- Subheading: *"Everything you need for complete peace of mind"*
+- Two white bordered cards stacked:
+  - **⚡ AI Detection Report** (blue icon) with green checkmark list:
+    - Overall AI percentage score matching Turnitin's analysis
+    - Sentence-by-sentence highlighting of flagged content
+    - Confidence levels for each detection
+    - Section-by-section breakdown
+  - **📄 Similarity Report** (purple icon) with green checkmark list:
+    - Overall similarity percentage score
+    - Source URLs for all matching content
+    - Matches from academic publications and journals
+    - Student paper database matches
 
-### 3. New blog post — most relevant placement
-Create `src/pages/BlogAfterPlagiarismReport.tsx` titled **"After the Plagiarism Report: Next Steps for PhD Scholars"** with:
+**4. "Why Students Trust PlagaiScans" section**
+- Heading: **"Why Students Trust PlagaiScans"** (replacing "Reilaa" with our brand — only brand-name swap)
+- 4 feature rows with green pastel circle icons (left-aligned icon, text on right):
+  - 🛡 **Complete Privacy** — *"Your papers are processed and immediately deleted. No storage, no sharing, no database retention."*
+  - ⚡ **Accurate Results** — *"Same detection technology institutions use. Know your real scores before submission."*
+  - 🕐 **Fast Turnaround** — *"Get your complete report in 2-5 minutes. Perfect for tight deadlines."*
+  - 👥 **Student-Friendly Pricing** — *"Just $3.99 per report. No subscriptions, no recurring charges, no hidden fees."*
 
-- SEO meta + Article structured data
-- 4–5 sections: interpreting the report, common high-similarity causes, paraphrasing vs. citation, when to seek expert help, conclusion
-- One natural in-paragraph link in the "when to seek expert help" section using anchor text **"professional thesis editing and publication support"** → `https://thesiselite.com` (`rel="noopener"`)
-- Footer
+**5. "Ready for Your Full Report?" CTA card**
+- Light-green tinted card with green border:
+  - Heading: **"Ready for Your Full Report?"**
+  - Body: *"Get complete AI detection and similarity analysis for just $3.99. Credits never expire."*
+  - Primary green button: **"View Pricing"** → `/pricing`
+  - Outlined green button: **"Create Free Account"** → `/auth`
 
-Wire route `/blog/after-plagiarism-report` in `src/App.tsx` (lazy-loaded, public route).
+**6. FAQ section**
+- Heading: **"Frequently Asked Questions"** (keep existing FAQ accordion content)
 
-### 4. Reinforce existing blog post
-Edit `src/pages/BlogWhatIsPlagiarism.tsx` — add one short paragraph near the end (before the FAQ) that naturally links **"thesis editing and journal publication services"** → `https://thesiselite.com` (`rel="noopener"`). Different anchor text from the new post to avoid duplication.
+**7. Footer** (unchanged — keeps Thesis Elite partner card)
 
-### 5. Sitemap
-Edit `public/sitemap.xml` — add `<url>` entry for `/blog/after-plagiarism-report` (priority 0.7, weekly).
-
-### Anchor text distribution (no exact-match spam)
-| Location | Anchor text | Type |
-|---|---|---|
-| Footer CTA button | Visit Thesis Elite → | Branded |
-| MyDocuments card | research support for PhD scholars | Descriptive |
-| New blog post body | professional thesis editing and publication support | Descriptive |
-| Existing blog post body | thesis editing and journal publication services | Descriptive |
-
-All links use `rel="noopener"` only (no `nofollow`) and `target="_blank"`.
+### Translation file
+Update `src/i18n/locales/en/landing.json` with all new keys for the exact copy above. Other locale files left untouched (will fall back to English keys until you ask to translate).
 
 ### Files
-- Edit: `src/components/Footer.tsx`
-- Edit: `src/pages/MyDocuments.tsx`
-- Edit: `src/pages/BlogWhatIsPlagiarism.tsx`
-- Edit: `src/App.tsx` (add route)
-- Edit: `public/sitemap.xml`
-- New: `src/pages/BlogAfterPlagiarismReport.tsx`
+**Edit**
+- `src/index.css` — green/blue accent palette, white background
+- `src/pages/Landing.tsx` — full section rewrite
+- `src/i18n/locales/en/landing.json` — new keys for new copy
 
+### Memory updates
+- Override the existing **Pricing Visibility Constraint** memory: pricing IS now mentioned on landing ("$3.99 per report" in Why Students Trust + CTA card) per your explicit request.
+- Override **Trademark Compliance Policy** memory for the landing page only: per your explicit instruction, the word "Turnitin" is used on the landing page copy.
+
+### Out of scope
+- Dashboard, auth, admin, blog pages — landing only.
+- No image assets copied from the reference site — only text copy and visual style replication.
+- Other locales (de, fr, es, ru, ar, zh) keep existing keys; English landing copy updates only.
