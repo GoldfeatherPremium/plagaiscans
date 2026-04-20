@@ -5,58 +5,37 @@ const AboutSection = () => {
   const { t } = useTranslation('landing');
 
   const features = [
-    {
-      icon: FileSearch,
-      titleKey: 'about.feature1Title',
-      descKey: 'about.feature1Desc',
-    },
-    {
-      icon: BookOpen,
-      titleKey: 'about.feature2Title',
-      descKey: 'about.feature2Desc',
-    },
-    {
-      icon: Shield,
-      titleKey: 'about.feature3Title',
-      descKey: 'about.feature3Desc',
-    },
-    {
-      icon: Lock,
-      titleKey: 'about.feature4Title',
-      descKey: 'about.feature4Desc',
-    },
+    { icon: FileSearch, titleKey: 'about.feature1Title', descKey: 'about.feature1Desc' },
+    { icon: BookOpen, titleKey: 'about.feature2Title', descKey: 'about.feature2Desc' },
+    { icon: Shield, titleKey: 'about.feature3Title', descKey: 'about.feature3Desc' },
+    { icon: Lock, titleKey: 'about.feature4Title', descKey: 'about.feature4Desc' },
   ];
 
   return (
-    <section id="about" className="section-padding bg-muted/30">
-      <div className="container-width">
-        {/* Section Header */}
-        <div className="max-w-2xl mb-12">
-          <p className="text-sm text-muted-foreground mb-3">
-            About the Service
+    <section id="about" className="py-16 md:py-24">
+      <div className="container-width section-padding">
+        <div className="text-center max-w-2xl mx-auto mb-12">
+          <p className="text-sm font-semibold text-primary uppercase tracking-wide mb-3">
+            Why PlagaiScans
           </p>
-          <h2 className="text-2xl md:text-3xl font-display font-bold mb-4 text-foreground">
+          <h2 className="text-3xl md:text-4xl font-display font-bold mb-4 text-foreground">
             {t('about.title')} {t('about.titleGradient')}
           </h2>
-          <p className="text-base text-muted-foreground leading-relaxed">
+          <p className="text-muted-foreground leading-relaxed">
             {t('about.paragraph1')}
-          </p>
-          <p className="text-base text-muted-foreground leading-relaxed mt-3">
-            {t('about.paragraph2')}
           </p>
         </div>
 
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
           {features.map((feature, index) => (
             <div
               key={index}
-              className="p-6 rounded-lg bg-card border border-border"
+              className="p-6 rounded-2xl bg-card border border-border text-center"
             >
-              <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center mb-4">
-                <feature.icon className="w-5 h-5 text-muted-foreground" />
+              <div className="w-12 h-12 rounded-xl bg-primary-soft flex items-center justify-center mb-4 mx-auto">
+                <feature.icon className="w-5 h-5 text-primary" />
               </div>
-              <h3 className="text-base font-display font-semibold mb-2 text-foreground">
+              <h3 className="text-base font-display font-bold mb-2 text-foreground">
                 {t(feature.titleKey)}
               </h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
