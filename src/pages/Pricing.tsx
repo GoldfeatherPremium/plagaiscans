@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { FileCheck, ArrowLeft, CheckCircle, Zap, Shield, Clock, Info, Send, Loader2, RefreshCw, Crown } from 'lucide-react';
+import { FileCheck, ArrowLeft, CheckCircle, Zap, Shield, Clock, Info, Send, Loader2, RefreshCw, Crown, Sparkles, Lock, CheckCircle2 } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
 import { toast } from 'sonner';
