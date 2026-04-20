@@ -507,7 +507,32 @@ export default function Dashboard() {
           );
         })()}
 
-        {/* AI Humanizer CTA for customers */}
+        {/* High score helper CTA */}
+        {role === 'customer' && (
+          <a
+            href="https://www.zerogpt.com/"
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className="block group"
+          >
+            <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-secondary/5 hover:border-primary/50 transition-colors">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    Got a high AI or similarity score?
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Try a free AI humanizer to rewrite flagged content and improve your score.
+                  </p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-primary group-hover:translate-x-1 transition-transform flex-shrink-0" />
+              </CardContent>
+            </Card>
+          </a>
+        )}
 
         {/* Recent Documents */}
         <Card>
