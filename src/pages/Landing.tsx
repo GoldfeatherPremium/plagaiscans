@@ -37,19 +37,16 @@ const Landing = () => {
       icon: Zap,
       title: t("pro.aiTitle"),
       desc: t("pro.aiDesc"),
-      color: "bg-blue-100 text-blue-600",
     },
     {
       icon: FileText,
       title: t("pro.simTitle"),
       desc: t("pro.simDesc"),
-      color: "bg-purple-100 text-purple-600",
     },
     {
       icon: Clock,
       title: t("pro.fastTitle"),
       desc: t("pro.fastDesc"),
-      color: "bg-green-100 text-primary",
     },
   ];
 
