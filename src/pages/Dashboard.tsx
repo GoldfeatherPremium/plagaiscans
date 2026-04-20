@@ -700,20 +700,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Minimal Thesis Elite Backlink */}
-        {role === 'customer' && (
-          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-2">
-            <span>Need help with thesis editing?</span>
-            <a
-              href="https://thesiselite.com"
-              target="_blank"
-              rel="noopener"
-              className="text-primary hover:underline font-medium inline-flex items-center gap-0.5"
-            >
-              Thesis Elite <span className="text-[10px]">→</span>
-            </a>
-          </div>
-        )}
         </div>
       </DashboardLayout>
     </>
