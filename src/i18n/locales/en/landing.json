@@ -10,7 +10,8 @@
     "aiDetector": "AI Detector",
     "turnitinReport": "Turnitin Report",
     "signIn": "Sign in",
-    "getStarted": "Get Started"
+    "getStarted": "Get Started",
+    "signUp": "Sign Up"
   },
   "learnMore": {
     "title": "Learn More About Turnitin Reports",
@@ -73,7 +74,7 @@
   },
   "ready": {
     "title": "Ready for Your Full Report?",
-    "subtitle": "Get complete AI detection and similarity analysis for just $3.99. Credits never expire.",
+    "subtitle": "Get complete AI detection and similarity analysis for just $3.99.",
     "pricing": "View Pricing",
     "create": "Create Free Account"
   },
@@ -162,7 +163,7 @@
     "q2": "How accurate is the Turnitin report?",
     "a2": "The report uses Turnitin's own detection engine, so the percentages and matched sources are identical to what your professor would see when running the same paper.",
     "q3": "How much does a full Turnitin report cost?",
-    "a3": "Just $3.99 per report. There are no subscriptions, no recurring charges, and credits never expire.",
+    "a3": "Just $3.99 per report. There are no subscriptions, no recurring charges, and no hidden fees.",
     "q4": "How long does it take to get my report?",
     "a4": "Most reports are delivered in 2–5 minutes. Larger or more complex documents may take a little longer during peak hours.",
     "q5": "Will my paper be stored or shared?",
