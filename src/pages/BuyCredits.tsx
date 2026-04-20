@@ -32,6 +32,7 @@ interface PricingPackage {
   name: string | null;
   description: string | null;
   features: string[];
+  is_most_popular?: boolean;
 }
 
 const PACKAGE_TYPE_CONFIG = {
@@ -267,7 +268,9 @@ export default function BuyCredits() {
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {getPackagesByType('one_time').map((plan, index) => {
-                const isPopular = index === getPackagesByType('one_time').length - 1;
+                const list = getPackagesByType('one_time');
+                const adminPicked = list.some(p => p.is_most_popular);
+                const isPopular = adminPicked ? !!plan.is_most_popular : index === list.length - 1;
                 const creditConfig = getCreditTypeConfig((plan.credit_type || 'full') as CreditType);
                 const CreditIcon = creditConfig.icon;
                 
@@ -372,7 +375,9 @@ export default function BuyCredits() {
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {getPackagesByType('subscription').map((plan, index) => {
-                const isPopular = index === Math.floor(getPackagesByType('subscription').length / 2);
+                const list = getPackagesByType('subscription');
+                const adminPicked = list.some(p => p.is_most_popular);
+                const isPopular = adminPicked ? !!plan.is_most_popular : index === Math.floor(list.length / 2);
                 const creditConfig = getCreditTypeConfig((plan.credit_type || 'full') as CreditType);
                 const CreditIcon = creditConfig.icon;
                 

@@ -30,6 +30,7 @@ interface PricingPackage {
   name: string | null;
   description: string | null;
   features: string[];
+  is_most_popular?: boolean;
 }
 
 export default function Pricing() {
@@ -205,9 +206,13 @@ export default function Pricing() {
             <>
               {/* Pricing Cards */}
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 max-w-5xl mx-auto">
-                {packages.map((pkg, index) => {
-                  const isPopular = index === packages.length - 1;
-                  const isSubscription = pkg.package_type === 'subscription';
+                {(() => {
+                  const hasAdminPopular = packages.some(p => p.is_most_popular);
+                  return packages.map((pkg, index) => {
+                    const isPopular = hasAdminPopular
+                      ? !!pkg.is_most_popular
+                      : index === packages.length - 1;
+                    const isSubscription = pkg.package_type === 'subscription';
                   
                   return (
                     <Card 
@@ -293,7 +298,8 @@ export default function Pricing() {
                       </CardContent>
                     </Card>
                   );
-                })}
+                  });
+                })()}
               </div>
             </>
           )}

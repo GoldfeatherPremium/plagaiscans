@@ -47,6 +47,7 @@ interface PricingPackage {
   features: string[];
   credit_type: CreditType;
   is_special: boolean;
+  is_most_popular: boolean;
 }
 
 const CREDIT_TYPE_CONFIG = {
@@ -115,6 +116,7 @@ export default function AdminPricing() {
     features: '',
     credit_type: 'full' as CreditType,
     is_special: false,
+    is_most_popular: false,
   });
 
   useEffect(() => {
@@ -153,6 +155,7 @@ export default function AdminPricing() {
       features: '',
       credit_type: 'full',
       is_special: false,
+      is_most_popular: false,
     });
     setEditingPackage(null);
   };
@@ -174,6 +177,7 @@ export default function AdminPricing() {
       features: pkg.features?.join('\n') || '',
       credit_type: pkg.credit_type || 'full',
       is_special: (pkg as any).is_special ?? false,
+      is_most_popular: (pkg as any).is_most_popular ?? false,
     });
     setDialogOpen(true);
   };
@@ -205,6 +209,7 @@ export default function AdminPricing() {
       features: formData.features.split('\n').filter(f => f.trim()),
       credit_type: formData.credit_type,
       is_special: formData.is_special,
+      is_most_popular: formData.is_most_popular,
     };
 
     let error;
@@ -583,6 +588,21 @@ export default function AdminPricing() {
                   />
                 </div>
 
+                {/* Most Popular Toggle */}
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <div>
+                      <Label className="text-sm font-medium">Mark as Most Popular</Label>
+                      <p className="text-xs text-muted-foreground">Highlights this plan to customers with a badge</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={formData.is_most_popular}
+                    onCheckedChange={(v) => setFormData(prev => ({ ...prev, is_most_popular: v }))}
+                  />
+                </div>
+
                 <Button className="w-full" onClick={handleSavePackage} disabled={saving}>
                   {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                   {editingPackage ? 'Update Package' : 'Create Package'}
@@ -638,9 +658,15 @@ export default function AdminPricing() {
                           <TypeIcon className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <CardTitle className="text-base">{pkg.name || `${pkg.credits} Credits`}</CardTitle>
                             {(pkg as any).is_special && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
+                            {(pkg as any).is_most_popular && (
+                              <Badge className="text-[10px] px-1.5 py-0 bg-primary text-primary-foreground">
+                                <Sparkles className="h-2.5 w-2.5 mr-0.5" />
+                                Popular
+                              </Badge>
+                            )}
                           </div>
                           <Badge variant="outline" className="text-xs mt-1">
                             {typeConfig.label}

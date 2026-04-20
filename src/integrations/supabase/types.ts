@@ -1788,6 +1788,7 @@ export type Database = {
           features: string[] | null
           id: string
           is_active: boolean
+          is_most_popular: boolean
           is_special: boolean
           name: string | null
           package_type: string
@@ -1808,6 +1809,7 @@ export type Database = {
           features?: string[] | null
           id?: string
           is_active?: boolean
+          is_most_popular?: boolean
           is_special?: boolean
           name?: string | null
           package_type?: string
@@ -1828,6 +1830,7 @@ export type Database = {
           features?: string[] | null
           id?: string
           is_active?: boolean
+          is_most_popular?: boolean
           is_special?: boolean
           name?: string | null
           package_type?: string
