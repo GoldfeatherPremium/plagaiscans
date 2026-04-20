@@ -298,7 +298,8 @@ export default function Pricing() {
                       </CardContent>
                     </Card>
                   );
-                })}
+                  });
+                })()}
               </div>
             </>
           )}
