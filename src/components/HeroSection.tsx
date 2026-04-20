@@ -1,57 +1,51 @@
-import { ArrowRight, Upload } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 const HeroSection = () => {
-  return (
-    <section className="pt-16 pb-12 md:pt-24 md:pb-16">
-      <div className="container-width section-padding">
-        <div className="max-w-3xl mx-auto text-center">
-          {/* Pill badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold tracking-wide uppercase mb-6">
-            Similarity Review • Secure Handling
-          </div>
+  const { t } = useTranslation('landing');
 
+  return (
+    <section className="pt-24 pb-16 md:pt-32 md:pb-24">
+      <div className="container-width section-padding">
+        <div className="max-w-3xl">
           {/* Main Heading */}
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-display font-bold leading-[1.1] mb-5 text-foreground">
-            <span className="text-muted-foreground/70">Submit Your Document</span>
-            <br />
-            <span className="text-primary">Get Your Full Analysis Report</span>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold leading-tight mb-6 text-foreground">
+            Text Similarity Review and Content Analysis Service
           </h1>
 
           {/* Subtitle */}
-          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto mb-10">
-            Upload your document and receive a detailed similarity report with source matches and content analysis indicators — all in one secure place.
+          <p className="text-base text-muted-foreground max-w-2xl mb-6">
+            {t('hero.subtitle')}
           </p>
 
-          {/* Upload-style centered card */}
-          <div className="max-w-2xl mx-auto rounded-2xl border-2 border-dashed border-border bg-card p-8 md:p-12 mb-6">
-            <div className="w-16 h-16 rounded-full bg-primary-soft flex items-center justify-center mx-auto mb-5">
-              <Upload className="w-7 h-7 text-primary" />
-            </div>
-            <h2 className="text-xl md:text-2xl font-display font-bold text-foreground mb-2">
-              Submit Your Document for Analysis
-            </h2>
-            <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-              Get a similarity report with source matches and content analysis indicators.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link to="/auth" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto rounded-full px-8 font-semibold">
-                  Sign In to Submit
-                </Button>
-              </Link>
-              <Link to="/auth" className="w-full sm:w-auto">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto rounded-full px-8 font-semibold border-primary text-primary hover:bg-primary-soft hover:text-primary">
-                  Create Account
-                </Button>
-              </Link>
-            </div>
+          {/* Service Description */}
+          <p className="text-sm text-muted-foreground max-w-2xl mb-8">
+            Plagaiscans is a subscription-based software-as-a-service (SaaS) platform that provides text similarity and originality analysis. The service is designed to assist editors, educators, publishers, and content teams in reviewing written material.
+          </p>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-12">
+            <Link to="/auth">
+              <Button variant="default" size="lg">
+                Get Started
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+            <Link to="/how-it-works">
+              <Button variant="outline" size="lg">
+                How It Works
+              </Button>
+            </Link>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Reports are advisory and require human review. Documents are processed securely.
-          </p>
+          {/* Simple Feature List */}
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>• Similarity reports with source references</p>
+            <p>• Content analysis indicators</p>
+            <p>• Secure document handling</p>
+          </div>
         </div>
       </div>
     </section>

@@ -1,77 +1,56 @@
 
-## Redesign Landing Page to Match reilaa.com/turnitin-report Style
 
-I'll fetch the reference site to capture its exact theme, layout, and content patterns, then rebuild the PlagaiScans landing page to match — keeping our brand name, our routes, our backend, and our compliance-required wording (no Turnitin trademark).
+## Add Thesis Elite Backlinks (SEO Partner Section)
 
-### What I'll change
+Add a "Recommended for Researchers" partner card to the global Footer plus contextual in-context backlinks on the customer documents page and the existing blog post. Also create a new dedicated blog post that naturally links to Thesis Elite.
 
-**1. Theme tokens (`src/index.css` + `tailwind.config.ts`)**
-- Update color palette, fonts, radii, and shadows to match reilaa.com's look (likely a clean white/light background with a single bold accent color, large display headings, generous spacing).
-- Keep dark mode support but re-tune to match.
-- All colors stay as HSL semantic tokens (no hardcoded hex in components).
+### 1. Footer partner card — appears on every page
+Edit `src/components/Footer.tsx`. Insert a new section directly above the "Paddle MoR Statement" block (and above the bottom copyright line):
 
-**2. Landing page sections — rebuild to mirror reilaa.com/turnitin-report**
+- A single bordered Card titled **"Recommended for Researchers"** (small label) with:
+  - Heading: **"Need help beyond plagiarism checks?"**
+  - Body: *"Thesis Elite supports PhD scholars with thesis editing, journal publication, patent filing, and research assistance across 20+ countries."*
+  - CTA button: **"Visit Thesis Elite →"** → `https://thesiselite.com`, `target="_blank"`, `rel="noopener"` (no `nofollow`).
 
-Replace/update these existing components used on `src/pages/Landing.tsx`:
-- `HeroSection.tsx` — large centered hero with bold headline, subhead, primary CTA + secondary CTA, trust line (e.g. "Used by researchers worldwide"), and a visual mock/screenshot block underneath.
-- `AboutSection.tsx` → "Why PlagaiScans" — feature highlights in a clean grid matching reilaa's card style.
-- `ServicesSection.tsx` → "What you get" — similarity report, source matches, content analysis indicators, secure handling, fast turnaround, bulk uploads.
-- New `HowItWorksStrip.tsx` — 3-step horizontal flow (Upload → Scan → Get Report) styled like reilaa's process strip.
-- New `SampleReportSection.tsx` — visual block showing a sample report card (no real Turnitin imagery — generic similarity-report mock).
-- New `TrustSection.tsx` — quick stats / "trusted by" strip (documents scanned, languages supported, countries served — pulled from existing copy in `useCases`/`about` translations).
-- New `FAQStrip.tsx` — short 4–6 Q&A accordion at the bottom of landing (uses existing FAQ translation keys).
-- Existing `ContactSection.tsx` retained at the bottom.
+### 2. Contextual backlink on customer documents area
+Edit `src/pages/MyDocuments.tsx` — add a small dismissible-looking info card at the top (below the page header, above the table) that's only shown when `role === 'customer'`:
 
-**3. Landing page composition (`src/pages/Landing.tsx`)**
-Section order to mirror the reference:
-```text
-Navigation
-Hero (centered, large)
-Trust strip (mini logos / counters)
-How It Works (3 steps)
-What You Get (features grid)
-Sample Report visual
-Why Choose Us (about)
-FAQ strip
-Contact / CTA
-Footer
-```
+- Headline: **"Got a high AI or similarity score?"**
+- Body: *"Reduce AI-generated content and improve originality with [research support for PhD scholars] from Thesis Elite — covering thesis editing, paraphrasing assistance, and journal-ready revisions."* (anchor `research support for PhD scholars` → `https://thesiselite.com`, `rel="noopener"`)
 
-**4. Branding & compliance guardrails (unchanged)**
-- Keep brand name **PlagaiScans** everywhere — never copy "Turnitin" from the reference site (trademark policy).
-- Use neutral terminology: "Similarity Review", "Content Analysis Indicators".
-- No pricing on landing page (existing constraint).
-- Footer's existing **Thesis Elite** partner card stays as-is.
-- All existing routes, auth flow, dashboard untouched.
+This single placement covers both customer "AI scan" and "similarity" results since `MyDocuments` is the unified customer view of both scan types. (The staff-facing `DocumentQueue` and `SimilarityQueue` pages are intentionally NOT touched — staff/admin pages shouldn't carry external promo backlinks.)
 
-**5. Translations**
-Reuse existing `landing.json` keys; only add new keys for the brand-new sections (trust strip, sample-report, how-it-works strip). English first; other locales fall back to English until you ask for full translation.
+### 3. New blog post — most relevant placement
+Create `src/pages/BlogAfterPlagiarismReport.tsx` titled **"After the Plagiarism Report: Next Steps for PhD Scholars"** with:
 
-**6. Responsiveness**
-Mobile-first (current viewport 411px confirmed). Hero stacks, grids collapse to 1 column, CTAs full-width on mobile.
+- SEO meta + Article structured data
+- 4–5 sections: interpreting the report, common high-similarity causes, paraphrasing vs. citation, when to seek expert help, conclusion
+- One natural in-paragraph link in the "when to seek expert help" section using anchor text **"professional thesis editing and publication support"** → `https://thesiselite.com` (`rel="noopener"`)
+- Footer
+
+Wire route `/blog/after-plagiarism-report` in `src/App.tsx` (lazy-loaded, public route).
+
+### 4. Reinforce existing blog post
+Edit `src/pages/BlogWhatIsPlagiarism.tsx` — add one short paragraph near the end (before the FAQ) that naturally links **"thesis editing and journal publication services"** → `https://thesiselite.com` (`rel="noopener"`). Different anchor text from the new post to avoid duplication.
+
+### 5. Sitemap
+Edit `public/sitemap.xml` — add `<url>` entry for `/blog/after-plagiarism-report` (priority 0.7, weekly).
+
+### Anchor text distribution (no exact-match spam)
+| Location | Anchor text | Type |
+|---|---|---|
+| Footer CTA button | Visit Thesis Elite → | Branded |
+| MyDocuments card | research support for PhD scholars | Descriptive |
+| New blog post body | professional thesis editing and publication support | Descriptive |
+| Existing blog post body | thesis editing and journal publication services | Descriptive |
+
+All links use `rel="noopener"` only (no `nofollow`) and `target="_blank"`.
 
 ### Files
-**Edit**
-- `src/index.css` — theme tokens
-- `tailwind.config.ts` — font family, extended colors if needed
-- `src/pages/Landing.tsx` — section composition
-- `src/components/HeroSection.tsx` — restyle + recenter
-- `src/components/AboutSection.tsx` — restyle
-- `src/components/ServicesSection.tsx` — restyle
-- `src/i18n/locales/en/landing.json` — new keys
+- Edit: `src/components/Footer.tsx`
+- Edit: `src/pages/MyDocuments.tsx`
+- Edit: `src/pages/BlogWhatIsPlagiarism.tsx`
+- Edit: `src/App.tsx` (add route)
+- Edit: `public/sitemap.xml`
+- New: `src/pages/BlogAfterPlagiarismReport.tsx`
 
-**Create**
-- `src/components/landing/HowItWorksStrip.tsx`
-- `src/components/landing/SampleReportSection.tsx`
-- `src/components/landing/TrustSection.tsx`
-- `src/components/landing/FAQStrip.tsx`
-
-### Out of scope
-- Dashboard, auth, admin, or any logged-in pages — landing page only.
-- No copying of any Turnitin branding, product names, or trademarked imagery from the reference site.
-- No pricing added to landing page.
-
-### Verification after build
-- View `/` on mobile (411px) and desktop — confirm visual parity with reilaa.com/turnitin-report style.
-- Confirm all CTAs route to `/auth` or `/how-it-works` correctly.
-- Confirm Footer + Thesis Elite card still render.
