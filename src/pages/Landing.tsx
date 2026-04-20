@@ -395,6 +395,57 @@ const Landing = () => {
             </div>
           </section>
 
+          {/* Learn More Cross-Links */}
+          <section className="py-12 px-4">
+            <div className="max-w-4xl mx-auto">
+              <h2 className="text-2xl sm:text-3xl font-display font-bold mb-8 text-foreground text-center">
+                {t("learnMore.title")}
+              </h2>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Link to="/ai-content-detection" className="group">
+                  <Card className="border-border hover:border-primary/50 transition-colors h-full">
+                    <CardContent className="p-6 flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                        <Zap className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <h3 className="text-base font-display font-semibold text-foreground">
+                            {t("learnMore.aiTitle")}
+                          </h3>
+                          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {t("learnMore.aiDesc")}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+                <Link to="/plagiarism-checker" className="group">
+                  <Card className="border-border hover:border-primary/50 transition-colors h-full">
+                    <CardContent className="p-6 flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <h3 className="text-base font-display font-semibold text-foreground">
+                            {t("learnMore.simTitle")}
+                          </h3>
+                          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {t("learnMore.simDesc")}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </div>
+            </div>
+          </section>
+
           {/* FAQ */}
           <section className="py-16 px-4 bg-muted/40">
             <div className="max-w-2xl mx-auto">
