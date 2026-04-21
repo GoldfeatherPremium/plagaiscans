@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, CreditCard, Loader2, Bitcoin, Copy, ExternalLink, 
-  RefreshCw, Wallet, Globe, 
+  RefreshCw, Wallet, Globe, Plus, Minus,
   CheckCircle, MessageCircle, AlertCircle, Tag, X, Shield, Store, Landmark
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -121,12 +121,30 @@ export default function Checkout() {
     [btCountry]
   );
 
+  const [quantity, setQuantity] = useState(1);
+
   const packagePrice = selectedPackage?.price || 0;
   const packageCredits = selectedPackage?.credits || 0;
   const packageCreditType = (selectedPackage?.credit_type || 'full') as 'full' | 'similarity_only';
 
+  const totalCredits = packageCredits * quantity;
+  const totalPrice = packagePrice * quantity;
+
+  const updateQuantity = (delta: number) => {
+    setQuantity(prev => Math.max(1, Math.min(99, prev + delta)));
+  };
+
+  const handleQuantityInput = (value: string) => {
+    const num = parseInt(value, 10);
+    if (isNaN(num)) {
+      setQuantity(1);
+    } else {
+      setQuantity(Math.max(1, Math.min(99, num)));
+    }
+  };
+
   const calculateTotalWithFee = (method: 'whatsapp' | 'usdt' | 'binance' | 'viva' | 'stripe' | 'dodo' | 'paypal' | 'paddle') => {
-    const discountedTotal = calculateDiscountedTotal(packagePrice);
+    const discountedTotal = calculateDiscountedTotal(totalPrice);
     const feePercent = fees[method] || 0;
     const feeAmount = discountedTotal * (feePercent / 100);
     return Math.round((discountedTotal + feeAmount) * 100) / 100;
@@ -282,7 +300,7 @@ export default function Checkout() {
       const response = await supabase.functions.invoke('nowpayments?action=create', {
         body: {
           userId: user.id,
-          credits: packageCredits,
+          credits: totalCredits,
           amountUsd: totalWithFee,
           orderId,
         },
@@ -366,7 +384,7 @@ export default function Checkout() {
 
     const baseTotal = calculateTotalWithFee('binance');
     const totalWithDiscount = binanceDiscount > 0 
-      ? Math.round(calculateDiscountedTotal(packagePrice) * (1 - binanceDiscount / 100) * 100) / 100
+      ? Math.round(calculateDiscountedTotal(totalPrice) * (1 - binanceDiscount / 100) * 100) / 100
       : baseTotal;
     
     setSubmittingBinance(true);
@@ -375,10 +393,10 @@ export default function Checkout() {
         user_id: user.id,
         payment_method: 'binance_pay',
         amount_usd: totalWithDiscount,
-        credits: packageCredits,
+        credits: totalCredits,
         status: 'pending',
         transaction_id: binanceOrderId.trim(),
-        notes: `Package: ${selectedPackage.name || selectedPackage.credits + ' credits'}`,
+        notes: `Package: ${selectedPackage.name || selectedPackage.credits + ' credits'} × ${quantity}`,
       });
 
       if (error) throw error;
@@ -392,7 +410,7 @@ export default function Checkout() {
         const notifications = adminRoles.map(admin => ({
           user_id: admin.user_id,
           title: '🔔 New Binance Pay Payment',
-          message: `New payment of $${totalWithDiscount} for ${packageCredits} credits.\nOrder ID: ${binanceOrderId.trim()}\nUser: ${profile?.email || user.email}\nPlease verify in Admin Panel.`,
+          message: `New payment of $${totalWithDiscount} for ${totalCredits} credits (qty ${quantity}).\nOrder ID: ${binanceOrderId.trim()}\nUser: ${profile?.email || user.email}\nPlease verify in Admin Panel.`,
           created_by: user.id,
         }));
 
@@ -403,7 +421,7 @@ export default function Checkout() {
       await supabase.functions.invoke('send-push-notification', {
         body: {
           title: '🔔 New Binance Pay Payment',
-          body: `$${totalWithDiscount} for ${packageCredits} credits from ${profile?.email || user.email}. Please verify.`,
+          body: `$${totalWithDiscount} for ${totalCredits} credits from ${profile?.email || user.email}. Please verify.`,
           targetAudience: 'admins',
           eventType: 'admin_manual_payment',
           url: '/admin/manual-payments',
@@ -434,7 +452,7 @@ export default function Checkout() {
       const response = await supabase.functions.invoke('viva-payments?action=create', {
         body: {
           userId: user.id,
-          credits: packageCredits,
+          credits: totalCredits,
           amountUsd: totalWithFee,
           orderId,
           customerEmail: profile?.email || user.email,
@@ -459,7 +477,7 @@ export default function Checkout() {
 
   const handleWhatsAppPayment = () => {
     const totalWithFee = calculateTotalWithFee('whatsapp');
-    const message = `Hi, I want to buy ${packageCredits} credits for $${totalWithFee}. Please help me with the payment.`;
+    const message = `Hi, I want to buy ${totalCredits} credits (qty ${quantity} × ${packageCredits}) for $${totalWithFee}. Please help me with the payment.`;
     openWhatsAppCustom(message);
   };
 
@@ -479,16 +497,16 @@ export default function Checkout() {
 
     setSubmittingUsdtManual(true);
     try {
-      const totalAmount = calculateDiscountedTotal(packagePrice);
+      const totalAmount = calculateDiscountedTotal(totalPrice);
       
       const { error } = await supabase.from('manual_payments').insert({
         user_id: user.id,
         payment_method: 'usdt_manual',
         amount_usd: totalAmount,
-        credits: packageCredits,
+        credits: totalCredits,
         status: 'pending',
         transaction_id: hash,
-        notes: `USDT TRC20 Transfer — Package: ${selectedPackage.name || selectedPackage.credits + ' credits'}`,
+        notes: `USDT TRC20 Transfer — Package: ${selectedPackage.name || selectedPackage.credits + ' credits'} × ${quantity}`,
       });
 
       if (error) throw error;
@@ -503,7 +521,7 @@ export default function Checkout() {
         const notifications = adminRoles.map(admin => ({
           user_id: admin.user_id,
           title: '💰 New USDT Transfer Payment',
-          message: `New USDT payment of $${totalAmount} for ${packageCredits} credits.\nTx Hash: ${hash}\nUser: ${profile?.email || user.email}\nPlease verify in Admin Panel.`,
+          message: `New USDT payment of $${totalAmount} for ${totalCredits} credits (qty ${quantity}).\nTx Hash: ${hash}\nUser: ${profile?.email || user.email}\nPlease verify in Admin Panel.`,
           created_by: user.id,
         }));
         await supabase.from('user_notifications').insert(notifications);
@@ -513,7 +531,7 @@ export default function Checkout() {
       await supabase.functions.invoke('send-push-notification', {
         body: {
           title: '💰 New USDT Transfer Payment',
-          body: `$${totalAmount} for ${packageCredits} credits from ${profile?.email || user.email}. Please verify.`,
+          body: `$${totalAmount} for ${totalCredits} credits from ${profile?.email || user.email}. Please verify.`,
           targetAudience: 'admins',
           eventType: 'admin_manual_payment',
           url: '/admin/manual-payments',
@@ -547,7 +565,7 @@ export default function Checkout() {
     if (!btEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(btEmail.trim())) { toast.error('Please enter a valid email'); return; }
 
     const countryName = selectedBtCountry?.name || btCountry;
-    const message = `Hello, I'd like to pay via Bank Transfer.\n\nCountry: ${countryName}\nFull Name: ${btFullName.trim()}\nWhatsApp: ${btWhatsApp}\nEmail: ${btEmail.trim()}\nCredits: ${packageCredits}\nAmount: $${calculateDiscountedTotal(packagePrice)}\n\nPlease share your bank account details.`;
+    const message = `Hello, I'd like to pay via Bank Transfer.\n\nCountry: ${countryName}\nFull Name: ${btFullName.trim()}\nWhatsApp: ${btWhatsApp}\nEmail: ${btEmail.trim()}\nCredits: ${totalCredits} (qty ${quantity} × ${packageCredits})\nAmount: $${calculateDiscountedTotal(totalPrice)}\n\nPlease share your bank account details.`;
     openWhatsAppCustom(message);
     setShowBankTransferDialog(false);
     toast.success('Redirecting to WhatsApp...');
@@ -580,13 +598,13 @@ export default function Checkout() {
 
       const response = await supabase.functions.invoke('create-dodo-checkout', {
         body: {
-          credits: packageCredits,
+          credits: totalCredits,
           amount: totalAmount,
           creditType: packageCreditType,
           cartItems: [{
             packageId: selectedPackage.id,
             credits: selectedPackage.credits,
-            quantity: 1,
+            quantity: quantity,
             creditType: packageCreditType,
           }],
         },
@@ -616,7 +634,7 @@ export default function Checkout() {
 
       const response = await supabase.functions.invoke('create-paypal-checkout', {
         body: {
-          credits: packageCredits,
+          credits: totalCredits,
           amount: totalAmount,
           creditType: packageCreditType,
         },
@@ -683,6 +701,7 @@ export default function Checkout() {
         body: {
           priceId: pkg.paddle_price_id,
           credits: packageCredits,
+          quantity: quantity,
           amount: Math.round(calculateTotalWithFee('paddle') * 100),
           creditType: packageCreditType,
         },
@@ -755,12 +774,47 @@ export default function Checkout() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="font-medium">{selectedPackage.name || `${packageCredits} Credits`}</p>
-                  <p className="text-sm text-muted-foreground">{packageCredits} credits • ${packagePrice}</p>
-                  <Badge variant="outline" className="mt-1 text-xs">
-                    {packageCreditType === 'similarity_only' ? 'Similarity Only' : 'AI Scan'}
-                  </Badge>
+                <div className="p-3 rounded-lg bg-muted/50 space-y-3">
+                  <div>
+                    <p className="font-medium">{selectedPackage.name || `${packageCredits} Credits`}</p>
+                    <p className="text-sm text-muted-foreground">{packageCredits} credits • ${packagePrice} each</p>
+                    <Badge variant="outline" className="mt-1 text-xs">
+                      {packageCreditType === 'similarity_only' ? 'Similarity Only' : 'AI Scan'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t">
+                    <Label className="text-sm font-medium">Quantity</Label>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => updateQuantity(-1)}
+                        disabled={quantity <= 1}
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={99}
+                        value={quantity}
+                        onChange={(e) => handleQuantityInput(e.target.value)}
+                        className="h-8 w-14 text-center font-semibold"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => updateQuantity(1)}
+                        disabled={quantity >= 99}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
                 <Separator />
@@ -813,27 +867,30 @@ export default function Checkout() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Credits</span>
                     <span className="font-medium">
-                      {packageCredits}
+                      {totalCredits}
+                      {quantity > 1 && (
+                        <span className="text-muted-foreground text-xs ml-1">({packageCredits} × {quantity})</span>
+                      )}
                       {getTotalBonusCredits() > 0 && (
                         <span className="text-green-600 ml-1">+{getTotalBonusCredits()}</span>
                       )}
                     </span>
                   </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span className={appliedPromo?.discountPercentage && appliedPromo.discountPercentage > 0 ? 'line-through text-muted-foreground' : ''}>
+                      ${totalPrice.toFixed(2)}
+                    </span>
+                  </div>
                   {appliedPromo?.discountPercentage && appliedPromo.discountPercentage > 0 && (
-                    <>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span className="line-through text-muted-foreground">${packagePrice}</span>
-                      </div>
-                      <div className="flex justify-between text-sm text-green-600">
-                        <span>Discount ({appliedPromo.discountPercentage}%)</span>
-                        <span>-${(packagePrice - calculateDiscountedTotal(packagePrice)).toFixed(2)}</span>
-                      </div>
-                    </>
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Discount ({appliedPromo.discountPercentage}%)</span>
+                      <span>-${(totalPrice - calculateDiscountedTotal(totalPrice)).toFixed(2)}</span>
+                    </div>
                   )}
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span className="text-primary">${calculateDiscountedTotal(packagePrice)}</span>
+                    <span className="text-primary">${calculateDiscountedTotal(totalPrice).toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -983,11 +1040,11 @@ export default function Checkout() {
                       </div>
                       <div className="flex items-center gap-2">
                         {binanceDiscount > 0 && (
-                          <span className="text-xs line-through text-muted-foreground">${calculateDiscountedTotal(packagePrice).toFixed(2)}</span>
+                          <span className="text-xs line-through text-muted-foreground">${calculateDiscountedTotal(totalPrice).toFixed(2)}</span>
                         )}
                         <Button onClick={openBinancePayment} size="sm" variant="outline">
                           Pay ${binanceDiscount > 0 
-                            ? (calculateDiscountedTotal(packagePrice) * (1 - binanceDiscount / 100)).toFixed(2)
+                            ? (calculateDiscountedTotal(totalPrice) * (1 - binanceDiscount / 100)).toFixed(2)
                             : calculateTotalWithFee('binance').toFixed(2)
                           }
                         </Button>
@@ -1027,7 +1084,7 @@ export default function Checkout() {
                         </div>
                       </div>
                       <Button onClick={openUsdtManualDialog} size="sm" variant="outline">
-                        Pay ${calculateDiscountedTotal(packagePrice)}
+                        Pay ${calculateDiscountedTotal(totalPrice).toFixed(2)}
                       </Button>
                     </div>
                   </div>
@@ -1046,7 +1103,7 @@ export default function Checkout() {
                         </div>
                       </div>
                       <Button onClick={openBankTransferDialog} size="sm" variant="outline">
-                        Pay ${calculateDiscountedTotal(packagePrice)}
+                        Pay ${calculateDiscountedTotal(totalPrice).toFixed(2)}
                       </Button>
                     </div>
                   </div>
@@ -1160,15 +1217,15 @@ export default function Checkout() {
                 {binanceDiscount > 0 ? (
                   <>
                     <p className="font-medium">
-                      Total: <span className="line-through text-muted-foreground">${calculateDiscountedTotal(packagePrice).toFixed(2)}</span>{' '}
-                      <span className="text-green-600">${(calculateDiscountedTotal(packagePrice) * (1 - binanceDiscount / 100)).toFixed(2)}</span>
+                      Total: <span className="line-through text-muted-foreground">${calculateDiscountedTotal(totalPrice).toFixed(2)}</span>{' '}
+                      <span className="text-green-600">${(calculateDiscountedTotal(totalPrice) * (1 - binanceDiscount / 100)).toFixed(2)}</span>
                     </p>
                     <Badge className="bg-green-600 text-white">{binanceDiscount}% Binance Discount</Badge>
                   </>
                 ) : (
                   <p className="font-medium">Total: ${calculateTotalWithFee('binance').toFixed(2)}</p>
                 )}
-                <p className="text-sm text-muted-foreground">For {packageCredits} credits</p>
+                <p className="text-sm text-muted-foreground">For {totalCredits} credits {quantity > 1 ? `(qty ${quantity})` : ''}</p>
               </div>
 
               <ol className="space-y-3 text-sm">
@@ -1180,7 +1237,7 @@ export default function Checkout() {
                   <span className="h-6 w-6 rounded-full bg-[#F0B90B] text-black flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
                   <div>
                     <span>Send ${binanceDiscount > 0 
-                      ? (calculateDiscountedTotal(packagePrice) * (1 - binanceDiscount / 100)).toFixed(2)
+                      ? (calculateDiscountedTotal(totalPrice) * (1 - binanceDiscount / 100)).toFixed(2)
                       : calculateTotalWithFee('binance').toFixed(2)
                     } to Pay ID: </span>
                     <Button variant="link" className="p-0 h-auto text-primary" onClick={() => {
@@ -1236,7 +1293,7 @@ export default function Checkout() {
       <StripeEmbeddedCheckout
         open={showStripeEmbeddedCheckout}
         onClose={() => setShowStripeEmbeddedCheckout(false)}
-        credits={packageCredits}
+        credits={totalCredits}
         amount={Math.round(calculateTotalWithFee('stripe') * 100)}
         creditType={packageCreditType}
         onSuccess={() => {
@@ -1260,8 +1317,8 @@ export default function Checkout() {
           {usdtManualStep === 'info' ? (
             <div className="space-y-4">
               <div className="p-4 bg-muted rounded-lg space-y-3">
-                <p className="font-medium">Amount: ${calculateDiscountedTotal(packagePrice)}</p>
-                <p className="text-sm text-muted-foreground">For {packageCredits} credits</p>
+                <p className="font-medium">Amount: ${calculateDiscountedTotal(totalPrice).toFixed(2)}</p>
+                <p className="text-sm text-muted-foreground">For {totalCredits} credits {quantity > 1 ? `(qty ${quantity})` : ''}</p>
               </div>
 
               <div className="space-y-2">
@@ -1284,7 +1341,7 @@ export default function Checkout() {
                 </li>
                 <li className="flex gap-3">
                   <span className="h-6 w-6 rounded-full bg-[#26A17B] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
-                  <span>Send exactly ${calculateDiscountedTotal(packagePrice)} USDT via TRC20 network</span>
+                  <span>Send exactly ${calculateDiscountedTotal(totalPrice).toFixed(2)} USDT via TRC20 network</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="h-6 w-6 rounded-full bg-[#26A17B] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">3</span>
@@ -1403,7 +1460,7 @@ export default function Checkout() {
 
             <div className="space-y-2">
               <Label>Credits</Label>
-              <Input value={`${packageCredits} credits — $${calculateDiscountedTotal(packagePrice)}`} readOnly className="bg-muted" />
+              <Input value={`${totalCredits} credits — $${calculateDiscountedTotal(totalPrice).toFixed(2)}`} readOnly className="bg-muted" />
             </div>
 
             <Button className="w-full" onClick={handleBankTransferSubmit}>

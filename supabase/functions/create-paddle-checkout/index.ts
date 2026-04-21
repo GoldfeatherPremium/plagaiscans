@@ -52,8 +52,9 @@ serve(async (req) => {
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     const requestBody = await req.json();
-    const { priceId, credits, amount, creditType = "full" } = requestBody;
-    logStep("Request body", { priceId, credits, amount, creditType });
+    const { priceId, credits, amount, creditType = "full", quantity = 1 } = requestBody;
+    const safeQuantity = Math.max(1, Math.min(99, parseInt(String(quantity), 10) || 1));
+    logStep("Request body", { priceId, credits, amount, creditType, quantity: safeQuantity });
 
     // Validate input
     if (!priceId) {
@@ -134,7 +135,7 @@ serve(async (req) => {
       items: [
         {
           price_id: priceId,
-          quantity: 1,
+          quantity: safeQuantity,
         },
       ],
       custom_data: {
