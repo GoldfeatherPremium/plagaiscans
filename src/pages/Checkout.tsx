@@ -1460,7 +1460,7 @@ export default function Checkout() {
 
             <div className="space-y-2">
               <Label>Credits</Label>
-              <Input value={`${packageCredits} credits — $${calculateDiscountedTotal(packagePrice)}`} readOnly className="bg-muted" />
+              <Input value={`${totalCredits} credits — $${calculateDiscountedTotal(totalPrice).toFixed(2)}`} readOnly className="bg-muted" />
             </div>
 
             <Button className="w-full" onClick={handleBankTransferSubmit}>
