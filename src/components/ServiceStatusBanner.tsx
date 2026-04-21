@@ -108,6 +108,10 @@ export const ServiceStatusBanner: React.FC = () => {
   // Online state is shown via the compact ServiceStatusPill in the header.
   if (state.status === 'online') return null;
 
+  // Hide from zero-credit customers (irrelevant noise; they can't upload anyway).
+  const hasCredits = (profile?.credit_balance ?? 0) > 0 || (profile?.similarity_credit_balance ?? 0) > 0;
+  if (role === 'customer' && !hasCredits) return null;
+
   // Offline — compute optional countdown
   let countdown: { rel: string; abs: string } | null = null;
   if (state.backOnlineAt) {
