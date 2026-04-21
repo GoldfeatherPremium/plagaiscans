@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { FileCheck, Loader2, ArrowLeft, Eye, EyeOff, Home } from 'lucide-react';
+import { FileCheck, Loader2, ArrowLeft, Eye, EyeOff, Home, UserCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
@@ -390,80 +390,75 @@ export default function Auth() {
           description="Set a new password for your PlagaiScans account."
           noIndex={true}
         />
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-md animate-fade-in">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 mb-4">
-              <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center">
-                <FileCheck className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <span className="font-display font-bold text-2xl">PlagaiScans</span>
-            </div>
-            <p className="text-muted-foreground">{t('resetPassword.subtitle')}</p>
+        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/30 via-secondary/20 to-primary/40 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_hsl(var(--primary)/0.35),_transparent_60%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_hsl(var(--secondary)/0.25),_transparent_60%)]" />
+          <div className="w-full max-w-md animate-fade-in relative z-10">
+            <Card className="border-white/20 bg-card/80 backdrop-blur-xl shadow-2xl rounded-2xl">
+              <CardHeader className="text-center items-center space-y-3 pt-8">
+                <div className="h-14 w-14 rounded-full bg-primary/15 flex items-center justify-center ring-2 ring-primary/30">
+                  <UserCircle2 className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle className="text-2xl">{t('resetPassword.title')}</CardTitle>
+                <CardDescription>{t('resetPassword.description')}</CardDescription>
+              </CardHeader>
+              <CardContent className="px-6 sm:px-8 pb-8">
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="new-password">{t('resetPassword.newPasswordLabel')}</Label>
+                    <div className="relative">
+                      <Input
+                        id="new-password"
+                        type={showResetPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={resetPasswordData.password}
+                        onChange={(e) => setResetPasswordData({ ...resetPasswordData, password: e.target.value })}
+                        className="pr-10 h-11"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowResetPassword(!showResetPassword)}
+                      >
+                        {showResetPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                      </Button>
+                    </div>
+                    <PasswordStrengthIndicator password={resetPasswordData.password} />
+                    {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-new-password">{t('resetPassword.confirmPasswordLabel')}</Label>
+                    <div className="relative">
+                      <Input
+                        id="confirm-new-password"
+                        type={showResetConfirmPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={resetPasswordData.confirmPassword}
+                        onChange={(e) => setResetPasswordData({ ...resetPasswordData, confirmPassword: e.target.value })}
+                        className="pr-10 h-11"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
+                      >
+                        {showResetConfirmPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                      </Button>
+                    </div>
+                    {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
+                  </div>
+                  <Button type="submit" className="w-full h-11 rounded-lg" disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {t('resetPassword.submitButton')}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
           </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('resetPassword.title')}</CardTitle>
-              <CardDescription>{t('resetPassword.description')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleResetPassword} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="new-password">{t('resetPassword.newPasswordLabel')}</Label>
-                  <div className="relative">
-                    <Input
-                      id="new-password"
-                      type={showResetPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      value={resetPasswordData.password}
-                      onChange={(e) => setResetPasswordData({ ...resetPasswordData, password: e.target.value })}
-                      className="pr-10"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                      onClick={() => setShowResetPassword(!showResetPassword)}
-                    >
-                      {showResetPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                    </Button>
-                  </div>
-                  <PasswordStrengthIndicator password={resetPasswordData.password} />
-                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-new-password">{t('resetPassword.confirmPasswordLabel')}</Label>
-                  <div className="relative">
-                    <Input
-                      id="confirm-new-password"
-                      type={showResetConfirmPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      value={resetPasswordData.confirmPassword}
-                      onChange={(e) => setResetPasswordData({ ...resetPasswordData, confirmPassword: e.target.value })}
-                      className="pr-10"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                      onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
-                    >
-                      {showResetConfirmPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                    </Button>
-                  </div>
-                  {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {t('resetPassword.submitButton')}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
         </div>
       </>
     );
@@ -478,53 +473,49 @@ export default function Auth() {
           description="Reset your PlagaiScans password."
           noIndex={true}
         />
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-md animate-fade-in">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 mb-4">
-              <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center">
-                <FileCheck className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <span className="font-display font-bold text-2xl">PlagaiScans</span>
-            </div>
-            <p className="text-muted-foreground">{t('forgotPassword.subtitle')}</p>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-fit mb-2"
-                onClick={() => setShowForgotPassword(false)}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                {t('forgotPassword.backToLogin')}
-              </Button>
-              <CardTitle>{t('forgotPassword.title')}</CardTitle>
-              <CardDescription>{t('forgotPassword.description')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleForgotPassword} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="forgot-email">{t('login.emailLabel')}</Label>
-                  <Input
-                    id="forgot-email"
-                    type="email"
-                    placeholder={t('login.emailPlaceholder')}
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                  />
-                  {errors.forgotEmail && <p className="text-sm text-destructive">{errors.forgotEmail}</p>}
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {t('forgotPassword.submitButton')}
+        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/30 via-secondary/20 to-primary/40 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_hsl(var(--primary)/0.35),_transparent_60%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_hsl(var(--secondary)/0.25),_transparent_60%)]" />
+          <div className="w-full max-w-md animate-fade-in relative z-10">
+            <Card className="border-white/20 bg-card/80 backdrop-blur-xl shadow-2xl rounded-2xl">
+              <CardHeader className="text-center items-center space-y-3 pt-8 relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute left-3 top-3"
+                  onClick={() => setShowForgotPassword(false)}
+                >
+                  <ArrowLeft className="mr-1 h-4 w-4" />
+                  {t('forgotPassword.backToLogin')}
                 </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+                <div className="h-14 w-14 rounded-full bg-primary/15 flex items-center justify-center ring-2 ring-primary/30 mt-6">
+                  <UserCircle2 className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle className="text-2xl">{t('forgotPassword.title')}</CardTitle>
+                <CardDescription>{t('forgotPassword.description')}</CardDescription>
+              </CardHeader>
+              <CardContent className="px-6 sm:px-8 pb-8">
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email">{t('login.emailLabel')}</Label>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      placeholder={t('login.emailPlaceholder')}
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="h-11"
+                    />
+                    {errors.forgotEmail && <p className="text-sm text-destructive">{errors.forgotEmail}</p>}
+                  </div>
+                  <Button type="submit" className="w-full h-11 rounded-lg" disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {t('forgotPassword.submitButton')}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </>
     );
@@ -533,7 +524,7 @@ export default function Auth() {
   // Full-screen OAuth loading overlay
   if (googleLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/30 via-secondary/20 to-primary/40">
         <div className="text-center animate-fade-in">
           <div className="inline-flex items-center gap-2 mb-6">
             <div className="h-12 w-12 rounded-xl gradient-primary flex items-center justify-center">
@@ -573,37 +564,31 @@ export default function Auth() {
         description="Log in or create an account to access PlagaiScans document analysis and content review tools."
         noIndex={true}
       />
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md animate-fade-in">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-4">
-            <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center">
-              <FileCheck className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <span className="font-display font-bold text-2xl">PlagaiScans</span>
-          </div>
-          <p className="text-muted-foreground">{t('login.subtitle')}</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/30 via-secondary/20 to-primary/40 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_hsl(var(--primary)/0.35),_transparent_60%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_hsl(var(--secondary)/0.25),_transparent_60%)] pointer-events-none" />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>{t('login.welcomeBack')}</CardTitle>
-              <CardDescription>{t('login.description')}</CardDescription>
-            </div>
-            <Link to="/">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Home className="h-4 w-4" />
-              </Button>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue={referralCode ? "signup" : "login"}>
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="login">{t('login.tabLogin')}</TabsTrigger>
-                <TabsTrigger value="signup">{t('login.tabSignup')}</TabsTrigger>
-              </TabsList>
+        <Link to="/" className="absolute top-4 right-4 z-20">
+          <Button variant="ghost" size="icon" className="h-9 w-9 bg-card/60 backdrop-blur-md hover:bg-card/80">
+            <Home className="h-4 w-4" />
+          </Button>
+        </Link>
+
+        <div className="w-full max-w-md animate-fade-in relative z-10">
+          <Card className="border-white/20 bg-card/80 backdrop-blur-xl shadow-2xl rounded-2xl">
+            <CardHeader className="text-center items-center space-y-3 pt-8">
+              <div className="h-16 w-16 rounded-full bg-primary/15 flex items-center justify-center ring-2 ring-primary/30 shadow-md">
+                <UserCircle2 className="h-9 w-9 text-primary" />
+              </div>
+              <CardTitle className="text-3xl font-display">{t('login.welcomeBack')}</CardTitle>
+              <CardDescription>{t('login.subtitle')}</CardDescription>
+            </CardHeader>
+            <CardContent className="px-6 sm:px-8 pb-8">
+              <Tabs defaultValue={referralCode ? "signup" : "login"}>
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="login">{t('login.tabLogin')}</TabsTrigger>
+                  <TabsTrigger value="signup">{t('login.tabSignup')}</TabsTrigger>
+                </TabsList>
 
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
