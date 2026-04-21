@@ -774,12 +774,47 @@ export default function Checkout() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="font-medium">{selectedPackage.name || `${packageCredits} Credits`}</p>
-                  <p className="text-sm text-muted-foreground">{packageCredits} credits • ${packagePrice}</p>
-                  <Badge variant="outline" className="mt-1 text-xs">
-                    {packageCreditType === 'similarity_only' ? 'Similarity Only' : 'AI Scan'}
-                  </Badge>
+                <div className="p-3 rounded-lg bg-muted/50 space-y-3">
+                  <div>
+                    <p className="font-medium">{selectedPackage.name || `${packageCredits} Credits`}</p>
+                    <p className="text-sm text-muted-foreground">{packageCredits} credits • ${packagePrice} each</p>
+                    <Badge variant="outline" className="mt-1 text-xs">
+                      {packageCreditType === 'similarity_only' ? 'Similarity Only' : 'AI Scan'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t">
+                    <Label className="text-sm font-medium">Quantity</Label>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => updateQuantity(-1)}
+                        disabled={quantity <= 1}
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={99}
+                        value={quantity}
+                        onChange={(e) => handleQuantityInput(e.target.value)}
+                        className="h-8 w-14 text-center font-semibold"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => updateQuantity(1)}
+                        disabled={quantity >= 99}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
                 <Separator />
@@ -832,27 +867,30 @@ export default function Checkout() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Credits</span>
                     <span className="font-medium">
-                      {packageCredits}
+                      {totalCredits}
+                      {quantity > 1 && (
+                        <span className="text-muted-foreground text-xs ml-1">({packageCredits} × {quantity})</span>
+                      )}
                       {getTotalBonusCredits() > 0 && (
                         <span className="text-green-600 ml-1">+{getTotalBonusCredits()}</span>
                       )}
                     </span>
                   </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span className={appliedPromo?.discountPercentage && appliedPromo.discountPercentage > 0 ? 'line-through text-muted-foreground' : ''}>
+                      ${totalPrice.toFixed(2)}
+                    </span>
+                  </div>
                   {appliedPromo?.discountPercentage && appliedPromo.discountPercentage > 0 && (
-                    <>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span className="line-through text-muted-foreground">${packagePrice}</span>
-                      </div>
-                      <div className="flex justify-between text-sm text-green-600">
-                        <span>Discount ({appliedPromo.discountPercentage}%)</span>
-                        <span>-${(packagePrice - calculateDiscountedTotal(packagePrice)).toFixed(2)}</span>
-                      </div>
-                    </>
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Discount ({appliedPromo.discountPercentage}%)</span>
+                      <span>-${(totalPrice - calculateDiscountedTotal(totalPrice)).toFixed(2)}</span>
+                    </div>
                   )}
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span className="text-primary">${calculateDiscountedTotal(packagePrice)}</span>
+                    <span className="text-primary">${calculateDiscountedTotal(totalPrice).toFixed(2)}</span>
                   </div>
                 </div>
 
