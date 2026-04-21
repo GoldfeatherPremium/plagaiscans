@@ -1,73 +1,45 @@
 
-## Match reilaa.com hero typography exactly + side-menu cleanup + remove "Credits never expire"
 
-Three tightly scoped edits, all to the landing page only.
+## Add Quantity Selector to Checkout — Auto-syncs With All Payment Methods
 
-### 1. Hero — match reference typography, color, spacing
-File: `src/pages/Landing.tsx` (hero section, lines 199–246) and `src/index.css` (font family).
+Currently `/dashboard/checkout?packageId=…` locks the customer to exactly 1 unit of the selected package. I'll add a quantity stepper that recomputes credits + amount everywhere on the page and passes the multiplied values to every payment provider so the right number of credits land in the customer's account on success.
 
-**Font**: reference uses **Inter** as body font (`font-inter`). Our `font-display` currently maps to a different family. Switch the hero `<h1>`, badge and subtitle to use Inter via Tailwind's default `font-sans` (already Inter-like) — explicitly add `font-sans` and remove `font-display` on hero text so it renders in the same geometric sans as reilaa. (Project-wide font tokens stay untouched.)
+### 1. Quantity stepper on Checkout
+File: `src/pages/Checkout.tsx`
 
-**Badge** (`REAL TURNITIN • NO REPOSITORY`):
-- Smaller pill: `px-5 py-2`, `text-[13px]`, `font-bold`, `tracking-wide` (not widest), uppercase, solid blue `bg-secondary text-secondary-foreground`, `rounded-full`.
-- Margin below: `mb-6` (was `mb-8`).
+- Add `const [quantity, setQuantity] = useState(1);` (clamped 1–99).
+- Replace the static "Order Summary" package block with a `−  [qty]  +` stepper plus a small numeric input. Show `quantity × packageCredits` credits and `quantity × packagePrice` subtotal.
+- Add two derived values used everywhere downstream:
+  - `totalCredits = packageCredits * quantity`
+  - `totalPrice = packagePrice * quantity`
+- Update `calculateTotalWithFee()` and the promo discount math to use `totalPrice` (not `packagePrice`) so fees, discounts, and the "Total" line all reflect the chosen quantity.
 
-**Heading** (`<h1>`):
-- Sizes: `text-[44px] sm:text-[56px] lg:text-[64px]` with `leading-[1.05]` and `tracking-tight` to match the reference's tight, large display.
-- Weight: `font-bold` (700, matches reference).
-- Line 1 color: gray `text-gray-500 dark:text-gray-400` (lighter than our current `text-muted-foreground`).
-- Line 2 color: keep `text-primary` (green) — matches reference green.
-- Spacing: `mb-5` between heading and subtitle.
+### 2. Pass quantity through to every payment method
+All amounts go to cents via `Math.round(... * 100)` exactly as today — only the base price changes.
 
-**Subtitle**:
-- Size: `text-[17px] sm:text-[18px]`, `leading-[1.6]`, `text-gray-600 dark:text-gray-400`.
-- Width: `max-w-xl mx-auto` (slightly tighter than current `max-w-2xl`).
-- Margin: `mb-10` to upload card.
-- Render with bold span on "exact same report" via `<Trans>` or a small inline split (split the i18n string into 3 parts: prefix, bold, suffix) so it visually matches reference.
+| Method | Change in `Checkout.tsx` | Change in edge function |
+|---|---|---|
+| **Paddle** | Send `quantity` in invoke body | `create-paddle-checkout/index.ts`: use `quantity` in `items[0].quantity` (today hard-coded to 1); `custom_data.credits` stays the per-unit base. The existing `paddle-webhook` already does `baseCredits * itemQuantity`, so credits land correctly. |
+| **Binance Pay** (manual) | Multiply `credits` and `amount_usd` by quantity in the `manual_payments` insert; include qty in admin notification text | None — admin verification flow already reads stored `credits`. |
+| **USDT (NowPayments)** | Send `credits: totalCredits, amountUsd: totalWithFee` (already total-based) | None — `nowpayments` already credits whatever `credits` value it received. |
+| **USDT manual** | Multiply `credits` and `amount_usd` in `manual_payments` insert | None. |
+| **Stripe (embedded)** | Pass `credits: totalCredits, amount: totalCents` to `create-stripe-embedded-checkout` (already does, just via new totals) | None — webhook trusts the metadata it set. |
+| **Dodo** | Pass multiplied `credits`/`amount`; bump `cartItems[0].quantity` | None. |
+| **PayPal** | Pass multiplied `credits`/`amount` | None. |
+| **WhatsApp / Bank Transfer** | Include quantity + total in the prefilled message | N/A (manual). |
 
-**Hero section padding**: `pt-12 sm:pt-20 pb-10 sm:pb-16` (reference is fairly tight at top on mobile, generous on desktop).
+No webhook signature logic, no DB schema, and no other pages change.
 
-**Upload card** stays as-is (already matches reference well: dashed green border, green circle upload icon, two pill buttons).
+### 3. Out of scope
+- BuyCredits / Pricing pages (quantity is chosen at checkout, not on the catalog).
+- Subscriptions, refunds, promo bonus credit logic (still per-package as today).
+- Paddle subscription `subscription.created` flow (one-time purchase only).
 
-### 2. Remove "Credits never expire"
-File: `src/i18n/locales/en/landing.json`
+### Verification
+After build, on `/dashboard/checkout?packageId=…`:
+- Stepper renders next to the package name; "+/−" updates Credits, Subtotal, Discount, and Total live.
+- Total per method updates with fees applied to the new subtotal.
+- For Paddle test purchase of qty 3 of a 5-credit pack → 15 credits added in `profiles.credit_balance` after webhook.
+- For Binance Pay submission of qty 2 → admin sees `manual_payments` row with `credits = 2 × pack` and matching `amount_usd`; on admin verify, that many credits land.
+- For USDT (NowPayments) qty 2 → `nowpayments` callback adds the multiplied credits on payment confirmation.
 
-- `ready.subtitle`: change from  
-  `"Get complete AI detection and similarity analysis for just $3.99. Credits never expire."`  
-  to  
-  `"Get complete AI detection and similarity analysis for just $3.99."`
-- `faq.a3`: change from  
-  `"Just $3.99 per report. There are no subscriptions, no recurring charges, and credits never expire."`  
-  to  
-  `"Just $3.99 per report. There are no subscriptions, no recurring charges, and no hidden fees."`
-
-No other locale files touched.
-
-### 3. Side menu (mobile sheet) — remove AI Detector, add Pricing + Sign Up/Login
-File: `src/pages/Landing.tsx` (Sheet content, lines 173–190)
-
-New mobile menu order:
-1. **Turnitin Report** → `/`
-2. **Pricing** → `/pricing` (kept)
-3. **Sign In** → `/auth` (text link)
-4. **Sign Up** → `/auth` (solid green pill button, full width)
-
-(Removed: AI Detector link.)
-
-When `user` is logged in, replace the Sign In / Sign Up rows with a single **Dashboard** button → `/dashboard`.
-
-Desktop top-nav links (visible from md+) are **not changed** in this round per the user's wording ("in side menu") — only the mobile sheet is modified.
-
-### Files
-**Edit**
-- `src/pages/Landing.tsx` — hero typography classes, subtitle bold-span split, mobile Sheet menu items
-- `src/i18n/locales/en/landing.json` — `ready.subtitle`, `faq.a3` text only
-
-### Out of scope
-- Theme tokens, other pages, dashboard, footer, desktop nav, other locales.
-- No new components or routes.
-
-### Verification (after build)
-- View `/` at 411px and 1280px: hero badge is solid blue pill, "Submit Your Paper" is light gray, "Get Your Full Turnitin Report" is bold green, subtitle has bold "exact same report".
-- Open mobile hamburger → menu shows Turnitin Report, Pricing, Sign In, Sign Up (no AI Detector).
-- "Credits never expire" no longer appears anywhere on `/`.
