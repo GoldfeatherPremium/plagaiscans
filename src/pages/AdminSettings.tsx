@@ -177,6 +177,15 @@ export default function AdminSettings() {
       'special_payment_paddle_enabled',
       'special_payment_usdt_manual_enabled',
       'special_payment_bank_transfer_enabled',
+      // Sample document
+      'sample_enabled',
+      'sample_file_name',
+      'sample_file_path',
+      'sample_sim_path',
+      'sample_ai_path',
+      'sample_sim_percentage',
+      'sample_ai_percentage',
+      'sample_remarks',
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
