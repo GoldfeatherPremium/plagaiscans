@@ -569,6 +569,14 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="overflow-x-auto">
+                {/* Sample document helper nudge for customers */}
+                {role === 'customer' && recentDocs.some(d => d.is_sample) && (
+                  <div className="px-6 py-3 bg-primary/5 border-b border-primary/10">
+                    <p className="text-sm text-muted-foreground">
+                      {t('sample.helperText')}
+                    </p>
+                  </div>
+                )}
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -587,15 +595,27 @@ export default function Dashboard() {
                     {recentDocs.map((doc, index) => {
                       const { date, time } = formatDateTime(doc.uploaded_at);
                       const baseName = doc.file_name.replace(/\.[^/.]+$/, '');
+                      const isSample = !!doc.is_sample;
                       return (
-                        <TableRow key={doc.id}>
-                          <TableCell className="text-center font-medium">{index + 1}</TableCell>
+                        <TableRow key={doc.id} className={isSample ? 'bg-primary/5' : ''}>
+                          <TableCell className="text-center font-medium">
+                            {isSample ? <span className="text-primary text-lg" title={t('sample.badge')}>★</span> : index + 1}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <FileText className="h-4 w-4 text-primary flex-shrink-0" />
-                              <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
-                                {doc.file_name}
-                              </span>
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
+                                    {doc.file_name}
+                                  </span>
+                                  {isSample && (
+                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 uppercase tracking-wide">
+                                      {t('sample.badge')}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell>
