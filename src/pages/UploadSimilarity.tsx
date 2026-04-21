@@ -14,14 +14,12 @@ import { toast } from '@/hooks/use-toast';
 import { SEO } from '@/components/SEO';
 import { useTranslation } from 'react-i18next';
 import { ServiceStatusBanner } from '@/components/ServiceStatusBanner';
-import { useUploadActivity } from '@/contexts/UploadActivityContext';
 
 const UploadSimilarity: React.FC = () => {
   const navigate = useNavigate();
   const { profile, refreshProfile } = useAuth();
   const { uploadSimilarityDocument } = useSimilarityDocuments();
   const { t } = useTranslation('dashboard');
-  const { setUploading: setSessionUploading } = useUploadActivity();
   
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -132,7 +130,6 @@ const UploadSimilarity: React.FC = () => {
     }
 
     setUploading(true);
-    setSessionUploading(true);
     setUploadProgress(0);
     setUploadResults(null);
 
@@ -140,25 +137,21 @@ const UploadSimilarity: React.FC = () => {
     let failed = 0;
     let lastError = '';
 
-    try {
-      for (let i = 0; i < selectedFiles.length; i++) {
-        try {
-          await uploadSimilarityDocument(selectedFiles[i], {});
-          success++;
-        } catch (error: any) {
-          failed++;
-          lastError = error?.message || 'Unknown error';
-          console.error('Upload error for', selectedFiles[i].name, ':', error);
-        }
-        setUploadProgress(((i + 1) / selectedFiles.length) * 100);
+    for (let i = 0; i < selectedFiles.length; i++) {
+      try {
+        await uploadSimilarityDocument(selectedFiles[i], {});
+        success++;
+      } catch (error: any) {
+        failed++;
+        lastError = error?.message || 'Unknown error';
+        console.error('Upload error for', selectedFiles[i].name, ':', error);
       }
-
-      setUploadResults({ success, failed, errorMessage: lastError || undefined });
-      await refreshProfile();
-    } finally {
-      setUploading(false);
-      setSessionUploading(false);
+      setUploadProgress(((i + 1) / selectedFiles.length) * 100);
     }
+
+    setUploadResults({ success, failed, errorMessage: lastError || undefined });
+    setUploading(false);
+    await refreshProfile();
 
     if (success > 0) {
       toast({

@@ -1,95 +1,119 @@
 
 
-## Role-Based Idle Auto-Logout — 60 / 45 / 30 minutes with 5-minute warning
+## Comprehensive Translation Coverage — All 7 Languages, Site-Wide
 
-Implements automatic sign-out after a period of user inactivity, with a warning modal that appears 5 minutes before logout so the user can choose to stay signed in.
+The site already has i18n scaffolding with 7 languages (English, Arabic, Chinese, French, Spanish, German, Russian) loaded across 6 namespaces (`common`, `landing`, `auth`, `dashboard`, `pages`, `legal`). However, coverage has gaps:
+- Existing dictionaries are partially translated and missing many keys customer pages already reference
+- Several customer pages (`Checkout`, `GuestUpload`, `Index`, `SubscriptionManagement`) are still hardcoded English
+- New pages built recently (Buy Credits hero/FAQ, Referral, Pricing detail sections) need their strings catalogued
+- `BuyCredits.tsx` references translation keys but only some are defined
 
-### Idle thresholds by role
+I'll do a full translation sweep so every visible string the customer/guest can encounter is keyed and available in all 7 languages.
 
-| Role | Idle limit | Warning shown at |
-|---|---|---|
-| Customer | 60 min | 55 min |
-| Staff | 45 min | 40 min |
-| Admin | 30 min | 25 min |
-| Guest / logged-out | n/a | n/a |
+### Scope
 
-### Behavior
+**Customer-facing surfaces (full coverage):**
+- Navigation, footer, language switcher, theme toggle
+- Landing page (hero, services, about, contact, testimonials)
+- Pricing page (all sections, plan cards, FAQ, trust banners, badges)
+- Buy Credits page (balance card, hero, no-repository card, FAQ, "Most Popular", "Best Value", validity labels)
+- Checkout page (quantity selector, payment methods, totals, fees, error messages, success states)
+- Guest Upload (upload form, pricing tab, no-repository card, magic link UI)
+- Dashboard overview, Quick Actions, recent docs, low-credit nudges, credit expiry display
+- Upload Document + Upload Similarity (form labels, exclusions, file format help, errors, deduplication warnings)
+- My Documents (table headers, status badges, filters, search, tag manager, cancellation remarks)
+- My Invoices, My Receipts, Payment History (tables, status, actions)
+- Profile, Complete Profile, phone validation messages
+- Subscription Management (plan summary, cancel/resume, billing info)
+- Referral Program (code share, rewards, eligibility, fraud notices, tabs, dashboard widget)
+- Auth pages (login, signup, reset, OTP, password strength)
+- Legal pages (Privacy, Terms, Refund, Academic Integrity)
+- Resource/blog pages (FAQ, How It Works, Use Cases, About Us, Contact)
+- Common UI: buttons, table headers, status badges, toasts, loading/error states, pagination, empty states
+- PWA install banner, announcement banner, maintenance banner, WhatsApp button labels
+- Notification preferences, push prompts, sound settings labels
 
-- Activity that resets the timer: `mousemove`, `mousedown`, `keydown`, `touchstart`, `scroll`, `click` (throttled to 1/sec to avoid CPU churn).
-- At the warning threshold a centered AlertDialog appears: **"You'll be signed out in 5:00"** with a live MM:SS countdown, a **Stay signed in** button (resets the timer), and a **Sign out now** button.
-- If the countdown reaches zero with no interaction, `signOut()` is called and the user is redirected to `/auth?reason=timeout` with a toast: *"Signed out due to inactivity."*
-- **Pause conditions** (timer does not advance while these are true):
-  - Active file upload in progress (detected via a lightweight `useUploadActivity` flag stored in a module-level ref/window).
-  - User is on `/checkout` (payment in progress).
-- **Cross-tab sync**: a `lastActivity` timestamp is written to `localStorage` on each activity event; tabs read it on `storage` events, so activity in any tab keeps all tabs alive and logout in one tab logs out the others.
-- **PWA / mobile resume**: on `visibilitychange → visible` and on `focus`, the component recomputes `now - lastActivity` and either shows the warning or signs out immediately if the threshold has already been crossed while the tab was backgrounded.
-- Timer stops entirely when the user is not authenticated.
+**Out of scope (kept English):**
+- Admin pages and admin-only components (admin is internal — staff/admin already operate in English per existing memory)
+- Database content (announcements, remarks, package names — these are admin-edited content, not UI chrome)
+- Brand name "Plagaiscans", currency symbols, country names
 
-### Files to create
+### Approach
 
-```
-src/hooks/useIdleTimer.ts
-  - Pure timer hook. Inputs: { idleMs, warnMs, isPaused, onWarn, onExpire, onActivity }.
-  - Tracks lastActivity (in-memory + localStorage 'plagai_last_activity').
-  - Listens to activity events (throttled), 'storage', 'visibilitychange', 'focus'.
-  - Returns { secondsUntilExpire, isWarning, reset, dismissWarning }.
-
-src/contexts/UploadActivityContext.tsx
-  - Tiny context exposing { setUploading(true|false) } and { isUploading }.
-  - Wrapped at App root so any upload page can flag itself.
-
-src/components/SessionTimeoutManager.tsx
-  - Mounts inside <AuthProvider>. Reads role from useAuth.
-  - Picks idle limit by role (60/45/30 min, default 60).
-  - Uses useIdleTimer; when warning fires, opens an AlertDialog with countdown.
-  - "Stay signed in" -> reset(). "Sign out now" / expiry -> signOut() + navigate('/auth?reason=timeout') + toast.
-  - Pauses when isUploading or pathname starts with '/checkout'.
-```
-
-### Files to edit
-
-```
-src/App.tsx
-  - Wrap children with <UploadActivityProvider>.
-  - Mount <SessionTimeoutManager /> inside the authenticated layout area.
-
-src/pages/UploadDocument.tsx
-src/pages/UploadSimilarity.tsx
-src/components/BulkUploadPanel.tsx
-src/pages/GuestUpload.tsx (guest path is exempt anyway, but flag for consistency if logged-in)
-  - Call setUploading(true) when an upload starts, setUploading(false) in finally.
-
-src/pages/Auth.tsx
-  - If URL has ?reason=timeout, show an inline notice "You were signed out due to inactivity."
-
-src/i18n/locales/{en,ar,zh,fr,es,de,ru}/common.json
-  - Add keys:
-      session.timeoutTitle: "Still there?"
-      session.timeoutBody: "You'll be signed out in {{time}} due to inactivity."
-      session.stay: "Stay signed in"
-      session.signOutNow: "Sign out now"
-      session.signedOutToast: "Signed out due to inactivity."
-      session.timeoutBanner: "You were signed out due to inactivity."
+```text
+1. Audit pass    → grep every customer page/component for hardcoded user-visible strings,
+                   compile a master English key map per namespace
+2. Expand EN     → add all missing keys to en/{common,landing,dashboard,pages,legal,auth}.json
+                   add new namespace files where useful: en/checkout.json, en/referral.json,
+                   en/pricing.json, en/buyCredits.json, en/guest.json, en/notifications.json
+3. Translate     → produce ar/zh/fr/es/de/ru versions of every namespace, mirroring keys 1:1.
+                   Use native, idiomatic phrasing per locale. Arabic written RTL-ready.
+4. Wire i18n     → register new namespaces in src/i18n/config.ts (imports + resources + ns array)
+5. Refactor pages → replace hardcoded strings with t('namespace:key') calls in:
+                    Checkout.tsx, GuestUpload.tsx, Index.tsx, SubscriptionManagement.tsx,
+                    BuyCredits.tsx (fill gaps), Pricing.tsx (fill gaps), ReferralProgram.tsx (fill gaps),
+                    plus shared components: Navigation, Footer, DashboardSidebar, DashboardHeader,
+                    CreditBalanceHeader, UpgradeNudge, AnnouncementBanner, GuestEmailBanner,
+                    StatusBadge, NotificationPreferences, RemarkSelector public labels
+6. RTL polish   → ensure Arabic gets correct dir="rtl" body class (already handled in config) and
+                  verify icons/spacing on a couple of key pages don't break under RTL
+7. Smoke check  → load preview, switch each language from the LanguageSwitcher, confirm:
+                    • Pricing, Buy Credits, Checkout, Referral, Guest Upload all render translated
+                    • Dashboard sidebar + header translate
+                    • No raw "translation_key" strings appear (i18n returnEmptyString=false fallback to EN)
 ```
 
-### Edge cases handled
+### Translation quality notes
 
-- Multiple tabs open: shared `lastActivity` via `localStorage` keeps all in sync.
-- Background tab past threshold: detected on resume, immediate logout.
-- Network offline: logout still runs locally (`signOut` clears local session); next online sync clears server session.
-- Role changes mid-session (rare, e.g. admin promotes user): `SessionTimeoutManager` re-derives limit from `useAuth().role` so the new threshold takes effect on next reset.
-- Already signed out: manager renders nothing.
+- Use neutral, professional terminology consistent with existing memory: "Similarity Review" / "Content Analysis" (not Plagiarism / AI Humanizer). All locales follow this.
+- Money, dates, and numbers stay in their existing formats (locale-aware formatting is a separate concern, not part of this pass).
+- Brand "Plagaiscans" remains untranslated everywhere.
+- Plural and interpolation tokens (`{{name}}`, `{{count}}`) preserved across all locales.
+- Arabic uses MSA (Modern Standard Arabic). Chinese uses Simplified. German uses formal "Sie". French uses formal "vous". Spanish uses formal "usted". Russian uses formal "вы".
 
-### Memory update
+### Files to be created
 
-Update `mem://constraints/auth/session-timeout-auto-logout` with the new role-based thresholds (60 / 45 / 30) and 5-minute warning, replacing the old "30-minute" rule.
+```
+src/i18n/locales/{en,ar,zh,fr,es,de,ru}/checkout.json     (new)
+src/i18n/locales/{en,ar,zh,fr,es,de,ru}/buyCredits.json   (new)
+src/i18n/locales/{en,ar,zh,fr,es,de,ru}/pricing.json      (new)
+src/i18n/locales/{en,ar,zh,fr,es,de,ru}/referral.json     (new)
+src/i18n/locales/{en,ar,zh,fr,es,de,ru}/guest.json        (new)
+src/i18n/locales/{en,ar,zh,fr,es,de,ru}/notifications.json (new)
+```
+= 42 new JSON files
+
+### Files to be edited
+
+```
+src/i18n/locales/{en,ar,zh,fr,es,de,ru}/common.json       (expand)
+src/i18n/locales/{en,ar,zh,fr,es,de,ru}/landing.json      (expand)
+src/i18n/locales/{en,ar,zh,fr,es,de,ru}/dashboard.json    (expand)
+src/i18n/locales/{en,ar,zh,fr,es,de,ru}/pages.json        (expand)
+src/i18n/locales/{en,ar,zh,fr,es,de,ru}/auth.json         (expand)
+src/i18n/locales/{en,ar,zh,fr,es,de,ru}/legal.json        (expand)
+src/i18n/config.ts                                         (register new namespaces)
+
+src/pages/Checkout.tsx                  → wire t() calls
+src/pages/GuestUpload.tsx               → wire t() calls
+src/pages/Index.tsx                     → wire t() calls
+src/pages/SubscriptionManagement.tsx    → wire t() calls
+src/pages/BuyCredits.tsx                → fill missing t() keys
+src/pages/Pricing.tsx                   → fill missing t() keys
+src/pages/ReferralProgram.tsx           → fill missing t() keys
+src/components/Navigation.tsx           → ensure all menu items use t()
+src/components/Footer.tsx               → ensure all links/text use t()
+src/components/DashboardSidebar.tsx     → all menu labels
+src/components/DashboardHeader.tsx      → greeting + role badge
+src/components/CreditBalanceHeader.tsx  → balance labels
+src/components/StatusBadge.tsx          → status names
+src/components/AnnouncementBanner.tsx   → dismiss/CTA labels (not the announcement body)
+```
 
 ### Verification
 
-- Sign in as customer → wait 55 min → modal appears with 5:00 countdown → click "Stay signed in" → modal closes, timer resets.
-- Same as staff (modal at 40 min) and admin (modal at 25 min).
-- Let countdown reach 0:00 → redirected to `/auth?reason=timeout` with toast and inline notice.
-- Open two tabs, move mouse in tab A → tab B's timer also resets.
-- Start a bulk upload → leave idle past threshold → timer stays paused; resumes on upload completion.
-- Open `/checkout` → timer paused while present.
+- Switch language to Arabic: page flips to RTL, all chrome translates, no English stragglers on Pricing / Buy Credits / Checkout / Referral / Guest pricing.
+- Switch to Chinese, French, Spanish, German, Russian: every visible label in customer flows is in the target language.
+- Admin pages remain in English (intentional).
+- No console warnings about missing translation keys for the customer flows.
 
