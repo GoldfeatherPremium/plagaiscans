@@ -157,9 +157,10 @@ export const useDocuments = () => {
         customer_profile: doc.user_id ? customerProfiles[doc.user_id] : undefined
       }));
 
-      // Prepend virtual sample document for customers only
+      // Prepend virtual sample document for customers only — hide for experienced users
       let finalDocs: Document[] = docsWithProfiles as Document[];
-      if (role === 'customer' || (!role && user)) {
+      const hasCompletedRealDoc = finalDocs.some(d => d.status === 'completed');
+      if ((role === 'customer' || (!role && user)) && !hasCompletedRealDoc) {
         try {
           const { data: sampleSettings } = await supabase
             .from('settings')
