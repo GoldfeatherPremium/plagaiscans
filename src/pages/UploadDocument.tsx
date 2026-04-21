@@ -13,6 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { ServiceStatusBanner } from '@/components/ServiceStatusBanner';
+import { useUploadActivity } from '@/contexts/UploadActivityContext';
 
 export default function UploadDocument() {
   const { t } = useTranslation('dashboard');
@@ -27,6 +28,7 @@ export default function UploadDocument() {
     sendLocalNotification 
   } = usePushNotifications();
   const navigate = useNavigate();
+  const { setUploading: setSessionUploading } = useUploadActivity();
   const [dragActive, setDragActive] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -115,31 +117,36 @@ export default function UploadDocument() {
     if (selectedFiles.length === 0) return;
 
     setUploading(true);
+    setSessionUploading(true);
     setUploadProgress({ current: 0, total: selectedFiles.length });
 
-    const results = await uploadDocuments(
-      selectedFiles,
-      (current, total) => {
-        setUploadProgress({ current, total });
-      },
-      { 
-        uploadType: 'single',
-        exclusions: {
-          exclude_bibliography: excludeBibliographic,
-          exclude_quotes: excludeQuoted,
-          exclude_small_sources: excludeSmallSources,
+    try {
+      const results = await uploadDocuments(
+        selectedFiles,
+        (current, total) => {
+          setUploadProgress({ current, total });
+        },
+        { 
+          uploadType: 'single',
+          exclusions: {
+            exclude_bibliography: excludeBibliographic,
+            exclude_quotes: excludeQuoted,
+            exclude_small_sources: excludeSmallSources,
+          }
         }
-      }
-    );
+      );
 
-    setUploading(false);
-    setUploadResults(results);
-    setSelectedFiles([]);
-    if (inputRef.current) inputRef.current.value = '';
-    
-    // Show push notification prompt after successful upload if not subscribed
-    if (results.success > 0 && pushSupported && !pushSubscribed && pushPermission !== 'denied') {
-      setShowPushPrompt(true);
+      setUploadResults(results);
+      setSelectedFiles([]);
+      if (inputRef.current) inputRef.current.value = '';
+      
+      // Show push notification prompt after successful upload if not subscribed
+      if (results.success > 0 && pushSupported && !pushSubscribed && pushPermission !== 'denied') {
+        setShowPushPrompt(true);
+      }
+    } finally {
+      setUploading(false);
+      setSessionUploading(false);
     }
   };
 
