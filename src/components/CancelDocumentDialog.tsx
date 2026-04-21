@@ -52,6 +52,7 @@ export const CancelDocumentDialog: React.FC<CancelDocumentDialogProps> = ({
   const creditType = document.scan_type === 'full' ? 'AI Scan Credit' : 'Similarity Credit';
 
   const handleConfirm = async () => {
+    if (document?.id === 'sample') return;
     await onConfirm(reason);
     setReason('');
   };
