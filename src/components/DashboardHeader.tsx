@@ -6,10 +6,12 @@ import { LanguageSwitcher } from './LanguageSwitcher';
 import { ServiceStatusPill } from './ServiceStatusPill';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export const DashboardHeader: React.FC = () => {
   const { user, profile, role } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
   
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -53,7 +55,7 @@ export const DashboardHeader: React.FC = () => {
             <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">P</span>
             </div>
-            <span className="font-display font-semibold text-lg hidden sm:block">PlagiScans</span>
+            <span className="font-display font-semibold text-lg hidden sm:block">{t('nav.brand')}</span>
           </div>
         </div>
 
@@ -66,13 +68,13 @@ export const DashboardHeader: React.FC = () => {
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted rounded-full">
                 <Coins className="h-4 w-4 text-primary" />
                 <span className="text-sm font-semibold text-primary">{profile.credit_balance}</span>
-                <span className="text-xs text-muted-foreground hidden sm:inline">full</span>
+                <span className="text-xs text-muted-foreground hidden sm:inline">{t('common.full')}</span>
               </div>
               {/* Similarity Credits */}
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 rounded-full">
                 <Search className="h-4 w-4 text-orange-500" />
                 <span className="text-sm font-semibold text-orange-500">{profile.similarity_credit_balance}</span>
-                <span className="text-xs text-muted-foreground hidden sm:inline">sim</span>
+                <span className="text-xs text-muted-foreground hidden sm:inline">{t('common.sim')}</span>
               </div>
             </div>
           )}

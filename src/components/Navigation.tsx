@@ -37,7 +37,7 @@ const Navigation = () => {
 
   const navLinks = [
     { href: "/how-it-works", label: t('nav.howItWorks'), isRoute: true },
-    { href: "/use-cases", label: "Use Cases", isRoute: true },
+    { href: "/use-cases", label: t('nav.useCases'), isRoute: true },
     { href: "/faq", label: t('nav.faq'), isRoute: true },
     { href: "/pricing", label: t('nav.pricing'), isRoute: true },
   ];
@@ -94,7 +94,7 @@ const Navigation = () => {
             </Button>
             <Link to="/auth">
               <Button variant="default" size="sm">
-                Sign Up
+                {t('nav.signUp')}
               </Button>
             </Link>
           </div>
@@ -152,7 +152,7 @@ const Navigation = () => {
               </Link>
               <Link to="/auth" onClick={() => setIsOpen(false)}>
                 <Button variant="default" className="w-full mt-2">
-                  Sign Up
+                  {t('nav.signUp')}
                 </Button>
               </Link>
               <div className="mt-4 flex justify-center">
