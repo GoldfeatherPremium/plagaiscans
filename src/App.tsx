@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { UploadActivityProvider } from "@/contexts/UploadActivityContext";
+import { SessionTimeoutManager } from "@/components/SessionTimeoutManager";
 import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 
 
@@ -363,17 +365,19 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
           <AuthProvider>
-            
-            <Suspense fallback={null}>
-              <DocumentCompletionNotifier />
-            </Suspense>
-            <AppRoutes />
-            <DeferredNonCritical>
+            <UploadActivityProvider>
               <Suspense fallback={null}>
-                <InstallPromptBanner />
-                <SmartInstallPopup />
+                <DocumentCompletionNotifier />
               </Suspense>
-            </DeferredNonCritical>
+              <SessionTimeoutManager />
+              <AppRoutes />
+              <DeferredNonCritical>
+                <Suspense fallback={null}>
+                  <InstallPromptBanner />
+                  <SmartInstallPopup />
+                </Suspense>
+              </DeferredNonCritical>
+            </UploadActivityProvider>
           </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
