@@ -612,9 +612,10 @@ export default function Dashboard() {
                                   {isSample && (
                                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 uppercase tracking-wide">
                                       {t('sample.badge')}
-                                      </Badge>
+                                    </Badge>
                                   )}
                                 </div>
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell>
