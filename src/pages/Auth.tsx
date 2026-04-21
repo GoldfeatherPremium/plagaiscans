@@ -676,18 +676,6 @@ export default function Auth() {
                 <>
                   <form onSubmit={handleSignup} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="fullName" className="font-semibold pl-2">{t('signup.fullNameLabel')}</Label>
-                      <Input
-                        id="fullName"
-                        type="text"
-                        placeholder={t('signup.fullNamePlaceholder')}
-                        value={signupData.fullName}
-                        onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })}
-                        className="h-12 rounded-full px-5"
-                      />
-                      {errors.fullName && <p className="text-sm text-destructive pl-2">{errors.fullName}</p>}
-                    </div>
-                    <div className="space-y-2">
                       <Label htmlFor="signup-email" className="font-semibold pl-2">{t('signup.emailLabel')}</Label>
                       <Input
                         id="signup-email"
@@ -698,17 +686,6 @@ export default function Auth() {
                         className="h-12 rounded-full px-5"
                       />
                       {errors.email && <p className="text-sm text-destructive pl-2">{errors.email}</p>}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone" className="font-semibold pl-2">{t('signup.phoneLabel')}</Label>
-                      <PhoneInput
-                        value={signupData.phone}
-                        onChange={(value, isValid) => {
-                          setSignupData({ ...signupData, phone: value });
-                          setIsPhoneValid(isValid);
-                        }}
-                      />
-                      {errors.phone && <p className="text-sm text-destructive pl-2">{errors.phone}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="signup-password" className="font-semibold pl-2">{t('signup.passwordLabel')}</Label>
