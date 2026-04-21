@@ -244,6 +244,25 @@ export default function MyDocuments() {
           </Card>
         )}
 
+        {/* Sample document helper nudge for customers */}
+        {role === 'customer' && documents.some(d => d.is_sample) && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-3 sm:p-4">
+              <p className="text-sm text-muted-foreground">
+                👇 Try downloading our sample reports to see exactly what you'll get.
+                {hasZeroCredits && onlySampleVisible && (
+                  <>
+                    {' '}Ready for the real thing?{' '}
+                    <Link to="/dashboard/buy-credits" className="text-primary hover:underline font-medium">
+                      Buy credits →
+                    </Link>
+                  </>
+                )}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Search Filters */}
         <DocumentSearchFilters 
           filters={filters} 
