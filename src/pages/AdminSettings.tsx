@@ -295,8 +295,86 @@ export default function AdminSettings() {
       setSpecialPaddleEnabled(data.find(s => s.key === 'special_payment_paddle_enabled')?.value === 'true');
       setSpecialUsdtManualEnabled(data.find(s => s.key === 'special_payment_usdt_manual_enabled')?.value === 'true');
       setSpecialBankTransferEnabled(data.find(s => s.key === 'special_payment_bank_transfer_enabled')?.value === 'true');
+
+      // Sample document
+      setSampleEnabled(data.find(s => s.key === 'sample_enabled')?.value === 'true');
+      const sFileName = data.find(s => s.key === 'sample_file_name');
+      const sFilePath = data.find(s => s.key === 'sample_file_path');
+      const sSimPath = data.find(s => s.key === 'sample_sim_path');
+      const sAiPath = data.find(s => s.key === 'sample_ai_path');
+      const sSimPct = data.find(s => s.key === 'sample_sim_percentage');
+      const sAiPct = data.find(s => s.key === 'sample_ai_percentage');
+      const sRemarks = data.find(s => s.key === 'sample_remarks');
+      if (sFileName) setSampleFileName(sFileName.value);
+      if (sFilePath) setSampleFilePath(sFilePath.value);
+      if (sSimPath) setSampleSimPath(sSimPath.value);
+      if (sAiPath) setSampleAiPath(sAiPath.value);
+      if (sSimPct) setSampleSimPercentage(sSimPct.value);
+      if (sAiPct) setSampleAiPercentage(sAiPct.value);
+      if (sRemarks) setSampleRemarks(sRemarks.value);
     }
     setLoading(false);
+  };
+
+  const saveSampleDocument = async () => {
+    setSavingSample(true);
+    try {
+      let docPath = sampleFilePath;
+      let simPath = sampleSimPath;
+      let aiPath = sampleAiPath;
+      let docName = sampleFileName;
+
+      if (sampleDocFile) {
+        const ext = sampleDocFile.name.split('.').pop() || 'docx';
+        const path = `sample/sample_document.${ext}`;
+        const { error } = await supabase.storage.from('documents').upload(path, sampleDocFile, { upsert: true });
+        if (error) throw error;
+        docPath = path;
+        docName = sampleDocFile.name;
+      }
+
+      if (sampleSimFile) {
+        const path = `sample/sample_similarity.pdf`;
+        const { error } = await supabase.storage.from('reports').upload(path, sampleSimFile, { upsert: true, contentType: 'application/pdf' });
+        if (error) throw error;
+        simPath = path;
+      }
+
+      if (sampleAiFile) {
+        const path = `sample/sample_ai.pdf`;
+        const { error } = await supabase.storage.from('reports').upload(path, sampleAiFile, { upsert: true, contentType: 'application/pdf' });
+        if (error) throw error;
+        aiPath = path;
+      }
+
+      const updates = [
+        { key: 'sample_enabled', value: sampleEnabled.toString() },
+        { key: 'sample_file_name', value: docName },
+        { key: 'sample_file_path', value: docPath },
+        { key: 'sample_sim_path', value: simPath },
+        { key: 'sample_ai_path', value: aiPath },
+        { key: 'sample_sim_percentage', value: sampleSimPercentage },
+        { key: 'sample_ai_percentage', value: sampleAiPercentage },
+        { key: 'sample_remarks', value: sampleRemarks },
+      ];
+
+      for (const u of updates) {
+        await supabase.from('settings').upsert(u, { onConflict: 'key' });
+      }
+
+      setSampleFilePath(docPath);
+      setSampleSimPath(simPath);
+      setSampleAiPath(aiPath);
+      setSampleFileName(docName);
+      setSampleDocFile(null);
+      setSampleSimFile(null);
+      setSampleAiFile(null);
+
+      toast({ title: 'Sample document saved', description: 'All customers will see the new sample on next page load.' });
+    } catch (err: any) {
+      toast({ title: 'Save failed', description: err?.message || 'Could not save sample.', variant: 'destructive' });
+    }
+    setSavingSample(false);
   };
 
   const saveWhatsAppNumber = async () => {
