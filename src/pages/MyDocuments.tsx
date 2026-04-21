@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
+import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
 import { useTranslation } from 'react-i18next';
@@ -40,10 +41,11 @@ import {
 export default function MyDocuments() {
   const { t } = useTranslation('dashboard');
   const { documents, loading, downloadFile, deleteDocument, fetchDocuments } = useDocuments();
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const { toast } = useToast();
   const isStaffOrAdmin = role === 'staff' || role === 'admin';
   const isAdmin = role === 'admin';
+  const hasZeroCredits = (profile?.credit_balance ?? 0) === 0 && (profile?.similarity_credit_balance ?? 0) === 0;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -102,8 +104,8 @@ export default function MyDocuments() {
   };
 
   const selectAll = () => {
-    // Select all completed docs from the FULL filtered list (not just visible)
-    const completedDocs = allFilteredDocuments.filter(d => d.status === 'completed');
+    // Select all completed docs from the FULL filtered list (not just visible) — exclude sample
+    const completedDocs = allFilteredDocuments.filter(d => d.status === 'completed' && !d.is_sample);
     setSelectedIds(new Set(completedDocs.map(d => d.id)));
   };
 
@@ -160,10 +162,11 @@ export default function MyDocuments() {
     setDocumentToDelete(null);
   };
 
-  // Use full filtered list for counts
-  const allCompletedCount = allFilteredDocuments.filter(d => d.status === 'completed').length;
+  // Use full filtered list for counts — exclude sample (no checkbox)
+  const allCompletedCount = allFilteredDocuments.filter(d => d.status === 'completed' && !d.is_sample).length;
   const selectedCompletedCount = allFilteredDocuments.filter(d => selectedIds.has(d.id) && d.status === 'completed').length;
-  const visibleCompletedCount = filteredDocuments.filter(d => d.status === 'completed').length;
+  const visibleCompletedCount = filteredDocuments.filter(d => d.status === 'completed' && !d.is_sample).length;
+  const onlySampleVisible = documents.length === 1 && documents[0]?.is_sample === true;
 
   return (
     <DashboardLayout>
@@ -237,6 +240,25 @@ export default function MyDocuments() {
                   </p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Sample document helper nudge for customers */}
+        {role === 'customer' && documents.some(d => d.is_sample) && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-3 sm:p-4">
+              <p className="text-sm text-muted-foreground">
+                👇 Try downloading our sample reports to see exactly what you'll get.
+                {hasZeroCredits && onlySampleVisible && (
+                  <>
+                    {' '}Ready for the real thing?{' '}
+                    <Link to="/dashboard/buy-credits" className="text-primary hover:underline font-medium">
+                      Buy credits →
+                    </Link>
+                  </>
+                )}
+              </p>
             </CardContent>
           </Card>
         )}
@@ -334,29 +356,50 @@ export default function MyDocuments() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredDocuments.map((doc, index) => {
-                      const { date, time } = formatDateTime(doc.uploaded_at);
-                      const isSelected = selectedIds.has(doc.id);
-                      const canSelect = doc.status === 'completed';
+                    {(() => {
+                      // Compute real-document index (excluding sample) so row numbering ignores sample
+                      let realIdx = 0;
+                      const baseOffset = (currentPage - 1) * DOCS_PER_PAGE;
+                      // Count any sample docs in earlier pages doesn't apply — sample is always first row of page 1
+                      return filteredDocuments.map((doc, index) => {
+                        const { date, time } = formatDateTime(doc.uploaded_at);
+                        const isSelected = selectedIds.has(doc.id);
+                        const isSample = !!doc.is_sample;
+                        const canSelect = doc.status === 'completed' && !isSample;
+                        if (!isSample) realIdx += 1;
+                        const rowNumber = isSample ? '★' : String(baseOffset + realIdx);
 
                       return (
-                        <TableRow key={doc.id} className={isSelected ? 'bg-primary/5' : ''}>
+                        <TableRow key={doc.id} className={isSelected ? 'bg-primary/5' : (isSample ? 'bg-primary/5' : '')}>
                           <TableCell>
-                            <Checkbox
-                              checked={isSelected}
-                              disabled={!canSelect}
-                              onCheckedChange={() => toggleSelection(doc.id)}
-                            />
+                            {isSample ? (
+                              <span className="inline-block w-4" />
+                            ) : (
+                              <Checkbox
+                                checked={isSelected}
+                                disabled={!canSelect}
+                                onCheckedChange={() => toggleSelection(doc.id)}
+                              />
+                            )}
                           </TableCell>
-                          <TableCell className="text-center font-medium">{(currentPage - 1) * DOCS_PER_PAGE + index + 1}</TableCell>
+                          <TableCell className="text-center font-medium">
+                            {isSample ? <span className="text-primary text-lg" title="Sample">★</span> : rowNumber}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <FileText className="h-4 w-4 text-primary flex-shrink-0" />
                               <div className="flex flex-col">
-                                <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
-                                  {doc.file_name}
-                                </span>
-                                {isStaffOrAdmin && (
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
+                                    {doc.file_name}
+                                  </span>
+                                  {isSample && (
+                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 uppercase tracking-wide">
+                                      Sample
+                                    </Badge>
+                                  )}
+                                </div>
+                                {isStaffOrAdmin && !isSample && (
                                   <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={doc.customer_profile?.email}>
                                     {doc.customer_profile?.full_name || doc.customer_profile?.email || (doc.magic_link_id ? 'Guest' : '-')}
                                   </span>
@@ -365,10 +408,14 @@ export default function MyDocuments() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="text-sm">
-                              <div>{date}</div>
-                              <div className="text-muted-foreground">{time}</div>
-                            </div>
+                            {isSample ? (
+                              <span className="text-sm text-muted-foreground">—</span>
+                            ) : (
+                              <div className="text-sm">
+                                <div>{date}</div>
+                                <div className="text-muted-foreground">{time}</div>
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             <StatusBadge status={doc.status} />
@@ -473,23 +520,25 @@ export default function MyDocuments() {
                           </TableCell>
                           {isAdmin && (
                             <TableCell className="text-center">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                onClick={() => {
-                                  setDocumentToEdit(doc);
-                                  setEditDialogOpen(true);
-                                }}
-                                title="Edit document"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
+                              {!isSample && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => {
+                                    setDocumentToEdit(doc);
+                                    setEditDialogOpen(true);
+                                  }}
+                                  title="Edit document"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
                             </TableCell>
                           )}
                           {!isStaffOrAdmin && (
                             <TableCell className="text-center">
-                              {doc.status === 'completed' && (
+                              {!isSample && doc.status === 'completed' && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -504,7 +553,8 @@ export default function MyDocuments() {
                           )}
                         </TableRow>
                       );
-                    })}
+                      });
+                    })()}
                   </TableBody>
                 </Table>
               </div>

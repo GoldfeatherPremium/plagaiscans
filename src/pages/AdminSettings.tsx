@@ -106,6 +106,20 @@ export default function AdminSettings() {
   const [adminPaymentNotifyEmails, setAdminPaymentNotifyEmails] = useState('');
   const [savingAdminPaymentEmail, setSavingAdminPaymentEmail] = useState(false);
 
+  // Sample Document state
+  const [sampleEnabled, setSampleEnabled] = useState(false);
+  const [sampleFileName, setSampleFileName] = useState('Sample.docx');
+  const [sampleFilePath, setSampleFilePath] = useState('');
+  const [sampleSimPath, setSampleSimPath] = useState('');
+  const [sampleAiPath, setSampleAiPath] = useState('');
+  const [sampleSimPercentage, setSampleSimPercentage] = useState('12');
+  const [sampleAiPercentage, setSampleAiPercentage] = useState('18');
+  const [sampleRemarks, setSampleRemarks] = useState('');
+  const [sampleDocFile, setSampleDocFile] = useState<File | null>(null);
+  const [sampleSimFile, setSampleSimFile] = useState<File | null>(null);
+  const [sampleAiFile, setSampleAiFile] = useState<File | null>(null);
+  const [savingSample, setSavingSample] = useState(false);
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -163,6 +177,15 @@ export default function AdminSettings() {
       'special_payment_paddle_enabled',
       'special_payment_usdt_manual_enabled',
       'special_payment_bank_transfer_enabled',
+      // Sample document
+      'sample_enabled',
+      'sample_file_name',
+      'sample_file_path',
+      'sample_sim_path',
+      'sample_ai_path',
+      'sample_sim_percentage',
+      'sample_ai_percentage',
+      'sample_remarks',
     ]);
     if (data) {
       const whatsapp = data.find(s => s.key === 'whatsapp_number');
@@ -272,8 +295,86 @@ export default function AdminSettings() {
       setSpecialPaddleEnabled(data.find(s => s.key === 'special_payment_paddle_enabled')?.value === 'true');
       setSpecialUsdtManualEnabled(data.find(s => s.key === 'special_payment_usdt_manual_enabled')?.value === 'true');
       setSpecialBankTransferEnabled(data.find(s => s.key === 'special_payment_bank_transfer_enabled')?.value === 'true');
+
+      // Sample document
+      setSampleEnabled(data.find(s => s.key === 'sample_enabled')?.value === 'true');
+      const sFileName = data.find(s => s.key === 'sample_file_name');
+      const sFilePath = data.find(s => s.key === 'sample_file_path');
+      const sSimPath = data.find(s => s.key === 'sample_sim_path');
+      const sAiPath = data.find(s => s.key === 'sample_ai_path');
+      const sSimPct = data.find(s => s.key === 'sample_sim_percentage');
+      const sAiPct = data.find(s => s.key === 'sample_ai_percentage');
+      const sRemarks = data.find(s => s.key === 'sample_remarks');
+      if (sFileName) setSampleFileName(sFileName.value);
+      if (sFilePath) setSampleFilePath(sFilePath.value);
+      if (sSimPath) setSampleSimPath(sSimPath.value);
+      if (sAiPath) setSampleAiPath(sAiPath.value);
+      if (sSimPct) setSampleSimPercentage(sSimPct.value);
+      if (sAiPct) setSampleAiPercentage(sAiPct.value);
+      if (sRemarks) setSampleRemarks(sRemarks.value);
     }
     setLoading(false);
+  };
+
+  const saveSampleDocument = async () => {
+    setSavingSample(true);
+    try {
+      let docPath = sampleFilePath;
+      let simPath = sampleSimPath;
+      let aiPath = sampleAiPath;
+      let docName = sampleFileName;
+
+      if (sampleDocFile) {
+        const ext = sampleDocFile.name.split('.').pop() || 'docx';
+        const path = `sample/sample_document.${ext}`;
+        const { error } = await supabase.storage.from('documents').upload(path, sampleDocFile, { upsert: true });
+        if (error) throw error;
+        docPath = path;
+        docName = sampleDocFile.name;
+      }
+
+      if (sampleSimFile) {
+        const path = `sample/sample_similarity.pdf`;
+        const { error } = await supabase.storage.from('reports').upload(path, sampleSimFile, { upsert: true, contentType: 'application/pdf' });
+        if (error) throw error;
+        simPath = path;
+      }
+
+      if (sampleAiFile) {
+        const path = `sample/sample_ai.pdf`;
+        const { error } = await supabase.storage.from('reports').upload(path, sampleAiFile, { upsert: true, contentType: 'application/pdf' });
+        if (error) throw error;
+        aiPath = path;
+      }
+
+      const updates = [
+        { key: 'sample_enabled', value: sampleEnabled.toString() },
+        { key: 'sample_file_name', value: docName },
+        { key: 'sample_file_path', value: docPath },
+        { key: 'sample_sim_path', value: simPath },
+        { key: 'sample_ai_path', value: aiPath },
+        { key: 'sample_sim_percentage', value: sampleSimPercentage },
+        { key: 'sample_ai_percentage', value: sampleAiPercentage },
+        { key: 'sample_remarks', value: sampleRemarks },
+      ];
+
+      for (const u of updates) {
+        await supabase.from('settings').upsert(u, { onConflict: 'key' });
+      }
+
+      setSampleFilePath(docPath);
+      setSampleSimPath(simPath);
+      setSampleAiPath(aiPath);
+      setSampleFileName(docName);
+      setSampleDocFile(null);
+      setSampleSimFile(null);
+      setSampleAiFile(null);
+
+      toast({ title: 'Sample document saved', description: 'All customers will see the new sample on next page load.' });
+    } catch (err: any) {
+      toast({ title: 'Save failed', description: err?.message || 'Could not save sample.', variant: 'destructive' });
+    }
+    setSavingSample(false);
   };
 
   const saveWhatsAppNumber = async () => {
@@ -542,11 +643,12 @@ export default function AdminSettings() {
         </div>
 
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="payments">Payments</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="auth">Authentication</TabsTrigger>
+            <TabsTrigger value="sample">Sample Doc</TabsTrigger>
           </TabsList>
 
           {/* ==================== GENERAL TAB ==================== */}
@@ -1124,6 +1226,98 @@ export default function AdminSettings() {
                 <Button onClick={saveGoogleSettings} disabled={savingGoogle}>
                   {savingGoogle ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                   Save Google OAuth Settings
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ==================== SAMPLE DOC TAB ==================== */}
+          <TabsContent value="sample" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="h-5 w-5 text-primary" />
+                  Sample Document
+                </CardTitle>
+                <CardDescription>
+                  This sample appears as the first row in every customer's "My Documents" list — to demo
+                  what real reports look like and encourage signups/purchases.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <Label className="text-base">Show Sample to Customers</Label>
+                    <p className="text-sm text-muted-foreground">
+                      When enabled, all customers see this sample document at the top of their list.
+                    </p>
+                  </div>
+                  <Switch checked={sampleEnabled} onCheckedChange={setSampleEnabled} />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Similarity %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={sampleSimPercentage}
+                      onChange={(e) => setSampleSimPercentage(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>AI %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={sampleAiPercentage}
+                      onChange={(e) => setSampleAiPercentage(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Original Document {sampleFilePath && <span className="text-xs text-muted-foreground">(current: {sampleFileName})</span>}</Label>
+                  <Input
+                    type="file"
+                    accept=".docx,.doc,.pdf,.rtf,.odt,.txt"
+                    onChange={(e) => setSampleDocFile(e.target.files?.[0] || null)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Similarity Report PDF {sampleSimPath && <span className="text-xs text-muted-foreground">(uploaded)</span>}</Label>
+                  <Input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => setSampleSimFile(e.target.files?.[0] || null)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>AI Report PDF {sampleAiPath && <span className="text-xs text-muted-foreground">(uploaded)</span>}</Label>
+                  <Input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => setSampleAiFile(e.target.files?.[0] || null)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Remarks (Optional)</Label>
+                  <Textarea
+                    value={sampleRemarks}
+                    onChange={(e) => setSampleRemarks(e.target.value)}
+                    placeholder="Optional remark shown next to the sample…"
+                    rows={3}
+                  />
+                </div>
+
+                <Button onClick={saveSampleDocument} disabled={savingSample}>
+                  {savingSample ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  Save Sample Document
                 </Button>
               </CardContent>
             </Card>

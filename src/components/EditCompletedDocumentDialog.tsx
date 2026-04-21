@@ -55,6 +55,10 @@ export const EditCompletedDocumentDialog: React.FC<EditCompletedDocumentDialogPr
 
   const handleSubmit = async () => {
     if (!document || !user) return;
+    if (document.id === 'sample') {
+      toast({ title: 'Cannot edit sample', description: 'The sample document is read-only.', variant: 'destructive' });
+      return;
+    }
     
     setSubmitting(true);
     try {

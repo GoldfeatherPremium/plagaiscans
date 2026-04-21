@@ -26,6 +26,7 @@ export interface Document {
   updated_at: string;
   is_favorite?: boolean | null;
   files_cleaned_at?: string | null;
+  is_sample?: boolean;
   // Cancellation fields
   cancellation_reason: string | null;
   cancelled_at: string | null;
@@ -156,7 +157,66 @@ export const useDocuments = () => {
         customer_profile: doc.user_id ? customerProfiles[doc.user_id] : undefined
       }));
 
-      setDocuments(docsWithProfiles as Document[]);
+      // Prepend virtual sample document for customers only
+      let finalDocs: Document[] = docsWithProfiles as Document[];
+      if (role === 'customer' || (!role && user)) {
+        try {
+          const { data: sampleSettings } = await supabase
+            .from('settings')
+            .select('key, value')
+            .in('key', [
+              'sample_enabled',
+              'sample_file_name',
+              'sample_file_path',
+              'sample_sim_path',
+              'sample_ai_path',
+              'sample_sim_percentage',
+              'sample_ai_percentage',
+              'sample_remarks',
+            ]);
+
+          if (sampleSettings) {
+            const map: Record<string, string> = {};
+            sampleSettings.forEach((r: any) => { map[r.key] = r.value; });
+
+            if (
+              map.sample_enabled === 'true' &&
+              map.sample_file_path &&
+              map.sample_sim_path &&
+              map.sample_ai_path
+            ) {
+              const sample: Document = {
+                id: 'sample',
+                user_id: null,
+                file_name: map.sample_file_name || 'Sample.docx',
+                file_path: map.sample_file_path,
+                status: 'completed',
+                scan_type: 'full',
+                assigned_staff_id: null,
+                assigned_at: null,
+                similarity_percentage: map.sample_sim_percentage ? Number(map.sample_sim_percentage) : null,
+                ai_percentage: map.sample_ai_percentage ? Number(map.sample_ai_percentage) : null,
+                similarity_report_path: map.sample_sim_path,
+                ai_report_path: map.sample_ai_path,
+                remarks: map.sample_remarks || null,
+                error_message: null,
+                uploaded_at: new Date().toISOString(),
+                completed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                cancellation_reason: null,
+                cancelled_at: null,
+                cancelled_by: null,
+                is_sample: true,
+              };
+              finalDocs = [sample, ...finalDocs];
+            }
+          }
+        } catch (err) {
+          console.log('Sample doc fetch failed (non-critical):', err);
+        }
+      }
+
+      setDocuments(finalDocs);
     } catch (error) {
       console.error('Error fetching documents:', error);
       toast({
@@ -800,6 +860,7 @@ export const useDocuments = () => {
   }, [user, role]);
 
   const deleteDocument = async (documentId: string, filePath: string, similarityReportPath?: string | null, aiReportPath?: string | null) => {
+    if (documentId === 'sample') return { success: false };
     try {
       // Soft delete: mark as deleted but preserve the record and files
       const { error: updateError } = await supabase
@@ -838,8 +899,8 @@ export const useDocuments = () => {
     cancellationReason: string,
     adminUserId: string
   ) => {
+    if (documentId === 'sample') return { success: false };
     try {
-      // 1. Fetch document details (separate queries to avoid join issues with null user_id)
       const { data: docData, error: fetchError } = await supabase
         .from('documents')
         .select('*')
