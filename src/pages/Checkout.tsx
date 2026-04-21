@@ -1040,11 +1040,11 @@ export default function Checkout() {
                       </div>
                       <div className="flex items-center gap-2">
                         {binanceDiscount > 0 && (
-                          <span className="text-xs line-through text-muted-foreground">${calculateDiscountedTotal(packagePrice).toFixed(2)}</span>
+                          <span className="text-xs line-through text-muted-foreground">${calculateDiscountedTotal(totalPrice).toFixed(2)}</span>
                         )}
                         <Button onClick={openBinancePayment} size="sm" variant="outline">
                           Pay ${binanceDiscount > 0 
-                            ? (calculateDiscountedTotal(packagePrice) * (1 - binanceDiscount / 100)).toFixed(2)
+                            ? (calculateDiscountedTotal(totalPrice) * (1 - binanceDiscount / 100)).toFixed(2)
                             : calculateTotalWithFee('binance').toFixed(2)
                           }
                         </Button>
@@ -1084,7 +1084,7 @@ export default function Checkout() {
                         </div>
                       </div>
                       <Button onClick={openUsdtManualDialog} size="sm" variant="outline">
-                        Pay ${calculateDiscountedTotal(packagePrice)}
+                        Pay ${calculateDiscountedTotal(totalPrice).toFixed(2)}
                       </Button>
                     </div>
                   </div>
@@ -1103,7 +1103,7 @@ export default function Checkout() {
                         </div>
                       </div>
                       <Button onClick={openBankTransferDialog} size="sm" variant="outline">
-                        Pay ${calculateDiscountedTotal(packagePrice)}
+                        Pay ${calculateDiscountedTotal(totalPrice).toFixed(2)}
                       </Button>
                     </div>
                   </div>
@@ -1217,15 +1217,15 @@ export default function Checkout() {
                 {binanceDiscount > 0 ? (
                   <>
                     <p className="font-medium">
-                      Total: <span className="line-through text-muted-foreground">${calculateDiscountedTotal(packagePrice).toFixed(2)}</span>{' '}
-                      <span className="text-green-600">${(calculateDiscountedTotal(packagePrice) * (1 - binanceDiscount / 100)).toFixed(2)}</span>
+                      Total: <span className="line-through text-muted-foreground">${calculateDiscountedTotal(totalPrice).toFixed(2)}</span>{' '}
+                      <span className="text-green-600">${(calculateDiscountedTotal(totalPrice) * (1 - binanceDiscount / 100)).toFixed(2)}</span>
                     </p>
                     <Badge className="bg-green-600 text-white">{binanceDiscount}% Binance Discount</Badge>
                   </>
                 ) : (
                   <p className="font-medium">Total: ${calculateTotalWithFee('binance').toFixed(2)}</p>
                 )}
-                <p className="text-sm text-muted-foreground">For {packageCredits} credits</p>
+                <p className="text-sm text-muted-foreground">For {totalCredits} credits {quantity > 1 ? `(qty ${quantity})` : ''}</p>
               </div>
 
               <ol className="space-y-3 text-sm">
@@ -1237,7 +1237,7 @@ export default function Checkout() {
                   <span className="h-6 w-6 rounded-full bg-[#F0B90B] text-black flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
                   <div>
                     <span>Send ${binanceDiscount > 0 
-                      ? (calculateDiscountedTotal(packagePrice) * (1 - binanceDiscount / 100)).toFixed(2)
+                      ? (calculateDiscountedTotal(totalPrice) * (1 - binanceDiscount / 100)).toFixed(2)
                       : calculateTotalWithFee('binance').toFixed(2)
                     } to Pay ID: </span>
                     <Button variant="link" className="p-0 h-auto text-primary" onClick={() => {
