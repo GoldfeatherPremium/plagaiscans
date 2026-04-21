@@ -324,5 +324,11 @@
     "reqLowercase": "One lowercase letter (a-z)",
     "reqNumber": "One number (0-9)",
     "reqSpecial": "One special character (!@#$%^&*)"
+  },
+  "sample": {
+    "badge": "Sample",
+    "helperText": "👇 Try downloading our sample reports to see exactly what you’ll get.",
+    "readyForReal": "Ready for the real thing?",
+    "buyCreditsCta": "Buy credits →"
   }
 }

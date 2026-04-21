@@ -316,5 +316,11 @@
     "reqLowercase": "一个小写字母 (a-z)",
     "reqNumber": "一个数字 (0-9)",
     "reqSpecial": "一个特殊字符 (!@#$%^&*)"
+  },
+  "sample": {
+    "badge": "示例",
+    "helperText": "👇 下载我们的示例报告，了解您将收到什么。",
+    "readyForReal": "准备好了吗？",
+    "buyCreditsCta": "购买积分 →"
   }
 }

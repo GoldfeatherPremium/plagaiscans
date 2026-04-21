@@ -249,12 +249,12 @@ export default function MyDocuments() {
           <Card className="border-primary/20 bg-primary/5">
             <CardContent className="p-3 sm:p-4">
               <p className="text-sm text-muted-foreground">
-                👇 Try downloading our sample reports to see exactly what you'll get.
+                {t('sample.helperText')}
                 {hasZeroCredits && onlySampleVisible && (
                   <>
-                    {' '}Ready for the real thing?{' '}
+                    {' '}{t('sample.readyForReal')}{' '}
                     <Link to="/dashboard/buy-credits" className="text-primary hover:underline font-medium">
-                      Buy credits →
+                      {t('sample.buyCreditsCta')}
                     </Link>
                   </>
                 )}
@@ -383,7 +383,7 @@ export default function MyDocuments() {
                             )}
                           </TableCell>
                           <TableCell className="text-center font-medium">
-                            {isSample ? <span className="text-primary text-lg" title="Sample">★</span> : rowNumber}
+                            {isSample ? <span className="text-primary text-lg" title={t('sample.badge')}>★</span> : rowNumber}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -395,7 +395,7 @@ export default function MyDocuments() {
                                   </span>
                                   {isSample && (
                                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 uppercase tracking-wide">
-                                      Sample
+                                      {t('sample.badge')}
                                     </Badge>
                                   )}
                                 </div>
