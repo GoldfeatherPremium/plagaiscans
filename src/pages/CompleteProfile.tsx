@@ -6,15 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { FileCheck, Loader2, Phone, User } from 'lucide-react';
+import { FileCheck, Loader2, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { PhoneInput } from '@/components/PhoneInput';
 import { SEO } from '@/components/SEO';
+import { useTranslation } from 'react-i18next';
 
 export default function CompleteProfile() {
   const navigate = useNavigate();
   const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation('auth');
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -22,10 +24,12 @@ export default function CompleteProfile() {
   const [error, setError] = useState('');
 
   const needsName = !profile?.full_name;
-  const needsPhone = !profile?.phone;
+  // Phone is optional now — only show field if not yet provided
+  const showPhoneField = !profile?.phone;
 
   useEffect(() => {
-    if (profile && profile.phone && profile.full_name) {
+    // Only name is required for completion
+    if (profile && profile.full_name) {
       navigate('/dashboard');
     }
   }, [profile, navigate]);
@@ -39,8 +43,9 @@ export default function CompleteProfile() {
       return;
     }
 
-    if (needsPhone && !isPhoneValid) {
-      setError('Please enter a valid phone number');
+    // If phone was entered, it must be valid; empty is allowed
+    if (showPhoneField && phone && !isPhoneValid) {
+      setError('Please enter a valid phone number, or leave it empty');
       return;
     }
 
@@ -54,7 +59,7 @@ export default function CompleteProfile() {
     try {
       const updates: Record<string, string> = {};
       if (needsName) updates.full_name = fullName.trim();
-      if (needsPhone) updates.phone = phone;
+      if (showPhoneField && phone && isPhoneValid) updates.phone = phone;
 
       const { error: updateError } = await supabase
         .from('profiles')
@@ -108,7 +113,7 @@ export default function CompleteProfile() {
               </div>
               <span className="font-display font-bold text-2xl">PlagaiScans</span>
             </div>
-            <p className="text-muted-foreground">Complete your profile</p>
+            <p className="text-muted-foreground">{t('completeProfile.almostThere', { defaultValue: 'Just one more step before your dashboard.' })}</p>
           </div>
 
           <Card className="shadow-xl border-border/50">
@@ -118,8 +123,8 @@ export default function CompleteProfile() {
                   <User className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle>Complete Your Profile</CardTitle>
-                  <CardDescription>Please provide the following details to get started</CardDescription>
+                  <CardTitle>{t('completeProfile.title', { defaultValue: 'Tell us a bit about you' })}</CardTitle>
+                  <CardDescription>{t('completeProfile.subtitle', { defaultValue: 'Add your name so we can personalize receipts and invoices.' })}</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -127,18 +132,21 @@ export default function CompleteProfile() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 {needsName && (
                   <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
+                    <Label htmlFor="fullName">{t('signup.fullNameLabel')}</Label>
                     <Input
                       id="fullName"
-                      placeholder="Enter your full name"
+                      placeholder={t('signup.fullNamePlaceholder')}
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                     />
                   </div>
                 )}
-                {needsPhone && (
+                {showPhoneField && (
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
+                    <Label htmlFor="phone">
+                      {t('signup.phoneLabel')}{' '}
+                      <span className="text-xs font-normal text-muted-foreground">({t('completeProfile.optional', { defaultValue: 'optional' })})</span>
+                    </Label>
                     <PhoneInput
                       value={phone}
                       onChange={(fullNumber, valid) => {
@@ -146,16 +154,21 @@ export default function CompleteProfile() {
                         setIsPhoneValid(valid);
                       }}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      {t('completeProfile.optionalPhoneHelper', {
+                        defaultValue: 'Optional — used for WhatsApp delivery alerts and account recovery.',
+                      })}
+                    </p>
                   </div>
                 )}
                 {error && <p className="text-sm text-destructive">{error}</p>}
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={loading || (needsPhone && !isPhoneValid) || (needsName && !fullName.trim())}
+                  disabled={loading || (needsName && !fullName.trim())}
                 >
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Complete Profile
+                  {t('completeProfile.submit', { defaultValue: 'Complete Profile' })}
                 </Button>
               </form>
             </CardContent>
