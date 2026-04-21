@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle2, Moon, Clock } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ServiceStatus {
   status: 'online' | 'offline';
