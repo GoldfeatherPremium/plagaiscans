@@ -1,70 +1,50 @@
 
 
-## Slim Signup to Email + Password — Move Name & Phone to Profile Completion
+## Hide Service Status from Zero-Credit Customers
 
-Reduce signup friction by collecting only what's strictly needed to create the account, then ask for name and phone right after on the existing `/complete-profile` step. This mirrors what already happens for Google OAuth users today.
+Hide the service status pill (header) and offline banner (Dashboard, Upload pages) from customers whose combined credit balance is zero. Staff and admins always see status. Users with any credits (full or similarity) continue to see status normally.
 
-### What changes for the user
+### Rationale
 
-**New signup flow (email/password):**
-```text
-1. /auth (signup view)
-   ├─ Email
-   ├─ Password
-   ├─ Confirm password
-   └─ Referral code (optional)
-       → Submit
-2. Account created, auto-signed-in
-3. Redirected to /complete-profile
-   ├─ Full name
-   └─ Phone (UK +44 default, optional with helper text)
-       → Submit
-4. Redirected to /dashboard
+Customers with zero credits cannot upload anyway, so service availability is irrelevant noise for them. Showing it only to credited customers keeps the signal meaningful and reduces clutter for prospects who haven't purchased yet.
+
+### Logic
+
+A customer "has credits" when:
+```
+(profile.credit_balance > 0) || (profile.similarity_credit_balance > 0)
 ```
 
-Google OAuth flow is unchanged (already lands on `/complete-profile`).
-
-Login view is unchanged.
+Visibility rule for both Pill and Banner:
+- Role is `staff` or `admin` → always show
+- Role is `customer` → show only if has credits
+- Guest / no profile → hide
 
 ### Implementation
 
-**`src/pages/Auth.tsx`**
-- Remove `fullName`, `phone`, `confirmPassword`-stays, but **drop the `fullName` and `PhoneInput` fields** from the signup form and from `signupData` state.
-- Update `signupSchema` (zod) to only require `email`, `password`, `confirmPassword` (+ referral stays free-text optional).
-- Update `handleSignup` to call `signUp(email, password, '', '', ...)` — pass empty strings for name/phone so the existing AuthContext signature stays intact. Referral logic, IP capture, and welcome email all unchanged.
-- Drop `isPhoneValid` state and the `t('validation.phoneInvalid')` early-return.
-- After successful signup, navigate to `/complete-profile` instead of `/dashboard` (the existing `needsPhoneNumber` guard would redirect anyway, but explicit nav is cleaner and avoids a flash).
-- Remove the now-unused `PhoneInput` import.
+**`src/components/ServiceStatusPill.tsx`**
+- Pull `role` and `profile` from `useAuth()`.
+- Add an early `return null` when role is `customer` and combined credit balance is `0`.
+- Keeps existing realtime subscription untouched — only suppresses render.
 
-**`src/pages/CompleteProfile.tsx`**
-- Make phone **optional**: drop the `needsPhone && !isPhoneValid` blockers in submit + button-disabled logic. Only validate format if a value is entered.
-- Add a small helper line under the phone field: "Optional — used for WhatsApp delivery alerts and account recovery."
-- Keep full-name as required (it's needed for invoices/receipts).
-- Title/copy tweak: "Tell us a bit about you" / "Just one more step before your dashboard."
+**`src/components/ServiceStatusBanner.tsx`**
+- Same guard at the top of the render (after the existing `if (!state) return null` and `if (status === 'online') return null` checks).
+- Applies to Dashboard, UploadDocument, and UploadSimilarity (all three already render this banner).
 
-**`src/contexts/AuthContext.tsx`**
-- `needsPhoneNumber` currently fires when `!profile.phone || !profile.full_name`. Change it to `!profile.full_name` only (phone is now optional). Rename internally is fine to leave; the boolean stays the trigger for the `/complete-profile` redirect.
-- `signUp` signature stays the same — empty `fullName`/`phone` are tolerated by the existing `data` payload and the DB trigger that creates the profile row.
+No other files require changes — the parent pages keep mounting the components; the components self-suppress based on auth state.
 
-**i18n (`src/i18n/locales/{en,ar,zh,fr,es,de,ru}/auth.json`)**
-- Add new keys: `signup.simpleSubtitle`, `completeProfile.optionalPhoneHelper`, `completeProfile.almostThere`. Translate to all 7 languages.
-- Existing `signup.fullNameLabel` / `signup.phoneLabel` keys remain (used by `/complete-profile`).
+### Edge cases
 
-### Edge cases handled
-- Referral codes: still applied at signup (not deferred), so reward attribution is preserved.
-- Welcome email: still fires from `signUp`; uses `null` for full name when blank, which the function already tolerates.
-- Existing users with missing names: next login → routed to `/complete-profile` (already the case).
-- Soft-validation: if user tries to skip `/complete-profile` by typing `/dashboard`, `ProtectedRoute` keeps redirecting until name is filled.
-
-### Memory update
-Update `mem://auth/onboarding/mandatory-profile-completion-flow` to reflect: signup collects only email + password, and name (required) + phone (optional) are captured on `/complete-profile` for both email and OAuth users.
+- **Profile still loading**: `profile` is `null` → treat as no credits → hide. Once profile loads, it appears if applicable. No flash of stale state.
+- **Credit purchased mid-session**: `useAuth` profile updates → pill/banner re-renders and appears automatically.
+- **Credits drop to zero after consumption**: pill/banner disappears on next profile refresh — acceptable, matches the rule.
+- **Magic-link guests** on `/g/...`: no `profile`, so already hidden. ✅
+- **Staff/admin**: bypass check, always see status (operational need). ✅
 
 ### Files touched
+
 ```
-src/pages/Auth.tsx                    (slim signup form + schema + redirect)
-src/pages/CompleteProfile.tsx         (phone optional, copy refresh)
-src/contexts/AuthContext.tsx          (needsPhoneNumber → name-only check)
-src/i18n/locales/{7 langs}/auth.json  (new copy keys)
-mem://auth/onboarding/...             (memory refresh)
+src/components/ServiceStatusPill.tsx     (add credit-aware visibility guard)
+src/components/ServiceStatusBanner.tsx   (add credit-aware visibility guard)
 ```
 
