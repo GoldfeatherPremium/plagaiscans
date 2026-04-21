@@ -29,6 +29,8 @@ import {
   Mail,
   MessageSquare,
   Sparkles,
+  Crown,
+  Zap,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -62,6 +64,7 @@ interface PricingPackage {
   description: string | null;
   features: string[] | null;
   credit_type: string;
+  is_most_popular?: boolean;
 }
 
 export default function GuestUpload() {
@@ -843,76 +846,107 @@ export default function GuestUpload() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {packages.map((plan, index) => {
-                  const isPopular = index === packages.length - 1 && packages.length > 1;
-                  
-                  return (
-                    <Card 
-                      key={plan.id} 
-                      className={`hover:border-primary/50 transition-colors relative overflow-hidden ${
-                        isPopular ? 'border-primary shadow-lg ring-2 ring-primary/20' : ''
-                      }`}
-                    >
-                      {isPopular && (
-                        <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold rounded-bl-lg">
-                          Best Value
-                        </div>
-                      )}
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <div>
-                            <h3 className="text-xl font-bold">
-                              {plan.name || `${plan.credits} ${plan.credits === 1 ? 'Credit' : 'Credits'}`}
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              ${(plan.price / plan.credits).toFixed(2)} per document
-                            </p>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {(() => {
+                  const hasAdminPopular = packages.some(p => p.is_most_popular);
+                  return packages.map((plan, index) => {
+                    const isPopular = hasAdminPopular
+                      ? !!plan.is_most_popular
+                      : index === packages.length - 1 && packages.length > 1;
+                    const isSubscription = plan.package_type === 'subscription';
+
+                    return (
+                      <Card
+                        key={plan.id}
+                        className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${
+                          isPopular ? 'border-primary shadow-lg ring-2 ring-primary/20' : ''
+                        }`}
+                      >
+                        {isPopular && (
+                          <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-4 py-1 text-sm font-semibold rounded-bl-lg z-10">
+                            Best Value
                           </div>
-                          <p className="text-3xl font-bold text-primary">${plan.price}</p>
-                        </div>
-                        {plan.validity_days && (
-                          <Badge variant="outline" className="mb-4 bg-amber-500/10 text-amber-600 border-amber-500/20">
-                            <Clock className="h-3 w-3 mr-1" />
-                            Valid for {plan.validity_days} days
-                          </Badge>
                         )}
-                        <ul className="space-y-2 mb-4 text-sm">
-                          {plan.features && plan.features.length > 0 ? (
-                            plan.features.map((feature, featureIndex) => (
-                              <li key={featureIndex} className="flex items-center gap-2">
-                                <CheckCircle className="h-4 w-4 text-secondary flex-shrink-0" />
-                                <span>{feature}</span>
-                              </li>
-                            ))
-                          ) : (
-                            <>
-                              <li className="flex items-center gap-2">
-                                <CheckCircle className="h-4 w-4 text-secondary" />
-                                {plan.credits} document checks
-                              </li>
-                              <li className="flex items-center gap-2">
-                                <CheckCircle className="h-4 w-4 text-secondary" />
-                                Similarity Detection
-                              </li>
-                              <li className="flex items-center gap-2">
-                                <CheckCircle className="h-4 w-4 text-secondary" />
-                                AI Content Detection
-                              </li>
-                            </>
+                        {isSubscription && (
+                          <div className="absolute top-0 left-0 right-0 h-1 bg-green-500" />
+                        )}
+                        <CardHeader className="text-center pb-4">
+                          <div className={`mx-auto h-12 w-12 rounded-xl flex items-center justify-center mb-2 ${
+                            isSubscription ? 'bg-green-500/10' : 'bg-primary/10'
+                          }`}>
+                            {isSubscription ? (
+                              <Crown className="h-5 w-5 text-green-600" />
+                            ) : (
+                              <Zap className="h-5 w-5 text-primary" />
+                            )}
+                          </div>
+                          <CardTitle className="text-2xl font-display">
+                            {plan.name || `${plan.credits} Credits`}
+                          </CardTitle>
+                          <div className="mt-4">
+                            <span className={`text-5xl font-bold ${isSubscription ? 'text-green-600' : ''}`}>
+                              ${plan.price}
+                            </span>
+                            {isSubscription && (
+                              <span className="text-muted-foreground text-sm">/{plan.billing_interval || 'month'}</span>
+                            )}
+                          </div>
+                          <p className="text-muted-foreground mt-2">
+                            {isSubscription
+                              ? `${plan.credits} credits per ${plan.billing_interval || 'month'}`
+                              : `$${(plan.price / plan.credits).toFixed(2)} per credit`
+                            }
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            1 credit = 1 document check
+                          </p>
+                          {plan.validity_days && (
+                            <Badge variant="outline" className="mt-2 bg-amber-500/10 text-amber-600 border-amber-500/20">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Valid for {plan.validity_days} days
+                            </Badge>
                           )}
-                        </ul>
-                        <Button
-                          className="w-full"
-                          variant={isPopular ? "default" : "outline"}
-                          asChild
-                        >
-                          <Link to={linkData?.is_special ? "/auth?guest_special=true" : "/auth"}>Sign Up to Purchase</Link>
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                        </CardHeader>
+                        <CardContent className="pt-4">
+                          <ul className="space-y-3 mb-8">
+                            {plan.features && plan.features.length > 0 ? (
+                              plan.features.map((feature, featureIndex) => (
+                                <li key={featureIndex} className="flex items-center gap-3">
+                                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                                  <span className="text-muted-foreground">{feature}</span>
+                                </li>
+                              ))
+                            ) : (
+                              <>
+                                <li className="flex items-center gap-3">
+                                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                                  <span className="text-muted-foreground">{plan.credits} document checks</span>
+                                </li>
+                                <li className="flex items-center gap-3">
+                                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                                  <span className="text-muted-foreground">Non-Repository check</span>
+                                </li>
+                                <li className="flex items-center gap-3">
+                                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                                  <span className="text-muted-foreground">Similarity & AI reports</span>
+                                </li>
+                              </>
+                            )}
+                          </ul>
+                          <Button
+                            className="w-full"
+                            variant={isPopular ? 'default' : 'outline'}
+                            asChild
+                          >
+                            <Link to={linkData?.is_special ? '/auth?guest_special=true' : '/auth'}>
+                              Sign Up to Purchase
+                            </Link>
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  });
+                })()}
               </div>
             )}
 
