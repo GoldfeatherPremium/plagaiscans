@@ -76,6 +76,7 @@ function normalizeFilename(filename: string): string {
 export function BulkUploadPanel({ scanType, compact = false }: BulkUploadPanelProps) {
   const { role } = useAuth();
   const { permissions, loading: permissionsLoading } = useStaffPermissions();
+  const { setUploading: setSessionUploading } = useUploadActivity();
   const [files, setFiles] = useState<ReportFile[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -232,6 +233,7 @@ export function BulkUploadPanel({ scanType, compact = false }: BulkUploadPanelPr
     const mappings = mappingsOverride || manualMappings;
 
     setProcessing(true);
+    setSessionUploading(true);
     setUploadProgress(0);
     setProcessingResult(null);
 
@@ -323,6 +325,7 @@ export function BulkUploadPanel({ scanType, compact = false }: BulkUploadPanelPr
       toast.error('An error occurred during processing');
     } finally {
       setProcessing(false);
+      setSessionUploading(false);
     }
   };
 
