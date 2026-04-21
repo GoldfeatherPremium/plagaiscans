@@ -53,6 +53,7 @@ const formatAbsoluteTime = (target: Date): string => {
 };
 
 export const ServiceStatusBanner: React.FC = () => {
+  const { role, profile } = useAuth();
   const [state, setState] = useState<ServiceStatus | null>(null);
   const [, setTick] = useState(0); // forces re-render for countdown
 
