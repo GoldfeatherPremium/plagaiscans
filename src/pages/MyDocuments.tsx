@@ -244,8 +244,8 @@ export default function MyDocuments() {
           </Card>
         )}
 
-        {/* Sample document helper nudge for customers */}
-        {role === 'customer' && documents.some(d => d.is_sample) && (
+        {/* Sample document helper nudge for customers — hidden once they've completed a real doc */}
+        {role === 'customer' && documents.some(d => d.is_sample) && !documents.some(d => !d.is_sample && d.status === 'completed') && (
           <Card className="border-primary/20 bg-primary/5">
             <CardContent className="p-3 sm:p-4">
               <p className="text-sm text-muted-foreground">
