@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, CreditCard, Loader2, Bitcoin, Copy, ExternalLink, 
-  RefreshCw, Wallet, Globe, 
+  RefreshCw, Wallet, Globe, Plus, Minus,
   CheckCircle, MessageCircle, AlertCircle, Tag, X, Shield, Store, Landmark
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
