@@ -569,8 +569,8 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                {/* Sample document helper nudge for customers */}
-                {role === 'customer' && recentDocs.some(d => d.is_sample) && (
+                {/* Sample document helper nudge for customers — hidden once they've completed a real doc */}
+                {role === 'customer' && recentDocs.some(d => d.is_sample) && !recentDocs.some(d => !d.is_sample && d.status === 'completed') && (
                   <div className="px-6 py-3 bg-primary/5 border-b border-primary/10">
                     <p className="text-sm text-muted-foreground">
                       {t('sample.helperText')}
