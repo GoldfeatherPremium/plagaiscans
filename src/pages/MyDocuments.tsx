@@ -520,23 +520,25 @@ export default function MyDocuments() {
                           </TableCell>
                           {isAdmin && (
                             <TableCell className="text-center">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                onClick={() => {
-                                  setDocumentToEdit(doc);
-                                  setEditDialogOpen(true);
-                                }}
-                                title="Edit document"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
+                              {!isSample && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => {
+                                    setDocumentToEdit(doc);
+                                    setEditDialogOpen(true);
+                                  }}
+                                  title="Edit document"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
                             </TableCell>
                           )}
                           {!isStaffOrAdmin && (
                             <TableCell className="text-center">
-                              {doc.status === 'completed' && (
+                              {!isSample && doc.status === 'completed' && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -551,7 +553,8 @@ export default function MyDocuments() {
                           )}
                         </TableRow>
                       );
-                    })}
+                      });
+                    })()}
                   </TableBody>
                 </Table>
               </div>
