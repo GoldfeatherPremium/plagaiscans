@@ -106,6 +106,20 @@ export default function AdminSettings() {
   const [adminPaymentNotifyEmails, setAdminPaymentNotifyEmails] = useState('');
   const [savingAdminPaymentEmail, setSavingAdminPaymentEmail] = useState(false);
 
+  // Sample Document state
+  const [sampleEnabled, setSampleEnabled] = useState(false);
+  const [sampleFileName, setSampleFileName] = useState('Sample.docx');
+  const [sampleFilePath, setSampleFilePath] = useState('');
+  const [sampleSimPath, setSampleSimPath] = useState('');
+  const [sampleAiPath, setSampleAiPath] = useState('');
+  const [sampleSimPercentage, setSampleSimPercentage] = useState('12');
+  const [sampleAiPercentage, setSampleAiPercentage] = useState('18');
+  const [sampleRemarks, setSampleRemarks] = useState('');
+  const [sampleDocFile, setSampleDocFile] = useState<File | null>(null);
+  const [sampleSimFile, setSampleSimFile] = useState<File | null>(null);
+  const [sampleAiFile, setSampleAiFile] = useState<File | null>(null);
+  const [savingSample, setSavingSample] = useState(false);
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -542,11 +556,12 @@ export default function AdminSettings() {
         </div>
 
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="payments">Payments</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="auth">Authentication</TabsTrigger>
+            <TabsTrigger value="sample">Sample Doc</TabsTrigger>
           </TabsList>
 
           {/* ==================== GENERAL TAB ==================== */}
