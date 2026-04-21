@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   CreditCard, CheckCircle, Loader2, 
   Sparkles, Zap, Star, RefreshCw, Clock, Calendar, Crown, ArrowRight, FileText,
-  ScanSearch
+  ScanSearch, Shield, Lock, CheckCircle2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -197,11 +197,62 @@ export default function BuyCredits() {
   return (
     <DashboardLayout>
       <div className="max-w-5xl mx-auto space-y-8">
+        {/* Check Before You Submit — hero */}
+        <section className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-secondary/5 via-background to-primary/5 px-6 py-12 md:py-16">
+          <div className="text-center max-w-3xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-secondary/10 border border-secondary/20 mb-8">
+              <Sparkles className="h-4 w-4 text-secondary" />
+              <span className="text-[13px] font-bold tracking-wide uppercase text-secondary">
+                Official Turnitin Reports
+              </span>
+            </div>
+            <h1 className="font-display font-bold tracking-tight leading-[1.05] text-[40px] sm:text-[56px] lg:text-[64px] text-foreground mb-6">
+              Check Before You Submit
+            </h1>
+            <p className="text-[17px] sm:text-lg leading-relaxed text-muted-foreground max-w-2xl mx-auto mb-10">
+              Get the <span className="font-semibold text-foreground">exact same report</span> your professor uses. AI detection + similarity analysis for just <span className="font-bold text-primary">$3.99</span>
+            </p>
+
+            {/* No Repository highlight card */}
+            <div className="max-w-xl mx-auto rounded-2xl bg-secondary/5 border border-secondary/20 p-6 sm:p-8 mb-10">
+              <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
+                <Lock className="h-7 w-7 text-secondary-foreground" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold text-secondary mb-2">
+                No Repository = Zero Trace
+              </h2>
+              <p className="text-sm sm:text-base text-secondary/80">
+                Your paper is NOT stored. Submit to your university later with complete confidence.
+              </p>
+            </div>
+
+            {/* Trust badges */}
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4 max-w-md mx-auto text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                <span>Real Turnitin</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Shield className="h-5 w-5 text-primary shrink-0" />
+                <span>No Repository</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Clock className="h-5 w-5 text-primary shrink-0" />
+                <span>2-5 Min Results</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Lock className="h-5 w-5 text-primary shrink-0" />
+                <span>Zero Self-Plagiarism Risk</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-4xl font-display font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          <h2 className="text-3xl md:text-4xl font-display font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             {t('credits.title')}
-          </h1>
+          </h2>
           <p className="text-muted-foreground mt-2 text-lg">
             {t('credits.subtitle')}
           </p>
@@ -580,6 +631,97 @@ export default function BuyCredits() {
             </CardContent>
           </Card>
         )}
+
+        {/* No Repository = Safe to Submit Later */}
+        <section className="max-w-3xl mx-auto">
+          <Card className="border-secondary/20 bg-gradient-to-br from-secondary/5 to-primary/5 p-6 sm:p-10">
+            <div className="h-14 w-14 rounded-2xl bg-secondary flex items-center justify-center mb-6">
+              <Lock className="h-7 w-7 text-secondary-foreground" />
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-display font-bold mb-5 text-foreground leading-tight">
+              No Repository = Safe to Submit Later
+            </h2>
+            <p className="text-base sm:text-lg text-muted-foreground leading-relaxed mb-6">
+              <span className="font-bold text-foreground">This is the key difference.</span> Your paper is NOT added to any database. Check your work here first, then submit to your university with complete confidence.
+            </p>
+            <ul className="space-y-3">
+              {[
+                'Professor will never know you pre-checked',
+                'Zero self-plagiarism risk',
+                "Paper won't match against itself",
+                'Complete privacy guaranteed',
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-secondary shrink-0 mt-0.5" />
+                  <span className="text-muted-foreground">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </section>
+
+        {/* Why Choose Us */}
+        <div>
+          <h2 className="text-2xl font-display font-bold text-center mb-8">
+            Why Choose PlagaiScans
+          </h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            <Card className="text-center p-6">
+              <Zap className="h-10 w-10 text-primary mx-auto mb-4" />
+              <h3 className="font-bold mb-2">Fast Results</h3>
+              <p className="text-sm text-muted-foreground">
+                Get your similarity and AI detection report in 2–5 minutes.
+              </p>
+            </Card>
+            <Card className="text-center p-6">
+              <Shield className="h-10 w-10 text-primary mx-auto mb-4" />
+              <h3 className="font-bold mb-2">Secure & Private</h3>
+              <p className="text-sm text-muted-foreground">
+                Documents are never stored in any repository. Complete privacy guaranteed.
+              </p>
+            </Card>
+            <Card className="text-center p-6">
+              <Clock className="h-10 w-10 text-primary mx-auto mb-4" />
+              <h3 className="font-bold mb-2">Long Validity</h3>
+              <p className="text-sm text-muted-foreground">
+                Your credits remain valid for use whenever you need a check.
+              </p>
+            </Card>
+          </div>
+        </div>
+
+        {/* FAQ Section */}
+        <div>
+          <h2 className="text-2xl font-display font-bold text-center mb-8">
+            Frequently Asked Questions
+          </h2>
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            <Card className="p-6">
+              <h3 className="font-bold mb-2">What is non-repository check?</h3>
+              <p className="text-sm text-muted-foreground">
+                Your document is checked against Turnitin's databases without being added to them, so your paper stays private and won't match against itself when your university submits it later.
+              </p>
+            </Card>
+            <Card className="p-6">
+              <h3 className="font-bold mb-2">Which payment methods do you accept?</h3>
+              <p className="text-sm text-muted-foreground">
+                We accept all major credit/debit cards, PayPal, USDT, Binance Pay, and bank transfers in selected countries.
+              </p>
+            </Card>
+            <Card className="p-6">
+              <h3 className="font-bold mb-2">What is your refund policy?</h3>
+              <p className="text-sm text-muted-foreground">
+                Unused credits are eligible for a refund within 14 days. See our <a href="/refund-policy" className="text-primary hover:underline">refund policy</a> for full details.
+              </p>
+            </Card>
+            <Card className="p-6">
+              <h3 className="font-bold mb-2">How long does processing take?</h3>
+              <p className="text-sm text-muted-foreground">
+                Most reports are ready within 2–5 minutes. Larger or queued documents may take a little longer.
+              </p>
+            </Card>
+          </div>
+        </div>
 
       </div>
     </DashboardLayout>
