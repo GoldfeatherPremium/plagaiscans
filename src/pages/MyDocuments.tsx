@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useDocuments, Document } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
+import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DocumentSearchFilters, DocumentFilters, filterDocuments } from '@/components/DocumentSearchFilters';
 import { useTranslation } from 'react-i18next';
@@ -40,10 +41,11 @@ import {
 export default function MyDocuments() {
   const { t } = useTranslation('dashboard');
   const { documents, loading, downloadFile, deleteDocument, fetchDocuments } = useDocuments();
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const { toast } = useToast();
   const isStaffOrAdmin = role === 'staff' || role === 'admin';
   const isAdmin = role === 'admin';
+  const hasZeroCredits = (profile?.credit_balance ?? 0) === 0 && (profile?.similarity_credit_balance ?? 0) === 0;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -102,8 +104,8 @@ export default function MyDocuments() {
   };
 
   const selectAll = () => {
-    // Select all completed docs from the FULL filtered list (not just visible)
-    const completedDocs = allFilteredDocuments.filter(d => d.status === 'completed');
+    // Select all completed docs from the FULL filtered list (not just visible) — exclude sample
+    const completedDocs = allFilteredDocuments.filter(d => d.status === 'completed' && !d.is_sample);
     setSelectedIds(new Set(completedDocs.map(d => d.id)));
   };
 
@@ -160,10 +162,11 @@ export default function MyDocuments() {
     setDocumentToDelete(null);
   };
 
-  // Use full filtered list for counts
-  const allCompletedCount = allFilteredDocuments.filter(d => d.status === 'completed').length;
+  // Use full filtered list for counts — exclude sample (no checkbox)
+  const allCompletedCount = allFilteredDocuments.filter(d => d.status === 'completed' && !d.is_sample).length;
   const selectedCompletedCount = allFilteredDocuments.filter(d => selectedIds.has(d.id) && d.status === 'completed').length;
-  const visibleCompletedCount = filteredDocuments.filter(d => d.status === 'completed').length;
+  const visibleCompletedCount = filteredDocuments.filter(d => d.status === 'completed' && !d.is_sample).length;
+  const onlySampleVisible = documents.length === 1 && documents[0]?.is_sample === true;
 
   return (
     <DashboardLayout>
