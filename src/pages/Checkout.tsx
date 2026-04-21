@@ -1293,7 +1293,7 @@ export default function Checkout() {
       <StripeEmbeddedCheckout
         open={showStripeEmbeddedCheckout}
         onClose={() => setShowStripeEmbeddedCheckout(false)}
-        credits={packageCredits}
+        credits={totalCredits}
         amount={Math.round(calculateTotalWithFee('stripe') * 100)}
         creditType={packageCreditType}
         onSuccess={() => {
@@ -1317,8 +1317,8 @@ export default function Checkout() {
           {usdtManualStep === 'info' ? (
             <div className="space-y-4">
               <div className="p-4 bg-muted rounded-lg space-y-3">
-                <p className="font-medium">Amount: ${calculateDiscountedTotal(packagePrice)}</p>
-                <p className="text-sm text-muted-foreground">For {packageCredits} credits</p>
+                <p className="font-medium">Amount: ${calculateDiscountedTotal(totalPrice).toFixed(2)}</p>
+                <p className="text-sm text-muted-foreground">For {totalCredits} credits {quantity > 1 ? `(qty ${quantity})` : ''}</p>
               </div>
 
               <div className="space-y-2">
@@ -1341,7 +1341,7 @@ export default function Checkout() {
                 </li>
                 <li className="flex gap-3">
                   <span className="h-6 w-6 rounded-full bg-[#26A17B] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">2</span>
-                  <span>Send exactly ${calculateDiscountedTotal(packagePrice)} USDT via TRC20 network</span>
+                  <span>Send exactly ${calculateDiscountedTotal(totalPrice).toFixed(2)} USDT via TRC20 network</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="h-6 w-6 rounded-full bg-[#26A17B] text-white flex items-center justify-center font-bold flex-shrink-0 text-xs">3</span>
