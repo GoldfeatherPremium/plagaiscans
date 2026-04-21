@@ -40,6 +40,9 @@ export const ServiceStatusPill: React.FC = () => {
 
   if (!status) return null;
 
+  const hasCredits = (profile?.credit_balance ?? 0) > 0 || (profile?.similarity_credit_balance ?? 0) > 0;
+  if (role === 'customer' && !hasCredits) return null;
+
   const isOnline = status === 'online';
 
   return (
