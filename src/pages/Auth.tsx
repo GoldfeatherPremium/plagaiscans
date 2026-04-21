@@ -81,6 +81,7 @@ export default function Auth() {
 
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [rememberMe, setRememberMe] = useState(true);
+  const [authView, setAuthView] = useState<'login' | 'signup'>(referralCode ? 'signup' : 'login');
   const [signupData, setSignupData] = useState({
     fullName: '',
     email: '',
