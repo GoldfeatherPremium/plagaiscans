@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   CreditCard, CheckCircle, Loader2, 
   Sparkles, Zap, Star, RefreshCw, Clock, Calendar, Crown, ArrowRight, FileText,
-  ScanSearch
+  ScanSearch, Shield, Lock, CheckCircle2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
