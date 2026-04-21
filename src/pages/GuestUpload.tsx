@@ -31,6 +31,9 @@ import {
   Sparkles,
   Crown,
   Zap,
+  Shield,
+  Lock,
+  CheckCircle2,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -815,8 +818,59 @@ export default function GuestUpload() {
 
           {/* Pricing Tab */}
           <TabsContent value="pricing" className="space-y-6">
+            {/* Check Before You Submit — hero */}
+            <section className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-secondary/5 via-background to-primary/5 px-6 py-12">
+              <div className="text-center max-w-3xl mx-auto">
+                <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-secondary/10 border border-secondary/20 mb-6">
+                  <Sparkles className="h-4 w-4 text-secondary" />
+                  <span className="text-[13px] font-bold tracking-wide uppercase text-secondary">
+                    Official Turnitin Reports
+                  </span>
+                </div>
+                <h1 className="font-display font-bold tracking-tight leading-[1.05] text-[32px] sm:text-[44px] text-foreground mb-4">
+                  Check Before You Submit
+                </h1>
+                <p className="text-base sm:text-lg leading-relaxed text-muted-foreground max-w-2xl mx-auto mb-8">
+                  Get the <span className="font-semibold text-foreground">exact same report</span> your professor uses. AI detection + similarity analysis from <span className="font-bold text-primary">$3.99</span>
+                </p>
+
+                {/* No Repository highlight card */}
+                <div className="max-w-xl mx-auto rounded-2xl bg-secondary/5 border border-secondary/20 p-6 mb-8">
+                  <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
+                    <Lock className="h-7 w-7 text-secondary-foreground" />
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-secondary mb-2">
+                    No Repository = Zero Trace
+                  </h2>
+                  <p className="text-sm sm:text-base text-secondary/80">
+                    Your paper is NOT stored. Submit to your university later with complete confidence.
+                  </p>
+                </div>
+
+                {/* Trust badges */}
+                <div className="grid grid-cols-2 gap-x-8 gap-y-4 max-w-md mx-auto text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                    <span>Real Turnitin</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Shield className="h-5 w-5 text-primary shrink-0" />
+                    <span>No Repository</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Clock className="h-5 w-5 text-primary shrink-0" />
+                    <span>2-5 Min Results</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Lock className="h-5 w-5 text-primary shrink-0" />
+                    <span>Zero Self-Plagiarism Risk</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <div>
-              <h1 className="text-2xl font-display font-bold">Pricing</h1>
+              <h2 className="text-2xl font-display font-bold">Pricing</h2>
               <p className="text-muted-foreground mt-1">
                 Sign up to purchase credits and check more documents
               </p>
@@ -838,6 +892,32 @@ export default function GuestUpload() {
                   <Link to={linkData?.is_special ? "/auth?guest_special=true" : "/auth"}>Sign Up Now</Link>
                 </Button>
               </CardContent>
+            </Card>
+
+            {/* No Repository = Safe to Submit Later */}
+            <Card className="border-secondary/20 bg-gradient-to-br from-secondary/5 to-primary/5 p-6 sm:p-10">
+              <div className="h-14 w-14 rounded-2xl bg-secondary flex items-center justify-center mb-6">
+                <Lock className="h-7 w-7 text-secondary-foreground" />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-display font-bold mb-4 text-foreground leading-tight">
+                No Repository = Safe to Submit Later
+              </h2>
+              <p className="text-base text-muted-foreground leading-relaxed mb-6">
+                <span className="font-bold text-foreground">This is the key difference.</span> Your paper is NOT added to any database. Check your work here first, then submit to your university with complete confidence.
+              </p>
+              <ul className="space-y-3">
+                {[
+                  'Professor will never know you pre-checked',
+                  'Zero self-plagiarism risk',
+                  "Paper won't match against itself",
+                  'Complete privacy guaranteed',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-secondary shrink-0 mt-0.5" />
+                    <span className="text-muted-foreground">{item}</span>
+                  </li>
+                ))}
+              </ul>
             </Card>
 
             {/* Pricing Plans */}
