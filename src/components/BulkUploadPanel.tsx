@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
+import { useUploadActivity } from '@/contexts/UploadActivityContext';
 import { 
   Upload, 
   FileText, 
