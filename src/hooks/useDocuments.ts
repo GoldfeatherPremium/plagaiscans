@@ -899,8 +899,8 @@ export const useDocuments = () => {
     cancellationReason: string,
     adminUserId: string
   ) => {
+    if (documentId === 'sample') return { success: false };
     try {
-      // 1. Fetch document details (separate queries to avoid join issues with null user_id)
       const { data: docData, error: fetchError } = await supabase
         .from('documents')
         .select('*')
