@@ -13,7 +13,6 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 import { WhatsAppSupportButton } from '@/components/WhatsAppSupportButton';
-import { PhoneInput } from '@/components/PhoneInput';
 import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
 import { SEO } from '@/components/SEO';
 import { useTranslation } from 'react-i18next';
@@ -32,9 +31,7 @@ const loginSchema = z.object({
 });
 
 const signupSchema = z.object({
-  fullName: z.string().min(2, 'Name must be at least 2 characters').max(100),
   email: z.string().email('Invalid email address'),
-  phone: z.string().min(1, 'Phone number is required'),
   password: strongPasswordSchema,
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -69,7 +66,6 @@ export default function Auth() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [resetPasswordData, setResetPasswordData] = useState({ password: '', confirmPassword: '' });
-  const [isPhoneValid, setIsPhoneValid] = useState(false);
   const oauthTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Password visibility states
@@ -83,9 +79,7 @@ export default function Auth() {
   const [rememberMe, setRememberMe] = useState(true);
   const [authView, setAuthView] = useState<'login' | 'signup'>(referralCode ? 'signup' : 'login');
   const [signupData, setSignupData] = useState({
-    fullName: '',
     email: '',
-    phone: '',
     password: '',
     confirmPassword: '',
     referralCode: referralCode || '',
@@ -182,12 +176,6 @@ export default function Auth() {
     e.preventDefault();
     setErrors({});
 
-    // Check phone validation first
-    if (!isPhoneValid) {
-      setErrors({ phone: t('validation.phoneInvalid') });
-      return;
-    }
-
     const result = signupSchema.safeParse(signupData);
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
@@ -233,8 +221,8 @@ export default function Auth() {
     const { error } = await signUp(
       signupData.email,
       signupData.password,
-      signupData.fullName,
-      signupData.phone,
+      '',
+      '',
       resolvedReferrerId, // Pass the resolved UUID, not the code
       guestSpecial,
       usedReferralCode,
@@ -270,7 +258,7 @@ export default function Auth() {
       });
     } else {
       toast({ title: t('signup.successMessage') });
-      navigate('/dashboard');
+      navigate('/complete-profile');
     }
   };
 
