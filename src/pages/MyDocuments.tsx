@@ -356,29 +356,50 @@ export default function MyDocuments() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredDocuments.map((doc, index) => {
-                      const { date, time } = formatDateTime(doc.uploaded_at);
-                      const isSelected = selectedIds.has(doc.id);
-                      const canSelect = doc.status === 'completed';
+                    {(() => {
+                      // Compute real-document index (excluding sample) so row numbering ignores sample
+                      let realIdx = 0;
+                      const baseOffset = (currentPage - 1) * DOCS_PER_PAGE;
+                      // Count any sample docs in earlier pages doesn't apply — sample is always first row of page 1
+                      return filteredDocuments.map((doc, index) => {
+                        const { date, time } = formatDateTime(doc.uploaded_at);
+                        const isSelected = selectedIds.has(doc.id);
+                        const isSample = !!doc.is_sample;
+                        const canSelect = doc.status === 'completed' && !isSample;
+                        if (!isSample) realIdx += 1;
+                        const rowNumber = isSample ? '★' : String(baseOffset + realIdx);
 
                       return (
-                        <TableRow key={doc.id} className={isSelected ? 'bg-primary/5' : ''}>
+                        <TableRow key={doc.id} className={isSelected ? 'bg-primary/5' : (isSample ? 'bg-primary/5' : '')}>
                           <TableCell>
-                            <Checkbox
-                              checked={isSelected}
-                              disabled={!canSelect}
-                              onCheckedChange={() => toggleSelection(doc.id)}
-                            />
+                            {isSample ? (
+                              <span className="inline-block w-4" />
+                            ) : (
+                              <Checkbox
+                                checked={isSelected}
+                                disabled={!canSelect}
+                                onCheckedChange={() => toggleSelection(doc.id)}
+                              />
+                            )}
                           </TableCell>
-                          <TableCell className="text-center font-medium">{(currentPage - 1) * DOCS_PER_PAGE + index + 1}</TableCell>
+                          <TableCell className="text-center font-medium">
+                            {isSample ? <span className="text-primary text-lg" title="Sample">★</span> : rowNumber}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <FileText className="h-4 w-4 text-primary flex-shrink-0" />
                               <div className="flex flex-col">
-                                <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
-                                  {doc.file_name}
-                                </span>
-                                {isStaffOrAdmin && (
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium truncate max-w-[200px]" title={doc.file_name}>
+                                    {doc.file_name}
+                                  </span>
+                                  {isSample && (
+                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 uppercase tracking-wide">
+                                      Sample
+                                    </Badge>
+                                  )}
+                                </div>
+                                {isStaffOrAdmin && !isSample && (
                                   <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={doc.customer_profile?.email}>
                                     {doc.customer_profile?.full_name || doc.customer_profile?.email || (doc.magic_link_id ? 'Guest' : '-')}
                                   </span>
@@ -387,10 +408,14 @@ export default function MyDocuments() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="text-sm">
-                              <div>{date}</div>
-                              <div className="text-muted-foreground">{time}</div>
-                            </div>
+                            {isSample ? (
+                              <span className="text-sm text-muted-foreground">—</span>
+                            ) : (
+                              <div className="text-sm">
+                                <div>{date}</div>
+                                <div className="text-muted-foreground">{time}</div>
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             <StatusBadge status={doc.status} />
