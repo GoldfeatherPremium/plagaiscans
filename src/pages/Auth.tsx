@@ -524,7 +524,7 @@ export default function Auth() {
   // Full-screen OAuth loading overlay
   if (googleLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/30 via-secondary/20 to-primary/40">
         <div className="text-center animate-fade-in">
           <div className="inline-flex items-center gap-2 mb-6">
             <div className="h-12 w-12 rounded-xl gradient-primary flex items-center justify-center">
