@@ -383,7 +383,7 @@ export default function MyDocuments() {
                             )}
                           </TableCell>
                           <TableCell className="text-center font-medium">
-                            {isSample ? <span className="text-primary text-lg" title="Sample">★</span> : rowNumber}
+                            {isSample ? <span className="text-primary text-lg" title={t('sample.badge')}>★</span> : rowNumber}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -395,7 +395,7 @@ export default function MyDocuments() {
                                   </span>
                                   {isSample && (
                                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 uppercase tracking-wide">
-                                      Sample
+                                      {t('sample.badge')}
                                     </Badge>
                                   )}
                                 </div>
