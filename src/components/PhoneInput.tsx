@@ -17,7 +17,7 @@ interface PhoneInputProps {
 export const PhoneInput: React.FC<PhoneInputProps> = ({ value, onChange, disabled, error }) => {
   const [open, setOpen] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<Country>(
-    countries.find(c => c.code === 'PK') || countries[0]
+    countries.find(c => c.code === 'GB') || countries[0]
   );
   const [phoneNumber, setPhoneNumber] = useState('');
   const [validationError, setValidationError] = useState('');
