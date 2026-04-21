@@ -1230,6 +1230,98 @@ export default function AdminSettings() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* ==================== SAMPLE DOC TAB ==================== */}
+          <TabsContent value="sample" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="h-5 w-5 text-primary" />
+                  Sample Document
+                </CardTitle>
+                <CardDescription>
+                  This sample appears as the first row in every customer's "My Documents" list — to demo
+                  what real reports look like and encourage signups/purchases.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <Label className="text-base">Show Sample to Customers</Label>
+                    <p className="text-sm text-muted-foreground">
+                      When enabled, all customers see this sample document at the top of their list.
+                    </p>
+                  </div>
+                  <Switch checked={sampleEnabled} onCheckedChange={setSampleEnabled} />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Similarity %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={sampleSimPercentage}
+                      onChange={(e) => setSampleSimPercentage(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>AI %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={sampleAiPercentage}
+                      onChange={(e) => setSampleAiPercentage(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Original Document {sampleFilePath && <span className="text-xs text-muted-foreground">(current: {sampleFileName})</span>}</Label>
+                  <Input
+                    type="file"
+                    accept=".docx,.doc,.pdf,.rtf,.odt,.txt"
+                    onChange={(e) => setSampleDocFile(e.target.files?.[0] || null)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Similarity Report PDF {sampleSimPath && <span className="text-xs text-muted-foreground">(uploaded)</span>}</Label>
+                  <Input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => setSampleSimFile(e.target.files?.[0] || null)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>AI Report PDF {sampleAiPath && <span className="text-xs text-muted-foreground">(uploaded)</span>}</Label>
+                  <Input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => setSampleAiFile(e.target.files?.[0] || null)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Remarks (Optional)</Label>
+                  <Textarea
+                    value={sampleRemarks}
+                    onChange={(e) => setSampleRemarks(e.target.value)}
+                    placeholder="Optional remark shown next to the sample…"
+                    rows={3}
+                  />
+                </div>
+
+                <Button onClick={saveSampleDocument} disabled={savingSample}>
+                  {savingSample ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  Save Sample Document
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>
