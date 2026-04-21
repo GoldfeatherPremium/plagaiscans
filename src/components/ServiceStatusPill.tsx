@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAuth } from '@/contexts/AuthContext';
 
 type Status = 'online' | 'offline';
 
 export const ServiceStatusPill: React.FC = () => {
+  const { role, profile } = useAuth();
   const [status, setStatus] = useState<Status | null>(null);
 
   const fetchStatus = async () => {
