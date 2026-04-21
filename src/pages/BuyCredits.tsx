@@ -530,23 +530,39 @@ export default function BuyCredits() {
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {getPackagesByType('time_limited').map((plan) => {
+                const list = getPackagesByType('time_limited');
+                const adminPicked = list.some(p => p.is_most_popular);
+                const isPopular = adminPicked && !!plan.is_most_popular;
                 const creditConfig = getCreditTypeConfig((plan.credit_type || 'full') as CreditType);
                 const CreditIcon = creditConfig.icon;
                 
                 return (
                   <Card 
                     key={plan.id} 
-                    className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-2 border-orange-500/50 bg-gradient-to-br from-orange-500/5 via-transparent to-amber-500/5"
+                    className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${
+                      isPopular
+                        ? 'border-2 border-primary bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 ring-2 ring-primary/20'
+                        : 'border-2 border-orange-500/50 bg-gradient-to-br from-orange-500/5 via-transparent to-amber-500/5'
+                    }`}
                   >
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500" />
+                    <div className={`absolute top-0 left-0 right-0 h-1 ${isPopular ? 'bg-primary' : 'bg-orange-500'}`} />
                     
+                    {isPopular && (
+                      <div className="absolute top-0 left-0">
+                        <Badge className="rounded-none rounded-br-lg bg-primary text-primary-foreground gap-1">
+                          <Star className="h-3 w-3" />
+                          Most Popular
+                        </Badge>
+                      </div>
+                    )}
+
                     <div className="absolute top-0 right-0">
                       <Badge className="rounded-none rounded-bl-lg bg-orange-500 text-white gap-1">
                         <Clock className="h-3 w-3" />
                         {plan.validity_days} days
                       </Badge>
                     </div>
-                    
+
                     <CardHeader className="text-center pb-2 pt-8">
                       <div className="mx-auto h-12 w-12 rounded-xl bg-orange-500/10 flex items-center justify-center mb-2">
                         <CreditIcon className="h-5 w-5 text-orange-600" />
