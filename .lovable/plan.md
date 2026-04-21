@@ -1,48 +1,32 @@
 
 
-## Hide Sample Helper Nudge After First Completed Document
+## Replace Signup Welcome Notification with Professional Copy
 
-Once a customer has at least one **completed real document**, automatically suppress the helper text ("👇 Try downloading our sample reports…" + "Ready for the real thing? Buy credits →") on both **My Documents** and **Dashboard → Recent Documents**. The sample row itself stays visible — only the nudge disappears, since they've already experienced a real report.
+The current welcome notification dropped into every new customer's notification inbox at signup mentions "non-repository instructor accounts" — third-party-trademark-adjacent and informal. Replace it with neutral, professional copy aligned with PlagaiScans branding.
 
-### Logic
+### Changes
 
-A customer is considered "experienced" when:
-```
-documents.some(d => !d.is_sample && d.status === 'completed')
-```
+**1. Database trigger (`send_welcome_notification`)**
 
-Helper visibility rule:
-- No completed real doc yet → show helper (existing behavior)
-- ≥1 completed real doc → hide helper entirely (both nudge line and "Buy credits" CTA)
-- Sample row → always visible regardless
+Update the function via a new migration so it inserts the new title + message for all future signups.
 
-### Implementation
+- **Title:** `Welcome to PlagaiScans`
+- **Message:** `Thank you for joining PlagaiScans. Your account is ready — upload a document anytime to receive a detailed Similarity Review and Content Analysis report. Need help getting started? Our support team is available 24/7.`
 
-**`src/pages/MyDocuments.tsx`**
-- Compute `hasCompletedRealDoc = documents.some(d => !d.is_sample && d.status === 'completed')`.
-- Wrap the existing helper card render in `{!hasCompletedRealDoc && (...)}`.
-- Sample row rendering untouched.
+**2. Welcome email** (`supabase/functions/send-welcome-email/index.ts`)
 
-**`src/pages/Dashboard.tsx`**
-- Same computation against the recent documents list (which includes the virtual sample).
-- Wrap the helper text line in `{!hasCompletedRealDoc && (...)}`.
-- Sample row + `[SAMPLE]` badge stay.
+Replace the matching green-banner line with the same professional sentence so the email stays consistent with the in-app notification.
 
-### Edge cases
+### What stays the same
 
-| Scenario | Behavior |
-| --- | --- |
-| New signup, 0 docs | Helper shows. ✅ |
-| Uploaded but still pending/in-progress | Helper still shows (not yet completed). ✅ |
-| 1+ completed real doc | Helper hidden on both pages. ✅ |
-| Customer deletes their only completed doc | Helper reappears (acceptable — matches data). |
-| Cancelled doc (status = 'cancelled') | Doesn't count as completed → helper still shows. ✅ |
-| Staff/Admin | Sample never injected anyway → helper never rendered. ✅ |
+- Trigger timing, recipient, and delivery channel are unchanged.
+- Existing notifications already in users' inboxes are not touched (only new signups get the new copy).
+- No frontend changes required — the notification UI reads directly from `user_notifications`.
 
 ### Files touched
 
-```text
-src/pages/MyDocuments.tsx    wrap helper card in hasCompletedRealDoc guard
-src/pages/Dashboard.tsx      wrap helper line in hasCompletedRealDoc guard
+```
+supabase/migrations/<new>.sql              update send_welcome_notification function
+supabase/functions/send-welcome-email/index.ts   replace green-banner sentence
 ```
 
