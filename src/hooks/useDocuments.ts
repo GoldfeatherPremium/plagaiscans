@@ -860,6 +860,7 @@ export const useDocuments = () => {
   }, [user, role]);
 
   const deleteDocument = async (documentId: string, filePath: string, similarityReportPath?: string | null, aiReportPath?: string | null) => {
+    if (documentId === 'sample') return { success: false };
     try {
       // Soft delete: mark as deleted but preserve the record and files
       const { error: updateError } = await supabase
