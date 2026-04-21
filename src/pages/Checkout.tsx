@@ -121,12 +121,30 @@ export default function Checkout() {
     [btCountry]
   );
 
+  const [quantity, setQuantity] = useState(1);
+
   const packagePrice = selectedPackage?.price || 0;
   const packageCredits = selectedPackage?.credits || 0;
   const packageCreditType = (selectedPackage?.credit_type || 'full') as 'full' | 'similarity_only';
 
+  const totalCredits = packageCredits * quantity;
+  const totalPrice = packagePrice * quantity;
+
+  const updateQuantity = (delta: number) => {
+    setQuantity(prev => Math.max(1, Math.min(99, prev + delta)));
+  };
+
+  const handleQuantityInput = (value: string) => {
+    const num = parseInt(value, 10);
+    if (isNaN(num)) {
+      setQuantity(1);
+    } else {
+      setQuantity(Math.max(1, Math.min(99, num)));
+    }
+  };
+
   const calculateTotalWithFee = (method: 'whatsapp' | 'usdt' | 'binance' | 'viva' | 'stripe' | 'dodo' | 'paypal' | 'paddle') => {
-    const discountedTotal = calculateDiscountedTotal(packagePrice);
+    const discountedTotal = calculateDiscountedTotal(totalPrice);
     const feePercent = fees[method] || 0;
     const feeAmount = discountedTotal * (feePercent / 100);
     return Math.round((discountedTotal + feeAmount) * 100) / 100;
