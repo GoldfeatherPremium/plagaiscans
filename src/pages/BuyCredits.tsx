@@ -197,11 +197,62 @@ export default function BuyCredits() {
   return (
     <DashboardLayout>
       <div className="max-w-5xl mx-auto space-y-8">
+        {/* Check Before You Submit — hero */}
+        <section className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-secondary/5 via-background to-primary/5 px-6 py-12 md:py-16">
+          <div className="text-center max-w-3xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-secondary/10 border border-secondary/20 mb-8">
+              <Sparkles className="h-4 w-4 text-secondary" />
+              <span className="text-[13px] font-bold tracking-wide uppercase text-secondary">
+                Official Turnitin Reports
+              </span>
+            </div>
+            <h1 className="font-display font-bold tracking-tight leading-[1.05] text-[40px] sm:text-[56px] lg:text-[64px] text-foreground mb-6">
+              Check Before You Submit
+            </h1>
+            <p className="text-[17px] sm:text-lg leading-relaxed text-muted-foreground max-w-2xl mx-auto mb-10">
+              Get the <span className="font-semibold text-foreground">exact same report</span> your professor uses. AI detection + similarity analysis for just <span className="font-bold text-primary">$3.99</span>
+            </p>
+
+            {/* No Repository highlight card */}
+            <div className="max-w-xl mx-auto rounded-2xl bg-secondary/5 border border-secondary/20 p-6 sm:p-8 mb-10">
+              <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
+                <Lock className="h-7 w-7 text-secondary-foreground" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold text-secondary mb-2">
+                No Repository = Zero Trace
+              </h2>
+              <p className="text-sm sm:text-base text-secondary/80">
+                Your paper is NOT stored. Submit to your university later with complete confidence.
+              </p>
+            </div>
+
+            {/* Trust badges */}
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4 max-w-md mx-auto text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                <span>Real Turnitin</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Shield className="h-5 w-5 text-primary shrink-0" />
+                <span>No Repository</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Clock className="h-5 w-5 text-primary shrink-0" />
+                <span>2-5 Min Results</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Lock className="h-5 w-5 text-primary shrink-0" />
+                <span>Zero Self-Plagiarism Risk</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-4xl font-display font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          <h2 className="text-3xl md:text-4xl font-display font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             {t('credits.title')}
-          </h1>
+          </h2>
           <p className="text-muted-foreground mt-2 text-lg">
             {t('credits.subtitle')}
           </p>
