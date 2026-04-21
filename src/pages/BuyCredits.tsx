@@ -632,6 +632,97 @@ export default function BuyCredits() {
           </Card>
         )}
 
+        {/* No Repository = Safe to Submit Later */}
+        <section className="max-w-3xl mx-auto">
+          <Card className="border-secondary/20 bg-gradient-to-br from-secondary/5 to-primary/5 p-6 sm:p-10">
+            <div className="h-14 w-14 rounded-2xl bg-secondary flex items-center justify-center mb-6">
+              <Lock className="h-7 w-7 text-secondary-foreground" />
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-display font-bold mb-5 text-foreground leading-tight">
+              No Repository = Safe to Submit Later
+            </h2>
+            <p className="text-base sm:text-lg text-muted-foreground leading-relaxed mb-6">
+              <span className="font-bold text-foreground">This is the key difference.</span> Your paper is NOT added to any database. Check your work here first, then submit to your university with complete confidence.
+            </p>
+            <ul className="space-y-3">
+              {[
+                'Professor will never know you pre-checked',
+                'Zero self-plagiarism risk',
+                "Paper won't match against itself",
+                'Complete privacy guaranteed',
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-secondary shrink-0 mt-0.5" />
+                  <span className="text-muted-foreground">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </section>
+
+        {/* Why Choose Us */}
+        <div>
+          <h2 className="text-2xl font-display font-bold text-center mb-8">
+            Why Choose PlagaiScans
+          </h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            <Card className="text-center p-6">
+              <Zap className="h-10 w-10 text-primary mx-auto mb-4" />
+              <h3 className="font-bold mb-2">Fast Results</h3>
+              <p className="text-sm text-muted-foreground">
+                Get your similarity and AI detection report in 2–5 minutes.
+              </p>
+            </Card>
+            <Card className="text-center p-6">
+              <Shield className="h-10 w-10 text-primary mx-auto mb-4" />
+              <h3 className="font-bold mb-2">Secure & Private</h3>
+              <p className="text-sm text-muted-foreground">
+                Documents are never stored in any repository. Complete privacy guaranteed.
+              </p>
+            </Card>
+            <Card className="text-center p-6">
+              <Clock className="h-10 w-10 text-primary mx-auto mb-4" />
+              <h3 className="font-bold mb-2">Long Validity</h3>
+              <p className="text-sm text-muted-foreground">
+                Your credits remain valid for use whenever you need a check.
+              </p>
+            </Card>
+          </div>
+        </div>
+
+        {/* FAQ Section */}
+        <div>
+          <h2 className="text-2xl font-display font-bold text-center mb-8">
+            Frequently Asked Questions
+          </h2>
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            <Card className="p-6">
+              <h3 className="font-bold mb-2">What is non-repository check?</h3>
+              <p className="text-sm text-muted-foreground">
+                Your document is checked against Turnitin's databases without being added to them, so your paper stays private and won't match against itself when your university submits it later.
+              </p>
+            </Card>
+            <Card className="p-6">
+              <h3 className="font-bold mb-2">Which payment methods do you accept?</h3>
+              <p className="text-sm text-muted-foreground">
+                We accept all major credit/debit cards, PayPal, USDT, Binance Pay, and bank transfers in selected countries.
+              </p>
+            </Card>
+            <Card className="p-6">
+              <h3 className="font-bold mb-2">What is your refund policy?</h3>
+              <p className="text-sm text-muted-foreground">
+                Unused credits are eligible for a refund within 14 days. See our <a href="/refund-policy" className="text-primary hover:underline">refund policy</a> for full details.
+              </p>
+            </Card>
+            <Card className="p-6">
+              <h3 className="font-bold mb-2">How long does processing take?</h3>
+              <p className="text-sm text-muted-foreground">
+                Most reports are ready within 2–5 minutes. Larger or queued documents may take a little longer.
+              </p>
+            </Card>
+          </div>
+        </div>
+
       </div>
     </DashboardLayout>
   );
