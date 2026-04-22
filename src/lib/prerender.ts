@@ -102,11 +102,32 @@ export const PUBLIC_PRICING_PACKAGES: PublicPricingPackageSnapshot[] = [
 ];
 
 export function signalPrerenderReady() {
-  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  const globalRef = globalThis as any;
+  const dispatchReady = () => {
+    if (typeof globalRef?.document?.dispatchEvent === 'function' && typeof globalRef?.Event === 'function') {
+      globalRef.document.dispatchEvent(new globalRef.Event(PRERENDER_READY_EVENT));
+    }
+  };
 
-  window.requestAnimationFrame(() => {
-    window.setTimeout(() => {
-      document.dispatchEvent(new Event(PRERENDER_READY_EVENT));
-    }, 0);
-  });
+  if (!globalRef?.document) return;
+
+  if (typeof globalRef.requestAnimationFrame === 'function') {
+    globalRef.requestAnimationFrame(() => {
+      if (typeof globalRef.setTimeout === 'function') {
+        globalRef.setTimeout(dispatchReady, 0);
+        return;
+      }
+
+      dispatchReady();
+    });
+
+    return;
+  }
+
+  if (typeof globalRef.setTimeout === 'function') {
+    globalRef.setTimeout(dispatchReady, 0);
+    return;
+  }
+
+  dispatchReady();
 }
