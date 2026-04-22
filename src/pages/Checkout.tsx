@@ -844,7 +844,7 @@ export default function Checkout() {
                 return acc + (firstAmount(matched ? totals[matched] : null, matched ? item?.[matched] : null) ?? 0);
               }, 0);
 
-            const recursiveSubtotal = collectKeyAmounts(d, ['subtotal', 'sub_total', 'subTotal', 'balance'])
+            const recursiveSubtotal = collectKeyAmounts(d, ['subtotal', 'sub_total', 'subTotal'])
               .filter((value) => value > 0)
               .sort((a, b) => b - a)[0] ?? null;
 
@@ -852,7 +852,7 @@ export default function Checkout() {
               .filter((value) => value > 0)
               .sort((a, b) => b - a)[0] ?? null;
 
-            const recursiveTotal = collectKeyAmounts(d, ['total', 'grand_total', 'grandTotal'])
+            const recursiveTotal = collectKeyAmounts(d, ['total', 'grand_total', 'grandTotal', 'balance'])
               .filter((value) => value > 0)
               .sort((a, b) => b - a)[0] ?? null;
 
@@ -870,10 +870,7 @@ export default function Checkout() {
                 recurring.sub_total ??
                 recurring.subTotal ??
                 (items.length ? sumItems(['subtotal', 'sub_total', 'subTotal', 'line_total', 'lineTotal']) : null) ??
-                recursiveSubtotal ??
-                rootTotals.balance ??
-                summaryTotals.balance ??
-                transactionTotals.balance
+                recursiveSubtotal
             ) ?? 0;
 
             const explicitTax = firstAmount(
@@ -910,6 +907,10 @@ export default function Checkout() {
                 d.total ??
                 d.grand_total ??
                 d.grandTotal ??
+                rootTotals.balance ??
+                summaryTotals.balance ??
+                transactionTotals.balance ??
+                recurring.balance ??
                 transactionTotals.total ??
                 transactionTotals.grand_total ??
                 transactionTotals.grandTotal ??
