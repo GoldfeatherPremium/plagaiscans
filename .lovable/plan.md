@@ -1,32 +1,73 @@
 
 
-## Replace Signup Welcome Notification with Professional Copy
+## Make Paddle Inline Card Checkout the Default
 
-The current welcome notification dropped into every new customer's notification inbox at signup mentions "non-repository instructor accounts" — third-party-trademark-adjacent and informal. Replace it with neutral, professional copy aligned with PlagaiScans branding.
+When a customer hits **Buy Now**, the checkout page will render the **Paddle inline card form directly inside the page** — card number, expiry, CVC, country, plus Paddle-supported alternatives (Google Pay, Apple Pay, etc.) — with no method-picker step and no popup window. Below the card form, a single small bullet button offers **USDT** as the alternative.
 
-### Changes
+### What changes
 
-**1. Database trigger (`send_welcome_notification`)**
+**1. Inline Paddle checkout (always visible by default)**
 
-Update the function via a new migration so it inserts the new title + message for all future signups.
+The right-hand checkout panel renders Paddle's inline checkout iframe directly on the page. As soon as the package + quantity are known, `Paddle.Checkout.open({ transactionId, settings: { displayMode: 'inline', frameTarget: 'paddle-inline-frame', frameInitialHeight: 450, frameStyle: 'width:100%; min-width:312px; background-color: transparent; border: none;' } })` is called, mounting the form into a `<div class="paddle-inline-frame">` container.
 
-- **Title:** `Welcome to PlagaiScans`
-- **Message:** `Thank you for joining PlagaiScans. Your account is ready — upload a document anytime to receive a detailed Similarity Review and Content Analysis report. Need help getting started? Our support team is available 24/7.`
+```text
+┌──────────────────────────────────────────────┬──────────────────────┐
+│  Pay securely                                │  Order Summary       │
+│  ┌──────────────────────────────────────┐    │  • 10 Credits ×1     │
+│  │ [Paddle inline iframe]               │    │  • Promo code        │
+│  │  Card number, MM/YY, CVC, Country    │    │  • Total: $39.90     │
+│  │  Google Pay / Apple Pay buttons      │    │                      │
+│  │  [ Pay $39.90 ]                      │    │                      │
+│  └──────────────────────────────────────┘    │                      │
+│                                              │                      │
+│  • Pay with USDT (TRC20) instead             │                      │
+└──────────────────────────────────────────────┴──────────────────────┘
+```
 
-**2. Welcome email** (`supabase/functions/send-welcome-email/index.ts`)
+**2. USDT as a single bullet button below**
 
-Replace the matching green-banner line with the same professional sentence so the email stays consistent with the in-app notification.
+Directly under the inline card form, a compact text button:
+- `• Pay with USDT (TRC20) instead`
 
-### What stays the same
+Clicking it expands the existing USDT NowPayments flow (address + QR + status polling) inline below — same `createCryptoPayment` handler and `paymentDetails` dialog that already exist. No change to USDT logic.
 
-- Trigger timing, recipient, and delivery channel are unchanged.
-- Existing notifications already in users' inboxes are not touched (only new signups get the new copy).
-- No frontend changes required — the notification UI reads directly from `user_notifications`.
+**3. Quantity / promo updates re-mount the Paddle frame**
+
+Paddle's transaction locks the amount at creation time, so the inline frame is keyed on `quantity + appliedPromo + packageId`. When either changes, the previous transaction is closed (`Paddle.Checkout.close()`) and a new transaction is created and remounted automatically.
+
+**4. Other payment methods removed from primary flow**
+
+Stripe, PayPal, Dodo, Viva, Binance Pay, Bank Transfer, WhatsApp, Manual USDT cards are removed from the checkout page surface. Only **Paddle inline (card + Google/Apple Pay)** + **USDT** remain visible. The settings (`payment_stripe_enabled`, etc.) and their backend flows stay intact for future use, but they no longer render on `/dashboard/checkout`.
+
+**5. Fallback**
+
+If `payment_paddle_enabled = false` OR `paddle_client_token` is empty OR the package has no `paddle_price_id` configured: the inline form area shows a clear "Card payments are temporarily unavailable" message and the USDT bullet button auto-promotes to a primary button. (USDT-only fallback so customers can still pay.)
+
+**6. Special-customer overrides**
+
+If a ★ Special customer has Paddle disabled in `special_payment_paddle_enabled`, same fallback as above (USDT-only).
+
+### Edge cases
+
+| Case | Behavior |
+|------|----------|
+| Quantity / promo changed mid-session | Frame closes, new transaction created, frame remounts. Card details typed are cleared (Paddle limitation). |
+| Package missing `paddle_price_id` | Show "Card payments unavailable for this package" + USDT primary fallback. |
+| Paddle.js fails to load | Loading spinner for ~5s, then fallback message + USDT primary. |
+| Successful payment | Paddle's `eventCallback` fires `checkout.completed` → redirect to `/dashboard/payment-success?provider=paddle` (existing flow). |
+| User wants USDT | Click the bullet → existing NowPayments dialog with address, amount, QR, status check. |
+
+### Backend
+
+No edge-function changes. `create-paddle-checkout` already returns `transactionId` correctly. `nowpayments` USDT flow is unchanged.
 
 ### Files touched
 
-```
-supabase/migrations/<new>.sql              update send_welcome_notification function
-supabase/functions/send-welcome-email/index.ts   replace green-banner sentence
+```text
+src/pages/Checkout.tsx              replace payment-methods section with inline Paddle frame + USDT bullet
+                                    add Paddle.Checkout.open({ displayMode: 'inline', frameTarget }) on mount
+                                    add re-mount effect keyed on quantity/promo/packageId
+                                    remove rendering of stripe/dodo/paypal/viva/binance/bank-transfer/whatsapp/usdt-manual blocks
+                                    keep handler functions for now (dead code) to avoid touching unrelated flows
 ```
 
