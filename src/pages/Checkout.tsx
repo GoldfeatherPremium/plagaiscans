@@ -661,13 +661,22 @@ export default function Checkout() {
   const [paddlePriceId, setPaddlePriceId] = useState<string | null>(null);
   const [paddleMountError, setPaddleMountError] = useState<string | null>(null);
   const [showUsdtSection, setShowUsdtSection] = useState(false);
-  const [paddleTotals, setPaddleTotals] = useState<{ subtotal: number; tax: number; total: number; currency: string } | null>(null);
-  const paddleTaxRate = useMemo(() => {
-    if (!paddleTotals || paddleTotals.subtotal <= 0 || paddleTotals.tax <= 0) return null;
-    const rate = (paddleTotals.tax / paddleTotals.subtotal) * 100;
-    if (!Number.isFinite(rate) || rate <= 0) return null;
-    return rate;
-  }, [paddleTotals]);
+
+  // ============================================================
+  // Paddle Order Summary — Paddle is the source of truth.
+  // Populated exclusively by the global Paddle.Initialize eventCallback
+  // when Paddle emits checkout.loaded / checkout.updated / checkout.customer.updated.
+  // ============================================================
+  type PaddleSummary = {
+    subtotal: number;
+    tax: number;
+    total: number;
+    currency: string;
+    hasTax: boolean;
+    taxRate: number | null;
+    sourceEvent: string | null;
+  };
+  const [paddleSummary, setPaddleSummary] = useState<PaddleSummary | null>(null);
 
   // Load Paddle.js script
   useEffect(() => {
@@ -693,7 +702,58 @@ export default function Checkout() {
         if (paddleEnvironment === 'sandbox') {
           Paddle.Environment.set('sandbox');
         }
-        Paddle.Initialize({ token: paddleClientToken });
+        Paddle.Initialize({
+          token: paddleClientToken,
+          eventCallback: (event: any) => {
+            if (!event?.name) return;
+
+            if (event.name === 'checkout.completed') {
+              navigate('/dashboard/payment-success?provider=paddle');
+              return;
+            }
+
+            // Only these events carry official customer-location-aware totals
+            const PRICING_EVENTS = new Set([
+              'checkout.loaded',
+              'checkout.updated',
+              'checkout.customer.updated',
+            ]);
+            if (!PRICING_EVENTS.has(event.name)) return;
+
+            const totals = event.data?.totals;
+            if (!totals || typeof totals !== 'object') return;
+
+            // Safely coerce — Paddle.js v2 returns decimal numbers (29.99),
+            // but tolerate strings and unexpected scaling just in case.
+            const toNum = (v: unknown): number => {
+              if (v == null) return 0;
+              const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+              return Number.isFinite(n) && n >= 0 ? n : 0;
+            };
+
+            const subtotal = toNum(totals.subtotal);
+            const tax = toNum(totals.tax);
+            const total = toNum(totals.total) || toNum(totals.balance) || (subtotal + tax);
+            const currency = event.data?.currency_code || 'USD';
+
+            // Require a valid totals payload to overwrite — never merge with stale tax.
+            if (total <= 0 && subtotal <= 0) return;
+
+            const taxRate = subtotal > 0 && tax > 0
+              ? (tax / subtotal) * 100
+              : null;
+
+            setPaddleSummary({
+              subtotal: subtotal || Math.max(total - tax, 0),
+              tax,
+              total: total || subtotal + tax,
+              currency,
+              hasTax: tax > 0,
+              taxRate,
+              sourceEvent: event.name,
+            });
+          },
+        });
         setPaddleReady(true);
       }
     };
@@ -731,7 +791,8 @@ export default function Checkout() {
 
     let cancelled = false;
     setPaddleMountError(null);
-    setPaddleTotals(null);
+    // Reset summary on remount so stale Paddle totals from a prior package don't linger.
+    setPaddleSummary(null);
 
     (async () => {
       try {
@@ -752,6 +813,9 @@ export default function Checkout() {
 
         try { Paddle.Checkout.close(); } catch {}
 
+        // Note: pricing/tax events are handled by the global eventCallback
+        // registered in Paddle.Initialize. Do not register a per-checkout
+        // eventCallback here, otherwise it would override the global one.
         Paddle.Checkout.open({
           transactionId: data.transactionId,
           settings: {
@@ -762,59 +826,6 @@ export default function Checkout() {
             frameStyle: 'width:100%; min-width:312px; background-color: transparent; border: none;',
             successUrl: `${window.location.origin}/dashboard/payment-success?provider=paddle`,
             allowLogout: false,
-          },
-          eventCallback: (event: any) => {
-            if (!event?.name) return;
-
-            // Listen to events that carry pricing/tax data
-            const PRICING_EVENTS = [
-              'checkout.loaded',
-              'checkout.updated',
-              'checkout.items.updated',
-              'checkout.customer.updated',
-              'checkout.customer.created',
-              'checkout.discount.applied',
-              'checkout.discount.removed',
-              'checkout.payment.initiated',
-              'checkout.payment.selected',
-            ];
-
-            if (event.name === 'checkout.completed') {
-              navigate('/dashboard/payment-success?provider=paddle');
-              return;
-            }
-
-            if (!PRICING_EVENTS.includes(event.name)) return;
-
-            const d = event.data || {};
-            const totals = d.totals || {};
-
-            // Paddle.js v2 returns amounts as decimal numbers (e.g. 29.99) in the
-            // checkout currency. Coerce to a safe number.
-            const toNum = (v: unknown): number => {
-              if (v == null) return 0;
-              const n = typeof v === 'string' ? parseFloat(v) : Number(v);
-              return Number.isFinite(n) && n >= 0 ? n : 0;
-            };
-
-            const subtotal = toNum(totals.subtotal);
-            const tax = toNum(totals.tax);
-            // Paddle uses `total` for the gross amount the customer pays.
-            // `balance` is the same on a one-shot purchase. Prefer total.
-            const total = toNum(totals.total) || toNum(totals.balance) || (subtotal + tax);
-            const currency = d.currency_code || 'USD';
-
-            console.log('[Paddle totals]', event.name, { subtotal, tax, total, currency });
-
-            // Only update once we have a meaningful number from Paddle.
-            if (total > 0 || subtotal > 0) {
-              setPaddleTotals({
-                subtotal: subtotal || Math.max(total - tax, 0),
-                tax,
-                total: total || subtotal + tax,
-                currency,
-              });
-            }
           },
         });
       } catch (error: any) {
@@ -985,42 +996,54 @@ export default function Checkout() {
                       )}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className={appliedPromo?.discountPercentage && appliedPromo.discountPercentage > 0 ? 'line-through text-muted-foreground' : ''}>
-                      ${totalPrice.toFixed(2)}
-                    </span>
-                  </div>
-                  {appliedPromo?.discountPercentage && appliedPromo.discountPercentage > 0 && (
-                    <div className="flex justify-between text-sm text-green-600">
-                      <span>Discount ({appliedPromo.discountPercentage}%)</span>
-                      <span>-${(totalPrice - calculateDiscountedTotal(totalPrice)).toFixed(2)}</span>
-                    </div>
-                  )}
-                  {paddleTotals && paddleTotals.tax > 0 && (
+                  {/* Local estimated values are shown until Paddle emits official totals.
+                      Once Paddle responds (checkout.loaded / updated / customer.updated),
+                      Subtotal / VAT / Total are taken verbatim from Paddle. */}
+                  {paddleSummary ? (
                     <>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Net amount</span>
-                        <span>${paddleTotals.subtotal.toFixed(2)}</span>
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>${paddleSummary.subtotal.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          VAT / Tax{paddleTaxRate ? ` (${paddleTaxRate.toFixed(2)}%)` : ''}
+                      {paddleSummary.hasTax && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            VAT / Tax{paddleSummary.taxRate ? ` (${paddleSummary.taxRate.toFixed(2)}%)` : ''}
+                          </span>
+                          <span>${paddleSummary.tax.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-lg font-bold">
+                        <span>Total{paddleSummary.hasTax ? ' (incl. VAT)' : ''}</span>
+                        <span className="text-primary">
+                          ${paddleSummary.total.toFixed(2)}
                         </span>
-                        <span>${paddleTotals.tax.toFixed(2)}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground text-right">
+                        Calculated by Paddle based on your billing location
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className={appliedPromo?.discountPercentage && appliedPromo.discountPercentage > 0 ? 'line-through text-muted-foreground' : ''}>
+                          ${totalPrice.toFixed(2)}
+                        </span>
+                      </div>
+                      {appliedPromo?.discountPercentage && appliedPromo.discountPercentage > 0 && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Discount ({appliedPromo.discountPercentage}%)</span>
+                          <span>-${(totalPrice - calculateDiscountedTotal(totalPrice)).toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-lg font-bold">
+                        <span>Estimated Total</span>
+                        <span className="text-primary">
+                          ${calculateDiscountedTotal(totalPrice).toFixed(2)}
+                        </span>
                       </div>
                     </>
-                  )}
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Total{paddleTotals && paddleTotals.tax > 0 ? ' (incl. VAT)' : ''}</span>
-                    <span className="text-primary">
-                      ${(paddleTotals?.total ?? calculateDiscountedTotal(totalPrice)).toFixed(2)}
-                    </span>
-                  </div>
-                  {paddleTotals && paddleTotals.tax > 0 && (
-                    <p className="text-xs text-muted-foreground text-right">
-                      VAT calculated by Paddle based on your billing location
-                    </p>
                   )}
                 </div>
 
