@@ -14,6 +14,7 @@ export const PRERENDER_ROUTES = [
   '/refund-policy',
   '/acceptable-use',
   '/academic-integrity',
+  '/auth',
 ] as const;
 
 export interface PublicPricingPackageSnapshot {
