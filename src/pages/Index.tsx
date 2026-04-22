@@ -16,10 +16,10 @@ import {
 
 const Index = () => {
   const whoItsFor = [
-    { icon: GraduationCap, title: "Students", desc: "Verify originality before submission and identify areas that need proper citation." },
-    { icon: Pen, title: "Writers & Freelancers", desc: "Ensure your content is original and free from unintentional similarity." },
-    { icon: Users, title: "Educators", desc: "Review student submissions for text similarity and content analysis." },
-    { icon: Building2, title: "Businesses", desc: "Protect your brand with original content across marketing and documentation." },
+    { icon: GraduationCap, title: "Educational Institutions", desc: "Verify the originality of submitted work and review text for similarity and AI indicators." },
+    { icon: Pen, title: "Writers & Freelancers", desc: "Verify your own original content is free from unintentional similarity before delivery." },
+    { icon: Users, title: "Editors & Publishers", desc: "Review submitted manuscripts and articles for text similarity and content analysis." },
+    { icon: Building2, title: "Businesses & Agencies", desc: "Protect your brand with original content across marketing, editorial, and documentation." },
   ];
 
   const faqs = [

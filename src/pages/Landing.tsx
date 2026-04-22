@@ -109,7 +109,7 @@ const Landing = () => {
       />
       <NoScriptFallback
         title="Plagaiscans — Plagiarism Checker & AI Content Detection"
-        intro="Plagaiscans helps students, researchers, educators, and content teams check documents for similarity and AI-generated content before they submit or publish. Reports start from $3.99, and documents are processed securely without being stored in any third-party repository."
+        intro="Plagaiscans helps editors, publishers, content agencies, businesses, and educational institutions check submitted documents for similarity and AI-generated content before they publish or accept work. Reports start from $3.99, and documents are processed securely without being stored in any third-party repository."
       >
         <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>What you get</h2>
         <ul>
@@ -371,7 +371,7 @@ const Landing = () => {
             </div>
           </section>
 
-          {/* Why Students Trust */}
+          {/* Why Teams Trust */}
           <section className="py-16 px-4 bg-muted/40">
             <div className="max-w-4xl mx-auto">
               <div className="text-center mb-12">
