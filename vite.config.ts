@@ -101,13 +101,14 @@ function spaPrerenderPlugin(): Plugin {
           const page = await browser.newPage();
           await page.goto(`http://${host}:${port}${route}`, { waitUntil: "networkidle0" });
           await page.evaluate((eventName) => {
-            const html = document.documentElement;
-            if (html.dataset.prerenderReady === "true") return Promise.resolve(true);
+            const globalRef = globalThis as any;
+            const html = globalRef.document?.documentElement;
+            if (html?.dataset?.prerenderReady === "true") return Promise.resolve(true);
 
             return new Promise<boolean>((resolve) => {
               const done = () => resolve(true);
-              document.addEventListener(eventName, done, { once: true });
-              window.setTimeout(() => resolve(false), 4000);
+              globalRef.document?.addEventListener?.(eventName, done, { once: true });
+              globalRef.setTimeout?.(() => resolve(false), 4000);
             });
           }, PRERENDER_READY_EVENT);
 
