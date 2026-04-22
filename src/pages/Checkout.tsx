@@ -968,224 +968,88 @@ export default function Checkout() {
                 <CardDescription>All transactions are secure and encrypted</CardDescription>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
-                {stripeEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-[#635BFF]/10 flex items-center justify-center flex-shrink-0">
-                          <CreditCard className="h-5 w-5 text-[#635BFF]" />
+                {/* Inline Paddle card checkout — primary */}
+                {paddleEnabled && paddleClientToken && paddlePriceId && !paddleLoadFailed && !paddleMountError ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Shield className="h-4 w-4 text-green-500" />
+                      <span>Pay securely with card, Google Pay, or Apple Pay</span>
+                    </div>
+                    <div className="border rounded-lg overflow-hidden bg-background min-h-[450px] relative">
+                      {!paddleReady && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
                         </div>
-                        <div>
-                          <h3 className="font-semibold text-sm">Credit / Debit Card</h3>
-                          <p className="text-xs text-muted-foreground">
-                            Visa, Mastercard, Apple Pay
-                            {fees.stripe > 0 && <span className="text-amber-600"> (+{fees.stripe}%)</span>}
-                          </p>
-                        </div>
-                      </div>
-                      <Button onClick={createStripePayment} disabled={creatingStripePayment} size="sm">
-                        {creatingStripePayment ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pay $${calculateTotalWithFee('stripe')}`}
-                      </Button>
+                      )}
+                      <div className="paddle-inline-frame" />
                     </div>
                   </div>
-                )}
-
-                {dodoEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-[#4F46E5]/10 flex items-center justify-center flex-shrink-0">
-                          <CreditCard className="h-5 w-5 text-[#4F46E5]" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-sm">Card / Google Pay / Apple Pay</h3>
-                          <p className="text-xs text-muted-foreground">
-                            {fees.dodo > 0 && <span className="text-amber-600">(+{fees.dodo}%)</span>}
-                          </p>
-                        </div>
-                      </div>
-                      <Button onClick={createDodoPayment} disabled={creatingDodoPayment} size="sm">
-                        {creatingDodoPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pay $${calculateTotalWithFee('dodo').toFixed(2)}`}
-                      </Button>
-                    </div>
+                ) : paddleEnabled ? (
+                  <div className="border rounded-lg p-6 text-center space-y-2 bg-muted/30">
+                    <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto" />
+                    <p className="text-sm font-medium">
+                      {!paddlePriceId
+                        ? 'Card payments unavailable for this package'
+                        : paddleLoadFailed
+                          ? 'Card payments are temporarily unavailable'
+                          : paddleMountError || 'Card payments are temporarily unavailable'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">You can still pay with USDT below.</p>
                   </div>
-                )}
+                ) : null}
 
-                {paypalEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-[#003087]/10 flex items-center justify-center flex-shrink-0">
-                          <Wallet className="h-5 w-5 text-[#003087]" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-sm">PayPal</h3>
-                          <p className="text-xs text-muted-foreground">
-                            {fees.paypal > 0 && <span className="text-amber-600">(+{fees.paypal}%)</span>}
-                          </p>
-                        </div>
-                      </div>
-                      <Button onClick={createPaypalPayment} disabled={creatingPaypalPayment} size="sm">
-                        {creatingPaypalPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pay $${calculateTotalWithFee('paypal').toFixed(2)}`}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {paddleEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-[#0E1F3F]/10 flex items-center justify-center flex-shrink-0">
-                          <Store className="h-5 w-5 text-[#0E1F3F]" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-sm">Card Payment</h3>
-                          <p className="text-xs text-muted-foreground">
-                            Visa, Mastercard, Google Pay, Apple Pay
-                            {fees.paddle > 0 && <span className="text-amber-600"> (+{fees.paddle}%)</span>}
-                          </p>
-                        </div>
-                      </div>
-                      <Button onClick={createPaddlePayment} disabled={creatingPaddlePayment} size="sm">
-                        {creatingPaddlePayment ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pay $${calculateTotalWithFee('paddle').toFixed(2)}`}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {vivaEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-[#1A1F71]/10 flex items-center justify-center flex-shrink-0">
-                          <Globe className="h-5 w-5 text-[#1A1F71]" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-sm">Card (Viva.com)</h3>
-                          <p className="text-xs text-muted-foreground">
-                            {fees.viva > 0 && <span className="text-amber-600">(+{fees.viva}%)</span>}
-                          </p>
-                        </div>
-                      </div>
-                      <Button onClick={createVivaPayment} disabled={creatingVivaPayment} size="sm">
-                        {creatingVivaPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pay $${calculateTotalWithFee('viva')}`}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {binanceEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-[#F0B90B]/10 flex items-center justify-center flex-shrink-0">
-                          <Wallet className="h-5 w-5 text-[#F0B90B]" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-sm">Binance Pay</h3>
-                          {binanceDiscount > 0 && (
-                            <p className="text-xs text-green-600 font-medium">
-                              {binanceDiscount}% discount applied!
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {binanceDiscount > 0 && (
-                          <span className="text-xs line-through text-muted-foreground">${calculateDiscountedTotal(totalPrice).toFixed(2)}</span>
-                        )}
-                        <Button onClick={openBinancePayment} size="sm" variant="outline">
-                          Pay ${binanceDiscount > 0 
-                            ? (calculateDiscountedTotal(totalPrice) * (1 - binanceDiscount / 100)).toFixed(2)
-                            : calculateTotalWithFee('binance').toFixed(2)
-                          }
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
+                {/* USDT bullet button — secondary */}
                 {usdtEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                          <Bitcoin className="h-5 w-5 text-green-500" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-sm">USDT (TRC20)</h3>
+                  <div className="pt-2">
+                    {!showUsdtSection ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowUsdtSection(true)}
+                        className="text-sm text-primary hover:underline inline-flex items-center gap-1.5"
+                      >
+                        <span className="text-xs">●</span>
+                        Pay with USDT (TRC20) instead
+                      </button>
+                    ) : (
+                      <div className="border rounded-lg p-4 bg-muted/30">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                              <Bitcoin className="h-5 w-5 text-green-500" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-sm">USDT (TRC20)</h3>
+                              <p className="text-xs text-muted-foreground">
+                                Pay ${calculateTotalWithFee('usdt').toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            onClick={createCryptoPayment}
+                            disabled={creatingPayment === 'usdt'}
+                            size="sm"
+                          >
+                            {creatingPayment === 'usdt' ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              'Continue'
+                            )}
+                          </Button>
                         </div>
                       </div>
-                      <Button onClick={createCryptoPayment} disabled={creatingPayment === 'usdt'} size="sm" variant="outline">
-                        {creatingPayment === 'usdt' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Pay with USDT'}
-                      </Button>
-                    </div>
+                    )}
                   </div>
                 )}
 
-                {usdtManualEnabled && usdtManualWalletAddress && (
-                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-[#26A17B]/10 flex items-center justify-center flex-shrink-0">
-                          <Wallet className="h-5 w-5 text-[#26A17B]" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-sm">USDT Transfer (TRC20)</h3>
-                          <p className="text-xs text-muted-foreground">Send USDT directly</p>
-                        </div>
-                      </div>
-                      <Button onClick={openUsdtManualDialog} size="sm" variant="outline">
-                        Pay ${calculateDiscountedTotal(totalPrice).toFixed(2)}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {bankTransferEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <Landmark className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-sm">Bank Transfer</h3>
-                          <p className="text-xs text-muted-foreground">No processing fee</p>
-                        </div>
-                      </div>
-                      <Button onClick={openBankTransferDialog} size="sm" variant="outline">
-                        Pay ${calculateDiscountedTotal(totalPrice).toFixed(2)}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {whatsappEnabled && (
-                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-[#25D366]/10 flex items-center justify-center flex-shrink-0">
-                          <MessageCircle className="h-5 w-5 text-[#25D366]" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-sm">WhatsApp</h3>
-                          <p className="text-xs text-muted-foreground">Manual payment</p>
-                        </div>
-                      </div>
-                      <Button onClick={handleWhatsAppPayment} size="sm" variant="outline">Contact Us</Button>
-                    </div>
-                  </div>
-                )}
-
-                {!stripeEnabled && !vivaEnabled && !binanceEnabled && !usdtEnabled && !whatsappEnabled && !paddleEnabled && !bankTransferEnabled && !usdtManualEnabled && (
+                {/* Fallback when neither Paddle nor USDT available */}
+                {!paddleEnabled && !usdtEnabled && (
                   <div className="text-center py-8">
                     <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">No payment methods are currently available. Please contact support.</p>
                   </div>
                 )}
               </CardContent>
+
             </Card>
           </div>
         </div>
