@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { FileText, ArrowLeft, ArrowRight, BookOpen, Scale, GraduationCap, Shield, Users, Lightbulb } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
+import { NoScriptFallback } from '@/components/NoScriptFallback';
 
 export default function AcademicIntegrity() {
   const { t } = useTranslation('pages');
@@ -66,6 +67,24 @@ export default function AcademicIntegrity() {
         canonicalUrl="/academic-integrity"
         structuredData={pageSchema}
       />
+      <NoScriptFallback
+        title="Academic Integrity at Plagaiscans"
+        intro="Academic integrity means producing original work, citing sources properly, and using analytical tools responsibly. Plagaiscans supports ethical scholarship by providing similarity reports and AI content indicators that help writers, students, and educators review their work."
+      >
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>Core principles</h2>
+        <ul>
+          <li>Honest scholarship — present your own ideas and credit others&apos; work</li>
+          <li>Fair assessment — use review tools to support, not replace, human judgement</li>
+          <li>Educational value — learn from feedback and improve your writing</li>
+          <li>Professional standards — follow your institution&apos;s citation guidelines</li>
+        </ul>
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>How we help</h2>
+        <p>
+          Plagaiscans provides clear similarity reports, AI-content indicators, and educational
+          guidance. Reports are advisory and should be interpreted in context — properly cited quotes,
+          common terminology, and reference material may legitimately appear as matches.
+        </p>
+      </NoScriptFallback>
       <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">

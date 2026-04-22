@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { FileCheck, ArrowLeft } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
+import { NoScriptFallback } from '@/components/NoScriptFallback';
 
 export default function RefundPolicy() {
   return (
@@ -16,6 +17,24 @@ export default function RefundPolicy() {
         canonicalUrl="/refund-policy"
         structuredData={generateWebPageSchema('Refund Policy', 'Our 14-day refund policy', '/refund-policy')}
       />
+      <NoScriptFallback
+        title="Refund Policy"
+        intro="We offer a 14-day refund policy for all purchases made on Plagaiscans.com. If you are not satisfied with your purchase, you may request a full refund within 14 days of the original transaction date."
+      >
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>How to request a refund</h2>
+        <p>
+          Email{' '}
+          <a href="mailto:support@plagaiscans.com" style={{ color: '#2563eb' }}>
+            support@plagaiscans.com
+          </a>{' '}
+          and include your order ID or payment receipt. Refunds are processed back to the original
+          payment method used for the purchase.
+        </p>
+        <p>
+          This refund policy is provided in accordance with Paddle&apos;s Buyer Terms and applicable
+          consumer protection laws.
+        </p>
+      </NoScriptFallback>
       <div className="min-h-screen bg-background">
         <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
           <div className="container-width flex h-16 items-center justify-between px-4">

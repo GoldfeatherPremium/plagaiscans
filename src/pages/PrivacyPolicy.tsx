@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { FileCheck, ArrowLeft } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
+import { NoScriptFallback } from '@/components/NoScriptFallback';
 
 export default function PrivacyPolicy() {
   return (
@@ -16,6 +17,31 @@ export default function PrivacyPolicy() {
         canonicalUrl="/privacy-policy"
         structuredData={generateWebPageSchema('Privacy Policy', 'How we protect your data', '/privacy-policy')}
       />
+      <NoScriptFallback
+        title="Privacy Policy"
+        intro="Plagaiscans Technologies Ltd (Company No. 16998013), registered in the United Kingdom, is the data controller responsible for your personal data. This Privacy Policy explains how we collect, use, store, and protect your information when you use our services."
+      >
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>What we collect</h2>
+        <ul>
+          <li>Account information: email (required), full name and phone (optional)</li>
+          <li>Documents you upload for similarity and AI content analysis</li>
+          <li>Payment data processed securely by Paddle (we do not store card details)</li>
+          <li>Basic usage data needed to deliver and improve the service</li>
+        </ul>
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>How we use it</h2>
+        <p>
+          Your data is used to provide the service, deliver reports, process payments, and provide
+          support. We do not sell your data and we do not share documents with third parties for
+          training purposes. Documents and reports are deleted from active storage after the
+          retention period (typically 10 days).
+        </p>
+        <p>
+          For requests related to your data (access, correction, deletion), email{' '}
+          <a href="mailto:support@plagaiscans.com" style={{ color: '#2563eb' }}>
+            support@plagaiscans.com
+          </a>.
+        </p>
+      </NoScriptFallback>
       <div className="min-h-screen bg-background">
         <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
           <div className="container-width flex h-16 items-center justify-between px-4">

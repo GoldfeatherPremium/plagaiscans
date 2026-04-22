@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import Footer from '@/components/Footer';
 import { useWhatsApp } from '@/hooks/useWhatsApp';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
+import { NoScriptFallback } from '@/components/NoScriptFallback';
 import { useTranslation } from 'react-i18next';
 
 export default function Contact() {
@@ -44,6 +45,35 @@ export default function Contact() {
         canonicalUrl="/contact"
         structuredData={generateWebPageSchema('Contact Support', 'Get in touch with our support team', '/contact')}
       />
+      <NoScriptFallback
+        title="Contact Plagaiscans Support"
+        intro="Need help with plagiarism checking, your account, billing, or technical issues? Our support team is available via email and WhatsApp."
+      >
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>Reach us</h2>
+        <ul>
+          <li>
+            Support email:{' '}
+            <a href="mailto:support@plagaiscans.com" style={{ color: '#2563eb' }}>
+              support@plagaiscans.com
+            </a>
+          </li>
+          <li>
+            Billing email:{' '}
+            <a href="mailto:billing@plagaiscans.com" style={{ color: '#2563eb' }}>
+              billing@plagaiscans.com
+            </a>
+          </li>
+          <li>WhatsApp: +44 7360 536649</li>
+          <li>Response time: 24–48 hours on business days</li>
+        </ul>
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>Business address</h2>
+        <p>
+          Plagaiscans Technologies Ltd<br />
+          Office 7513ci, 182-184 High Street North, Area 1/1<br />
+          East Ham, London, E6 2JA, United Kingdom<br />
+          Company No. 16998013
+        </p>
+      </NoScriptFallback>
       <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">

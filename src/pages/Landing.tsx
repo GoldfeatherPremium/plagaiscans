@@ -25,6 +25,7 @@ import {
   generateServiceSchema,
   generateSoftwareApplicationSchema,
 } from "@/components/SEO";
+import { NoScriptFallback } from "@/components/NoScriptFallback";
 import { useTranslation } from "react-i18next";
 import {
   Accordion,
@@ -94,6 +95,8 @@ const Landing = () => {
   return (
     <>
       <SEO
+        title="Plagiarism Checker Online – Free & Accurate"
+        description="Plagaiscans is an online plagiarism checker and AI content detection service that delivers detailed similarity reports starting from $3.99 per report."
         canonicalUrl="/"
         structuredData={{
           "@context": "https://schema.org",
@@ -104,6 +107,24 @@ const Landing = () => {
           ],
         }}
       />
+      <NoScriptFallback
+        title="Plagaiscans — Plagiarism Checker & AI Content Detection"
+        intro="Plagaiscans helps students, researchers, educators, and content teams check documents for similarity and AI-generated content before they submit or publish. Reports start from $3.99, and documents are processed securely without being stored in any third-party repository."
+      >
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>What you get</h2>
+        <ul>
+          <li>Detailed similarity reports with source matching</li>
+          <li>AI content detection indicators</li>
+          <li>Pay-as-you-go credit packages — no subscription required</li>
+          <li>Fast turnaround and secure handling of your documents</li>
+          <li>14-day refund policy</li>
+        </ul>
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>Get started</h2>
+        <p>
+          Visit our <a href="/pricing" style={{ color: '#2563eb' }}>pricing page</a> to choose a credit
+          pack, or <a href="/contact" style={{ color: '#2563eb' }}>contact support</a> for help.
+        </p>
+      </NoScriptFallback>
       <div className="min-h-screen bg-background">
         {/* Minimal Top Nav */}
         <nav className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50">
