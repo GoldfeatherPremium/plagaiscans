@@ -646,9 +646,9 @@ export default function AdminSettings() {
           <TabsList className="flex flex-wrap h-auto w-full gap-1 md:grid md:grid-cols-5">
             <TabsTrigger value="general" className="text-xs md:text-sm">General</TabsTrigger>
             <TabsTrigger value="payments" className="text-xs md:text-sm">Payments</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-            <TabsTrigger value="auth">Authentication</TabsTrigger>
-            <TabsTrigger value="sample">Sample Doc</TabsTrigger>
+            <TabsTrigger value="notifications" className="text-xs md:text-sm">Notifications</TabsTrigger>
+            <TabsTrigger value="auth" className="text-xs md:text-sm">Authentication</TabsTrigger>
+            <TabsTrigger value="sample" className="text-xs md:text-sm">Sample Doc</TabsTrigger>
           </TabsList>
 
           {/* ==================== GENERAL TAB ==================== */}
