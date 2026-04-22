@@ -661,6 +661,7 @@ export default function Checkout() {
   const [paddlePriceId, setPaddlePriceId] = useState<string | null>(null);
   const [paddleMountError, setPaddleMountError] = useState<string | null>(null);
   const [showUsdtSection, setShowUsdtSection] = useState(false);
+  const [paddleTotals, setPaddleTotals] = useState<{ subtotal: number; tax: number; total: number; currency: string } | null>(null);
 
   // Load Paddle.js script
   useEffect(() => {
