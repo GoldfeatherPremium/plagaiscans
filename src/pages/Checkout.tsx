@@ -661,6 +661,7 @@ export default function Checkout() {
   const [paddlePriceId, setPaddlePriceId] = useState<string | null>(null);
   const [paddleMountError, setPaddleMountError] = useState<string | null>(null);
   const [showUsdtSection, setShowUsdtSection] = useState(false);
+  const [paddleTotals, setPaddleTotals] = useState<{ subtotal: number; tax: number; total: number; currency: string } | null>(null);
 
   // Load Paddle.js script
   useEffect(() => {
@@ -724,6 +725,7 @@ export default function Checkout() {
 
     let cancelled = false;
     setPaddleMountError(null);
+    setPaddleTotals(null);
 
     (async () => {
       try {
@@ -756,6 +758,17 @@ export default function Checkout() {
             allowLogout: false,
           },
           eventCallback: (event: any) => {
+            // Capture totals (incl. VAT) from Paddle for any update event
+            const totals = event?.data?.totals;
+            const currency = event?.data?.currency_code || event?.data?.currencyCode;
+            if (totals && (typeof totals.tax !== 'undefined' || typeof totals.total !== 'undefined')) {
+              setPaddleTotals({
+                subtotal: Number(totals.subtotal ?? 0),
+                tax: Number(totals.tax ?? 0),
+                total: Number(totals.total ?? 0),
+                currency: currency || 'USD',
+              });
+            }
             if (event?.name === 'checkout.completed') {
               navigate('/dashboard/payment-success?provider=paddle');
             }
@@ -941,10 +954,29 @@ export default function Checkout() {
                       <span>-${(totalPrice - calculateDiscountedTotal(totalPrice)).toFixed(2)}</span>
                     </div>
                   )}
+                  {paddleTotals && paddleTotals.tax > 0 && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Net amount</span>
+                        <span>${paddleTotals.subtotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">VAT / Tax</span>
+                        <span>${paddleTotals.tax.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between text-lg font-bold">
-                    <span>Total</span>
-                    <span className="text-primary">${calculateDiscountedTotal(totalPrice).toFixed(2)}</span>
+                    <span>Total{paddleTotals && paddleTotals.tax > 0 ? ' (incl. VAT)' : ''}</span>
+                    <span className="text-primary">
+                      ${(paddleTotals?.total ?? calculateDiscountedTotal(totalPrice)).toFixed(2)}
+                    </span>
                   </div>
+                  {paddleTotals && paddleTotals.tax > 0 && (
+                    <p className="text-xs text-muted-foreground text-right">
+                      VAT calculated by Paddle based on your billing location
+                    </p>
+                  )}
                 </div>
 
                 <div className="pt-2">
