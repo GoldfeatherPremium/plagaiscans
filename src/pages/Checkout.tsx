@@ -655,76 +655,129 @@ export default function Checkout() {
     }
   };
 
+  // Inline Paddle state
+  const [paddleReady, setPaddleReady] = useState(false);
+  const [paddleLoadFailed, setPaddleLoadFailed] = useState(false);
+  const [paddlePriceId, setPaddlePriceId] = useState<string | null>(null);
+  const [paddleMountError, setPaddleMountError] = useState<string | null>(null);
+  const [showUsdtSection, setShowUsdtSection] = useState(false);
+
   // Load Paddle.js script
   useEffect(() => {
     if (!paddleEnabled || !paddleClientToken) return;
-    if ((window as any).Paddle) return;
+    if ((window as any).Paddle) {
+      setPaddleReady(true);
+      return;
+    }
+
+    const existing = document.querySelector('script[src="https://cdn.paddle.com/paddle/v2/paddle.js"]');
+    if (existing) return;
 
     const script = document.createElement('script');
     script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js';
     script.async = true;
+    const timer = setTimeout(() => {
+      if (!(window as any).Paddle) setPaddleLoadFailed(true);
+    }, 5000);
     script.onload = () => {
+      clearTimeout(timer);
       const Paddle = (window as any).Paddle;
       if (Paddle) {
         if (paddleEnvironment === 'sandbox') {
           Paddle.Environment.set('sandbox');
         }
         Paddle.Initialize({ token: paddleClientToken });
+        setPaddleReady(true);
       }
+    };
+    script.onerror = () => {
+      clearTimeout(timer);
+      setPaddleLoadFailed(true);
     };
     document.head.appendChild(script);
   }, [paddleEnabled, paddleClientToken, paddleEnvironment]);
 
-  const createPaddlePayment = async () => {
-    if (!user || !selectedPackage) return;
-
-    const Paddle = (window as any).Paddle;
-    if (!Paddle) {
-      toast.error('Paddle checkout is loading, please try again in a moment');
-      return;
-    }
-
-    setCreatingPaddlePayment(true);
-    try {
+  // Fetch the paddle price id for the selected package
+  useEffect(() => {
+    if (!selectedPackage) return;
+    let cancelled = false;
+    (async () => {
       const { data: pkg } = await supabase
         .from('pricing_packages')
         .select('paddle_price_id')
         .eq('id', selectedPackage.id)
         .single();
-
-      if (!pkg?.paddle_price_id) {
-        toast.error('This package is not configured for Paddle checkout');
-        return;
+      if (!cancelled) {
+        setPaddlePriceId(pkg?.paddle_price_id || null);
       }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedPackage]);
 
-      const response = await supabase.functions.invoke('create-paddle-checkout', {
-        body: {
-          priceId: pkg.paddle_price_id,
-          credits: packageCredits,
-          quantity: quantity,
-          amount: Math.round(calculateTotalWithFee('paddle') * 100),
-          creditType: packageCreditType,
-        },
-      });
+  // Mount inline Paddle checkout (re-mounts when quantity/promo/package changes)
+  const paddleMountKey = `${selectedPackage?.id || ''}-${quantity}-${appliedPromo?.code || ''}`;
+  useEffect(() => {
+    if (!paddleEnabled || !paddleReady || !paddlePriceId || !user || !selectedPackage) return;
 
-      if (response.error) throw new Error(response.error.message);
+    const Paddle = (window as any).Paddle;
+    if (!Paddle) return;
 
-      const data = response.data;
-      if (!data.transactionId) throw new Error(data.error || 'Failed to create Paddle checkout');
+    let cancelled = false;
+    setPaddleMountError(null);
 
-      Paddle.Checkout.open({
-        transactionId: data.transactionId,
-        settings: {
-          successUrl: `${window.location.origin}/dashboard/payment-success?provider=paddle`,
-          allowLogout: false,
-        },
-      });
-    } catch (error: any) {
-      console.error('Paddle payment error:', error);
-      toast.error(error.message || 'Failed to create Paddle payment');
-    } finally {
-      setCreatingPaddlePayment(false);
-    }
+    (async () => {
+      try {
+        const response = await supabase.functions.invoke('create-paddle-checkout', {
+          body: {
+            priceId: paddlePriceId,
+            credits: packageCredits,
+            quantity: quantity,
+            amount: Math.round(calculateTotalWithFee('paddle') * 100),
+            creditType: packageCreditType,
+          },
+        });
+
+        if (cancelled) return;
+        if (response.error) throw new Error(response.error.message);
+        const data = response.data;
+        if (!data.transactionId) throw new Error(data.error || 'Failed to create Paddle checkout');
+
+        try { Paddle.Checkout.close(); } catch {}
+
+        Paddle.Checkout.open({
+          transactionId: data.transactionId,
+          settings: {
+            displayMode: 'inline',
+            theme: 'light',
+            frameTarget: 'paddle-inline-frame',
+            frameInitialHeight: 450,
+            frameStyle: 'width:100%; min-width:312px; background-color: transparent; border: none;',
+            successUrl: `${window.location.origin}/dashboard/payment-success?provider=paddle`,
+            allowLogout: false,
+          },
+          eventCallback: (event: any) => {
+            if (event?.name === 'checkout.completed') {
+              navigate('/dashboard/payment-success?provider=paddle');
+            }
+          },
+        });
+      } catch (error: any) {
+        if (!cancelled) {
+          console.error('Paddle inline mount error:', error);
+          setPaddleMountError(error.message || 'Failed to load card checkout');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      try { (window as any).Paddle?.Checkout?.close(); } catch {}
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paddleMountKey, paddleEnabled, paddleReady, paddlePriceId, user?.id]);
+
+  const createPaddlePayment = async () => {
+    // Legacy handler kept for compatibility — not used in inline flow.
   };
 
   if (loading || !selectedPackage) {
