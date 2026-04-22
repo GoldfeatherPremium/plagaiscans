@@ -996,42 +996,54 @@ export default function Checkout() {
                       )}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className={appliedPromo?.discountPercentage && appliedPromo.discountPercentage > 0 ? 'line-through text-muted-foreground' : ''}>
-                      ${totalPrice.toFixed(2)}
-                    </span>
-                  </div>
-                  {appliedPromo?.discountPercentage && appliedPromo.discountPercentage > 0 && (
-                    <div className="flex justify-between text-sm text-green-600">
-                      <span>Discount ({appliedPromo.discountPercentage}%)</span>
-                      <span>-${(totalPrice - calculateDiscountedTotal(totalPrice)).toFixed(2)}</span>
-                    </div>
-                  )}
-                  {paddleTotals && paddleTotals.tax > 0 && (
+                  {/* Local estimated values are shown until Paddle emits official totals.
+                      Once Paddle responds (checkout.loaded / updated / customer.updated),
+                      Subtotal / VAT / Total are taken verbatim from Paddle. */}
+                  {paddleSummary ? (
                     <>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Net amount</span>
-                        <span>${paddleTotals.subtotal.toFixed(2)}</span>
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>${paddleSummary.subtotal.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          VAT / Tax{paddleTaxRate ? ` (${paddleTaxRate.toFixed(2)}%)` : ''}
+                      {paddleSummary.hasTax && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            VAT / Tax{paddleSummary.taxRate ? ` (${paddleSummary.taxRate.toFixed(2)}%)` : ''}
+                          </span>
+                          <span>${paddleSummary.tax.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-lg font-bold">
+                        <span>Total{paddleSummary.hasTax ? ' (incl. VAT)' : ''}</span>
+                        <span className="text-primary">
+                          ${paddleSummary.total.toFixed(2)}
                         </span>
-                        <span>${paddleTotals.tax.toFixed(2)}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground text-right">
+                        Calculated by Paddle based on your billing location
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className={appliedPromo?.discountPercentage && appliedPromo.discountPercentage > 0 ? 'line-through text-muted-foreground' : ''}>
+                          ${totalPrice.toFixed(2)}
+                        </span>
+                      </div>
+                      {appliedPromo?.discountPercentage && appliedPromo.discountPercentage > 0 && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Discount ({appliedPromo.discountPercentage}%)</span>
+                          <span>-${(totalPrice - calculateDiscountedTotal(totalPrice)).toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-lg font-bold">
+                        <span>Estimated Total</span>
+                        <span className="text-primary">
+                          ${calculateDiscountedTotal(totalPrice).toFixed(2)}
+                        </span>
                       </div>
                     </>
-                  )}
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Total{paddleTotals && paddleTotals.tax > 0 ? ' (incl. VAT)' : ''}</span>
-                    <span className="text-primary">
-                      ${(paddleTotals?.total ?? calculateDiscountedTotal(totalPrice)).toFixed(2)}
-                    </span>
-                  </div>
-                  {paddleTotals && paddleTotals.tax > 0 && (
-                    <p className="text-xs text-muted-foreground text-right">
-                      VAT calculated by Paddle based on your billing location
-                    </p>
                   )}
                 </div>
 
