@@ -256,9 +256,14 @@ const AppRoutes = () => (
     <Routes>
       <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
       <Route path="/about-us" element={<AboutUs />} />
+      <Route path="/about" element={<AboutUs />} />
       <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+      <Route path="/terms" element={<TermsAndConditions />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/refund-policy" element={<RefundPolicy />} />
+      <Route path="/refund" element={<RefundPolicy />} />
+      <Route path="/acceptable-use" element={<AcademicIntegrity />} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/unsubscribe" element={<Unsubscribe />} />
