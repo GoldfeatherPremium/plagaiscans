@@ -664,10 +664,8 @@ export default function Checkout() {
   const [paddleTotals, setPaddleTotals] = useState<{ subtotal: number; tax: number; total: number; currency: string } | null>(null);
   const paddleTaxRate = useMemo(() => {
     if (!paddleTotals || paddleTotals.subtotal <= 0 || paddleTotals.tax <= 0) return null;
-
     const rate = (paddleTotals.tax / paddleTotals.subtotal) * 100;
     if (!Number.isFinite(rate) || rate <= 0) return null;
-
     return rate;
   }, [paddleTotals]);
 
