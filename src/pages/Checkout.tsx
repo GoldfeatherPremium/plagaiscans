@@ -1092,8 +1092,8 @@ export default function Checkout() {
                   </div>
                 )}
 
-                {/* Fallback when neither Paddle nor USDT available */}
-                {!paddleEnabled && !usdtEnabled && (
+                {/* Fallback when no payment methods are available */}
+                {!paddleEnabled && !usdtEnabled && !usdtManualEnabled && (
                   <div className="text-center py-8">
                     <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">No payment methods are currently available. Please contact support.</p>
