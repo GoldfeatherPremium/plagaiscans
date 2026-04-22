@@ -829,9 +829,9 @@ export default function Checkout() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-2 gap-6 items-start">
           {/* Order Summary */}
-          <div className="lg:col-span-1 lg:order-2">
+          <div className="lg:order-2">
             <Card className="sticky top-4">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -990,7 +990,7 @@ export default function Checkout() {
           </div>
 
           {/* Payment Methods */}
-          <div className="lg:col-span-2 lg:order-1 space-y-6">
+          <div className="lg:order-1 space-y-6">
             <Card className="overflow-hidden">
               <CardHeader className="bg-muted/30 border-b">
                 <CardTitle className="flex items-center gap-2">
