@@ -258,9 +258,10 @@ serve(async (req) => {
             currency: paddleCurrency,
           });
 
-          // Create invoice
+          // Create invoice (using Paddle's authoritative totals + VAT)
+          let createdInvoiceId: string | null = null;
           try {
-            await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/create-invoice`, {
+            const invRes = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/create-invoice`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -272,20 +273,29 @@ serve(async (req) => {
                 credits,
                 payment_type: 'paddle',
                 payment_id: transactionId,
+                transaction_id: transactionId,
+                customer_name: customerNameFromPaddle || undefined,
                 customer_email: profile?.email,
+                customer_country: customerCountry,
+                customer_address: customerAddress,
                 description: `${credits} Document Check Credits`,
                 currency: paddleCurrency,
                 status: 'paid',
+                quantity: credits,
+                unit_price: credits > 0 ? subtotalAmount / credits : subtotalAmount,
                 subtotal: subtotalAmount,
                 vat_amount: taxAmount,
                 vat_rate: taxRate,
               }),
             });
+            const invJson = await invRes.json().catch(() => ({}));
+            createdInvoiceId = invJson?.invoice?.id || null;
+            logStep("Invoice created", { invoiceId: createdInvoiceId });
           } catch (e) {
             logStep("Error creating invoice", { error: e });
           }
 
-          // Create receipt
+          // Create receipt (linked to the invoice for proper accounting)
           try {
             await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/create-receipt`, {
               method: 'POST',
@@ -295,10 +305,13 @@ serve(async (req) => {
               },
               body: JSON.stringify({
                 userId,
+                invoiceId: createdInvoiceId,
+                customerName: customerNameFromPaddle || undefined,
                 customerEmail: profile?.email,
+                customerCountry,
                 description: `${credits} Document Check Credits`,
                 quantity: credits,
-                unitPrice: credits > 0 ? subtotalAmount / credits : 0,
+                unitPrice: credits > 0 ? subtotalAmount / credits : subtotalAmount,
                 subtotal: subtotalAmount,
                 vatRate: taxRate,
                 vatAmount: taxAmount,
@@ -310,6 +323,7 @@ serve(async (req) => {
                 credits,
               }),
             });
+            logStep("Receipt created");
           } catch (e) {
             logStep("Error creating receipt", { error: e });
           }
