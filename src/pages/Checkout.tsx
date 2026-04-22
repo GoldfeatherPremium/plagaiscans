@@ -763,19 +763,70 @@ export default function Checkout() {
               console.log('[Paddle event]', event.name, event.data);
             }
 
-            // Paddle v2 puts totals on the data root and on each item.
-            // Try several locations to handle preview vs. address-resolved updates.
+            // Paddle v2 emits totals in multiple possible shapes depending on the
+            // event (checkout.loaded / updated / items.updated / customer.updated).
+            // Pull each field from the first location that yields a value.
             const d = event?.data || {};
-            const totals = d.totals || d.recurring_totals || null;
-            const currency = d.currency_code || d.currencyCode || 'USD';
+            const rootTotals = d.totals || {};
+            const recurring = d.recurring_totals || {};
+            const items: any[] = Array.isArray(d.items) ? d.items : [];
 
-            if (totals) {
-              const subtotal = Number(totals.subtotal ?? totals.sub_total ?? 0);
-              const tax = Number(totals.tax ?? 0);
-              const total = Number(totals.total ?? totals.grand_total ?? 0);
-              if (total > 0 || tax > 0 || subtotal > 0) {
-                setPaddleTotals({ subtotal, tax, total, currency });
-              }
+            const sumItems = (key: string) =>
+              items.reduce((acc, it) => {
+                const t = it?.totals || {};
+                const v = Number(t[key] ?? t[key === 'sub_total' ? 'subtotal' : key] ?? 0);
+                return acc + (isFinite(v) ? v : 0);
+              }, 0);
+
+            const subtotal = Number(
+              rootTotals.subtotal ??
+              rootTotals.sub_total ??
+              rootTotals.subTotal ??
+              recurring.subtotal ??
+              (items.length ? sumItems('subtotal') : 0) ??
+              rootTotals.balance ??
+              0
+            ) || 0;
+
+            const tax = Number(
+              rootTotals.tax ??
+              rootTotals.tax_total ??
+              rootTotals.taxTotal ??
+              recurring.tax ??
+              (items.length ? sumItems('tax') : 0) ??
+              0
+            ) || 0;
+
+            let total = Number(
+              rootTotals.total ??
+              rootTotals.grand_total ??
+              rootTotals.grandTotal ??
+              recurring.total ??
+              (items.length ? sumItems('total') : 0) ??
+              0
+            ) || 0;
+            if (!total && (subtotal || tax)) total = subtotal + tax;
+
+            const currency =
+              d.currency_code ||
+              d.currencyCode ||
+              items[0]?.price?.currency_code ||
+              items[0]?.price?.currencyCode ||
+              'USD';
+
+            if (subtotal > 0 || tax > 0 || total > 0) {
+              setPaddleTotals((prev) => {
+                // Avoid flicker: keep prior tax if this event didn't carry tax info.
+                const nextTax = tax > 0 ? tax : (prev?.tax ?? 0);
+                const nextSubtotal = subtotal > 0 ? subtotal : (prev?.subtotal ?? 0);
+                const nextTotal = total > 0 ? total : (nextSubtotal + nextTax);
+                return {
+                  subtotal: nextSubtotal,
+                  tax: nextTax,
+                  total: nextTotal,
+                  currency: currency || prev?.currency || 'USD',
+                };
+              });
             }
 
             if (event?.name === 'checkout.completed') {
