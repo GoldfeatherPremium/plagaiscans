@@ -1090,20 +1090,26 @@ export default function Checkout() {
                   </div>
                 ) : null}
 
-                {/* USDT bullet button — secondary */}
-                {usdtEnabled && (
-                  <div className="pt-2">
+                {/* Unified "Pay via USDT" highlighted button — routes to NowPayments auto if available, else manual */}
+                {(usdtEnabled || usdtManualEnabled) && (
+                  <div className="pt-4 flex flex-col items-center gap-3">
                     {!showUsdtSection ? (
                       <button
                         type="button"
-                        onClick={() => setShowUsdtSection(true)}
-                        className="text-sm text-primary hover:underline inline-flex items-center gap-1.5"
+                        onClick={() => {
+                          if (usdtEnabled) {
+                            setShowUsdtSection(true);
+                          } else {
+                            openUsdtManualDialog();
+                          }
+                        }}
+                        className="bg-green-600 hover:bg-green-700 text-white font-medium rounded-full px-5 py-2.5 inline-flex items-center gap-2 shadow-sm transition-colors"
                       >
-                        <span className="text-xs">●</span>
-                        Pay with USDT (TRC20) instead
+                        <span className="h-2 w-2 rounded-full bg-white" aria-hidden="true" />
+                        Pay via USDT
                       </button>
                     ) : (
-                      <div className="border rounded-lg p-4 bg-muted/30">
+                      <div className="w-full border rounded-lg p-4 bg-muted/30">
                         <div className="flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
@@ -1128,29 +1134,22 @@ export default function Checkout() {
                             )}
                           </Button>
                         </div>
+                        {usdtManualEnabled && (
+                          <div className="mt-3 pt-3 border-t text-center">
+                            <button
+                              type="button"
+                              onClick={openUsdtManualDialog}
+                              className="text-xs text-muted-foreground hover:text-primary hover:underline"
+                            >
+                              Or use manual USDT transfer (admin verifies)
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* USDT Manual Transfer bullet button — semi-manual */}
-                {usdtManualEnabled && (
-                  <div className="pt-1">
-                    <button
-                      type="button"
-                      onClick={openUsdtManualDialog}
-                      className="text-sm text-primary hover:underline inline-flex items-start gap-1.5 text-left"
-                    >
-                      <span className="text-xs leading-5">●</span>
-                      <span>
-                        USDT Transfer (TRC20)
-                        <span className="block text-xs text-muted-foreground font-normal">
-                          (Semi-manual — customer sends USDT, admin verifies)
-                        </span>
-                      </span>
-                    </button>
-                  </div>
-                )}
 
                 {/* Fallback when no payment methods are available */}
                 {!paddleEnabled && !usdtEnabled && !usdtManualEnabled && (
