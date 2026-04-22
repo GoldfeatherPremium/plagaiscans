@@ -1073,6 +1073,25 @@ export default function Checkout() {
                   </div>
                 )}
 
+                {/* USDT Manual Transfer bullet button — semi-manual */}
+                {usdtManualEnabled && (
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={openUsdtManualDialog}
+                      className="text-sm text-primary hover:underline inline-flex items-start gap-1.5 text-left"
+                    >
+                      <span className="text-xs leading-5">●</span>
+                      <span>
+                        USDT Transfer (TRC20)
+                        <span className="block text-xs text-muted-foreground font-normal">
+                          (Semi-manual — customer sends USDT, admin verifies)
+                        </span>
+                      </span>
+                    </button>
+                  </div>
+                )}
+
                 {/* Fallback when neither Paddle nor USDT available */}
                 {!paddleEnabled && !usdtEnabled && (
                   <div className="text-center py-8">
