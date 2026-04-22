@@ -805,7 +805,7 @@ export default function Checkout() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 p-6 md:p-8">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
