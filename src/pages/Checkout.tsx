@@ -791,7 +791,8 @@ export default function Checkout() {
 
     let cancelled = false;
     setPaddleMountError(null);
-    setPaddleTotals(null);
+    // Reset summary on remount so stale Paddle totals from a prior package don't linger.
+    setPaddleSummary(null);
 
     (async () => {
       try {
@@ -812,6 +813,9 @@ export default function Checkout() {
 
         try { Paddle.Checkout.close(); } catch {}
 
+        // Note: pricing/tax events are handled by the global eventCallback
+        // registered in Paddle.Initialize. Do not register a per-checkout
+        // eventCallback here, otherwise it would override the global one.
         Paddle.Checkout.open({
           transactionId: data.transactionId,
           settings: {
@@ -822,59 +826,6 @@ export default function Checkout() {
             frameStyle: 'width:100%; min-width:312px; background-color: transparent; border: none;',
             successUrl: `${window.location.origin}/dashboard/payment-success?provider=paddle`,
             allowLogout: false,
-          },
-          eventCallback: (event: any) => {
-            if (!event?.name) return;
-
-            // Listen to events that carry pricing/tax data
-            const PRICING_EVENTS = [
-              'checkout.loaded',
-              'checkout.updated',
-              'checkout.items.updated',
-              'checkout.customer.updated',
-              'checkout.customer.created',
-              'checkout.discount.applied',
-              'checkout.discount.removed',
-              'checkout.payment.initiated',
-              'checkout.payment.selected',
-            ];
-
-            if (event.name === 'checkout.completed') {
-              navigate('/dashboard/payment-success?provider=paddle');
-              return;
-            }
-
-            if (!PRICING_EVENTS.includes(event.name)) return;
-
-            const d = event.data || {};
-            const totals = d.totals || {};
-
-            // Paddle.js v2 returns amounts as decimal numbers (e.g. 29.99) in the
-            // checkout currency. Coerce to a safe number.
-            const toNum = (v: unknown): number => {
-              if (v == null) return 0;
-              const n = typeof v === 'string' ? parseFloat(v) : Number(v);
-              return Number.isFinite(n) && n >= 0 ? n : 0;
-            };
-
-            const subtotal = toNum(totals.subtotal);
-            const tax = toNum(totals.tax);
-            // Paddle uses `total` for the gross amount the customer pays.
-            // `balance` is the same on a one-shot purchase. Prefer total.
-            const total = toNum(totals.total) || toNum(totals.balance) || (subtotal + tax);
-            const currency = d.currency_code || 'USD';
-
-            console.log('[Paddle totals]', event.name, { subtotal, tax, total, currency });
-
-            // Only update once we have a meaningful number from Paddle.
-            if (total > 0 || subtotal > 0) {
-              setPaddleTotals({
-                subtotal: subtotal || Math.max(total - tax, 0),
-                tax,
-                total: total || subtotal + tax,
-                currency,
-              });
-            }
           },
         });
       } catch (error: any) {
