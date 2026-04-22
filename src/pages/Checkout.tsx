@@ -999,31 +999,45 @@ export default function Checkout() {
                   {/* Local estimated values are shown until Paddle emits official totals.
                       Once Paddle responds (checkout.loaded / updated / customer.updated),
                       Subtotal / VAT / Total are taken verbatim from Paddle. */}
-                  {paddleSummary ? (
-                    <>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span>${paddleSummary.subtotal.toFixed(2)}</span>
-                      </div>
-                      {paddleSummary.hasTax && (
+                  {paddleSummary ? (() => {
+                    const cur = (paddleSummary.currency || 'USD').toUpperCase();
+                    const fmt = (amount: number) => {
+                      try {
+                        return new Intl.NumberFormat(undefined, {
+                          style: 'currency',
+                          currency: cur,
+                          currencyDisplay: 'narrowSymbol',
+                        }).format(amount);
+                      } catch {
+                        return `${cur} ${amount.toFixed(2)}`;
+                      }
+                    };
+                    return (
+                      <>
                         <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            VAT / Tax{paddleSummary.taxRate ? ` (${paddleSummary.taxRate.toFixed(2)}%)` : ''}
-                          </span>
-                          <span>${paddleSummary.tax.toFixed(2)}</span>
+                          <span className="text-muted-foreground">Subtotal</span>
+                          <span>{fmt(paddleSummary.subtotal)}</span>
                         </div>
-                      )}
-                      <div className="flex justify-between text-lg font-bold">
-                        <span>Total{paddleSummary.hasTax ? ' (incl. VAT)' : ''}</span>
-                        <span className="text-primary">
-                          ${paddleSummary.total.toFixed(2)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground text-right">
-                        Calculated by Paddle based on your billing location
-                      </p>
-                    </>
-                  ) : (
+                        {paddleSummary.hasTax && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              VAT / Tax{paddleSummary.taxRate ? ` (${paddleSummary.taxRate.toFixed(2)}%)` : ''}
+                            </span>
+                            <span>{fmt(paddleSummary.tax)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-lg font-bold">
+                          <span>Total{paddleSummary.hasTax ? ' (incl. VAT)' : ''}</span>
+                          <span className="text-primary">
+                            {fmt(paddleSummary.total)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground text-right">
+                          Calculated by Paddle based on your billing location ({cur})
+                        </p>
+                      </>
+                    );
+                  })() : (
                     <>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Subtotal</span>
