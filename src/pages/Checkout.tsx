@@ -725,6 +725,7 @@ export default function Checkout() {
 
     let cancelled = false;
     setPaddleMountError(null);
+    setPaddleTotals(null);
 
     (async () => {
       try {
@@ -757,6 +758,17 @@ export default function Checkout() {
             allowLogout: false,
           },
           eventCallback: (event: any) => {
+            // Capture totals (incl. VAT) from Paddle for any update event
+            const totals = event?.data?.totals;
+            const currency = event?.data?.currency_code || event?.data?.currencyCode;
+            if (totals && (typeof totals.tax !== 'undefined' || typeof totals.total !== 'undefined')) {
+              setPaddleTotals({
+                subtotal: Number(totals.subtotal ?? 0),
+                tax: Number(totals.tax ?? 0),
+                total: Number(totals.total ?? 0),
+                currency: currency || 'USD',
+              });
+            }
             if (event?.name === 'checkout.completed') {
               navigate('/dashboard/payment-success?provider=paddle');
             }
