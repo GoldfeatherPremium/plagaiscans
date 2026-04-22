@@ -1,138 +1,105 @@
 
-## Rebuild the checkout summary from scratch using Paddle as the source of truth
 
-### 1. Replace the current VAT summary logic with a clean Paddle summary model
-In `src/pages/Checkout.tsx`, remove the current ad-hoc summary/VAT wiring built around `paddleTotals` and rebuild it as a dedicated summary state for the inline card checkout.
+## Goal
+Make `/`, `/pricing`, `/about-us`, `/contact`, `/terms-and-conditions`, `/privacy-policy`, `/refund-policy`, and `/academic-integrity` return real, crawlable HTML — with content, meta tags, and a `<noscript>` fallback — instead of an empty React shell.
 
-New state shape:
-```ts
-type PaddleSummary = {
-  subtotal: number;
-  tax: number;
-  total: number;
-  currency: string;
-  hasTax: boolean;
-  taxRate: number | null;
-  sourceEvent: string | null;
-}
-```
+## Constraint that shapes the approach
+Lovable hosts static files only (no Node SSR, no per-request rendering). True runtime SSR is not possible. The correct fix is **build-time prerendering (SSG)**: at `vite build`, render each listed route to its own static HTML file (`/pricing/index.html`, `/contact/index.html`, etc.). Lovable's static host then serves real HTML for every URL, and React hydrates on top.
 
-Rules:
-- Reset this summary whenever package, quantity, or promo changes and the Paddle checkout remounts.
-- Do not calculate VAT manually from local package prices.
-- Do not keep the old fallback heuristics, recursive scans, or mixed local/Paddle tax math.
+## What gets built
 
-### 2. Initialize Paddle with a real `eventCallback`
-Move the summary update logic into `Paddle.Initialize({ token, eventCallback })` so it listens globally to Paddle checkout events, instead of relying on temporary per-open parsing only.
+### 1. Add a prerender step to the Vite build
+- Install `vite-plugin-prerender` (Puppeteer-based, runs after `vite build`).
+- Configure it with the exact public routes:
+  - `/`
+  - `/pricing`
+  - `/about-us`
+  - `/contact`
+  - `/terms-and-conditions`
+  - `/privacy-policy`
+  - `/refund-policy`
+  - `/academic-integrity`
+- Output: `dist/pricing/index.html`, `dist/contact/index.html`, etc. — each containing the fully rendered DOM, meta tags, and `<noscript>` block for that page.
+- React still hydrates normally after load; SPA navigation is unchanged.
 
-Listen to:
-- `checkout.loaded`
-- `checkout.updated`
-- `checkout.customer.updated`
+### 2. Per-route `<title>`, `<meta description>`, OG tags, canonical
+- The project already uses `react-helmet-async` and a shared `SEO` component (`src/components/SEO.tsx`).
+- Audit each of the 8 public pages and ensure each renders `<SEO ... canonicalUrl=... />` with a unique title, description, keywords, OG image, and canonical URL.
+- Pages already wired (verified): `RefundPolicy`, `TermsAndConditions`. Pages to audit/fix: `Landing`, `Pricing`, `AboutUs`, `Contact`, `PrivacyPolicy`, `AcademicIntegrity`.
+- Because prerender executes Helmet during the headless render, the final static HTML files will contain the correct `<title>` / `<meta>` / `<link rel="canonical">` baked in — visible to `curl` and crawlers.
 
-For each of those events:
-- read `event.data?.totals?.subtotal`
-- read `event.data?.totals?.tax`
-- read `event.data?.totals?.total`
-- read `event.data?.currency_code`
+### 3. Add a `<noscript>` fallback inside each page
+- Add a `<NoScriptFallback>` block to each of the 8 public pages (rendered inside the page component, so prerender includes it). Content per page:
+  - **Landing**: product summary, key features, pricing teaser, links to all policy pages and contact.
+  - **Pricing**: plain-text plan list with per-credit pricing.
+  - **About**: company description (Plagaiscans Technologies Ltd, UK).
+  - **Contact**: support email, WhatsApp number, address.
+  - **Terms / Privacy / Refund / Academic Integrity**: the page's actual policy text in plain HTML.
+- All `<noscript>` blocks include a footer with anchor links to every other public page, so a no-JS crawler can follow the full site graph.
 
-Normalization:
-- convert strings/numbers safely
-- support amounts that may arrive as cents by normalizing before display
-- prefer Paddle-provided totals only
+### 4. Replace the generic loading skeleton in `index.html`
+- The current `<div id="root">` skeleton is generic ("Plagaiscans" + spinner). Replace it with a minimal site-wide `<noscript>` block containing the brand description and links to all 8 public pages, so even routes that aren't prerendered still expose crawlable text.
 
-Update the summary only when Paddle sends a valid totals object.
+### 5. Sitemap & robots sanity check
+- Verify `public/sitemap.xml` lists all 8 prerendered routes with correct canonical URLs.
+- Verify `public/robots.txt` allows indexing and references the sitemap.
 
-### 3. Build a single “official checkout summary” renderer
-Replace the current mixed summary rows with a clean render flow:
+## Technical details
 
-#### Before Paddle totals arrive
-Show local estimated pricing only:
-- Credits
-- Estimated subtotal
-- Discount row if promo exists
-- Estimated total
-
-No VAT row yet.
-
-#### After Paddle totals arrive
-Swap to Paddle’s official values:
-- Credits
-- Subtotal
-- VAT / Tax (only if `tax > 0`)
-- Total
-- Small helper text like: “Calculated by Paddle based on billing location”
-
-This makes the UI mirror the exact amount shown on Paddle’s pay button.
-
-### 4. Compute VAT percentage only from Paddle totals
-Keep the percentage label, but derive it only from:
-```ts
-taxRate = subtotal > 0 && tax > 0 ? (tax / subtotal) * 100 : null
-```
-
-Display:
-- `VAT / Tax`
-- `VAT / Tax (15.00%)` when available
-
-No inferred percentage from local package math.
-
-### 5. Avoid stale or disappearing tax values
-When Paddle emits an eligible event:
-- replace the whole summary from that event
-- do not merge with old tax guesses
-- do not preserve old VAT if a new event returns a full totals object with different numbers
-
-This gives a deterministic “latest official Paddle totals wins” flow.
-
-### 6. Keep the desktop split untouched
-The current desktop structure in `src/pages/Checkout.tsx` already renders:
-- Order Summary on the left
-- Payment Method on the right
-
-Keep that layout as-is while rebuilding only the summary data source.
-
-### 7. Keep the USDT UI separate from Paddle summary logic
-Do not mix the USDT alternative with the Paddle VAT logic.
-
-If needed during implementation:
-- keep the green “Pay via USDT” pill styling
-- keep its current routing behavior
-- ensure the summary rebuild only affects the Paddle/card checkout path
-
-### 8. Files to update
+### Files changed / added
 ```text
-src/pages/Checkout.tsx
-  - remove the current VAT fallback summary wiring
-  - add a clean Paddle summary state
-  - attach a fresh Paddle Initialize eventCallback
-  - rebuild the Order Summary rendering to use Paddle totals when available
+vite.config.ts                              add vite-plugin-prerender + route list
+package.json                                add vite-plugin-prerender (devDep)
+index.html                                  replace skeleton with site-wide <noscript>
+src/components/NoScriptFallback.tsx         new — per-page text fallback component
+src/pages/Landing.tsx                       add <SEO> + <NoScriptFallback>
+src/pages/Pricing.tsx                       add <SEO> + <NoScriptFallback>
+src/pages/AboutUs.tsx                       add <SEO> + <NoScriptFallback>
+src/pages/Contact.tsx                       add <SEO> + <NoScriptFallback>
+src/pages/PrivacyPolicy.tsx                 add <NoScriptFallback>
+src/pages/TermsAndConditions.tsx            add <NoScriptFallback>
+src/pages/RefundPolicy.tsx                  add <NoScriptFallback>
+src/pages/AcademicIntegrity.tsx             add <SEO> + <NoScriptFallback>
+public/sitemap.xml                          verify all 8 routes present
 ```
 
-### Technical details
+### Build-time flow
 ```text
-Data flow:
-
-Package / quantity / promo selected
-        ↓
-Create Paddle transaction
-        ↓
-Open inline Paddle checkout
-        ↓
-Paddle eventCallback receives:
-  checkout.loaded / checkout.updated / checkout.customer.updated
-        ↓
-Read event.data.totals.{subtotal,tax,total}
-        ↓
-Normalize values
-        ↓
-setPaddleSummary(...)
-        ↓
-Order Summary re-renders from Paddle totals
+vite build
+   │
+   ├─ produces dist/index.html + JS bundles (as today)
+   │
+   └─ vite-plugin-prerender (post-build hook)
+         │
+         ├─ launches headless Chromium, loads dist/index.html
+         ├─ visits each configured route in-app
+         ├─ waits for Helmet + page render
+         └─ writes:
+              dist/index.html              (Landing, fully rendered)
+              dist/pricing/index.html
+              dist/about-us/index.html
+              dist/contact/index.html
+              dist/terms-and-conditions/index.html
+              dist/privacy-policy/index.html
+              dist/refund-policy/index.html
+              dist/academic-integrity/index.html
 ```
 
-### Expected outcome
-- When the customer selects their country and Paddle adds VAT, the Order Summary updates automatically.
-- The summary total matches Paddle’s green pay button.
-- VAT is shown only when Paddle actually returns tax.
-- Old custom VAT logic is removed completely instead of patched again.
+### Verification after deploy
+```text
+curl https://plagaiscans.com/pricing
+   → returns full HTML with pricing copy, <title>Pricing | Plagaiscans</title>,
+     canonical link, OG tags, and <noscript> fallback.
+
+curl https://plagaiscans.com/contact
+   → returns full HTML with support email + WhatsApp visible in body.
+```
+
+### Out of scope / not possible on Lovable static hosting
+- True per-request server rendering (Next.js-style SSR) — not supported on Lovable hosting; prerender at build time is the equivalent and gives identical SEO benefits for these 8 static pages.
+- Prerendering authenticated/dynamic pages (`/dashboard/*`, `/checkout`) — intentionally excluded; they remain client-rendered.
+
+## Expected outcome
+- `curl` on any of the 8 public URLs returns real HTML with the page's content, correct `<title>`, `<meta description>`, canonical URL, OG/Twitter tags, and a `<noscript>` text block — no empty `<div id="root">`.
+- Google, Bing, and social scrapers see full content immediately, no JS execution required.
+- React hydrates on load; user-facing navigation and behavior are unchanged.
