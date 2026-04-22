@@ -702,7 +702,58 @@ export default function Checkout() {
         if (paddleEnvironment === 'sandbox') {
           Paddle.Environment.set('sandbox');
         }
-        Paddle.Initialize({ token: paddleClientToken });
+        Paddle.Initialize({
+          token: paddleClientToken,
+          eventCallback: (event: any) => {
+            if (!event?.name) return;
+
+            if (event.name === 'checkout.completed') {
+              navigate('/dashboard/payment-success?provider=paddle');
+              return;
+            }
+
+            // Only these events carry official customer-location-aware totals
+            const PRICING_EVENTS = new Set([
+              'checkout.loaded',
+              'checkout.updated',
+              'checkout.customer.updated',
+            ]);
+            if (!PRICING_EVENTS.has(event.name)) return;
+
+            const totals = event.data?.totals;
+            if (!totals || typeof totals !== 'object') return;
+
+            // Safely coerce — Paddle.js v2 returns decimal numbers (29.99),
+            // but tolerate strings and unexpected scaling just in case.
+            const toNum = (v: unknown): number => {
+              if (v == null) return 0;
+              const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+              return Number.isFinite(n) && n >= 0 ? n : 0;
+            };
+
+            const subtotal = toNum(totals.subtotal);
+            const tax = toNum(totals.tax);
+            const total = toNum(totals.total) || toNum(totals.balance) || (subtotal + tax);
+            const currency = event.data?.currency_code || 'USD';
+
+            // Require a valid totals payload to overwrite — never merge with stale tax.
+            if (total <= 0 && subtotal <= 0) return;
+
+            const taxRate = subtotal > 0 && tax > 0
+              ? (tax / subtotal) * 100
+              : null;
+
+            setPaddleSummary({
+              subtotal: subtotal || Math.max(total - tax, 0),
+              tax,
+              total: total || subtotal + tax,
+              currency,
+              hasTax: tax > 0,
+              taxRate,
+              sourceEvent: event.name,
+            });
+          },
+        });
         setPaddleReady(true);
       }
     };
