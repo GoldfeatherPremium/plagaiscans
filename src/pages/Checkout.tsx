@@ -763,49 +763,66 @@ export default function Checkout() {
               console.log('[Paddle event]', event.name, event.data);
             }
 
-            // Paddle v2 emits totals in multiple possible shapes depending on the
-            // event (checkout.loaded / updated / items.updated / customer.updated).
-            // Pull each field from the first location that yields a value.
+            // Paddle v2 emits totals in multiple shapes depending on the event.
+            // Capture explicit values first, then infer tax from total - subtotal when needed.
             const d = event?.data || {};
             const rootTotals = d.totals || {};
             const recurring = d.recurring_totals || {};
             const items: any[] = Array.isArray(d.items) ? d.items : [];
 
-            const sumItems = (key: string) =>
-              items.reduce((acc, it) => {
-                const t = it?.totals || {};
-                const v = Number(t[key] ?? t[key === 'sub_total' ? 'subtotal' : key] ?? 0);
-                return acc + (isFinite(v) ? v : 0);
+            const toAmount = (value: unknown) => {
+              const amount = Number(value);
+              return Number.isFinite(amount) ? amount : 0;
+            };
+
+            const sumItems = (keys: string[]) =>
+              items.reduce((acc, item) => {
+                const totals = item?.totals || {};
+                const matched = keys.find((key) => totals[key] != null);
+                return acc + toAmount(matched ? totals[matched] : 0);
               }, 0);
 
-            const subtotal = Number(
+            const explicitSubtotal = toAmount(
               rootTotals.subtotal ??
-              rootTotals.sub_total ??
-              rootTotals.subTotal ??
-              recurring.subtotal ??
-              (items.length ? sumItems('subtotal') : 0) ??
-              rootTotals.balance ??
-              0
-            ) || 0;
+                rootTotals.sub_total ??
+                rootTotals.subTotal ??
+                recurring.subtotal ??
+                recurring.sub_total ??
+                recurring.subTotal ??
+                (items.length ? sumItems(['subtotal', 'sub_total', 'subTotal']) : 0) ??
+                rootTotals.balance ??
+                0
+            );
 
-            const tax = Number(
+            const explicitTax = toAmount(
               rootTotals.tax ??
-              rootTotals.tax_total ??
-              rootTotals.taxTotal ??
-              recurring.tax ??
-              (items.length ? sumItems('tax') : 0) ??
-              0
-            ) || 0;
+                rootTotals.tax_total ??
+                rootTotals.taxTotal ??
+                recurring.tax ??
+                recurring.tax_total ??
+                recurring.taxTotal ??
+                (items.length ? sumItems(['tax', 'tax_total', 'taxTotal']) : 0) ??
+                0
+            );
 
-            let total = Number(
+            const explicitTotal = toAmount(
               rootTotals.total ??
-              rootTotals.grand_total ??
-              rootTotals.grandTotal ??
-              recurring.total ??
-              (items.length ? sumItems('total') : 0) ??
-              0
-            ) || 0;
-            if (!total && (subtotal || tax)) total = subtotal + tax;
+                rootTotals.grand_total ??
+                rootTotals.grandTotal ??
+                d.total ??
+                d.grand_total ??
+                recurring.total ??
+                recurring.grand_total ??
+                recurring.grandTotal ??
+                (items.length ? sumItems(['total', 'grand_total', 'grandTotal']) : 0) ??
+                0
+            );
+
+            const inferredTax = explicitTax > 0
+              ? explicitTax
+              : explicitTotal > explicitSubtotal
+                ? Number((explicitTotal - explicitSubtotal).toFixed(2))
+                : 0;
 
             const currency =
               d.currency_code ||
@@ -814,12 +831,16 @@ export default function Checkout() {
               items[0]?.price?.currencyCode ||
               'USD';
 
-            if (subtotal > 0 || tax > 0 || total > 0) {
+            if (explicitSubtotal > 0 || inferredTax > 0 || explicitTotal > 0) {
               setPaddleTotals((prev) => {
-                // Avoid flicker: keep prior tax if this event didn't carry tax info.
-                const nextTax = tax > 0 ? tax : (prev?.tax ?? 0);
-                const nextSubtotal = subtotal > 0 ? subtotal : (prev?.subtotal ?? 0);
-                const nextTotal = total > 0 ? total : (nextSubtotal + nextTax);
+                const nextSubtotal = explicitSubtotal > 0
+                  ? explicitSubtotal
+                  : explicitTotal > 0 && inferredTax >= 0
+                    ? Number((explicitTotal - inferredTax).toFixed(2))
+                    : (prev?.subtotal ?? 0);
+                const nextTax = inferredTax > 0 ? inferredTax : (prev?.tax ?? 0);
+                const nextTotal = explicitTotal > 0 ? explicitTotal : Number((nextSubtotal + nextTax).toFixed(2));
+
                 return {
                   subtotal: nextSubtotal,
                   tax: nextTax,
@@ -889,9 +910,9 @@ export default function Checkout() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6 items-start">
+        <div className="grid md:grid-cols-2 md:gap-8 items-start xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
           {/* Order Summary */}
-          <div className="lg:order-2">
+          <div className="min-w-0 md:order-2">
             <Card className="sticky top-4">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1050,7 +1071,7 @@ export default function Checkout() {
           </div>
 
           {/* Payment Methods */}
-          <div className="lg:order-1 space-y-6">
+          <div className="min-w-0 md:order-1 space-y-6">
             <Card className="overflow-hidden">
               <CardHeader className="bg-muted/30 border-b">
                 <CardTitle className="flex items-center gap-2">
