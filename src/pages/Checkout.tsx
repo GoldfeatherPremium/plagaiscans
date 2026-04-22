@@ -661,13 +661,22 @@ export default function Checkout() {
   const [paddlePriceId, setPaddlePriceId] = useState<string | null>(null);
   const [paddleMountError, setPaddleMountError] = useState<string | null>(null);
   const [showUsdtSection, setShowUsdtSection] = useState(false);
-  const [paddleTotals, setPaddleTotals] = useState<{ subtotal: number; tax: number; total: number; currency: string } | null>(null);
-  const paddleTaxRate = useMemo(() => {
-    if (!paddleTotals || paddleTotals.subtotal <= 0 || paddleTotals.tax <= 0) return null;
-    const rate = (paddleTotals.tax / paddleTotals.subtotal) * 100;
-    if (!Number.isFinite(rate) || rate <= 0) return null;
-    return rate;
-  }, [paddleTotals]);
+
+  // ============================================================
+  // Paddle Order Summary — Paddle is the source of truth.
+  // Populated exclusively by the global Paddle.Initialize eventCallback
+  // when Paddle emits checkout.loaded / checkout.updated / checkout.customer.updated.
+  // ============================================================
+  type PaddleSummary = {
+    subtotal: number;
+    tax: number;
+    total: number;
+    currency: string;
+    hasTax: boolean;
+    taxRate: number | null;
+    sourceEvent: string | null;
+  };
+  const [paddleSummary, setPaddleSummary] = useState<PaddleSummary | null>(null);
 
   // Load Paddle.js script
   useEffect(() => {
