@@ -954,10 +954,29 @@ export default function Checkout() {
                       <span>-${(totalPrice - calculateDiscountedTotal(totalPrice)).toFixed(2)}</span>
                     </div>
                   )}
+                  {paddleTotals && paddleTotals.tax > 0 && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Net amount</span>
+                        <span>${paddleTotals.subtotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">VAT / Tax</span>
+                        <span>${paddleTotals.tax.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between text-lg font-bold">
-                    <span>Total</span>
-                    <span className="text-primary">${calculateDiscountedTotal(totalPrice).toFixed(2)}</span>
+                    <span>Total{paddleTotals && paddleTotals.tax > 0 ? ' (incl. VAT)' : ''}</span>
+                    <span className="text-primary">
+                      ${(paddleTotals?.total ?? calculateDiscountedTotal(totalPrice)).toFixed(2)}
+                    </span>
                   </div>
+                  {paddleTotals && paddleTotals.tax > 0 && (
+                    <p className="text-xs text-muted-foreground text-right">
+                      VAT calculated by Paddle based on your billing location
+                    </p>
+                  )}
                 </div>
 
                 <div className="pt-2">
