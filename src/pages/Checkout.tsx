@@ -664,10 +664,8 @@ export default function Checkout() {
   const [paddleTotals, setPaddleTotals] = useState<{ subtotal: number; tax: number; total: number; currency: string } | null>(null);
   const paddleTaxRate = useMemo(() => {
     if (!paddleTotals || paddleTotals.subtotal <= 0 || paddleTotals.tax <= 0) return null;
-
     const rate = (paddleTotals.tax / paddleTotals.subtotal) * 100;
     if (!Number.isFinite(rate) || rate <= 0) return null;
-
     return rate;
   }, [paddleTotals]);
 
@@ -766,201 +764,56 @@ export default function Checkout() {
             allowLogout: false,
           },
           eventCallback: (event: any) => {
-            // Debug: log all paddle events to trace totals shape
-            if (event?.name) {
-              console.log('[Paddle event]', event.name, event.data);
-            }
+            if (!event?.name) return;
 
-            const d = event?.data || {};
-            const rootTotals = d.totals || {};
-            const recurring = d.recurring_totals || {};
-            const summaryTotals = d.summary?.totals || {};
-            const transactionTotals = d.transaction?.totals || d.transaction?.details?.totals || {};
-            const items: any[] = Array.isArray(d.items) ? d.items : [];
-            const baseCheckoutSubtotal = Number(calculateDiscountedTotal(totalPrice).toFixed(2));
+            // Listen to events that carry pricing/tax data
+            const PRICING_EVENTS = [
+              'checkout.loaded',
+              'checkout.updated',
+              'checkout.items.updated',
+              'checkout.customer.updated',
+              'checkout.customer.created',
+              'checkout.discount.applied',
+              'checkout.discount.removed',
+              'checkout.payment.initiated',
+              'checkout.payment.selected',
+            ];
 
-            const toAmount = (value: unknown): number | null => {
-              if (value == null) return null;
-              if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-              if (typeof value === 'string') {
-                const amount = Number(value.replace(/[^0-9.-]/g, ''));
-                return Number.isFinite(amount) ? amount : null;
-              }
-              if (typeof value === 'object') {
-                const amountObject = value as Record<string, unknown>;
-                const nestedAmount =
-                  toAmount(amountObject.amount) ??
-                  toAmount(amountObject.value) ??
-                  toAmount(amountObject.total) ??
-                  toAmount(amountObject.subtotal) ??
-                  toAmount(amountObject.tax);
-
-                return nestedAmount;
-              }
-
-              return null;
-            };
-
-            const collectKeyAmounts = (
-              input: unknown,
-              keys: string[],
-              depth = 0,
-              matches: number[] = []
-            ) => {
-              if (input == null || depth > 8) return matches;
-
-              if (Array.isArray(input)) {
-                input.forEach((entry) => collectKeyAmounts(entry, keys, depth + 1, matches));
-                return matches;
-              }
-
-              if (typeof input !== 'object') return matches;
-
-              Object.entries(input as Record<string, unknown>).forEach(([key, value]) => {
-                if (keys.includes(key)) {
-                  const amount = toAmount(value);
-                  if (amount != null) matches.push(amount);
-                }
-
-                collectKeyAmounts(value, keys, depth + 1, matches);
-              });
-
-              return matches;
-            };
-
-            const firstAmount = (...values: unknown[]) => {
-              for (const value of values) {
-                const amount = toAmount(value);
-                if (amount != null) return amount;
-              }
-
-              return null;
-            };
-
-            const sumItems = (keys: string[]) =>
-              items.reduce((acc, item) => {
-                const totals = item?.totals || item?.price_totals || item?.summary?.totals || {};
-                const matched = keys.find((key) => totals[key] != null || item?.[key] != null);
-                return acc + (firstAmount(matched ? totals[matched] : null, matched ? item?.[matched] : null) ?? 0);
-              }, 0);
-
-            const recursiveSubtotal = collectKeyAmounts(d, ['subtotal', 'sub_total', 'subTotal'])
-              .filter((value) => value > 0)
-              .sort((a, b) => b - a)[0] ?? null;
-
-            const recursiveTax = collectKeyAmounts(d, ['tax', 'tax_total', 'taxTotal', 'tax_amount'])
-              .filter((value) => value > 0)
-              .sort((a, b) => b - a)[0] ?? null;
-
-            const recursiveTotal = collectKeyAmounts(d, ['total', 'grand_total', 'grandTotal', 'balance'])
-              .filter((value) => value > 0)
-              .sort((a, b) => b - a)[0] ?? null;
-
-            const explicitSubtotal = firstAmount(
-              rootTotals.subtotal ??
-                rootTotals.sub_total ??
-                rootTotals.subTotal ??
-                summaryTotals.subtotal ??
-                summaryTotals.sub_total ??
-                summaryTotals.subTotal ??
-                transactionTotals.subtotal ??
-                transactionTotals.sub_total ??
-                transactionTotals.subTotal ??
-                recurring.subtotal ??
-                recurring.sub_total ??
-                recurring.subTotal ??
-                (items.length ? sumItems(['subtotal', 'sub_total', 'subTotal', 'line_total', 'lineTotal']) : null) ??
-                recursiveSubtotal
-            ) ?? 0;
-
-            const explicitTax = firstAmount(
-              rootTotals.tax ??
-                rootTotals.tax_total ??
-                rootTotals.taxTotal ??
-                rootTotals.tax_amount ??
-                summaryTotals.tax ??
-                summaryTotals.tax_total ??
-                summaryTotals.taxTotal ??
-                summaryTotals.tax_amount ??
-                transactionTotals.tax ??
-                transactionTotals.tax_total ??
-                transactionTotals.taxTotal ??
-                transactionTotals.tax_amount ??
-                recurring.tax ??
-                recurring.tax_total ??
-                recurring.taxTotal ??
-                recurring.tax_amount ??
-                d.tax ??
-                d.tax_total ??
-                d.taxTotal ??
-                (items.length ? sumItems(['tax', 'tax_total', 'taxTotal', 'tax_amount']) : null) ??
-                recursiveTax
-            ) ?? 0;
-
-            const explicitTotal = firstAmount(
-              rootTotals.total ??
-                rootTotals.grand_total ??
-                rootTotals.grandTotal ??
-                summaryTotals.total ??
-                summaryTotals.grand_total ??
-                summaryTotals.grandTotal ??
-                d.total ??
-                d.grand_total ??
-                d.grandTotal ??
-                rootTotals.balance ??
-                summaryTotals.balance ??
-                transactionTotals.balance ??
-                recurring.balance ??
-                transactionTotals.total ??
-                transactionTotals.grand_total ??
-                transactionTotals.grandTotal ??
-                recurring.total ??
-                recurring.grand_total ??
-                recurring.grandTotal ??
-                (items.length ? sumItems(['total', 'grand_total', 'grandTotal', 'line_total', 'lineTotal']) : null) ??
-                recursiveTotal
-            ) ?? 0;
-
-            const inferredTax = explicitTax > 0
-              ? explicitTax
-              : explicitTotal > explicitSubtotal
-                ? Number((explicitTotal - explicitSubtotal).toFixed(2))
-                : explicitTotal > baseCheckoutSubtotal
-                  ? Number((explicitTotal - baseCheckoutSubtotal).toFixed(2))
-                : 0;
-
-            const currency =
-              d.currency_code ||
-              d.currencyCode ||
-              d.transaction?.currency_code ||
-              d.transaction?.currencyCode ||
-              items[0]?.price?.currency_code ||
-              items[0]?.price?.currencyCode ||
-              'USD';
-
-            if (explicitSubtotal > 0 || inferredTax > 0 || explicitTotal > 0) {
-              setPaddleTotals((prev) => {
-                const nextSubtotal = explicitSubtotal > 0
-                  ? explicitSubtotal
-                  : baseCheckoutSubtotal > 0 && explicitTotal > 0
-                    ? baseCheckoutSubtotal
-                  : explicitTotal > 0 && inferredTax >= 0
-                    ? Number((explicitTotal - inferredTax).toFixed(2))
-                    : (prev?.subtotal ?? 0);
-                const nextTax = inferredTax > 0 ? inferredTax : (prev?.tax ?? 0);
-                const nextTotal = explicitTotal > 0 ? explicitTotal : Number((nextSubtotal + nextTax).toFixed(2));
-
-                return {
-                  subtotal: nextSubtotal,
-                  tax: nextTax,
-                  total: nextTotal,
-                  currency: currency || prev?.currency || 'USD',
-                };
-              });
-            }
-
-            if (event?.name === 'checkout.completed') {
+            if (event.name === 'checkout.completed') {
               navigate('/dashboard/payment-success?provider=paddle');
+              return;
+            }
+
+            if (!PRICING_EVENTS.includes(event.name)) return;
+
+            const d = event.data || {};
+            const totals = d.totals || {};
+
+            // Paddle.js v2 returns amounts as decimal numbers (e.g. 29.99) in the
+            // checkout currency. Coerce to a safe number.
+            const toNum = (v: unknown): number => {
+              if (v == null) return 0;
+              const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+              return Number.isFinite(n) && n >= 0 ? n : 0;
+            };
+
+            const subtotal = toNum(totals.subtotal);
+            const tax = toNum(totals.tax);
+            // Paddle uses `total` for the gross amount the customer pays.
+            // `balance` is the same on a one-shot purchase. Prefer total.
+            const total = toNum(totals.total) || toNum(totals.balance) || (subtotal + tax);
+            const currency = d.currency_code || 'USD';
+
+            console.log('[Paddle totals]', event.name, { subtotal, tax, total, currency });
+
+            // Only update once we have a meaningful number from Paddle.
+            if (total > 0 || subtotal > 0) {
+              setPaddleTotals({
+                subtotal: subtotal || Math.max(total - tax, 0),
+                tax,
+                total: total || subtotal + tax,
+                currency,
+              });
             }
           },
         });
