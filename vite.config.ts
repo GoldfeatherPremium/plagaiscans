@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
+import vitePrerender from "vite-plugin-prerender";
+import { PRERENDER_READY_EVENT, PRERENDER_ROUTES } from "./src/lib/prerender";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -13,6 +15,16 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === "development" && componentTagger(),
+    vitePrerender({
+      staticDir: path.join(__dirname, "dist"),
+      routes: [...PRERENDER_ROUTES],
+      renderer: new vitePrerender.PuppeteerRenderer({
+        renderAfterDocumentEvent: PRERENDER_READY_EVENT,
+        maxConcurrentRoutes: 1,
+        headless: true,
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      }),
+    }),
     VitePWA({
       // DISABLE auto service worker generation - we use our own public/sw.js
       // This ensures only ONE service worker exists and no Workbox navigateFallback
