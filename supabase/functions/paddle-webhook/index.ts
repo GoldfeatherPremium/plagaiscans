@@ -170,7 +170,7 @@ serve(async (req) => {
             break;
           }
 
-          // Calculate amount and tax from transaction details
+          // Calculate amount and tax from transaction details (Paddle returns minor units / cents)
           const totals = eventData?.details?.totals;
           const taxRatesUsed = eventData?.details?.tax_rates_used;
           const amountTotal = totals?.total
@@ -180,7 +180,24 @@ serve(async (req) => {
           const taxAmount = totals?.tax ? parseFloat(totals.tax) / 100 : 0;
           const taxRate = taxRatesUsed?.[0]?.tax_rate ? parseFloat(taxRatesUsed[0].tax_rate) * 100 : 0;
 
-          logStep("Tax data extracted", { subtotalAmount, taxAmount, taxRate, amountTotal });
+          // Extract customer country/address from Paddle (used for invoice/receipt VAT context)
+          const customerCountry =
+            eventData?.address?.country_code ||
+            eventData?.customer?.address?.country_code ||
+            eventData?.billing_details?.address?.country_code ||
+            null;
+          const customerAddressParts = [
+            eventData?.address?.first_line,
+            eventData?.address?.second_line,
+            eventData?.address?.city,
+            eventData?.address?.region,
+            eventData?.address?.postal_code,
+            customerCountry,
+          ].filter(Boolean);
+          const customerAddress = customerAddressParts.length ? customerAddressParts.join(', ') : null;
+          const customerNameFromPaddle = eventData?.customer?.name || null;
+
+          logStep("Tax data extracted", { subtotalAmount, taxAmount, taxRate, amountTotal, customerCountry });
 
           // Idempotency check
           const idempotencyKey = `paddle_webhook:${transactionId}`;
