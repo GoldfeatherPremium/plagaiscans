@@ -102,8 +102,8 @@ export default function Pricing() {
   return (
     <>
       <SEO
-        title="Pricing Plans"
-        description="Explore PlagaiScans credit packages starting from just $2.20. Choose a plan that fits your needs — ideal for editors, publishers, content agencies, businesses, and educational institutions."
+        title="Pricing — Originality Verification Plans for Professional Teams"
+        description="Plagaiscans credit packages and volume plans for editors, publishers, content agencies, and educational institutions. Transparent per-report pricing for editorial review and originality verification workflows."
         keywords="plagiarism checker pricing, plagaiscans pricing, credit packages, document analysis pricing, affordable plagiarism checker"
         canonicalUrl="/pricing"
         structuredData={generateWebPageSchema('Pricing', 'Credit packages for text similarity and AI content analysis', '/pricing')}

@@ -61,8 +61,8 @@ export default function AcademicIntegrity() {
   return (
     <>
       <SEO
-        title="Academic Integrity"
-        description="Learn about academic integrity principles, proper citation practices, and how similarity checking tools support ethical scholarship and responsible content creation."
+        title="Academic Integrity & Acceptable Use — Plagaiscans"
+        description="Academic integrity principles, acceptable use guidelines, and how originality verification supports institutional reviewers, editors, and publishers in maintaining ethical content standards."
         keywords="academic integrity, citation best practices, scholarly ethics, academic honesty, research integrity, content review"
         canonicalUrl="/academic-integrity"
         structuredData={pageSchema}

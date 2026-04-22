@@ -11,8 +11,8 @@ export default function TermsAndConditions() {
   return (
     <>
       <SEO
-        title="Terms of Service"
-        description="Terms of Service for Plagaiscans text similarity and content analysis platform."
+        title="Terms of Service — Plagaiscans Editorial Integrity Platform"
+        description="Terms of Service governing use of the Plagaiscans originality verification and editorial integrity platform for editors, publishers, and institutions."
         keywords="terms of service, service agreement, user agreement"
         canonicalUrl="/terms-and-conditions"
         structuredData={generateWebPageSchema('Terms of Service', 'Service agreement and user responsibilities', '/terms-and-conditions')}

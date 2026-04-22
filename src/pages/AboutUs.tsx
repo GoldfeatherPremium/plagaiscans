@@ -42,8 +42,8 @@ export default function AboutUs() {
   return (
     <>
       <SEO
-        title="About Our Service"
-        description="Plagaiscans is a subscription-based SaaS platform providing text similarity and originality analysis for editors, educators, publishers, and content teams."
+        title="About Plagaiscans — Editorial Integrity Platform"
+        description="Plagaiscans is a B2B SaaS platform providing originality verification, similarity detection, and editorial integrity tools for editors, publishers, content agencies, and educational institutions."
         keywords="about Plagaiscans, text similarity analysis, Plagaiscans Technologies Ltd"
         canonicalUrl="/about-us"
         ogImage="/og-about.png"

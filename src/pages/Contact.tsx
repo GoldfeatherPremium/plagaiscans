@@ -39,8 +39,8 @@ export default function Contact() {
   return (
     <>
       <SEO
-        title="Contact Us"
-        description="Get in touch with Plagaiscans support team for help with plagiarism checking, account issues, and technical support."
+        title="Contact Plagaiscans — Support for Editorial Teams"
+        description="Reach the Plagaiscans support team for help with originality verification, account management, billing, and technical assistance for editorial and institutional accounts."
         keywords="contact support, customer service, technical support"
         canonicalUrl="/contact"
         structuredData={generateWebPageSchema('Contact Support', 'Get in touch with our support team', '/contact')}

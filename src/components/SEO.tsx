@@ -13,9 +13,9 @@ interface SEOProps {
 
 const defaultSEO = {
   siteName: 'Plagaiscans',
-  title: 'Plagiarism Checker Online – Free & Accurate | Plagaiscans',
-  description: 'Plagaiscans is a free online plagiarism checker that detects duplicate content instantly with high accuracy.',
-  keywords: 'plagiarism checker, free plagiarism checker, online plagiarism checker, plagiarism detection, duplicate content checker, plagiarism scanner',
+  title: 'Plagaiscans — Originality Verification for Editors, Publishers & Institutions',
+  description: 'Plagaiscans is an originality verification and editorial integrity platform for editors, publishers, content agencies, and educational institutions. Similarity reports, AI content indicators, and citation review for professional content workflows.',
+  keywords: 'originality verification, editorial integrity, similarity detection, content authenticity, AI content detection, publishing workflow, editorial review tool',
   ogImage: '/og-image.png',
   siteUrl: 'https://plagaiscans.com',
 };

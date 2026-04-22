@@ -11,8 +11,8 @@ export default function PrivacyPolicy() {
   return (
     <>
       <SEO
-        title="Privacy Policy"
-        description="Learn how Plagaiscans collects, uses, and protects your personal data. GDPR compliant privacy policy."
+        title="Privacy Policy — Plagaiscans Editorial Integrity Platform"
+        description="How Plagaiscans collects, uses, and protects personal and document data. GDPR-compliant privacy policy for our originality verification platform."
         keywords="privacy policy, data protection, GDPR, document privacy"
         canonicalUrl="/privacy-policy"
         structuredData={generateWebPageSchema('Privacy Policy', 'How we protect your data', '/privacy-policy')}
