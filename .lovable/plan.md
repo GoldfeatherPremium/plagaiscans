@@ -1,80 +1,138 @@
 
+## Rebuild the checkout summary from scratch using Paddle as the source of truth
 
-## Improve VAT detection + unify USDT into one highlighted button
+### 1. Replace the current VAT summary logic with a clean Paddle summary model
+In `src/pages/Checkout.tsx`, remove the current ad-hoc summary/VAT wiring built around `paddleTotals` and rebuild it as a dedicated summary state for the inline card checkout.
 
-### 1. Robust VAT/Tax fallback in Paddle event handler
-
-Update the `eventCallback` in `src/pages/Checkout.tsx` so it picks up tax from any payload shape Paddle emits — not just the root `data.totals`. Paddle returns pricing in slightly different keys depending on the event (`checkout.loaded`, `checkout.updated`, `checkout.items.updated`, `checkout.customer.updated`), and tax sometimes only appears on `recurring_totals`, on individual items, or under camelCase keys.
-
-New extraction logic checks (in order, first hit wins for each field):
-
-```text
-subtotal:  data.totals.subtotal
-        |  data.totals.sub_total
-        |  data.totals.subTotal
-        |  data.recurring_totals.subtotal
-        |  sum(data.items[].totals.subtotal)
-        |  data.totals.balance        (when subtotal absent but balance present)
-
-tax:       data.totals.tax
-        |  data.totals.tax_total
-        |  data.recurring_totals.tax
-        |  sum(data.items[].totals.tax)
-
-total:     data.totals.total
-        |  data.totals.grand_total
-        |  data.totals.grandTotal
-        |  data.recurring_totals.total
-        |  sum(data.items[].totals.total)
-        |  subtotal + tax            (computed fallback)
-
-currency:  data.currency_code | data.currencyCode | items[0].price.currency_code | 'USD'
+New state shape:
+```ts
+type PaddleSummary = {
+  subtotal: number;
+  tax: number;
+  total: number;
+  currency: string;
+  hasTax: boolean;
+  taxRate: number | null;
+  sourceEvent: string | null;
+}
 ```
 
-Behavior changes:
-- Update `paddleTotals` whenever **any one** of {subtotal, tax, total} is > 0 (currently requires the parent `totals` object to exist, which is why early events with only item-level totals are missed).
-- Keep tax updating live as the customer types country / postcode — never overwrite a known tax with 0 (only overwrite when the new event also carries tax fields, to avoid flicker).
-- Order Summary already conditionally renders the VAT line on `paddleTotals.tax > 0`, so once the extraction works the row appears automatically.
+Rules:
+- Reset this summary whenever package, quantity, or promo changes and the Paddle checkout remounts.
+- Do not calculate VAT manually from local package prices.
+- Do not keep the old fallback heuristics, recursive scans, or mixed local/Paddle tax math.
 
-### 2. Single highlighted "Pay via USDT" button
+### 2. Initialize Paddle with a real `eventCallback`
+Move the summary update logic into `Paddle.Initialize({ token, eventCallback })` so it listens globally to Paddle checkout events, instead of relying on temporary per-open parsing only.
 
-Replace **both** USDT bullets (NowPayments auto + Manual TRC20) with **one** prominent green pill button below the Paddle frame:
+Listen to:
+- `checkout.loaded`
+- `checkout.updated`
+- `checkout.customer.updated`
 
-```text
-┌───────────────────────────────────────────────┐
-│ [Paddle inline card form]                     │
-└───────────────────────────────────────────────┘
+For each of those events:
+- read `event.data?.totals?.subtotal`
+- read `event.data?.totals?.tax`
+- read `event.data?.totals?.total`
+- read `event.data?.currency_code`
 
-      ┌─────────────────────────────────┐
-      │  ●  Pay via USDT                │   ← solid green, white text, rounded
-      └─────────────────────────────────┘
+Normalization:
+- convert strings/numbers safely
+- support amounts that may arrive as cents by normalizing before display
+- prefer Paddle-provided totals only
+
+Update the summary only when Paddle sends a valid totals object.
+
+### 3. Build a single “official checkout summary” renderer
+Replace the current mixed summary rows with a clean render flow:
+
+#### Before Paddle totals arrive
+Show local estimated pricing only:
+- Credits
+- Estimated subtotal
+- Discount row if promo exists
+- Estimated total
+
+No VAT row yet.
+
+#### After Paddle totals arrive
+Swap to Paddle’s official values:
+- Credits
+- Subtotal
+- VAT / Tax (only if `tax > 0`)
+- Total
+- Small helper text like: “Calculated by Paddle based on billing location”
+
+This makes the UI mirror the exact amount shown on Paddle’s pay button.
+
+### 4. Compute VAT percentage only from Paddle totals
+Keep the percentage label, but derive it only from:
+```ts
+taxRate = subtotal > 0 && tax > 0 ? (tax / subtotal) * 100 : null
 ```
 
-Styling: `bg-green-600 hover:bg-green-700 text-white font-medium rounded-full px-5 py-2.5 inline-flex items-center gap-2 shadow-sm` with a small white bullet dot icon. Centered under the card form with a bit of top spacing.
+Display:
+- `VAT / Tax`
+- `VAT / Tax (15.00%)` when available
 
-### 3. Click behavior — choose path automatically
+No inferred percentage from local package math.
 
-When clicked, route the user based on what the admin has enabled (no second picker shown to the user; the label stays "Pay via USDT"):
+### 5. Avoid stale or disappearing tax values
+When Paddle emits an eligible event:
+- replace the whole summary from that event
+- do not merge with old tax guesses
+- do not preserve old VAT if a new event returns a full totals object with different numbers
 
-| `usdtEnabled` (NowPayments auto) | `usdtManualEnabled` (manual TRC20) | Click action |
-|---|---|---|
-| ✅ | ❌ | Open NowPayments inline section (existing `setShowUsdtSection(true)` → `createCryptoPayment`) |
-| ❌ | ✅ | Open manual transfer dialog (existing `openUsdtManualDialog`) |
-| ✅ | ✅ | Prefer **NowPayments auto** (faster, no admin wait); manual stays available only if auto fails |
-| ❌ | ❌ | Button hidden entirely |
+This gives a deterministic “latest official Paddle totals wins” flow.
 
-The fallback "No payment methods available" condition stays the same logical check.
+### 6. Keep the desktop split untouched
+The current desktop structure in `src/pages/Checkout.tsx` already renders:
+- Order Summary on the left
+- Payment Method on the right
 
-### 4. Files touched
+Keep that layout as-is while rebuilding only the summary data source.
 
+### 7. Keep the USDT UI separate from Paddle summary logic
+Do not mix the USDT alternative with the Paddle VAT logic.
+
+If needed during implementation:
+- keep the green “Pay via USDT” pill styling
+- keep its current routing behavior
+- ensure the summary rebuild only affects the Paddle/card checkout path
+
+### 8. Files to update
 ```text
 src/pages/Checkout.tsx
-  • Rewrite eventCallback totals-extraction with fallback chain (~25 lines)
-  • Replace the two separate USDT bullet blocks (lines ~1042–1102) with one
-    green highlighted "Pay via USDT" button + smart-routing onClick
-  • Keep createCryptoPayment, openUsdtManualDialog, dialogs, NowPayments
-    expansion panel — no logic change underneath
+  - remove the current VAT fallback summary wiring
+  - add a clean Paddle summary state
+  - attach a fresh Paddle Initialize eventCallback
+  - rebuild the Order Summary rendering to use Paddle totals when available
 ```
 
-No backend / edge-function changes. No new dependencies. No DB changes.
+### Technical details
+```text
+Data flow:
 
+Package / quantity / promo selected
+        ↓
+Create Paddle transaction
+        ↓
+Open inline Paddle checkout
+        ↓
+Paddle eventCallback receives:
+  checkout.loaded / checkout.updated / checkout.customer.updated
+        ↓
+Read event.data.totals.{subtotal,tax,total}
+        ↓
+Normalize values
+        ↓
+setPaddleSummary(...)
+        ↓
+Order Summary re-renders from Paddle totals
+```
+
+### Expected outcome
+- When the customer selects their country and Paddle adds VAT, the Order Summary updates automatically.
+- The summary total matches Paddle’s green pay button.
+- VAT is shown only when Paddle actually returns tax.
+- Old custom VAT logic is removed completely instead of patched again.
