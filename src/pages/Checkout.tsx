@@ -662,6 +662,14 @@ export default function Checkout() {
   const [paddleMountError, setPaddleMountError] = useState<string | null>(null);
   const [showUsdtSection, setShowUsdtSection] = useState(false);
   const [paddleTotals, setPaddleTotals] = useState<{ subtotal: number; tax: number; total: number; currency: string } | null>(null);
+  const paddleTaxRate = useMemo(() => {
+    if (!paddleTotals || paddleTotals.subtotal <= 0 || paddleTotals.tax <= 0) return null;
+
+    const rate = (paddleTotals.tax / paddleTotals.subtotal) * 100;
+    if (!Number.isFinite(rate) || rate <= 0) return null;
+
+    return rate;
+  }, [paddleTotals]);
 
   // Load Paddle.js script
   useEffect(() => {
@@ -763,60 +771,111 @@ export default function Checkout() {
               console.log('[Paddle event]', event.name, event.data);
             }
 
-            // Paddle v2 emits totals in multiple shapes depending on the event.
-            // Capture explicit values first, then infer tax from total - subtotal when needed.
             const d = event?.data || {};
             const rootTotals = d.totals || {};
             const recurring = d.recurring_totals || {};
+            const summaryTotals = d.summary?.totals || {};
+            const transactionTotals = d.transaction?.totals || d.transaction?.details?.totals || {};
             const items: any[] = Array.isArray(d.items) ? d.items : [];
 
-            const toAmount = (value: unknown) => {
-              const amount = Number(value);
-              return Number.isFinite(amount) ? amount : 0;
+            const toAmount = (value: unknown): number | null => {
+              if (value == null) return null;
+              if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+              if (typeof value === 'string') {
+                const amount = Number(value.replace(/[^0-9.-]/g, ''));
+                return Number.isFinite(amount) ? amount : null;
+              }
+              if (typeof value === 'object') {
+                const amountObject = value as Record<string, unknown>;
+                const nestedAmount =
+                  toAmount(amountObject.amount) ??
+                  toAmount(amountObject.value) ??
+                  toAmount(amountObject.total) ??
+                  toAmount(amountObject.subtotal) ??
+                  toAmount(amountObject.tax);
+
+                return nestedAmount;
+              }
+
+              return null;
+            };
+
+            const firstAmount = (...values: unknown[]) => {
+              for (const value of values) {
+                const amount = toAmount(value);
+                if (amount != null) return amount;
+              }
+
+              return null;
             };
 
             const sumItems = (keys: string[]) =>
               items.reduce((acc, item) => {
-                const totals = item?.totals || {};
-                const matched = keys.find((key) => totals[key] != null);
-                return acc + toAmount(matched ? totals[matched] : 0);
+                const totals = item?.totals || item?.price_totals || item?.summary?.totals || {};
+                const matched = keys.find((key) => totals[key] != null || item?.[key] != null);
+                return acc + (firstAmount(matched ? totals[matched] : null, matched ? item?.[matched] : null) ?? 0);
               }, 0);
 
-            const explicitSubtotal = toAmount(
+            const explicitSubtotal = firstAmount(
               rootTotals.subtotal ??
                 rootTotals.sub_total ??
                 rootTotals.subTotal ??
+                summaryTotals.subtotal ??
+                summaryTotals.sub_total ??
+                summaryTotals.subTotal ??
+                transactionTotals.subtotal ??
+                transactionTotals.sub_total ??
+                transactionTotals.subTotal ??
                 recurring.subtotal ??
                 recurring.sub_total ??
                 recurring.subTotal ??
-                (items.length ? sumItems(['subtotal', 'sub_total', 'subTotal']) : 0) ??
+                (items.length ? sumItems(['subtotal', 'sub_total', 'subTotal', 'line_total', 'lineTotal']) : null) ??
                 rootTotals.balance ??
-                0
-            );
+                summaryTotals.balance ??
+                transactionTotals.balance
+            ) ?? 0;
 
-            const explicitTax = toAmount(
+            const explicitTax = firstAmount(
               rootTotals.tax ??
                 rootTotals.tax_total ??
                 rootTotals.taxTotal ??
+                rootTotals.tax_amount ??
+                summaryTotals.tax ??
+                summaryTotals.tax_total ??
+                summaryTotals.taxTotal ??
+                summaryTotals.tax_amount ??
+                transactionTotals.tax ??
+                transactionTotals.tax_total ??
+                transactionTotals.taxTotal ??
+                transactionTotals.tax_amount ??
                 recurring.tax ??
                 recurring.tax_total ??
                 recurring.taxTotal ??
-                (items.length ? sumItems(['tax', 'tax_total', 'taxTotal']) : 0) ??
-                0
-            );
+                recurring.tax_amount ??
+                d.tax ??
+                d.tax_total ??
+                d.taxTotal ??
+                (items.length ? sumItems(['tax', 'tax_total', 'taxTotal', 'tax_amount']) : null)
+            ) ?? 0;
 
-            const explicitTotal = toAmount(
+            const explicitTotal = firstAmount(
               rootTotals.total ??
                 rootTotals.grand_total ??
                 rootTotals.grandTotal ??
+                summaryTotals.total ??
+                summaryTotals.grand_total ??
+                summaryTotals.grandTotal ??
                 d.total ??
                 d.grand_total ??
+                d.grandTotal ??
+                transactionTotals.total ??
+                transactionTotals.grand_total ??
+                transactionTotals.grandTotal ??
                 recurring.total ??
                 recurring.grand_total ??
                 recurring.grandTotal ??
-                (items.length ? sumItems(['total', 'grand_total', 'grandTotal']) : 0) ??
-                0
-            );
+                (items.length ? sumItems(['total', 'grand_total', 'grandTotal', 'line_total', 'lineTotal']) : null)
+            ) ?? 0;
 
             const inferredTax = explicitTax > 0
               ? explicitTax
@@ -827,6 +886,8 @@ export default function Checkout() {
             const currency =
               d.currency_code ||
               d.currencyCode ||
+              d.transaction?.currency_code ||
+              d.transaction?.currencyCode ||
               items[0]?.price?.currency_code ||
               items[0]?.price?.currencyCode ||
               'USD';
