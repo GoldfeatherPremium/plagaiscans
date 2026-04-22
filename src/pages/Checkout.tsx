@@ -758,17 +758,26 @@ export default function Checkout() {
             allowLogout: false,
           },
           eventCallback: (event: any) => {
-            // Capture totals (incl. VAT) from Paddle for any update event
-            const totals = event?.data?.totals;
-            const currency = event?.data?.currency_code || event?.data?.currencyCode;
-            if (totals && (typeof totals.tax !== 'undefined' || typeof totals.total !== 'undefined')) {
-              setPaddleTotals({
-                subtotal: Number(totals.subtotal ?? 0),
-                tax: Number(totals.tax ?? 0),
-                total: Number(totals.total ?? 0),
-                currency: currency || 'USD',
-              });
+            // Debug: log all paddle events to trace totals shape
+            if (event?.name) {
+              console.log('[Paddle event]', event.name, event.data);
             }
+
+            // Paddle v2 puts totals on the data root and on each item.
+            // Try several locations to handle preview vs. address-resolved updates.
+            const d = event?.data || {};
+            const totals = d.totals || d.recurring_totals || null;
+            const currency = d.currency_code || d.currencyCode || 'USD';
+
+            if (totals) {
+              const subtotal = Number(totals.subtotal ?? totals.sub_total ?? 0);
+              const tax = Number(totals.tax ?? 0);
+              const total = Number(totals.total ?? totals.grand_total ?? 0);
+              if (total > 0 || tax > 0 || subtotal > 0) {
+                setPaddleTotals({ subtotal, tax, total, currency });
+              }
+            }
+
             if (event?.name === 'checkout.completed') {
               navigate('/dashboard/payment-success?provider=paddle');
             }
