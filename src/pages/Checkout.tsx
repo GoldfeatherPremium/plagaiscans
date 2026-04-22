@@ -821,9 +821,9 @@ export default function Checkout() {
           settings: {
             displayMode: 'inline',
             theme: 'light',
-            frameTarget: 'paddle-inline-frame',
-            frameInitialHeight: 450,
-            frameStyle: 'width:100%; min-width:312px; background-color: transparent; border: none;',
+          frameTarget: 'paddle-inline-frame',
+            frameInitialHeight: 500,
+            frameStyle: 'width:100%; min-width:312px; max-width:100%; background-color: transparent; border: none;',
             successUrl: `${window.location.origin}/dashboard/payment-success?provider=paddle`,
             allowLogout: false,
           },
@@ -1081,21 +1081,21 @@ export default function Checkout() {
                 </CardTitle>
                 <CardDescription>All transactions are secure and encrypted</CardDescription>
               </CardHeader>
-              <CardContent className="p-6 space-y-4">
+              <CardContent className="p-3 sm:p-6 space-y-4">
                 {/* Inline Paddle card checkout — primary */}
                 {paddleEnabled && paddleClientToken && paddlePriceId && !paddleLoadFailed && !paddleMountError ? (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Shield className="h-4 w-4 text-green-500" />
+                      <Shield className="h-4 w-4 text-green-500 shrink-0" />
                       <span>Pay securely with card, Google Pay, or Apple Pay</span>
                     </div>
-                    <div className="border rounded-lg overflow-hidden bg-background min-h-[450px] relative">
+                    <div className="border rounded-lg bg-background min-h-[500px] relative w-full max-w-full overflow-x-auto">
                       {!paddleReady && (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <Loader2 className="h-6 w-6 animate-spin text-primary" />
                         </div>
                       )}
-                      <div className="paddle-inline-frame" />
+                      <div className="paddle-inline-frame w-full" />
                     </div>
                   </div>
                 ) : paddleEnabled ? (
