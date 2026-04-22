@@ -103,7 +103,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing Plans"
-        description="Explore PlagaiScans credit packages starting from just $2.20. Choose a plan that fits your needs — ideal for students, researchers, educators, and content teams."
+        description="Explore PlagaiScans credit packages starting from just $2.20. Choose a plan that fits your needs — ideal for editors, publishers, content agencies, businesses, and educational institutions."
         keywords="plagiarism checker pricing, plagaiscans pricing, credit packages, document analysis pricing, affordable plagiarism checker"
         canonicalUrl="/pricing"
         structuredData={generateWebPageSchema('Pricing', 'Credit packages for text similarity and AI content analysis', '/pricing')}

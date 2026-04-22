@@ -18,7 +18,7 @@
     "aiTitle": "AI Detection Report",
     "aiDesc": "Understand how AI-generated content is identified and scored across your paper.",
     "simTitle": "Similarity Report",
-    "simDesc": "See how source matching works against web pages, journals, and student papers."
+    "simDesc": "See how source matching works against web pages, journals, and submitted manuscripts."
   },
   "hero": {
     "badge": "REAL TURNITIN • NO REPOSITORY",
@@ -39,7 +39,7 @@
     "aiTitle": "AI Detection",
     "aiDesc": "Full AI detection report showing exactly which parts of your paper are flagged as AI-generated, with sentence-level highlighting.",
     "simTitle": "Similarity Check",
-    "simDesc": "Complete similarity analysis against billions of web pages, academic papers, and student submissions with source links.",
+    "simDesc": "Complete similarity analysis against billions of web pages, academic papers, and submitted manuscripts with source links.",
     "fastTitle": "Fast Results",
     "fastDesc": "Get your complete report in just 2-5 minutes. Perfect for last-minute checks before submission deadlines."
   },
@@ -58,18 +58,18 @@
       "Overall similarity percentage score",
       "Source URLs for all matching content",
       "Matches from academic publications and journals",
-      "Student paper database matches"
+      "Submitted manuscript database matches"
     ]
   },
   "trust": {
-    "title": "Why Students Trust PlagaiScans",
+    "title": "Why Teams Trust PlagaiScans",
     "privacyTitle": "Complete Privacy",
     "privacyDesc": "Your papers are processed and immediately deleted. No storage, no sharing, no database retention.",
     "accurateTitle": "Accurate Results",
     "accurateDesc": "Same detection technology institutions use. Know your real scores before submission.",
     "fastTitle": "Fast Turnaround",
     "fastDesc": "Get your complete report in 2-5 minutes. Perfect for tight deadlines.",
-    "priceTitle": "Student-Friendly Pricing",
+    "priceTitle": "Team-Friendly Pricing",
     "priceDesc": "Just $3.99 per report. No subscriptions, no recurring charges, no hidden fees."
   },
   "ready": {
@@ -167,7 +167,7 @@
     "q4": "How long does it take to get my report?",
     "a4": "Most reports are delivered in 2–5 minutes. Larger or more complex documents may take a little longer during peak hours.",
     "q5": "Will my paper be stored or shared?",
-    "a5": "No. We use a no-repository submission method, so your paper is never added to the Turnitin student database and cannot be flagged later by your school.",
+    "a5": "No. We use a no-repository submission method, so your document is never added to any third-party submitted-manuscript database and cannot be flagged later by an institution.",
     "q7": "What if I'm not satisfied with my report?",
     "a7": "If a technical issue prevents your report from being generated, contact support and we'll re-run the scan or refund the credit used."
   },

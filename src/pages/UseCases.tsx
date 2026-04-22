@@ -14,26 +14,26 @@ export default function UseCases() {
   const useCases = [
     {
       icon: GraduationCap,
-      title: "Students (Originality Review Only)",
-      description: "Students can use similarity reports to review their own work before submission. This tool helps identify areas that may need additional citation or rephrasing.",
-      disclaimer: "Results are advisory and do not guarantee acceptance by any institution. This service does not verify or approve content for academic submission. Users are responsible for understanding and following their institution's policies."
+      title: "Educational Institutions",
+      description: "Institutions, departments, and instructors can use similarity reports and AI indicators to verify the originality of submitted work as part of their internal review process.",
+      disclaimer: "Results are advisory only and support — but do not replace — institutional review. Final decisions remain with the institution."
     },
     {
       icon: Briefcase,
-      title: "Freelancers",
-      description: "Freelance writers can check client deliverables against indexed web content to identify potential overlap before delivery.",
+      title: "Freelance Writers",
+      description: "Freelance writers can verify their own original deliverables against indexed web content to identify unintentional overlap before delivery to clients.",
       disclaimer: "This is a reference tool, not a content approval system. Results should be reviewed alongside your own judgment."
     },
     {
       icon: Edit,
-      title: "Editors",
-      description: "Editorial teams can use similarity indicators as one part of their review process when evaluating content.",
-      disclaimer: "Human review and judgment remain essential. Indicators are advisory only and do not constitute a final assessment."
+      title: "Editors & Publishers",
+      description: "Editorial and publishing teams can use similarity indicators as one part of their manuscript and article review process.",
+      disclaimer: "Human review and editorial judgment remain essential. Indicators are advisory only and do not constitute a final assessment."
     },
     {
       icon: Building,
-      title: "Agencies",
-      description: "Marketing and content agencies can use this tool as part of internal quality checks when reviewing content.",
+      title: "Content Agencies & Businesses",
+      description: "Marketing agencies, content teams, and businesses can use this tool as part of internal quality checks when reviewing in-house or contracted content.",
       disclaimer: "Results should be combined with manual review. This service does not certify content quality or originality."
     }
   ];
@@ -49,7 +49,7 @@ export default function UseCases() {
     <>
       <SEO
         title="Use Cases"
-        description="Learn how different users can benefit from Plagaiscans text analysis service. Use cases for students, freelancers, editors, and agencies."
+        description="Learn how editors, publishers, content agencies, freelance writers, and educational institutions use Plagaiscans for originality verification and editorial review."
         keywords="text analysis use cases, similarity checking, content review tool"
         canonicalUrl="/use-cases"
         structuredData={generateWebPageSchema('Use Cases', 'How different users can use our text analysis service', '/use-cases')}

@@ -149,12 +149,12 @@ export default function AIContentDetection() {
                 <h2 className="text-2xl font-bold mb-6">{t('aiContentDetection.bestPracticesTitle')}</h2>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <h3 className="font-semibold mb-3">{t('aiContentDetection.forStudents')}</h3>
+                    <h3 className="font-semibold mb-3">{t('aiContentDetection.forWriters')}</h3>
                     <ul className="space-y-2 text-sm text-muted-foreground">
-                      <li>• {t('aiContentDetection.student1')}</li>
-                      <li>• {t('aiContentDetection.student2')}</li>
-                      <li>• {t('aiContentDetection.student3')}</li>
-                      <li>• {t('aiContentDetection.student4')}</li>
+                      <li>• {t('aiContentDetection.writer1')}</li>
+                      <li>• {t('aiContentDetection.writer2')}</li>
+                      <li>• {t('aiContentDetection.writer3')}</li>
+                      <li>• {t('aiContentDetection.writer4')}</li>
                     </ul>
                   </div>
                   <div>

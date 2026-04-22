@@ -56,7 +56,7 @@ export const PUBLIC_PRICING_PACKAGES: PublicPricingPackageSnapshot[] = [
     package_type: 'time_limited',
     billing_interval: null,
     validity_days: null,
-    description: 'Best for regular student and researcher submissions.',
+    description: 'Best for regular editorial and content review workflows.',
     features: [
       'Turnitin AI Report',
       'Turnitin Similarity Report',

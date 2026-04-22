@@ -69,7 +69,7 @@ export default function AcademicIntegrity() {
       />
       <NoScriptFallback
         title="Academic Integrity at Plagaiscans"
-        intro="Academic integrity means producing original work, citing sources properly, and using analytical tools responsibly. Plagaiscans supports ethical scholarship by providing similarity reports and AI content indicators that help writers, students, and educators review their work."
+        intro="Academic and editorial integrity means producing original work, citing sources properly, and using analytical tools responsibly. Plagaiscans supports ethical content workflows by providing similarity reports and AI content indicators that help editors, publishers, content teams, and educational institutions review submitted work."
       >
         <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>Core principles</h2>
         <ul>
