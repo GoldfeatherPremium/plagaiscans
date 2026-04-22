@@ -777,6 +777,7 @@ export default function Checkout() {
             const summaryTotals = d.summary?.totals || {};
             const transactionTotals = d.transaction?.totals || d.transaction?.details?.totals || {};
             const items: any[] = Array.isArray(d.items) ? d.items : [];
+            const baseCheckoutSubtotal = Number(calculateDiscountedTotal(totalPrice).toFixed(2));
 
             const toAmount = (value: unknown): number | null => {
               if (value == null) return null;
@@ -800,6 +801,33 @@ export default function Checkout() {
               return null;
             };
 
+            const collectKeyAmounts = (
+              input: unknown,
+              keys: string[],
+              depth = 0,
+              matches: number[] = []
+            ) => {
+              if (input == null || depth > 8) return matches;
+
+              if (Array.isArray(input)) {
+                input.forEach((entry) => collectKeyAmounts(entry, keys, depth + 1, matches));
+                return matches;
+              }
+
+              if (typeof input !== 'object') return matches;
+
+              Object.entries(input as Record<string, unknown>).forEach(([key, value]) => {
+                if (keys.includes(key)) {
+                  const amount = toAmount(value);
+                  if (amount != null) matches.push(amount);
+                }
+
+                collectKeyAmounts(value, keys, depth + 1, matches);
+              });
+
+              return matches;
+            };
+
             const firstAmount = (...values: unknown[]) => {
               for (const value of values) {
                 const amount = toAmount(value);
@@ -816,6 +844,18 @@ export default function Checkout() {
                 return acc + (firstAmount(matched ? totals[matched] : null, matched ? item?.[matched] : null) ?? 0);
               }, 0);
 
+            const recursiveSubtotal = collectKeyAmounts(d, ['subtotal', 'sub_total', 'subTotal', 'balance'])
+              .filter((value) => value > 0)
+              .sort((a, b) => b - a)[0] ?? null;
+
+            const recursiveTax = collectKeyAmounts(d, ['tax', 'tax_total', 'taxTotal', 'tax_amount'])
+              .filter((value) => value > 0)
+              .sort((a, b) => b - a)[0] ?? null;
+
+            const recursiveTotal = collectKeyAmounts(d, ['total', 'grand_total', 'grandTotal'])
+              .filter((value) => value > 0)
+              .sort((a, b) => b - a)[0] ?? null;
+
             const explicitSubtotal = firstAmount(
               rootTotals.subtotal ??
                 rootTotals.sub_total ??
@@ -830,6 +870,7 @@ export default function Checkout() {
                 recurring.sub_total ??
                 recurring.subTotal ??
                 (items.length ? sumItems(['subtotal', 'sub_total', 'subTotal', 'line_total', 'lineTotal']) : null) ??
+                recursiveSubtotal ??
                 rootTotals.balance ??
                 summaryTotals.balance ??
                 transactionTotals.balance
@@ -855,7 +896,8 @@ export default function Checkout() {
                 d.tax ??
                 d.tax_total ??
                 d.taxTotal ??
-                (items.length ? sumItems(['tax', 'tax_total', 'taxTotal', 'tax_amount']) : null)
+                (items.length ? sumItems(['tax', 'tax_total', 'taxTotal', 'tax_amount']) : null) ??
+                recursiveTax
             ) ?? 0;
 
             const explicitTotal = firstAmount(
@@ -874,13 +916,16 @@ export default function Checkout() {
                 recurring.total ??
                 recurring.grand_total ??
                 recurring.grandTotal ??
-                (items.length ? sumItems(['total', 'grand_total', 'grandTotal', 'line_total', 'lineTotal']) : null)
+                (items.length ? sumItems(['total', 'grand_total', 'grandTotal', 'line_total', 'lineTotal']) : null) ??
+                recursiveTotal
             ) ?? 0;
 
             const inferredTax = explicitTax > 0
               ? explicitTax
               : explicitTotal > explicitSubtotal
                 ? Number((explicitTotal - explicitSubtotal).toFixed(2))
+                : explicitTotal > baseCheckoutSubtotal
+                  ? Number((explicitTotal - baseCheckoutSubtotal).toFixed(2))
                 : 0;
 
             const currency =
@@ -896,6 +941,8 @@ export default function Checkout() {
               setPaddleTotals((prev) => {
                 const nextSubtotal = explicitSubtotal > 0
                   ? explicitSubtotal
+                  : baseCheckoutSubtotal > 0 && explicitTotal > 0
+                    ? baseCheckoutSubtotal
                   : explicitTotal > 0 && inferredTax >= 0
                     ? Number((explicitTotal - inferredTax).toFixed(2))
                     : (prev?.subtotal ?? 0);
