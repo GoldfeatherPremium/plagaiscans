@@ -11,8 +11,8 @@ export default function RefundPolicy() {
   return (
     <>
       <SEO
-        title="Refund Policy"
-        description="Plagaiscans refund policy. We offer a 14-day refund policy for all purchases."
+        title="Refund Policy — Plagaiscans Editorial Integrity Platform"
+        description="Plagaiscans refund policy for credit packages and subscription plans, including the 14-day unconditional refund window for unused credits."
         keywords="refund policy, 14-day refund, cancellation"
         canonicalUrl="/refund-policy"
         structuredData={generateWebPageSchema('Refund Policy', 'Our 14-day refund policy', '/refund-policy')}

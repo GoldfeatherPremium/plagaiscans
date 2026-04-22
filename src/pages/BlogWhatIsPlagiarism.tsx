@@ -42,8 +42,8 @@ const faqSchema = {
 
 export default function BlogWhatIsPlagiarism() {
   const articleSchema = generateArticleSchema(
-    'What Is Plagiarism? Definition, Examples, and How to Avoid It',
-    'Learn what plagiarism is, its types, real examples, and how to avoid plagiarism using a free online plagiarism checker.',
+    'What Is Plagiarism? Definition, Examples, and Editorial Best Practices',
+    'A reference guide for editors, publishers, and institutional reviewers covering plagiarism types, real examples, and how originality verification supports editorial workflows.',
     '/blog/what-is-plagiarism',
     '2026-02-13'
   );
@@ -51,9 +51,9 @@ export default function BlogWhatIsPlagiarism() {
   return (
     <>
       <SEO
-        title="What Is Plagiarism? Definition, Examples & How to Avoid It"
-        description="Learn what plagiarism is, its types, real examples, and how to avoid plagiarism using a free online plagiarism checker."
-        keywords="plagiarism, plagiarism checker, plagiarism detector, check plagiarism online, avoid plagiarism, duplicate content"
+        title="What Is Plagiarism? Definition, Examples & Editorial Best Practices"
+        description="A reference guide for editors, publishers, and institutional reviewers covering plagiarism types, real examples, and how originality verification supports editorial workflows."
+        keywords="plagiarism, originality verification, similarity detection, editorial review, content authenticity, publishing workflow"
         canonicalUrl="/blog/what-is-plagiarism"
         ogType="article"
         structuredData={articleSchema}

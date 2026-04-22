@@ -39,9 +39,9 @@ export default function PlagiarismChecker() {
   return (
     <>
       <SEO
-        title="Free Plagiarism Checker Tool – Scan Content Online"
-        description="Check plagiarism online using Plagaiscans fast and accurate plagiarism detection tool."
-        keywords="text similarity, content review, document analysis, similarity report"
+        title="Similarity Detection Tool for Editorial Review"
+        description="Plagaiscans provides similarity detection and originality verification for editors, publishers, and institutional reviewers analyzing submitted content."
+        keywords="text similarity, content review, document analysis, similarity report, editorial review"
         canonicalUrl="/plagiarism-checker"
         ogImage="/og-plagiarism-checker.png"
         structuredData={serviceSchema}

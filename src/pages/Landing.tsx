@@ -95,8 +95,8 @@ const Landing = () => {
   return (
     <>
       <SEO
-        title="Plagiarism Checker Online – Free & Accurate"
-        description="Plagaiscans is an online plagiarism checker and AI content detection service that delivers detailed similarity reports starting from $3.99 per report."
+        title="Originality Verification for Editors, Publishers & Institutions"
+        description="Plagaiscans is an originality verification and editorial integrity platform for editors, publishers, content agencies, and educational institutions. Similarity reports starting from $3.99 per report."
         canonicalUrl="/"
         structuredData={{
           "@context": "https://schema.org",
