@@ -971,9 +971,9 @@ export default function Checkout() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 md:gap-8 items-start xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+        <div className="grid items-start gap-8 md:grid-cols-[minmax(300px,0.82fr)_minmax(0,1.18fr)]">
           {/* Order Summary */}
-          <div className="min-w-0 md:order-2">
+          <div className="min-w-0">
             <Card className="sticky top-4">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1103,7 +1103,9 @@ export default function Checkout() {
                         <span>${paddleTotals.subtotal.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">VAT / Tax</span>
+                        <span className="text-muted-foreground">
+                          VAT / Tax{paddleTaxRate ? ` (${paddleTaxRate.toFixed(2)}%)` : ''}
+                        </span>
                         <span>${paddleTotals.tax.toFixed(2)}</span>
                       </div>
                     </>
@@ -1132,7 +1134,7 @@ export default function Checkout() {
           </div>
 
           {/* Payment Methods */}
-          <div className="min-w-0 md:order-1 space-y-6">
+          <div className="min-w-0 space-y-6">
             <Card className="overflow-hidden">
               <CardHeader className="bg-muted/30 border-b">
                 <CardTitle className="flex items-center gap-2">
@@ -1176,7 +1178,7 @@ export default function Checkout() {
                 {(usdtEnabled || usdtManualEnabled) && (
                   <div className="pt-4 flex flex-col items-center gap-3">
                     {!showUsdtSection ? (
-                      <button
+                      <Button
                         type="button"
                         onClick={() => {
                           if (usdtEnabled) {
@@ -1185,11 +1187,11 @@ export default function Checkout() {
                             openUsdtManualDialog();
                           }
                         }}
-                        className="bg-green-600 hover:bg-green-700 text-white font-medium rounded-full px-5 py-2.5 inline-flex items-center gap-2 shadow-sm transition-colors"
+                        className="h-10 w-full max-w-[330px] rounded-full shadow-sm"
                       >
-                        <span className="h-2 w-2 rounded-full bg-white" aria-hidden="true" />
+                        <span className="h-2 w-2 rounded-full bg-primary-foreground" aria-hidden="true" />
                         Pay via USDT
-                      </button>
+                      </Button>
                     ) : (
                       <div className="w-full border rounded-lg p-4 bg-muted/30">
                         <div className="flex items-center justify-between gap-4">
