@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { FileCheck, ArrowLeft } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
+import { NoScriptFallback } from '@/components/NoScriptFallback';
 
 export default function TermsAndConditions() {
   return (
@@ -16,6 +17,28 @@ export default function TermsAndConditions() {
         canonicalUrl="/terms-and-conditions"
         structuredData={generateWebPageSchema('Terms of Service', 'Service agreement and user responsibilities', '/terms-and-conditions')}
       />
+      <NoScriptFallback
+        title="Terms of Service"
+        intro="By accessing and using Plagaiscans.com you agree to comply with and be bound by these Terms of Service. Plagaiscans is operated by Plagaiscans Technologies Ltd (Company No. 16998013), a UK-registered company."
+      >
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>Service summary</h2>
+        <p>
+          Plagaiscans.com provides plagiarism detection and content analysis services on a credit-based,
+          pay-as-you-go model. Reports are advisory and intended to support human review. The service
+          does not certify originality and is not a substitute for institutional review.
+        </p>
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>User responsibilities</h2>
+        <ul>
+          <li>You are responsible for any content you upload and must hold the rights to use it.</li>
+          <li>You may not use the service for academic misconduct or to circumvent institutional review.</li>
+          <li>Accounts engaging in prohibited use may be suspended without refund.</li>
+        </ul>
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>Refunds &amp; governing law</h2>
+        <p>
+          See our <a href="/refund-policy" style={{ color: '#2563eb' }}>14-day refund policy</a>. These
+          terms are governed by the laws of England and Wales.
+        </p>
+      </NoScriptFallback>
       <div className="min-h-screen bg-background">
         <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
           <div className="container-width flex h-16 items-center justify-between px-4">

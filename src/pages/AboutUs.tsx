@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FileText, Shield, Clock, Globe, Mail, ArrowLeft, AlertCircle, XCircle, CheckCircle } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema, generateOrganizationSchema } from '@/components/SEO';
+import { NoScriptFallback } from '@/components/NoScriptFallback';
 import { useTranslation } from 'react-i18next';
 
 export default function AboutUs() {
@@ -54,6 +55,26 @@ export default function AboutUs() {
           ],
         }}
       />
+      <NoScriptFallback
+        title="About Plagaiscans"
+        intro="Plagaiscans is a subscription-based software-as-a-service (SaaS) platform that provides text similarity and originality analysis. The service is designed to assist editors, educators, publishers, and content teams in reviewing written material before submission or publication."
+      >
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>Company</h2>
+        <p>
+          <strong>Plagaiscans Technologies Ltd</strong> · United Kingdom · Company No. 16998013.
+          Registered address: Office 7513ci, 182-184 High Street North, Area 1/1, East Ham, London, E6 2JA.
+        </p>
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>What we do</h2>
+        <ul>
+          <li>Text similarity patterns and overlap indicators</li>
+          <li>Stylistic and structural signals to support content review</li>
+          <li>AI content detection indicators</li>
+        </ul>
+        <p>
+          All outputs are advisory indicators intended to support human review. Plagaiscans does not
+          make academic, legal, employment, or disciplinary determinations.
+        </p>
+      </NoScriptFallback>
       <div className="min-h-screen bg-background">
         {/* Navigation */}
         <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">

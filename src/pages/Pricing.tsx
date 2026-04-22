@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { FileCheck, ArrowLeft, CheckCircle, Zap, Shield, Clock, Info, Send, Loader2, RefreshCw, Crown, Sparkles, Lock, CheckCircle2 } from 'lucide-react';
 import Footer from '@/components/Footer';
 import { SEO, generateWebPageSchema } from '@/components/SEO';
+import { NoScriptFallback } from '@/components/NoScriptFallback';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
@@ -101,12 +102,29 @@ export default function Pricing() {
   return (
     <>
       <SEO
-        title="Pricing Plans – PlagaiScans"
+        title="Pricing Plans"
         description="Explore PlagaiScans credit packages starting from just $2.20. Choose a plan that fits your needs — ideal for students, researchers, educators, and content teams."
         keywords="plagiarism checker pricing, plagaiscans pricing, credit packages, document analysis pricing, affordable plagiarism checker"
         canonicalUrl="/pricing"
         structuredData={generateWebPageSchema('Pricing', 'Credit packages for text similarity and AI content analysis', '/pricing')}
       />
+      <NoScriptFallback
+        title="Plagaiscans Pricing"
+        intro="Pay-as-you-go credit packages for plagiarism and AI content detection. Each credit covers one document scan. Reports start from $3.99 with no subscription required."
+      >
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 24, marginBottom: 8 }}>Plans</h2>
+        <ul>
+          <li><strong>Single report</strong> — $3.99 per document, one-time purchase.</li>
+          <li><strong>Starter pack</strong> — small credit packs for occasional use.</li>
+          <li><strong>Pro &amp; Business packs</strong> — larger credit packs at a lower per-report cost.</li>
+          <li><strong>Custom plans</strong> — for institutions and high-volume teams (20+ credits). Request a quote on this page.</li>
+        </ul>
+        <p>
+          All packs include AI content detection and similarity reports. Documents are not stored in any
+          third-party repository. See our <a href="/refund-policy" style={{ color: '#2563eb' }}>refund policy</a>
+          for the full 14-day refund terms.
+        </p>
+      </NoScriptFallback>
       <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
