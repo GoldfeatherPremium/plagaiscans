@@ -43,6 +43,8 @@ export const useSimilarityDocuments = () => {
     enabled: !!user && !!role,
     staleTime: 3 * 60 * 1000, // 3 minutes — matches useDocuments
     gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: role === 'staff' || role === 'admin',
+    refetchInterval: (role === 'staff' || role === 'admin') ? 60_000 : false,
     queryFn: async () => {
       if (!user) return [];
 
@@ -94,10 +96,11 @@ export const useSimilarityDocuments = () => {
   };
 
   // Realtime invalidation — debounced via React Query's request dedup.
-  // Unique channel name avoids collisions when multiple components mount this hook.
+  // Stable channel name per user; Supabase JS multiplexes multiple `.on()` handlers
+  // on a shared channel within a single client, so concurrent mounts are safe.
   useEffect(() => {
     if (!user) return;
-    const channelName = `similarity-documents-changes-${user.id}-${Math.random().toString(36).slice(2, 10)}`;
+    const channelName = `similarity-documents-changes-${user.id}`;
     const channel = supabase
       .channel(channelName)
       .on(
