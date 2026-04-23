@@ -141,13 +141,13 @@ const Landing = () => {
                 </span>
               </Link>
 
-              <div className="hidden md:flex items-center gap-7 text-sm font-medium">
-                <Link to="/pricing" className="text-foreground/80 hover:text-foreground transition-colors">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Link
+                  to="/pricing"
+                  className="hidden md:inline text-sm font-medium text-foreground/80 hover:text-foreground transition-colors mr-2"
+                >
                   {t("nav.pricing")}
                 </Link>
-              </div>
-
-              <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   onClick={toggleTheme}
                   aria-label="Toggle theme"
