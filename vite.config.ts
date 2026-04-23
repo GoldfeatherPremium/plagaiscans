@@ -8,6 +8,48 @@ import { defineConfig } from "vite";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 import { PRERENDER_READY_EVENT, PRERENDER_ROUTES } from "./src/lib/prerender";
+import { buildSitemapXml } from "./src/lib/sitemap-routes";
+
+/**
+ * Auto-generates `public/sitemap.xml` from `src/lib/sitemap-routes.ts`
+ * so the sitemap stays in sync whenever routes are added/changed.
+ *
+ * - Runs on dev server start (so /sitemap.xml is fresh in preview).
+ * - Runs at the start of every build (so the file is bundled into dist/).
+ * - Re-runs after build to also stamp dist/sitemap.xml directly (defensive).
+ */
+function autoSitemapPlugin(): Plugin {
+  const writeSitemap = async (targetDir: string) => {
+    const xml = buildSitemapXml();
+    const target = path.join(targetDir, "sitemap.xml");
+    await fs.mkdir(targetDir, { recursive: true });
+    await fs.writeFile(target, xml, "utf8");
+  };
+
+  return {
+    name: "auto-sitemap",
+    async buildStart() {
+      // Ensures the freshly generated sitemap.xml is copied into dist/ by Vite
+      // as part of the normal `public/` -> `dist/` static copy step.
+      await writeSitemap(path.join(__dirname, "public"));
+    },
+    async configureServer() {
+      // Keep dev preview in sync.
+      await writeSitemap(path.join(__dirname, "public"));
+    },
+    async closeBundle() {
+      // Defensive: write directly into dist/ in case the public copy ran before
+      // we updated public/sitemap.xml in this build.
+      const distDir = path.join(__dirname, "dist");
+      try {
+        await fs.access(distDir);
+        await writeSitemap(distDir);
+      } catch {
+        // dist/ doesn't exist yet (e.g. running in dev) — ignore.
+      }
+    },
+  };
+}
 
 function getMimeType(filePath: string) {
   const ext = path.extname(filePath);
@@ -139,6 +181,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === "development" && componentTagger(),
+    autoSitemapPlugin(),
     spaPrerenderPlugin(),
     VitePWA({
       // DISABLE auto service worker generation - we use our own public/sw.js
