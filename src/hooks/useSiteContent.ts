@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -12,53 +13,30 @@ interface SiteContent {
   updated_by: string | null;
 }
 
-// Cache for content
-let contentCache: Record<string, string> = {};
-let cacheLoaded = false;
+const SITE_CONTENT_KEY = ['site-content'] as const;
 
 export const useSiteContent = () => {
-  const [content, setContent] = useState<Record<string, string>>(contentCache);
-  const [loading, setLoading] = useState(!cacheLoaded);
-  const { toast } = useToast();
+  const { data: content = {}, isLoading } = useQuery<Record<string, string>>({
+    queryKey: SITE_CONTENT_KEY,
+    staleTime: 10 * 60 * 1000, // 10m — site content rarely changes
+    gcTime: 30 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('site_content')
+        .select('content_key, content_value');
+      if (error) throw error;
 
-  useEffect(() => {
-    if (cacheLoaded) {
-      setContent(contentCache);
-      setLoading(false);
-      return;
-    }
+      const contentMap: Record<string, string> = {};
+      data?.forEach((item: { content_key: string; content_value: string }) => {
+        contentMap[item.content_key] = item.content_value;
+      });
+      return contentMap;
+    },
+  });
 
-    const fetchContent = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('site_content')
-          .select('content_key, content_value');
+  const get = (key: string, fallback: string = ''): string => content[key] || fallback;
 
-        if (error) throw error;
-
-        const contentMap: Record<string, string> = {};
-        data?.forEach((item: { content_key: string; content_value: string }) => {
-          contentMap[item.content_key] = item.content_value;
-        });
-
-        contentCache = contentMap;
-        cacheLoaded = true;
-        setContent(contentMap);
-      } catch (error) {
-        console.error('Error fetching site content:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchContent();
-  }, []);
-
-  const get = (key: string, fallback: string = ''): string => {
-    return content[key] || fallback;
-  };
-
-  return { content, get, loading };
+  return { content, get, loading: isLoading };
 };
 
 export const useAdminSiteContent = () => {
@@ -66,6 +44,7 @@ export const useAdminSiteContent = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const fetchAllContent = async () => {
     try {
@@ -114,9 +93,8 @@ export const useAdminSiteContent = () => {
         )
       );
 
-      // Invalidate cache
-      cacheLoaded = false;
-      contentCache = {};
+      // Invalidate React Query cache so other consumers re-fetch
+      queryClient.invalidateQueries({ queryKey: SITE_CONTENT_KEY });
 
       toast({
         title: 'Saved',

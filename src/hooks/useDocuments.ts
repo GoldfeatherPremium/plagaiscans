@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export type DocumentStatus = 'pending' | 'in_progress' | 'completed' | 'error' | 'cancelled';
 
@@ -54,212 +55,186 @@ export interface Document {
   };
 }
 
-export const useDocuments = () => {
-  const { user, role, profile, refreshProfile } = useAuth();
-  const { toast } = useToast();
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
+// Cap on rows fetched per query. Most users have far fewer docs; staff/admin views
+// rarely need more than the most recent 1k entries to drive their dashboards.
+const MAX_ROWS = 1000;
 
-  // Optimistically update a document in local state without re-fetching
+// Shared query key used by every page that calls useDocuments(). Keeping the same
+// shape ensures navigating between Dashboard / MyDocuments / Queue / etc. hits the
+// React Query cache instead of re-fetching from Supabase.
+const documentsKey = (userId: string | undefined, role: string | null | undefined) =>
+  ['documents', userId ?? 'anon', role ?? 'unknown'] as const;
+
+async function fetchDocumentsCore(
+  userId: string,
+  role: string | null | undefined,
+): Promise<Document[]> {
+  // Single bounded query (no more 100k pagination loop)
+  let query = supabase
+    .from('documents')
+    .select('*')
+    .order('uploaded_at', { ascending: false })
+    .limit(MAX_ROWS);
+
+  if (role !== 'staff' && role !== 'admin') {
+    query = query.eq('user_id', userId).or('deleted_by_user.is.null,deleted_by_user.eq.false');
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const allDocs = data ?? [];
+
+  // ---- Single batched profile lookup ----
+  // Combine staff + customer IDs into one .in() query, halving round-trips.
+  const profileIds = new Set<string>();
+  for (const d of allDocs) {
+    if (d.assigned_staff_id) profileIds.add(d.assigned_staff_id);
+    if (d.user_id) profileIds.add(d.user_id);
+  }
+
+  const profileMap: Record<string, { email: string; full_name: string | null }> = {};
+  if (profileIds.size > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, email, full_name')
+      .in('id', Array.from(profileIds));
+
+    if (profiles) {
+      for (const p of profiles) {
+        profileMap[p.id] = { email: p.email, full_name: p.full_name };
+      }
+    }
+  }
+
+  const docsWithProfiles: Document[] = allDocs.map((doc: any) => ({
+    ...doc,
+    staff_profile: doc.assigned_staff_id ? profileMap[doc.assigned_staff_id] : undefined,
+    customer_profile: doc.user_id ? profileMap[doc.user_id] : undefined,
+  }));
+
+  // Prepend virtual sample document for new customers without any completed docs
+  const hasCompletedRealDoc = docsWithProfiles.some(d => d.status === 'completed');
+  if ((role === 'customer' || (!role && userId)) && !hasCompletedRealDoc) {
+    try {
+      const { data: sampleSettings } = await supabase
+        .from('settings')
+        .select('key, value')
+        .in('key', [
+          'sample_enabled',
+          'sample_file_name',
+          'sample_file_path',
+          'sample_sim_path',
+          'sample_ai_path',
+          'sample_sim_percentage',
+          'sample_ai_percentage',
+          'sample_remarks',
+        ]);
+
+      if (sampleSettings) {
+        const map: Record<string, string> = {};
+        sampleSettings.forEach((r: any) => { map[r.key] = r.value; });
+
+        if (
+          map.sample_enabled === 'true' &&
+          map.sample_file_path &&
+          map.sample_sim_path &&
+          map.sample_ai_path
+        ) {
+          const sample: Document = {
+            id: 'sample',
+            user_id: null,
+            file_name: map.sample_file_name || 'Sample.docx',
+            file_path: map.sample_file_path,
+            status: 'completed',
+            scan_type: 'full',
+            assigned_staff_id: null,
+            assigned_at: null,
+            similarity_percentage: map.sample_sim_percentage ? Number(map.sample_sim_percentage) : null,
+            ai_percentage: map.sample_ai_percentage ? Number(map.sample_ai_percentage) : null,
+            similarity_report_path: map.sample_sim_path,
+            ai_report_path: map.sample_ai_path,
+            remarks: map.sample_remarks || null,
+            error_message: null,
+            uploaded_at: new Date().toISOString(),
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            cancellation_reason: null,
+            cancelled_at: null,
+            cancelled_by: null,
+            is_sample: true,
+          };
+          return [sample, ...docsWithProfiles];
+        }
+      }
+    } catch (err) {
+      console.log('Sample doc fetch failed (non-critical):', err);
+    }
+  }
+
+  return docsWithProfiles;
+}
+
+export const useDocuments = () => {
+  const { user, role, refreshProfile } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const queryKey = documentsKey(user?.id, role);
+
+  const {
+    data: documents = [],
+    isLoading,
+    refetch,
+  } = useQuery<Document[]>({
+    queryKey,
+    queryFn: () => fetchDocumentsCore(user!.id, role),
+    enabled: !!user,
+    staleTime: 3 * 60 * 1000,   // 3 minutes — switching between dashboard pages serves from cache
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Optimistic helper writes directly into the React Query cache so every page
+  // sharing this key sees the change instantly.
   const optimisticUpdate = (documentId: string, updates: Partial<Document>) => {
-    setDocuments(prev => prev.map(doc => 
-      doc.id === documentId ? { ...doc, ...updates } : doc
-    ));
+    queryClient.setQueryData<Document[]>(queryKey, prev =>
+      (prev ?? []).map(doc => doc.id === documentId ? { ...doc, ...updates } : doc)
+    );
   };
 
-  const fetchDocuments = async (background = false) => {
-    if (!user) return;
-
-    // Only show loading spinner on initial load, not background refetches
-    if (!background && documents.length === 0) {
-      setLoading(true);
-    }
-    try {
-      // Paginated fetching to bypass 1000 row limit
-      const PAGE_SIZE = 1000;
-      const MAX_DOCS = 100000;
-      let allDocs: any[] = [];
-      let offset = 0;
-      let hasMore = true;
-
-      while (hasMore && allDocs.length < MAX_DOCS) {
-        let query = supabase.from('documents').select('*');
-
-        if (role !== 'staff' && role !== 'admin') {
-          query = query.eq('user_id', user.id).or('deleted_by_user.is.null,deleted_by_user.eq.false');
-        }
-
-        const { data, error } = await query
-          .order('uploaded_at', { ascending: false })
-          .range(offset, offset + PAGE_SIZE - 1);
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-          hasMore = false;
-        } else {
-          allDocs = [...allDocs, ...data];
-          offset += PAGE_SIZE;
-          // If we got fewer than PAGE_SIZE, we've reached the end
-          if (data.length < PAGE_SIZE) {
-            hasMore = false;
-          }
-        }
-      }
-
-      // Fetch staff profiles for assigned documents
-      const staffIds = [...new Set(allDocs.filter(d => d.assigned_staff_id).map(d => d.assigned_staff_id))];
-      let staffProfiles: Record<string, { email: string; full_name: string | null }> = {};
-      
-      if (staffIds.length > 0) {
-        // Batch fetch profiles in chunks of 500 to avoid query limits
-        const PROFILE_BATCH_SIZE = 500;
-        for (let i = 0; i < staffIds.length; i += PROFILE_BATCH_SIZE) {
-          const batch = staffIds.slice(i, i + PROFILE_BATCH_SIZE);
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, email, full_name')
-            .in('id', batch);
-          
-          if (profiles) {
-            profiles.forEach(p => {
-              staffProfiles[p.id] = { email: p.email, full_name: p.full_name };
-            });
-          }
-        }
-      }
-
-      // Fetch customer profiles (document owners) - filter out null user_ids
-      const customerIds = [...new Set(allDocs.filter(d => d.user_id).map(d => d.user_id as string))];
-      let customerProfiles: Record<string, { email: string; full_name: string | null }> = {};
-      
-      if (customerIds.length > 0) {
-        // Batch fetch profiles in chunks of 500 to avoid query limits
-        const PROFILE_BATCH_SIZE = 500;
-        for (let i = 0; i < customerIds.length; i += PROFILE_BATCH_SIZE) {
-          const batch = customerIds.slice(i, i + PROFILE_BATCH_SIZE);
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, email, full_name')
-            .in('id', batch);
-          
-          if (profiles) {
-            profiles.forEach(p => {
-              customerProfiles[p.id] = { email: p.email, full_name: p.full_name };
-            });
-          }
-        }
-      }
-
-      const docsWithProfiles = allDocs.map(doc => ({
-        ...doc,
-        staff_profile: doc.assigned_staff_id ? staffProfiles[doc.assigned_staff_id] : undefined,
-        customer_profile: doc.user_id ? customerProfiles[doc.user_id] : undefined
-      }));
-
-      // Prepend virtual sample document for customers only — hide for experienced users
-      let finalDocs: Document[] = docsWithProfiles as Document[];
-      const hasCompletedRealDoc = finalDocs.some(d => d.status === 'completed');
-      if ((role === 'customer' || (!role && user)) && !hasCompletedRealDoc) {
-        try {
-          const { data: sampleSettings } = await supabase
-            .from('settings')
-            .select('key, value')
-            .in('key', [
-              'sample_enabled',
-              'sample_file_name',
-              'sample_file_path',
-              'sample_sim_path',
-              'sample_ai_path',
-              'sample_sim_percentage',
-              'sample_ai_percentage',
-              'sample_remarks',
-            ]);
-
-          if (sampleSettings) {
-            const map: Record<string, string> = {};
-            sampleSettings.forEach((r: any) => { map[r.key] = r.value; });
-
-            if (
-              map.sample_enabled === 'true' &&
-              map.sample_file_path &&
-              map.sample_sim_path &&
-              map.sample_ai_path
-            ) {
-              const sample: Document = {
-                id: 'sample',
-                user_id: null,
-                file_name: map.sample_file_name || 'Sample.docx',
-                file_path: map.sample_file_path,
-                status: 'completed',
-                scan_type: 'full',
-                assigned_staff_id: null,
-                assigned_at: null,
-                similarity_percentage: map.sample_sim_percentage ? Number(map.sample_sim_percentage) : null,
-                ai_percentage: map.sample_ai_percentage ? Number(map.sample_ai_percentage) : null,
-                similarity_report_path: map.sample_sim_path,
-                ai_report_path: map.sample_ai_path,
-                remarks: map.sample_remarks || null,
-                error_message: null,
-                uploaded_at: new Date().toISOString(),
-                completed_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                cancellation_reason: null,
-                cancelled_at: null,
-                cancelled_by: null,
-                is_sample: true,
-              };
-              finalDocs = [sample, ...finalDocs];
-            }
-          }
-        } catch (err) {
-          console.log('Sample doc fetch failed (non-critical):', err);
-        }
-      }
-
-      setDocuments(finalDocs);
-    } catch (error) {
-      console.error('Error fetching documents:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch documents',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
+  // `background` is kept for API compat — React Query handles the loading flag itself.
+  const fetchDocuments = async (_background = false) => {
+    await refetch();
   };
 
   const releaseDocument = async (documentId: string) => {
     try {
-      // Optimistic update — UI reflects change instantly
-      optimisticUpdate(documentId, { 
-        status: 'pending' as DocumentStatus, 
-        assigned_staff_id: null, 
-        assigned_at: null 
+      optimisticUpdate(documentId, {
+        status: 'pending' as DocumentStatus,
+        assigned_staff_id: null,
+        assigned_at: null,
       });
 
       const { error } = await supabase
         .from('documents')
-        .update({ 
-          status: 'pending', 
-          assigned_staff_id: null, 
-          assigned_at: null 
+        .update({
+          status: 'pending',
+          assigned_staff_id: null,
+          assigned_at: null,
         })
         .eq('id', documentId);
 
       if (error) throw error;
 
-      // Background sync
-      fetchDocuments(true).catch(console.error);
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
       toast({
         title: 'Document Released',
         description: 'Document is now available for other staff members',
       });
     } catch (error) {
       console.error('Error releasing document:', error);
-      // Revert on error by re-fetching
-      fetchDocuments(true).catch(console.error);
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
       toast({
         title: 'Error',
         description: 'Failed to release document',
@@ -278,7 +253,6 @@ export const useDocuments = () => {
     };
 
     try {
-      // Always fetch fresh balance from backend (do NOT depend on client profile state)
       const { data: freshProfile, error: profileError } = await supabase
         .from('profiles')
         .select('credit_balance')
@@ -299,7 +273,6 @@ export const useDocuments = () => {
         return fail('Insufficient Credits', `You need ${requiredCredits} credit to upload this document.`, null);
       }
 
-      // Check if user has non-expired credit validity records with remaining credits
       const { data: validCredits } = await supabase
         .from('credit_validity')
         .select('remaining_credits')
@@ -320,13 +293,11 @@ export const useDocuments = () => {
       const fileName = `${Date.now()}.${safeExt}`;
       const filePath = `${user.id}/${fileName}`;
 
-      // 1) Upload file to storage
       const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file);
       if (uploadError) {
         return fail('Upload failed', `Storage upload failed: ${uploadError.message}`, uploadError);
       }
 
-      // 2) Create document record
       const { data: docData, error: insertError } = await supabase
         .from('documents')
         .insert({
@@ -339,12 +310,10 @@ export const useDocuments = () => {
         .single();
 
       if (insertError || !docData) {
-        // Cleanup storage if DB insert fails
         await supabase.storage.from('documents').remove([filePath]);
         return fail('Upload failed', `Could not create document record: ${insertError?.message ?? 'Unknown error'}`, insertError);
       }
 
-      // 3) Deduct credit atomically via server-side RPC (FIFO + transaction logging)
       const { data: creditResultRaw, error: creditError } = await supabase.rpc('consume_user_credit', {
         p_user_id: user.id,
         p_credit_type: 'full',
@@ -354,7 +323,6 @@ export const useDocuments = () => {
       const creditResult = creditResultRaw as { success: boolean; error?: string } | null;
 
       if (creditError || !creditResult?.success) {
-        // Roll back the document + storage if we couldn't deduct credits
         await supabase.from('documents').delete().eq('id', docData.id);
         await supabase.storage.from('documents').remove([filePath]);
         const errMsg = creditError?.message || creditResult?.error || 'Credit deduction failed';
@@ -364,16 +332,14 @@ export const useDocuments = () => {
       toast({ title: 'Success', description: 'Document uploaded successfully' });
 
       await refreshProfile();
-      await fetchDocuments();
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
 
-      // Trigger push notifications to staff/admin (non-critical)
       try {
         await supabase.functions.invoke('notify-document-upload');
       } catch (err) {
         console.log('Push notification trigger failed (non-critical):', err);
       }
 
-      // Notify customer if credits hit zero (non-critical)
       try {
         await supabase.functions.invoke('notify-zero-credits', {
           body: { userId: user.id, creditType: 'full' },
@@ -402,7 +368,6 @@ export const useDocuments = () => {
       toast({ title, description, variant: 'destructive' });
     };
 
-    // Validate credits up-front: requiredCredits = number of files
     const { data: freshProfile, error: profileError } = await supabase
       .from('profiles')
       .select('credit_balance')
@@ -435,7 +400,6 @@ export const useDocuments = () => {
       onProgress?.(i + 1, files.length);
 
       try {
-        // Fetch current balance fresh per-file (race-safe)
         const { data: currentProfile, error: balanceError } = await supabase
           .from('profiles')
           .select('credit_balance')
@@ -457,11 +421,9 @@ export const useDocuments = () => {
         const fileName = `${Date.now()}_${i}.${safeExt}`;
         const filePath = `${user.id}/${fileName}`;
 
-        // 1) Upload to storage
         const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file);
         if (uploadError) throw uploadError;
 
-        // 2) Create document record
         const { data: docData, error: insertError } = await supabase
           .from('documents')
           .insert({
@@ -481,7 +443,6 @@ export const useDocuments = () => {
           throw insertError ?? new Error('Failed to create document record');
         }
 
-        // 3) Deduct credit atomically via server-side RPC (FIFO + transaction logging)
         const { data: creditResultRaw, error: creditError } = await supabase.rpc('consume_user_credit', {
           p_user_id: user.id,
           p_credit_type: 'full',
@@ -491,7 +452,6 @@ export const useDocuments = () => {
         const creditResult = creditResultRaw as { success: boolean; error?: string } | null;
 
         if (creditError || !creditResult?.success) {
-          // Roll back this file if we couldn't deduct credits
           await supabase.from('documents').delete().eq('id', docData.id);
           await supabase.storage.from('documents').remove([filePath]);
           throw creditError ?? new Error(creditResult?.error || 'Credit deduction failed');
@@ -511,7 +471,7 @@ export const useDocuments = () => {
     }
 
     await refreshProfile();
-    await fetchDocuments();
+    queryClient.invalidateQueries({ queryKey: ['documents'] });
 
     if (successCount > 0) {
       try {
@@ -520,7 +480,6 @@ export const useDocuments = () => {
         console.log('Push notification trigger failed (non-critical):', err);
       }
 
-      // Notify customer if credits hit zero (non-critical)
       try {
         await supabase.functions.invoke('notify-zero-credits', {
           body: { userId: user.id, creditType: 'full' },
@@ -550,7 +509,6 @@ export const useDocuments = () => {
       return;
     }
     try {
-      // Auto-detect bucket for guest/magic-link uploads
       const effectiveBucket = bucket === 'documents' && path.startsWith('magic/') ? 'magic-uploads' : bucket;
 
       const { data, error } = await supabase.storage
@@ -559,22 +517,19 @@ export const useDocuments = () => {
 
       if (error) throw error;
 
-      // Fetch the file as blob to force download
       const response = await fetch(data.signedUrl);
       if (!response.ok) throw new Error('Failed to fetch file');
-      
+
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
-      
-      // Create anchor and force download
+
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = originalFileName || path.split('/').pop() || 'download';
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      
-      // Cleanup
+
       setTimeout(() => {
         document.body.removeChild(link);
         URL.revokeObjectURL(blobUrl);
@@ -603,11 +558,10 @@ export const useDocuments = () => {
     fileName?: string
   ) => {
     try {
-      // Staff AND Admin must upload both reports to complete a document
       if (status === 'completed' && (role === 'staff' || role === 'admin')) {
         const hasSimReport = updates?.similarity_report_path;
         const hasAiReport = updates?.ai_report_path;
-        
+
         if (!hasSimReport || !hasAiReport) {
           toast({
             title: 'Reports Required',
@@ -619,17 +573,16 @@ export const useDocuments = () => {
       }
 
       const updateData: Record<string, unknown> = { status, ...updates };
-      
+
       if (status === 'in_progress' && user) {
         updateData.assigned_staff_id = user.id;
         updateData.assigned_at = new Date().toISOString();
       }
-      
+
       if (status === 'completed') {
         updateData.completed_at = new Date().toISOString();
       }
 
-      // Optimistic local update — UI reflects change instantly
       optimisticUpdate(documentId, updateData as Partial<Document>);
 
       const { error } = await supabase
@@ -639,7 +592,6 @@ export const useDocuments = () => {
 
       if (error) throw error;
 
-      // Log activity
       if (user) {
         await supabase.from('activity_logs').insert({
           staff_id: user.id,
@@ -648,9 +600,7 @@ export const useDocuments = () => {
         });
       }
 
-      // Create personal notification for the document owner when completed
       if (status === 'completed' && documentUserId && fileName) {
-        // Create in-app notification
         try {
           const { error: notifError } = await supabase.from('user_notifications').insert({
             user_id: documentUserId,
@@ -658,19 +608,15 @@ export const useDocuments = () => {
             message: `Your document "${fileName}" has been processed. View your results in My Documents.`,
             created_by: user?.id,
           });
-          
+
           if (notifError) {
             console.error('Error creating notification:', notifError);
-          } else {
-            console.log('Personal notification created for document completion');
           }
         } catch (notifError) {
           console.error('Exception creating notification:', notifError);
         }
 
-        // Send completion email
         try {
-          console.log('Sending completion email for document:', documentId);
           const { error: emailError } = await supabase.functions.invoke('send-completion-email', {
             body: {
               userId: documentUserId,
@@ -680,19 +626,13 @@ export const useDocuments = () => {
               aiPercentage: updates?.ai_percentage ?? null,
             },
           });
-          
-          if (emailError) {
-            console.error('Error sending completion email:', emailError);
-          } else {
-            console.log('Completion email sent successfully');
-          }
+
+          if (emailError) console.error('Error sending completion email:', emailError);
         } catch (emailError) {
           console.error('Exception sending completion email:', emailError);
         }
 
-        // Send push notification
         try {
-          console.log('Sending push notification for document:', documentId);
           const { error: pushError } = await supabase.functions.invoke('send-push-notification', {
             body: {
               userId: documentUserId,
@@ -705,20 +645,14 @@ export const useDocuments = () => {
               },
             },
           });
-          
-          if (pushError) {
-            console.error('Error sending push notification:', pushError);
-          } else {
-            console.log('Push notification sent successfully');
-          }
+
+          if (pushError) console.error('Error sending push notification:', pushError);
         } catch (pushError) {
           console.error('Exception sending push notification:', pushError);
         }
       }
 
-      // Send guest completion email if document has a magic_link_id (guest upload)
       if (status === 'completed') {
-        // Fetch the document to check if it has a magic_link_id
         const { data: docData } = await supabase
           .from('documents')
           .select('magic_link_id')
@@ -727,7 +661,6 @@ export const useDocuments = () => {
 
         if (docData?.magic_link_id) {
           try {
-            console.log('Sending guest completion email for document:', documentId, 'magic_link_id:', docData.magic_link_id);
             const { error: guestEmailError } = await supabase.functions.invoke('send-guest-completion-email', {
               body: {
                 documentId: documentId,
@@ -737,20 +670,16 @@ export const useDocuments = () => {
                 aiPercentage: updates?.ai_percentage ?? null,
               },
             });
-            
-            if (guestEmailError) {
-              console.error('Error sending guest completion email:', guestEmailError);
-            } else {
-              console.log('Guest completion email sent successfully');
-            }
+
+            if (guestEmailError) console.error('Error sending guest completion email:', guestEmailError);
           } catch (guestEmailError) {
             console.error('Exception sending guest completion email:', guestEmailError);
           }
         }
       }
 
-      // Background refetch to sync with server — don't block the UI
-      fetchDocuments(true).catch(console.error);
+      // Background revalidation — don't block UI
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
 
       toast({
         title: 'Success',
@@ -777,7 +706,6 @@ export const useDocuments = () => {
   ) => {
     if (!user) return;
 
-    // Staff AND Admin MUST upload both reports to complete a document
     if (role === 'staff' || role === 'admin') {
       if (!similarityReport || !aiReport) {
         toast({
@@ -796,10 +724,8 @@ export const useDocuments = () => {
         remarks: remarks || null,
       };
 
-      // Determine folder path - use user_id for regular users, 'guest' folder for magic link uploads
       const folderPath = document.user_id || 'guest';
 
-      // Upload similarity report
       if (similarityReport) {
         const simPath = `${folderPath}/${documentId}_similarity.pdf`;
         const { error: simError } = await supabase.storage
@@ -810,7 +736,6 @@ export const useDocuments = () => {
         updates.similarity_report_path = simPath;
       }
 
-      // Upload AI report
       if (aiReport) {
         const aiPath = `${folderPath}/${documentId}_ai.pdf`;
         const { error: aiError } = await supabase.storage
@@ -832,11 +757,7 @@ export const useDocuments = () => {
     }
   };
 
-  useEffect(() => {
-    fetchDocuments();
-  }, [user, role]);
-
-  // Real-time subscription
+  // Real-time subscription — invalidates the shared cache so all subscribed pages refresh.
   useEffect(() => {
     if (!user) return;
 
@@ -850,7 +771,7 @@ export const useDocuments = () => {
           table: 'documents',
         },
         () => {
-          fetchDocuments(true);
+          queryClient.invalidateQueries({ queryKey: ['documents'] });
         }
       )
       .subscribe();
@@ -858,24 +779,25 @@ export const useDocuments = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, role]);
+  }, [user, queryClient]);
 
-  const deleteDocument = async (documentId: string, filePath: string, similarityReportPath?: string | null, aiReportPath?: string | null) => {
+  const deleteDocument = async (documentId: string, _filePath: string, _similarityReportPath?: string | null, _aiReportPath?: string | null) => {
     if (documentId === 'sample') return { success: false };
     try {
-      // Soft delete: mark as deleted but preserve the record and files
       const { error: updateError } = await supabase
         .from('documents')
-        .update({ 
-          deleted_by_user: true, 
-          deleted_at: new Date().toISOString() 
+        .update({
+          deleted_by_user: true,
+          deleted_at: new Date().toISOString(),
         })
         .eq('id', documentId);
 
       if (updateError) throw updateError;
 
-      // Remove from local state immediately
-      setDocuments(prev => prev.filter(doc => doc.id !== documentId));
+      // Optimistic remove from cache
+      queryClient.setQueryData<Document[]>(queryKey, prev =>
+        (prev ?? []).filter(doc => doc.id !== documentId)
+      );
 
       toast({
         title: 'Document deleted',
@@ -894,7 +816,6 @@ export const useDocuments = () => {
     }
   };
 
-  // Cancel document (admin only) - refunds credit to customer
   const cancelDocument = async (
     documentId: string,
     cancellationReason: string,
@@ -912,12 +833,11 @@ export const useDocuments = () => {
         console.error('Error fetching document:', fetchError);
         throw new Error(`Failed to fetch document: ${fetchError.message}`);
       }
-      
+
       if (!docData) {
         throw new Error('Document not found');
       }
-      
-      // Fetch profile separately if user_id exists
+
       let profileData: { email?: string; full_name?: string } | null = null;
       if (docData.user_id) {
         const { data: profile } = await supabase
@@ -928,7 +848,6 @@ export const useDocuments = () => {
         profileData = profile;
       }
 
-      // Only allow cancellation of pending/in_progress documents
       if (docData.status !== 'pending' && docData.status !== 'in_progress') {
         throw new Error('Only pending or in-progress documents can be cancelled');
       }
@@ -936,12 +855,9 @@ export const useDocuments = () => {
       const isGuestUpload = !!docData.magic_link_id;
       const scanType = docData.scan_type || 'full';
 
-      // 2. Handle credit refund
       if (docData.user_id) {
-        // Refund registered user
         const balanceField = scanType === 'full' ? 'credit_balance' : 'similarity_credit_balance';
-        
-        // Get current balance
+
         const { data: balanceData, error: balanceError } = await supabase
           .from('profiles')
           .select(balanceField)
@@ -955,7 +871,6 @@ export const useDocuments = () => {
         const currentBalance = (balanceData as Record<string, number>)[balanceField];
         const newBalance = currentBalance + 1;
 
-        // Update balance
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ [balanceField]: newBalance })
@@ -963,7 +878,6 @@ export const useDocuments = () => {
 
         if (updateError) throw updateError;
 
-        // Log credit transaction
         await supabase.from('credit_transactions').insert({
           user_id: docData.user_id,
           amount: 1,
@@ -975,7 +889,6 @@ export const useDocuments = () => {
           performed_by: adminUserId,
         });
 
-        // Create user notification
         await supabase.from('user_notifications').insert({
           user_id: docData.user_id,
           title: 'Document Cancelled',
@@ -983,7 +896,6 @@ export const useDocuments = () => {
           created_by: adminUserId,
         });
       } else if (isGuestUpload && docData.magic_link_id) {
-        // Restore guest upload slot
         const { data: magicLink, error: mlError } = await supabase
           .from('magic_upload_links')
           .select('current_uploads')
@@ -998,12 +910,9 @@ export const useDocuments = () => {
         }
       }
 
-      // 3. Delete files from storage
-      // Delete original document
       const bucket = isGuestUpload ? 'magic-uploads' : 'documents';
       await supabase.storage.from(bucket).remove([docData.file_path]);
 
-      // Delete reports if they exist
       if (docData.similarity_report_path) {
         await supabase.storage.from('reports').remove([docData.similarity_report_path]);
       }
@@ -1011,13 +920,11 @@ export const useDocuments = () => {
         await supabase.storage.from('reports').remove([docData.ai_report_path]);
       }
 
-      // 4. Delete tag assignments
       await supabase
         .from('document_tag_assignments')
         .delete()
         .eq('document_id', documentId);
 
-      // 5. Update document status to cancelled
       const { error: cancelError } = await supabase
         .from('documents')
         .update({
@@ -1031,7 +938,6 @@ export const useDocuments = () => {
 
       if (cancelError) throw cancelError;
 
-      // 6. Log to deleted_documents_log
       await supabase.from('deleted_documents_log').insert({
         original_document_id: documentId,
         user_id: docData.user_id,
@@ -1051,7 +957,7 @@ export const useDocuments = () => {
         customer_name: profileData?.full_name || null,
       });
 
-      await fetchDocuments();
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
 
       toast({
         title: 'Document Cancelled',
@@ -1072,7 +978,7 @@ export const useDocuments = () => {
 
   return {
     documents,
-    loading,
+    loading: isLoading,
     uploadDocument,
     uploadDocuments,
     downloadFile,
