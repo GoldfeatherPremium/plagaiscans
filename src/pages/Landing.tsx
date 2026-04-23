@@ -142,12 +142,6 @@ const Landing = () => {
               </Link>
 
               <div className="hidden md:flex items-center gap-7 text-sm font-medium">
-                <Link to="/ai-content-detection" className="text-foreground/80 hover:text-foreground transition-colors">
-                  {t("nav.aiDetector")}
-                </Link>
-                <Link to="/" className="text-foreground transition-colors">
-                  {t("nav.turnitinReport")}
-                </Link>
                 <Link to="/pricing" className="text-foreground/80 hover:text-foreground transition-colors">
                   {t("nav.pricing")}
                 </Link>
