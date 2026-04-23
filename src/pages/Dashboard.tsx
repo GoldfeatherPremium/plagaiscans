@@ -96,7 +96,7 @@ export default function Dashboard() {
         return q.eq('user_id', user.id).or('deleted_by_user.is.null,deleted_by_user.eq.false');
       };
 
-      const countFor = async (status: string, scanFilter: 'full' | 'similarity_only') => {
+      const countFor = async (status: 'pending' | 'in_progress' | 'completed', scanFilter: 'full' | 'similarity_only') => {
         let q = supabase
           .from('documents')
           .select('id', { count: 'exact', head: true })
