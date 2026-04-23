@@ -318,7 +318,7 @@ const SubscriptionManagement = () => {
                     <p className="text-sm text-muted-foreground">
                       Prefer to buy credits as you need them? Check out our credit packages.
                     </p>
-                    <Button variant="outline" className="w-full" onClick={() => window.location.href = '/dashboard/credits'}>
+                    <Button variant="outline" className="w-full" onClick={() => navigate('/dashboard/credits')}>
                       View Credit Packages
                     </Button>
                   </CardContent>
@@ -342,7 +342,7 @@ const SubscriptionManagement = () => {
               <p className="text-sm text-muted-foreground">
                 Check out our available credit packages.
               </p>
-              <Button variant="outline" onClick={() => window.location.href = '/dashboard/credits'}>
+              <Button variant="outline" onClick={() => navigate('/dashboard/credits')}>
                 View Credit Packages
               </Button>
             </CardContent>

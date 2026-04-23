@@ -84,7 +84,11 @@ export const useAdminDocumentNotifications = () => {
       action: {
         label: 'View Queue',
         onClick: () => {
-          window.location.href = queueUrl;
+          // Use SPA navigation to avoid full reload
+          const path = queueUrl.startsWith(window.location.origin)
+            ? queueUrl.slice(window.location.origin.length)
+            : queueUrl;
+          navigate(path);
         },
       },
     });
