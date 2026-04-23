@@ -99,7 +99,7 @@ export const useAdminDocumentNotifications = () => {
       tag: `doc-upload-${Date.now()}`,
       requireInteraction: true,
     });
-  }, [sendLocalNotification, playSound]);
+  }, [sendLocalNotification, playSound, navigate]);
 
   const handleDocumentPending = useCallback((fileName: string) => {
     console.log('[AdminNotify] Document pending notification:', fileName);
