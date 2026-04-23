@@ -261,6 +261,13 @@ export default defineConfig(({ mode }) => ({
         enabled: false, // Disable SW in dev to avoid caching issues
       },
     }),
+    // Bundle analyzer: produces dist/stats.html after `vite build`. No runtime cost.
+    visualizer({
+      filename: "dist/stats.html",
+      template: "treemap",
+      gzipSize: true,
+      brotliSize: true,
+    }) as Plugin,
   ].filter(Boolean),
   resolve: {
     alias: {
