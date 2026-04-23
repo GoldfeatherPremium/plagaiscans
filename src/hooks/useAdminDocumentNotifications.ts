@@ -9,6 +9,7 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 
 export const useAdminDocumentNotifications = () => {
   const { user, role } = useAuth();
+  const navigate = useNavigate();
   const { sendLocalNotification, requestPermission } = usePushNotifications();
   const { playSound } = useNotificationSound();
   const hasRequestedPermission = useRef(false);
