@@ -758,11 +758,15 @@ export const useDocuments = () => {
   };
 
   // Real-time subscription — invalidates the shared cache so all subscribed pages refresh.
+  // Channel name MUST be unique per subscriber instance, otherwise Supabase JS rejects
+  // duplicate channels when the hook is mounted by multiple components simultaneously
+  // (e.g., DocumentQueue + NotificationBell), causing realtime events to silently drop.
   useEffect(() => {
     if (!user) return;
 
+    const channelName = `documents-changes-${user.id}-${Math.random().toString(36).slice(2, 10)}`;
     const channel = supabase
-      .channel('documents-changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -772,6 +776,7 @@ export const useDocuments = () => {
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['documents'] });
+          queryClient.invalidateQueries({ queryKey: ['similarity-documents'] });
         }
       )
       .subscribe();

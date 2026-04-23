@@ -93,11 +93,13 @@ export const useSimilarityDocuments = () => {
     await refetch();
   };
 
-  // Realtime invalidation — debounced via React Query's request dedup
+  // Realtime invalidation — debounced via React Query's request dedup.
+  // Unique channel name avoids collisions when multiple components mount this hook.
   useEffect(() => {
     if (!user) return;
+    const channelName = `similarity-documents-changes-${user.id}-${Math.random().toString(36).slice(2, 10)}`;
     const channel = supabase
-      .channel('similarity-documents-changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -108,6 +110,7 @@ export const useSimilarityDocuments = () => {
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['similarity-documents'] });
+          queryClient.invalidateQueries({ queryKey: ['documents'] });
         }
       )
       .subscribe();
