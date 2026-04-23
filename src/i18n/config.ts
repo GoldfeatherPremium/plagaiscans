@@ -1,7 +1,15 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import LanguageDetector from 'i18next-browser-languagedetector';
 import HttpBackend from 'i18next-http-backend';
+
+// Bundle English inline so it's available on first paint (prevents flash of translation keys).
+// Other languages are lazy-loaded from /public/locales/{lng}/{ns}.json on demand.
+import enCommon from './locales/en/common.json';
+import enAuth from './locales/en/auth.json';
+import enDashboard from './locales/en/dashboard.json';
+import enLanding from './locales/en/landing.json';
+import enLegal from './locales/en/legal.json';
+import enPages from './locales/en/pages.json';
 
 export const languages = [
   { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧', dir: 'ltr' },
@@ -15,36 +23,48 @@ export const languages = [
 
 export type LanguageCode = typeof languages[number]['code'];
 
+// Read explicit user choice from localStorage; default to English (no browser auto-detect).
+const storedLng = typeof window !== 'undefined' ? window.localStorage.getItem('i18nextLng') : null;
+const supported = ['en', 'ar', 'zh', 'fr', 'es', 'de', 'ru'];
+const initialLng = storedLng && supported.includes(storedLng) ? storedLng : 'en';
+
 i18n
   .use(HttpBackend)
-  .use(LanguageDetector)
   .use(initReactI18next)
   .init({
+    lng: initialLng,
     fallbackLng: 'en',
-    supportedLngs: ['en', 'ar', 'zh', 'fr', 'es', 'de', 'ru'],
+    supportedLngs: supported,
     defaultNS: 'common',
-    ns: ['common'], // Only load 'common' upfront; other namespaces load on-demand via useTranslation('ns')
+    ns: ['common'],
     load: 'languageOnly',
-    partialBundledLanguages: false,
+    partialBundledLanguages: true,
+    resources: {
+      en: {
+        common: enCommon,
+        auth: enAuth,
+        dashboard: enDashboard,
+        landing: enLanding,
+        legal: enLegal,
+        pages: enPages,
+      },
+    },
     backend: {
-      // Locale files are served as static JSON from /public/locales/{lng}/{ns}.json
       loadPath: '/locales/{{lng}}/{{ns}}.json',
     },
     interpolation: {
       escapeValue: false,
     },
-    detection: {
-      order: ['localStorage', 'navigator'],
-      caches: ['localStorage'],
-      lookupLocalStorage: 'i18nextLng',
-    },
     react: {
-      useSuspense: false, // Avoid suspense boundary requirement; show keys briefly while a namespace loads
+      useSuspense: false,
     },
   });
 
-// Update document direction based on language
+// Persist explicit language changes
 i18n.on('languageChanged', (lng) => {
+  try {
+    window.localStorage.setItem('i18nextLng', lng);
+  } catch {}
   const language = languages.find(l => l.code === lng);
   if (language) {
     document.documentElement.dir = language.dir;
