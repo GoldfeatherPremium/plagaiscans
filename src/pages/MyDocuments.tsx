@@ -324,7 +324,7 @@ export default function MyDocuments() {
               </p>
               {documents.length === 0 && (
                 <Button asChild>
-                  <a href="/dashboard/upload">Upload Document</a>
+                  <Link to="/dashboard/upload">Upload Document</Link>
                 </Button>
               )}
             </CardContent>
