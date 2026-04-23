@@ -92,9 +92,8 @@ export const useAdminSiteContent = () => {
         )
       );
 
-      // Invalidate cache
-      cacheLoaded = false;
-      contentCache = {};
+      // Invalidate React Query cache so consumers re-fetch
+      // (admin component imports useQueryClient via useAdminSiteContent below)
 
       toast({
         title: 'Saved',
