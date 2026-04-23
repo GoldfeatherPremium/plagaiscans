@@ -294,8 +294,13 @@ export default defineConfig(({ mode }) => ({
           // entry chunk; keeping it separate enables long-term caching.
           if (id.includes('/i18next') || id.includes('/react-i18next')) return 'vendor-i18n';
 
-          // Helmet + date-fns are widely used across pages; isolate for caching.
-          if (id.includes('/react-helmet')) return 'vendor-helmet';
+          // NOTE: do NOT split react-helmet-async into its own chunk.
+          // It has a TDZ/circular-dep issue when it initializes before its
+          // React peer chunk, which produces:
+          //   "ReferenceError: Cannot access 'T' before initialization"
+          // and prevents the entire app from mounting. Keep it bundled with
+          // the React vendor chunk instead.
+          if (id.includes('/react-helmet')) return 'vendor-react';
           if (id.includes('/date-fns/')) return 'vendor-date-fns';
 
           // Form/validation stack
