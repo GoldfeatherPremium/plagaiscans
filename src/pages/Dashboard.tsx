@@ -82,19 +82,47 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { t } = useTranslation('dashboard');
 
-  // Full Scan Queue Stats (all documents except similarity_only)
-  const fullScanStats = {
-    pending: documents.filter((d) => d.status === 'pending' && d.scan_type !== 'similarity_only').length,
-    inProgress: documents.filter((d) => d.status === 'in_progress' && d.scan_type !== 'similarity_only').length,
-    completed: documents.filter((d) => d.status === 'completed' && d.scan_type !== 'similarity_only').length,
-  };
+  // Server-side stats — `documents` array is capped at 1000 rows by the hook,
+  // so for power users with thousands of docs we must count via the database.
+  const [fullScanStats, setFullScanStats] = useState({ pending: 0, inProgress: 0, completed: 0 });
+  const [similarityStats, setSimilarityStats] = useState({ pending: 0, inProgress: 0, completed: 0 });
 
-  // Similarity Only Queue Stats
-  const similarityStats = {
-    pending: documents.filter((d) => d.status === 'pending' && d.scan_type === 'similarity_only').length,
-    inProgress: documents.filter((d) => d.status === 'in_progress' && d.scan_type === 'similarity_only').length,
-    completed: documents.filter((d) => d.status === 'completed' && d.scan_type === 'similarity_only').length,
-  };
+  useEffect(() => {
+    const loadStats = async () => {
+      if (!user || authLoading) return;
+
+      const baseFilter = (q: any) => {
+        if (role === 'staff' || role === 'admin') return q;
+        return q.eq('user_id', user.id).or('deleted_by_user.is.null,deleted_by_user.eq.false');
+      };
+
+      const countFor = async (status: string, scanFilter: 'full' | 'similarity_only') => {
+        let q = supabase
+          .from('documents')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', status);
+        q = scanFilter === 'similarity_only'
+          ? q.eq('scan_type', 'similarity_only')
+          : q.neq('scan_type', 'similarity_only');
+        const { count } = await baseFilter(q);
+        return count ?? 0;
+      };
+
+      const [fp, fi, fc, sp, si, sc] = await Promise.all([
+        countFor('pending', 'full'),
+        countFor('in_progress', 'full'),
+        countFor('completed', 'full'),
+        countFor('pending', 'similarity_only'),
+        countFor('in_progress', 'similarity_only'),
+        countFor('completed', 'similarity_only'),
+      ]);
+
+      setFullScanStats({ pending: fp, inProgress: fi, completed: fc });
+      setSimilarityStats({ pending: sp, inProgress: si, completed: sc });
+    };
+
+    loadStats();
+  }, [user, role, authLoading, documents.length]);
 
   // Filter recent documents based on staff scan type assignments
   // Staff only see documents from queues they have access to
