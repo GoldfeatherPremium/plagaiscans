@@ -44,6 +44,7 @@ export const useAdminSiteContent = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const fetchAllContent = async () => {
     try {
@@ -92,8 +93,8 @@ export const useAdminSiteContent = () => {
         )
       );
 
-      // Invalidate React Query cache so consumers re-fetch
-      // (admin component imports useQueryClient via useAdminSiteContent below)
+      // Invalidate React Query cache so other consumers re-fetch
+      queryClient.invalidateQueries({ queryKey: SITE_CONTENT_KEY });
 
       toast({
         title: 'Saved',
