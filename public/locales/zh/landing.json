@@ -1,0 +1,135 @@
+{
+  "hero": {
+    "badge": "",
+    "titleLine1": "文本相似度检查",
+    "titleLine2": "与内容审查",
+    "subtitle": "一个文档分析平台，将您的文本与索引来源进行比较，并生成相似度指标供您审查。结果仅供参考。",
+    "ctaPrimary": "上传文档",
+    "feature1": "相似度报告",
+    "feature2": "内容分析指标",
+    "feature3": "安全文档处理"
+  },
+  "about": {
+    "label": "关于我们的服务",
+    "title": "文本相似度检查",
+    "titleGradient": "与内容审查",
+    "paragraph1": "Plagaiscans是一个文本相似度检查平台，将提交的文档与索引来源进行比较以生成相似度指标。",
+    "paragraph2": "报告仅供参考，应作为人工审查的参考工具使用。",
+    "feature1Title": "文本比较",
+    "feature1Desc": "查看潜在匹配的文本段落和相似度百分比以供手动审查。",
+    "feature2Title": "多种格式",
+    "feature2Desc": "支持常见文档格式，包括PDF、DOC、DOCX和TXT。",
+    "feature3Title": "内容分析指标",
+    "feature3Desc": "帮助内容审查的附加指标。结果仅供参考。",
+    "feature4Title": "安全处理",
+    "feature4Desc": "文档被安全处理，用户可随时删除。"
+  },
+  "services": {
+    "title": "我们的服务",
+    "subtitle": "文档相似度检查工具"
+  },
+  "howItWorks": {
+    "title": "",
+    "titleSuffix": "工作原理",
+    "subtitle": "一个简单的流程，为您的审查生成文档相似度指标。",
+    "backToHome": "返回首页",
+    "whyChoose": "服务特点",
+    "readyToCheck": "准备好开始了吗？",
+    "ctaDescription": "创建账户并上传您的文档以接收相似度报告。",
+    "getStarted": "创建账户",
+    "step1Title": "创建账户并上传",
+    "step1Desc": "注册并以支持的格式（PDF、DOC、DOCX、TXT）上传您的文档。",
+    "step2Title": "内容比较",
+    "step2Desc": "您的文本将与可用的索引来源进行比较，以识别潜在的重叠。",
+    "step3Title": "报告生成",
+    "step3Desc": "生成显示相似度指标和匹配文本段落的报告。",
+    "step4Title": "审查和下载",
+    "step4Desc": "下载并手动审查结果。解释由您负责。"
+  },
+  "faq": {
+    "title": "常见",
+    "titleHighlight": "问题",
+    "subtitle": "查找有关我们相似度检查服务的常见问题的答案。",
+    "backToHome": "返回首页",
+    "stillHaveQuestions": "还有问题？",
+    "supportTeamReady": "我们的支持团队随时准备提供帮助。",
+    "contactSupport": "联系支持"
+  },
+  "pricing": {
+    "title": "简单定价",
+    "subtitle": "选择适合您需求的套餐。积分包有规定的有效期。",
+    "tabs": {
+      "creditPacks": "积分包",
+      "subscriptions": "订阅",
+      "limitedTime": "限时优惠"
+    },
+    "bestValue": "热门",
+    "validFor": "有效期 {{days}} 天",
+    "creditMeaning": "1 积分 = 1 次文档扫描",
+    "getStarted": "开始",
+    "customPlan": {
+      "title": "自定义套餐",
+      "description": "需要更多积分？联系我们获取定制报价。",
+      "fullName": "全名",
+      "namePlaceholder": "您的姓名",
+      "email": "电子邮件",
+      "emailPlaceholder": "your@email.com",
+      "phone": "电话号码",
+      "phonePlaceholder": "+86123456789",
+      "credits": "所需积分",
+      "creditsPlaceholder": "例如：50",
+      "submit": "请求报价",
+      "note": "自定义定价最低20积分。我们将在24小时内回复。"
+    },
+    "features": {
+      "title": "包含内容",
+      "fast": {
+        "title": "标准处理时间",
+        "description": "文档按标准时间处理"
+      },
+      "secure": {
+        "title": "安全处理",
+        "description": "文档被安全处理，可随时删除"
+      },
+      "noExpiry": {
+        "title": "积分有效期",
+        "description": "积分有规定的有效期，视套餐而定"
+      }
+    },
+    "faq": {
+      "title": "常见问题",
+      "nonRepo": {
+        "question": "什么是非存储库检查？",
+        "answer": "您的文档在检查相似度时不会被添加到任何公共数据库。"
+      },
+      "payment": {
+        "question": "你们接受哪些付款方式？",
+        "answer": "我们接受主要的信用卡/借记卡和PayPal。"
+      },
+      "refund": {
+        "question": "我可以退款吗？",
+        "answer": "是的，未使用的积分可在14天内退款。请参阅",
+        "link": "退款政策"
+      },
+      "processing": {
+        "question": "处理需要多长时间？",
+        "answer": "处理时间因文档大小和系统负载而异。"
+      }
+    },
+    "disclaimer": {
+      "label": "重要提示：",
+      "text": "积分包有规定的有效期。未使用的积分将按说明过期。过期积分不予退款。详情请参阅服务条款。"
+    }
+  },
+  "contact": {
+    "title": "联系我们",
+    "subtitle": "与我们的支持团队取得联系",
+    "nameLabel": "您的姓名",
+    "emailLabel": "您的电子邮件",
+    "messageLabel": "您的留言",
+    "sendButton": "发送消息",
+    "sending": "发送中...",
+    "successMessage": "消息发送成功！",
+    "errorMessage": "发送消息失败。请重试。"
+  }
+}
