@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface RemarkPreset {
@@ -11,30 +11,30 @@ export interface RemarkPreset {
 }
 
 export function useRemarkPresets(activeOnly = true) {
-  const [presets, setPresets] = useState<RemarkPreset[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const queryKey = ['remark-presets', activeOnly] as const;
 
-  const fetchPresets = async () => {
-    setLoading(true);
-    let query = supabase
-      .from('remark_presets')
-      .select('*')
-      .order('sort_order', { ascending: true });
+  const { data: presets = [], isLoading } = useQuery<RemarkPreset[]>({
+    queryKey,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    queryFn: async () => {
+      let query = supabase
+        .from('remark_presets')
+        .select('*')
+        .order('sort_order', { ascending: true });
 
-    if (activeOnly) {
-      query = query.eq('is_active', true);
-    }
+      if (activeOnly) {
+        query = query.eq('is_active', true);
+      }
 
-    const { data, error } = await query;
-    if (!error && data) {
-      setPresets(data as RemarkPreset[]);
-    }
-    setLoading(false);
-  };
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data ?? []) as RemarkPreset[];
+    },
+  });
 
-  useEffect(() => {
-    fetchPresets();
-  }, [activeOnly]);
+  const refetch = () => queryClient.invalidateQueries({ queryKey: ['remark-presets'] });
 
-  return { presets, loading, refetch: fetchPresets };
+  return { presets, loading: isLoading, refetch };
 }

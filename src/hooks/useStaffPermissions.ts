@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -18,27 +18,25 @@ const defaultPermissions: StaffPermissions = {
   can_release_documents: true,
 };
 
+const adminPermissions: StaffPermissions = {
+  can_edit_completed_documents: true,
+  can_view_customer_info: true,
+  can_add_remarks: true,
+  can_batch_process: true,
+  can_release_documents: true,
+};
+
 export function useStaffPermissions() {
   const { role } = useAuth();
-  const [permissions, setPermissions] = useState<StaffPermissions>(defaultPermissions);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchPermissions = async () => {
-      // Admins have all permissions
-      if (role === 'admin') {
-        setPermissions({
-          can_edit_completed_documents: true,
-          can_view_customer_info: true,
-          can_add_remarks: true,
-          can_batch_process: true,
-          can_release_documents: true,
-        });
-        setLoading(false);
-        return;
-      }
+  const { data: permissions = defaultPermissions, isLoading } = useQuery<StaffPermissions>({
+    queryKey: ['staff-permissions', role],
+    enabled: !!role,
+    staleTime: 10 * 60 * 1000, // 10m — permissions change rarely
+    gcTime: 30 * 60 * 1000,
+    queryFn: async () => {
+      if (role === 'admin') return adminPermissions;
 
-      // Staff gets permissions from database
       if (role === 'staff') {
         const { data, error } = await supabase
           .from('staff_permissions')
@@ -52,15 +50,12 @@ export function useStaffPermissions() {
               perms[key] = p.is_enabled;
             }
           });
-          setPermissions(perms);
+          return perms;
         }
       }
-      
-      setLoading(false);
-    };
+      return defaultPermissions;
+    },
+  });
 
-    fetchPermissions();
-  }, [role]);
-
-  return { permissions, loading };
+  return { permissions, loading: isLoading };
 }
