@@ -271,7 +271,7 @@ export const useAdminDocumentNotifications = () => {
         supabase.removeChannel(updateChannelRef.current);
       }
     };
-  }, [user, isAdminOrStaff, handleNewDocument, handleDocumentPending, role, assignedScanTypes]);
+  }, [user, isAdminOrStaff, handleNewDocument, handleDocumentPending, role, assignedScanTypes, queryClient]);
 
   return {
     isAdminOrStaff,
