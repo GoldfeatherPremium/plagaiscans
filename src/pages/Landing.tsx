@@ -59,8 +59,10 @@ const Landing = () => {
     },
   ];
 
-  const aiBullets = t("report.aiBullets", { returnObjects: true }) as string[];
-  const simBullets = t("report.simBullets", { returnObjects: true }) as string[];
+  const aiBulletsRaw = t("report.aiBullets", { returnObjects: true });
+  const simBulletsRaw = t("report.simBullets", { returnObjects: true });
+  const aiBullets = (Array.isArray(aiBulletsRaw) ? aiBulletsRaw : []) as string[];
+  const simBullets = (Array.isArray(simBulletsRaw) ? simBulletsRaw : []) as string[];
 
   const trust = [
     { icon: Shield, title: t("trust.privacyTitle"), desc: t("trust.privacyDesc") },
