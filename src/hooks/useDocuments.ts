@@ -192,7 +192,8 @@ export const useDocuments = () => {
     enabled: !!user,
     staleTime: 3 * 60 * 1000,   // 3 minutes — switching between dashboard pages serves from cache
     gcTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: role === 'staff' || role === 'admin',
+    refetchInterval: (role === 'staff' || role === 'admin') ? 60_000 : false,
   });
 
   // Optimistic helper writes directly into the React Query cache so every page
@@ -758,13 +759,12 @@ export const useDocuments = () => {
   };
 
   // Real-time subscription — invalidates the shared cache so all subscribed pages refresh.
-  // Channel name MUST be unique per subscriber instance, otherwise Supabase JS rejects
-  // duplicate channels when the hook is mounted by multiple components simultaneously
-  // (e.g., DocumentQueue + NotificationBell), causing realtime events to silently drop.
+  // Channel name is stable per user; Supabase JS multiplexes multiple `.on()` handlers
+  // on a shared channel name within a single client, so concurrent mounts are fine.
   useEffect(() => {
     if (!user) return;
 
-    const channelName = `documents-changes-${user.id}-${Math.random().toString(36).slice(2, 10)}`;
+    const channelName = `documents-changes-${user.id}`;
     const channel = supabase
       .channel(channelName)
       .on(

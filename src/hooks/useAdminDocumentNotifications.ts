@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePushNotifications } from './usePushNotifications';
@@ -10,6 +11,7 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 export const useAdminDocumentNotifications = () => {
   const { user, role } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { sendLocalNotification, requestPermission } = usePushNotifications();
   const { playSound } = useNotificationSound();
   const hasRequestedPermission = useRef(false);
@@ -145,6 +147,12 @@ export const useAdminDocumentNotifications = () => {
           },
           async (payload) => {
             console.log('[AdminNotify] INSERT event received:', payload);
+
+            // Cross-invalidate the document list caches so admin/staff queue UIs
+            // refresh even if their own subscription is mid-rejoin.
+            queryClient.invalidateQueries({ queryKey: ['documents'] });
+            queryClient.invalidateQueries({ queryKey: ['similarity-documents'] });
+
             const newDoc = payload.new;
             const fileName = newDoc?.file_name;
             const userId = newDoc?.user_id;
