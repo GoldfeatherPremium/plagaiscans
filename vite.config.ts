@@ -181,6 +181,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === "development" && componentTagger(),
+    autoSitemapPlugin(),
     spaPrerenderPlugin(),
     VitePWA({
       // DISABLE auto service worker generation - we use our own public/sw.js
