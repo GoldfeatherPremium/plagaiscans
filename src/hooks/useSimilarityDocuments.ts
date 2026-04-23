@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
@@ -34,78 +35,91 @@ export interface SimilarityDocument {
 
 export const useSimilarityDocuments = () => {
   const { user, role, refreshProfile } = useAuth();
-  const [documents, setDocuments] = useState<SimilarityDocument[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const queryKey = ['similarity-documents', user?.id, role] as const;
 
-  const fetchDocuments = useCallback(async () => {
-    if (!user) return;
+  const { data: documents = [], isLoading: loading, refetch } = useQuery<SimilarityDocument[]>({
+    queryKey,
+    enabled: !!user && !!role,
+    staleTime: 3 * 60 * 1000, // 3 minutes — matches useDocuments
+    gcTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      if (!user) return [];
 
-    try {
       let query = supabase
         .from('documents')
         .select('*')
         .eq('scan_type', 'similarity_only')
         .order('uploaded_at', { ascending: false })
-        .limit(50000);
+        .limit(1000);
 
-      // Filter based on role
       if (role === 'customer') {
         query = query.eq('user_id', user.id);
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
 
       const docs = data || [];
-      
-      // Collect all unique user IDs and staff IDs for batch fetch
-      const userIds = new Set<string>();
-      const staffIds = new Set<string>();
-      
-      docs.forEach(doc => {
-        if (doc.user_id) userIds.add(doc.user_id);
-        if (doc.assigned_staff_id) staffIds.add(doc.assigned_staff_id);
-      });
 
-      // Combine all unique IDs and fetch profiles in ONE query
-      const allIds = [...new Set([...userIds, ...staffIds])];
-      
-      let profilesMap: Record<string, { email: string; full_name: string | null }> = {};
-      
+      // Batch fetch all profiles (user_id + assigned_staff_id) in ONE query
+      const allIds = Array.from(
+        new Set(
+          docs.flatMap(d => [d.user_id, d.assigned_staff_id]).filter((v): v is string => !!v)
+        )
+      );
+
+      const profilesMap: Record<string, { email: string; full_name: string | null }> = {};
       if (allIds.length > 0) {
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('id, email, full_name')
           .in('id', allIds);
-        
-        if (profilesData) {
-          profilesData.forEach(p => {
-            profilesMap[p.id] = { email: p.email, full_name: p.full_name };
-          });
-        }
+        profilesData?.forEach(p => {
+          profilesMap[p.id] = { email: p.email, full_name: p.full_name };
+        });
       }
 
-      // Map profiles to documents
-      const documentsWithProfiles = docs.map(doc => ({
+      return docs.map(doc => ({
         ...doc,
         scan_type: 'similarity_only' as const,
         profile: doc.user_id ? profilesMap[doc.user_id] || null : null,
         staff_profile: doc.assigned_staff_id ? profilesMap[doc.assigned_staff_id] || null : null,
-      }));
+      })) as SimilarityDocument[];
+    },
+  });
 
-      setDocuments(documentsWithProfiles);
-    } catch (error) {
-      console.error('Error fetching similarity documents:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user, role]);
+  const fetchDocuments = async () => {
+    await refetch();
+  };
+
+  // Realtime invalidation — debounced via React Query's request dedup
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('similarity-documents-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'documents',
+          filter: 'scan_type=eq.similarity_only',
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['similarity-documents'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, queryClient]);
 
   const uploadSimilarityDocument = async (file: File, exclusions?: { exclude_bibliography?: boolean; exclude_quotes?: boolean; exclude_small_sources?: boolean }): Promise<void> => {
     if (!user) throw new Error('Not authenticated');
 
-    // Check similarity credits
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('similarity_credit_balance')
@@ -120,7 +134,6 @@ export const useSimilarityDocuments = () => {
       throw new Error('Insufficient similarity credits');
     }
 
-    // Check if user has non-expired credit validity records with remaining credits
     const { data: validCredits } = await supabase
       .from('credit_validity')
       .select('remaining_credits')
@@ -136,7 +149,6 @@ export const useSimilarityDocuments = () => {
       throw new Error('Your similarity credits have expired. Please purchase new credits to continue.');
     }
 
-    // Upload file to storage - sanitize filename to avoid invalid key errors from special characters
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     const safeExt = fileExt ? fileExt : 'bin';
     const filePath = `${user.id}/${Date.now()}.${safeExt}`;
@@ -146,7 +158,6 @@ export const useSimilarityDocuments = () => {
 
     if (uploadError) throw uploadError;
 
-    // Create document record with scan_type = 'similarity_only'
     const { error: insertError } = await supabase.from('documents').insert({
       user_id: user.id,
       file_name: file.name,
@@ -159,12 +170,10 @@ export const useSimilarityDocuments = () => {
     });
 
     if (insertError) {
-      // Rollback: delete uploaded file
       await supabase.storage.from('documents').remove([filePath]);
       throw insertError;
     }
 
-    // Deduct similarity credit atomically via server-side RPC (FIFO + transaction logging)
     const { data: creditResultRaw, error: creditError } = await supabase.rpc('consume_user_credit', {
       p_user_id: user.id,
       p_credit_type: 'similarity_only',
@@ -174,16 +183,14 @@ export const useSimilarityDocuments = () => {
     const creditResult = creditResultRaw as { success: boolean; error?: string } | null;
 
     if (creditError || !creditResult?.success) {
-      // Rollback: delete uploaded file and document
       await supabase.storage.from('documents').remove([filePath]);
       const errMsg = creditError?.message || creditResult?.error || 'Credit deduction failed';
       throw new Error(errMsg);
     }
 
     await refreshProfile();
-    await fetchDocuments();
+    queryClient.invalidateQueries({ queryKey: ['similarity-documents'] });
 
-    // Notify customer if similarity credits hit zero (non-critical)
     try {
       await supabase.functions.invoke('notify-zero-credits', {
         body: { userId: user.id, creditType: 'similarity_only' },
@@ -201,24 +208,16 @@ export const useSimilarityDocuments = () => {
   ): Promise<void> => {
     if (!user) throw new Error('Not authenticated');
 
-    console.log('uploadSimilarityReport called:', { documentId, fileName: similarityReport.name, similarityPercentage });
-
-    // Upload similarity report
     const reportPath = `${documentId}/similarity_${Date.now()}_${similarityReport.name}`;
-    console.log('Uploading to path:', reportPath);
-    
+
     const { error: uploadError } = await supabase.storage
       .from('reports')
       .upload(reportPath, similarityReport);
 
     if (uploadError) {
-      console.error('Storage upload error:', uploadError);
       throw new Error(`Storage upload failed: ${uploadError.message}`);
     }
-    
-    console.log('File uploaded successfully, updating document record...');
 
-    // Update document
     const { error: updateError } = await supabase
       .from('documents')
       .update({
@@ -231,13 +230,9 @@ export const useSimilarityDocuments = () => {
       .eq('id', documentId);
 
     if (updateError) {
-      console.error('Document update error:', updateError);
       throw new Error(`Document update failed: ${updateError.message}`);
     }
 
-    console.log('Document updated successfully, logging activity...');
-
-    // Log activity
     await supabase.from('activity_logs').insert({
       staff_id: user.id,
       document_id: documentId,
@@ -249,7 +244,7 @@ export const useSimilarityDocuments = () => {
       description: 'Similarity report has been uploaded successfully',
     });
 
-    await fetchDocuments();
+    queryClient.invalidateQueries({ queryKey: ['similarity-documents'] });
   };
 
   const deleteSimilarityDocument = async (
@@ -260,13 +255,11 @@ export const useSimilarityDocuments = () => {
     if (!user) throw new Error('Not authenticated');
 
     try {
-      // Delete tag assignments first (foreign key constraint)
       await supabase
         .from('document_tag_assignments')
         .delete()
         .eq('document_id', documentId);
 
-      // Delete original file from storage
       const { error: fileError } = await supabase.storage
         .from('documents')
         .remove([filePath]);
@@ -275,7 +268,6 @@ export const useSimilarityDocuments = () => {
         console.error('Error deleting original file:', fileError);
       }
 
-      // Delete similarity report if exists
       if (similarityReportPath) {
         const { error: reportError } = await supabase.storage
           .from('reports')
@@ -286,7 +278,6 @@ export const useSimilarityDocuments = () => {
         }
       }
 
-      // Delete document record
       const { error: deleteError } = await supabase
         .from('documents')
         .delete()
@@ -299,21 +290,19 @@ export const useSimilarityDocuments = () => {
         description: 'Document has been deleted successfully',
       });
 
-      await fetchDocuments();
+      queryClient.invalidateQueries({ queryKey: ['similarity-documents'] });
     } catch (error) {
       console.error('Error deleting document:', error);
       throw error;
     }
   };
 
-  // Cancel similarity document (admin only) - refunds credit to customer
   const cancelSimilarityDocument = async (
     documentId: string,
     cancellationReason: string,
     adminUserId: string
   ) => {
     try {
-      // 1. Fetch document details
       const { data: docData, error: fetchError } = await supabase
         .from('documents')
         .select('*')
@@ -324,7 +313,6 @@ export const useSimilarityDocuments = () => {
         throw new Error('Document not found');
       }
 
-      // Fetch profile info separately if user_id exists
       let profileInfo: { email?: string; full_name?: string } | null = null;
       if (docData.user_id) {
         const { data: profile } = await supabase
@@ -335,14 +323,11 @@ export const useSimilarityDocuments = () => {
         profileInfo = profile;
       }
 
-      // Only allow cancellation of pending/in_progress documents
       if (docData.status !== 'pending' && docData.status !== 'in_progress') {
         throw new Error('Only pending or in-progress documents can be cancelled');
       }
 
-      // 2. Handle credit refund for registered user
       if (docData.user_id) {
-        // Get current similarity balance
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('similarity_credit_balance')
@@ -356,7 +341,6 @@ export const useSimilarityDocuments = () => {
         const currentBalance = profileData.similarity_credit_balance;
         const newBalance = currentBalance + 1;
 
-        // Update balance
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ similarity_credit_balance: newBalance })
@@ -364,7 +348,6 @@ export const useSimilarityDocuments = () => {
 
         if (updateError) throw updateError;
 
-        // Log credit transaction
         await supabase.from('credit_transactions').insert({
           user_id: docData.user_id,
           amount: 1,
@@ -376,7 +359,6 @@ export const useSimilarityDocuments = () => {
           performed_by: adminUserId,
         });
 
-        // Create user notification
         await supabase.from('user_notifications').insert({
           user_id: docData.user_id,
           title: 'Document Cancelled',
@@ -385,23 +367,19 @@ export const useSimilarityDocuments = () => {
         });
       }
 
-      // 3. Delete files from storage
       if (docData.file_path) {
         await supabase.storage.from('documents').remove([docData.file_path]);
       }
 
-      // Delete similarity report if exists
       if (docData.similarity_report_path) {
         await supabase.storage.from('reports').remove([docData.similarity_report_path]);
       }
 
-      // 4. Delete tag assignments
       await supabase
         .from('document_tag_assignments')
         .delete()
         .eq('document_id', documentId);
 
-      // 5. Update document status to cancelled
       const { error: cancelError } = await supabase
         .from('documents')
         .update({
@@ -415,7 +393,6 @@ export const useSimilarityDocuments = () => {
 
       if (cancelError) throw cancelError;
 
-      // 6. Log to deleted_documents_log
       await supabase.from('deleted_documents_log').insert({
         original_document_id: documentId,
         user_id: docData.user_id,
@@ -432,7 +409,7 @@ export const useSimilarityDocuments = () => {
         customer_name: profileInfo?.full_name || null,
       });
 
-      await fetchDocuments();
+      queryClient.invalidateQueries({ queryKey: ['similarity-documents'] });
 
       toast({
         title: 'Document Cancelled',
@@ -450,33 +427,6 @@ export const useSimilarityDocuments = () => {
       return { success: false };
     }
   };
-
-  useEffect(() => {
-    fetchDocuments();
-  }, [fetchDocuments]);
-
-  // Set up realtime subscription
-  useEffect(() => {
-    const channel = supabase
-      .channel('similarity-documents-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'documents',
-          filter: 'scan_type=eq.similarity_only',
-        },
-        () => {
-          fetchDocuments();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchDocuments]);
 
   return {
     documents,
