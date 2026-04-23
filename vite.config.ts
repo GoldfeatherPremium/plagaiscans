@@ -7,6 +7,7 @@ import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
+import { visualizer } from "rollup-plugin-visualizer";
 import { PRERENDER_READY_EVENT, PRERENDER_ROUTES } from "./src/lib/prerender";
 import { buildSitemapXml } from "./src/lib/sitemap-routes";
 
