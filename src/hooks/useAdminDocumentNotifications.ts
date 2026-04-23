@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePushNotifications } from './usePushNotifications';
@@ -8,6 +9,7 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 
 export const useAdminDocumentNotifications = () => {
   const { user, role } = useAuth();
+  const navigate = useNavigate();
   const { sendLocalNotification, requestPermission } = usePushNotifications();
   const { playSound } = useNotificationSound();
   const hasRequestedPermission = useRef(false);
@@ -82,7 +84,11 @@ export const useAdminDocumentNotifications = () => {
       action: {
         label: 'View Queue',
         onClick: () => {
-          window.location.href = queueUrl;
+          // Use SPA navigation to avoid full reload
+          const path = queueUrl.startsWith(window.location.origin)
+            ? queueUrl.slice(window.location.origin.length)
+            : queueUrl;
+          navigate(path);
         },
       },
     });
@@ -93,7 +99,7 @@ export const useAdminDocumentNotifications = () => {
       tag: `doc-upload-${Date.now()}`,
       requireInteraction: true,
     });
-  }, [sendLocalNotification, playSound]);
+  }, [sendLocalNotification, playSound, navigate]);
 
   const handleDocumentPending = useCallback((fileName: string) => {
     console.log('[AdminNotify] Document pending notification:', fileName);

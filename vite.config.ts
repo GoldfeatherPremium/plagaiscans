@@ -7,6 +7,7 @@ import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
+import { visualizer } from "rollup-plugin-visualizer";
 import { PRERENDER_READY_EVENT, PRERENDER_ROUTES } from "./src/lib/prerender";
 import { buildSitemapXml } from "./src/lib/sitemap-routes";
 
@@ -260,6 +261,13 @@ export default defineConfig(({ mode }) => ({
         enabled: false, // Disable SW in dev to avoid caching issues
       },
     }),
+    // Bundle analyzer: produces dist/stats.html after `vite build`. No runtime cost.
+    visualizer({
+      filename: "dist/stats.html",
+      template: "treemap",
+      gzipSize: true,
+      brotliSize: true,
+    }) as Plugin,
   ].filter(Boolean),
   resolve: {
     alias: {
@@ -267,14 +275,48 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    // Raise warning threshold so the analyzer's own report doesn't dominate logs.
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Separate vendor chunks to reduce main bundle size
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-popover', '@radix-ui/react-tooltip', '@radix-ui/react-tabs', '@radix-ui/react-select'],
-          'vendor-supabase': ['@supabase/supabase-js'],
+        manualChunks: (id) => {
+          if (!id.includes('node_modules')) return undefined;
+
+          // Heavy charting library — only loaded by admin/staff analytics pages.
+          // Splitting it out keeps it OUT of the entry chunk and shared across
+          // the 8 routes that import it (instead of being duplicated).
+          if (id.includes('/recharts/') || id.includes('/d3-')) return 'vendor-recharts';
+
+          // Heavy archive lib — used only by bulk upload + extension download routes.
+          if (id.includes('/jszip/')) return 'vendor-jszip';
+
+          // i18n stack — initialized at startup but doesn't have to live in the
+          // entry chunk; keeping it separate enables long-term caching.
+          if (id.includes('/i18next') || id.includes('/react-i18next')) return 'vendor-i18n';
+
+          // Helmet + date-fns are widely used across pages; isolate for caching.
+          if (id.includes('/react-helmet')) return 'vendor-helmet';
+          if (id.includes('/date-fns/')) return 'vendor-date-fns';
+
+          // Form/validation stack
+          if (
+            id.includes('/react-hook-form') ||
+            id.includes('/@hookform/') ||
+            id.includes('/zod/')
+          ) return 'vendor-forms';
+
+          // Existing groupings
+          if (
+            id.includes('/react/') ||
+            id.includes('/react-dom/') ||
+            id.includes('/react-router-dom/') ||
+            id.includes('/scheduler/')
+          ) return 'vendor-react';
+          if (id.includes('/@tanstack/react-query')) return 'vendor-query';
+          if (id.includes('/@radix-ui/')) return 'vendor-ui';
+          if (id.includes('/@supabase/')) return 'vendor-supabase';
+
+          return undefined;
         },
       },
     },
