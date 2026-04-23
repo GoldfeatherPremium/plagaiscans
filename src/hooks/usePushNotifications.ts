@@ -15,6 +15,34 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+// Derive a coarse platform label for diagnostics from a User-Agent string.
+// Returned values: 'ios-pwa' | 'ios-safari' | 'android-chrome' | 'android-samsung'
+//                | 'desktop-chrome' | 'desktop-edge' | 'desktop-firefox'
+//                | 'desktop-safari' | 'desktop-opera' | 'desktop-brave' | 'other'
+function detectPlatform(ua: string): string {
+  if (typeof window === 'undefined' || !ua) return 'other';
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  const isAndroid = /Android/i.test(ua);
+  const isStandalone =
+    (typeof window !== 'undefined' &&
+      window.matchMedia?.('(display-mode: standalone)').matches) ||
+    (window.navigator as any).standalone === true;
+
+  if (isIOS) return isStandalone ? 'ios-pwa' : 'ios-safari';
+  if (isAndroid) {
+    if (/SamsungBrowser/i.test(ua)) return 'android-samsung';
+    return 'android-chrome';
+  }
+  // Desktop
+  if (/Edg\//i.test(ua)) return 'desktop-edge';
+  if (/OPR\//i.test(ua) || /Opera/i.test(ua)) return 'desktop-opera';
+  if (/Firefox\//i.test(ua)) return 'desktop-firefox';
+  if (/Brave/i.test(ua) || (navigator as any).brave) return 'desktop-brave';
+  if (/Chrome\//i.test(ua)) return 'desktop-chrome';
+  if (/Safari\//i.test(ua)) return 'desktop-safari';
+  return 'other';
+}
+
 // Check if browser supports push notifications (Safari requires specific checks)
 const checkPushSupport = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -239,30 +267,30 @@ export const usePushNotifications = () => {
       const endpoint = pushSubscription.endpoint;
       const p256dh = subscriptionJson.keys?.p256dh || '';
       const auth = subscriptionJson.keys?.auth || '';
+      const userAgent = navigator.userAgent;
+      const platform = detectPlatform(userAgent);
 
-      // Delete ALL existing subscriptions for this user to prevent bloat
-      // A user should only have one active push endpoint at a time
-      const { error: deleteError } = await supabase
+      // UPSERT: keep multi-device subscriptions (desktop + phone + tablet) per user.
+      // Unique constraint on (user_id, endpoint) ensures we update in place if the
+      // same browser re-subscribes, while leaving other devices untouched.
+      const { error: upsertError } = await supabase
         .from('push_subscriptions')
-        .delete()
-        .eq('user_id', user.id);
+        .upsert(
+          {
+            user_id: user.id,
+            endpoint,
+            p256dh,
+            auth,
+            user_agent: userAgent,
+            platform,
+            last_seen_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,endpoint' }
+        );
 
-      if (deleteError) {
-        console.warn('Failed to clean old subscriptions:', deleteError);
-      }
-
-      // Insert new subscription
-      const { error: insertError } = await supabase
-        .from('push_subscriptions')
-        .insert({
-          user_id: user.id,
-          endpoint,
-          p256dh,
-          auth,
-        });
-
-      if (insertError) throw insertError;
-      console.log('Subscription saved to database (old entries cleaned)');
+      if (upsertError) throw upsertError;
+      console.log('Subscription saved to database (multi-device aware)');
 
       setSubscription(pushSubscription);
       setIsSubscribed(true);

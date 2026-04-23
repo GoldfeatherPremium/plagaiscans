@@ -1,8 +1,8 @@
 // Service Worker for Push Notifications ONLY
-// Version 5 - HARD FIX: Navigation requests are NEVER intercepted
-// Offline page is NEVER served for HTML/page loads
+// Version 7 - Adds pushsubscriptionchange handler for endpoint rotation
+// Navigation requests are NEVER intercepted; offline page is NEVER served
 
-const SW_VERSION = 'v6';
+const SW_VERSION = 'v7';
 const STATIC_CACHE_NAME = `plagaiscans-static-${SW_VERSION}`;
 
 // Cache static assets and key JS/CSS bundles
@@ -11,6 +11,11 @@ const STATIC_ASSETS = [
   '/pwa-icon-512.png',
   '/favicon.png',
 ];
+
+// Supabase project ref for calling edge functions from the SW
+const SUPABASE_PROJECT_REF = 'fyssbzgmhnolazjfwafm';
+const RESUBSCRIBE_URL = `https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/push-resubscribe`;
+const VAPID_KEY_URL = `https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/get-vapid-public-key`;
 
 // Install - cache only static assets
 self.addEventListener('install', (event) => {
@@ -28,7 +33,6 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((names) =>
       Promise.all(
         names.map((name) => {
-          // Delete ALL caches except current static cache
           if (name !== STATIC_CACHE_NAME) {
             console.log(`[SW ${SW_VERSION}] Deleting old cache:`, name);
             return caches.delete(name);
@@ -47,21 +51,16 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
 
   // 1️⃣ NAVIGATION REQUESTS: NEVER INTERCEPT
-  // Let browser handle directly - no cache, no offline page
   if (request.mode === 'navigate') {
-    // Do NOT call event.respondWith() - browser handles natively
     return;
   }
 
-  // Skip non-GET
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
 
-  // Skip cross-origin requests
   if (url.origin !== self.location.origin) return;
 
-  // Skip API/backend requests
   if (url.pathname.startsWith('/api/') ||
       url.pathname.startsWith('/rest/') ||
       url.pathname.startsWith('/functions/') ||
@@ -71,16 +70,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip HTML files entirely
   if (url.pathname.endsWith('.html') || url.pathname === '/' || !url.pathname.includes('.')) {
     return;
   }
 
-  // Cache-first for static assets (images, fonts, JS, CSS bundles)
   if (isStaticAsset(url.pathname) || isBundleAsset(url.pathname)) {
     event.respondWith(cacheFirstStatic(request));
   }
-  // Everything else: network only (no interception)
 });
 
 function isStaticAsset(pathname) {
@@ -118,12 +114,11 @@ async function cacheFirstStatic(request) {
     }
     return response;
   } catch {
-    // Return empty response for failed static assets
     return new Response('', { status: 404 });
   }
 }
 
-// Push notification handling - Enhanced for reliability and sound
+// Push notification handling
 self.addEventListener('push', (event) => {
   console.log(`[SW ${SW_VERSION}] Push received`);
 
@@ -144,9 +139,8 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  // Use unique tag from payload, or generate one to prevent notifications replacing each other
   const notificationTag = data.tag || `notif-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-  
+
   console.log(`[SW ${SW_VERSION}] Showing notification with tag: ${notificationTag}`);
 
   event.waitUntil(
@@ -154,18 +148,15 @@ self.addEventListener('push', (event) => {
       body: data.body,
       icon: data.icon || '/pwa-icon-192.png',
       badge: data.badge || '/pwa-icon-192.png',
-      // Enhanced vibration pattern - more aggressive for attention
       vibrate: [200, 100, 200, 100, 200],
       data: data.data || {},
       actions: [
         { action: 'open', title: 'Open App' },
         { action: 'close', title: 'Dismiss' },
       ],
-      // Keep notification visible until user interacts
       requireInteraction: true,
       tag: notificationTag,
       renotify: true,
-      // Explicitly request sound (supported in some browsers)
       silent: false,
     })
   );
@@ -187,6 +178,80 @@ self.addEventListener('notificationclick', (event) => {
       }
       return clients.openWindow(event.notification.data?.url || '/dashboard');
     })
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────
+// pushsubscriptionchange — re-subscribe when the browser rotates
+// the endpoint (common on Chrome Android, FCM key rotations, etc.)
+// ─────────────────────────────────────────────────────────────────
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+async function fetchVapidKey() {
+  const cache = await caches.open(STATIC_CACHE_NAME);
+  const cachedRes = await cache.match(VAPID_KEY_URL);
+  if (cachedRes) {
+    try {
+      const json = await cachedRes.clone().json();
+      if (json?.vapidPublicKey) return json.vapidPublicKey;
+    } catch {
+      // fall through to refetch
+    }
+  }
+  const res = await fetch(VAPID_KEY_URL);
+  if (!res.ok) throw new Error(`VAPID key fetch failed: ${res.status}`);
+  // Cache for next rotation event
+  cache.put(VAPID_KEY_URL, res.clone()).catch(() => {});
+  const json = await res.json();
+  if (!json?.vapidPublicKey) throw new Error('VAPID key missing in response');
+  return json.vapidPublicKey;
+}
+
+self.addEventListener('pushsubscriptionchange', (event) => {
+  console.log(`[SW ${SW_VERSION}] pushsubscriptionchange fired`);
+
+  event.waitUntil(
+    (async () => {
+      try {
+        const oldEndpoint = event.oldSubscription?.endpoint || null;
+        const vapidKey = await fetchVapidKey();
+
+        const newSub = await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        });
+
+        const subJson = newSub.toJSON();
+
+        await fetch(RESUBSCRIBE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            oldEndpoint,
+            newSubscription: {
+              endpoint: newSub.endpoint,
+              keys: subJson.keys || {},
+            },
+            userAgent: self.navigator?.userAgent ?? null,
+            platform: null,
+          }),
+        });
+
+        console.log(`[SW ${SW_VERSION}] Re-subscribed and notified backend`);
+      } catch (err) {
+        console.error(`[SW ${SW_VERSION}] pushsubscriptionchange failed:`, err);
+      }
+    })()
   );
 });
 

@@ -128,3 +128,6 @@ verify_jwt = false
 
 [functions.send-support-reply-email]
 verify_jwt = false
+
+[functions.push-resubscribe]
+verify_jwt = false
