@@ -290,9 +290,13 @@ export default defineConfig(({ mode }) => ({
           // Heavy archive lib — used only by bulk upload + extension download routes.
           if (id.includes('/jszip/')) return 'vendor-jszip';
 
-          // i18n stack — initialized at startup but doesn't have to live in the
-          // entry chunk; keeping it separate enables long-term caching.
-          if (id.includes('/i18next') || id.includes('/react-i18next')) return 'vendor-i18n';
+          // Keep react-i18next with the React vendor chunk.
+          // Splitting it into a separate startup chunk can initialize it before
+          // React is ready in production, causing:
+          //   "Cannot read properties of undefined (reading 'createContext')"
+          // and leaving the app stuck on the loading shell.
+          if (id.includes('/react-i18next')) return 'vendor-react';
+          if (id.includes('/i18next') || id.includes('/i18next-browser-languagedetector') || id.includes('/i18next-http-backend')) return 'vendor-i18n';
 
           // NOTE: do NOT split react-helmet-async into its own chunk.
           // It has a TDZ/circular-dep issue when it initializes before its
