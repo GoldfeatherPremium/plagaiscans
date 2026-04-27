@@ -209,6 +209,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (emailError) {
         console.error('Failed to send welcome email:', emailError);
       }
+
+      // Sync new user to SendFox promotional channel (separate from SendPulse).
+      // Fire-and-forget; profile row may take a moment to be created by the trigger.
+      setTimeout(() => triggerSendfoxSync(data.user!.id), 1500);
     }
     
     return { error };
