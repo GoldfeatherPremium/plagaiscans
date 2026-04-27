@@ -1,105 +1,106 @@
+# SendFox Promotional Email Integration
 
+Adds SendFox as the dedicated promotional email channel, fully isolated from the existing SendPulse transactional pipeline. Customer records sync automatically with behavioural tags; unsubscribes flow back into a shared suppression list that only promotional sends respect.
 
-## Goal
-Make `/`, `/pricing`, `/about-us`, `/contact`, `/terms-and-conditions`, `/privacy-policy`, `/refund-policy`, and `/academic-integrity` return real, crawlable HTML — with content, meta tags, and a `<noscript>` fallback — instead of an empty React shell.
+## Architecture
 
-## Constraint that shapes the approach
-Lovable hosts static files only (no Node SSR, no per-request rendering). True runtime SSR is not possible. The correct fix is **build-time prerendering (SSG)**: at `vite build`, render each listed route to its own static HTML file (`/pricing/index.html`, `/contact/index.html`, etc.). Lovable's static host then serves real HTML for every URL, and React hydrates on top.
-
-## What gets built
-
-### 1. Add a prerender step to the Vite build
-- Install `vite-plugin-prerender` (Puppeteer-based, runs after `vite build`).
-- Configure it with the exact public routes:
-  - `/`
-  - `/pricing`
-  - `/about-us`
-  - `/contact`
-  - `/terms-and-conditions`
-  - `/privacy-policy`
-  - `/refund-policy`
-  - `/academic-integrity`
-- Output: `dist/pricing/index.html`, `dist/contact/index.html`, etc. — each containing the fully rendered DOM, meta tags, and `<noscript>` block for that page.
-- React still hydrates normally after load; SPA navigation is unchanged.
-
-### 2. Per-route `<title>`, `<meta description>`, OG tags, canonical
-- The project already uses `react-helmet-async` and a shared `SEO` component (`src/components/SEO.tsx`).
-- Audit each of the 8 public pages and ensure each renders `<SEO ... canonicalUrl=... />` with a unique title, description, keywords, OG image, and canonical URL.
-- Pages already wired (verified): `RefundPolicy`, `TermsAndConditions`. Pages to audit/fix: `Landing`, `Pricing`, `AboutUs`, `Contact`, `PrivacyPolicy`, `AcademicIntegrity`.
-- Because prerender executes Helmet during the headless render, the final static HTML files will contain the correct `<title>` / `<meta>` / `<link rel="canonical">` baked in — visible to `curl` and crawlers.
-
-### 3. Add a `<noscript>` fallback inside each page
-- Add a `<NoScriptFallback>` block to each of the 8 public pages (rendered inside the page component, so prerender includes it). Content per page:
-  - **Landing**: product summary, key features, pricing teaser, links to all policy pages and contact.
-  - **Pricing**: plain-text plan list with per-credit pricing.
-  - **About**: company description (Plagaiscans Technologies Ltd, UK).
-  - **Contact**: support email, WhatsApp number, address.
-  - **Terms / Privacy / Refund / Academic Integrity**: the page's actual policy text in plain HTML.
-- All `<noscript>` blocks include a footer with anchor links to every other public page, so a no-JS crawler can follow the full site graph.
-
-### 4. Replace the generic loading skeleton in `index.html`
-- The current `<div id="root">` skeleton is generic ("Plagaiscans" + spinner). Replace it with a minimal site-wide `<noscript>` block containing the brand description and links to all 8 public pages, so even routes that aren't prerendered still expose crawlable text.
-
-### 5. Sitemap & robots sanity check
-- Verify `public/sitemap.xml` lists all 8 prerendered routes with correct canonical URLs.
-- Verify `public/robots.txt` allows indexing and references the sitemap.
-
-## Technical details
-
-### Files changed / added
 ```text
-vite.config.ts                              add vite-plugin-prerender + route list
-package.json                                add vite-plugin-prerender (devDep)
-index.html                                  replace skeleton with site-wide <noscript>
-src/components/NoScriptFallback.tsx         new — per-page text fallback component
-src/pages/Landing.tsx                       add <SEO> + <NoScriptFallback>
-src/pages/Pricing.tsx                       add <SEO> + <NoScriptFallback>
-src/pages/AboutUs.tsx                       add <SEO> + <NoScriptFallback>
-src/pages/Contact.tsx                       add <SEO> + <NoScriptFallback>
-src/pages/PrivacyPolicy.tsx                 add <NoScriptFallback>
-src/pages/TermsAndConditions.tsx            add <NoScriptFallback>
-src/pages/RefundPolicy.tsx                  add <NoScriptFallback>
-src/pages/AcademicIntegrity.tsx             add <SEO> + <NoScriptFallback>
-public/sitemap.xml                          verify all 8 routes present
+                    ┌─────────────────────────────┐
+   profile change ─►│ sync-contact-to-sendfox     │──► SendFox API
+   admin "resync"  ─►│  (idempotent, tag compute) │
+                    └──────────┬──────────────────┘
+                               │ writes
+                    ┌──────────▼──────────┐
+                    │ sendfox_contacts    │
+                    │ sendfox_sync_log    │
+                    └─────────────────────┘
+
+   SendFox webhooks ──► sendfox-webhook ──► email_suppressions
+                                            (promotional only)
+
+   SendPulse transactional pipeline: UNTOUCHED — always sends.
 ```
 
-### Build-time flow
-```text
-vite build
-   │
-   ├─ produces dist/index.html + JS bundles (as today)
-   │
-   └─ vite-plugin-prerender (post-build hook)
-         │
-         ├─ launches headless Chromium, loads dist/index.html
-         ├─ visits each configured route in-app
-         ├─ waits for Helmet + page render
-         └─ writes:
-              dist/index.html              (Landing, fully rendered)
-              dist/pricing/index.html
-              dist/about-us/index.html
-              dist/contact/index.html
-              dist/terms-and-conditions/index.html
-              dist/privacy-policy/index.html
-              dist/refund-policy/index.html
-              dist/academic-integrity/index.html
-```
+## Database migration
 
-### Verification after deploy
-```text
-curl https://plagaiscans.com/pricing
-   → returns full HTML with pricing copy, <title>Pricing | Plagaiscans</title>,
-     canonical link, OG tags, and <noscript> fallback.
+New tables (RLS via existing `has_role(auth.uid(), 'admin')` helper, not `auth.jwt() ->> 'role'`):
 
-curl https://plagaiscans.com/contact
-   → returns full HTML with support email + WhatsApp visible in body.
-```
+- `sendfox_contacts` — `user_id` PK → `auth.users`, `sendfox_contact_id`, `email`, `current_tags text[]`, `last_synced_at`, `sync_status`.
+- `email_suppressions` — `email` unique, `reason` (`user_unsubscribe|bounce|complaint|manual`), `source`, `created_at`. Shared across future promo channels.
+- `sendfox_sync_log` — append-only audit (`user_id`, `email`, `action`, `status`, `error`, `created_at`).
 
-### Out of scope / not possible on Lovable static hosting
-- True per-request server rendering (Next.js-style SSR) — not supported on Lovable hosting; prerender at build time is the equivalent and gives identical SEO benefits for these 8 static pages.
-- Prerendering authenticated/dynamic pages (`/dashboard/*`, `/checkout`) — intentionally excluded; they remain client-rendered.
+Indexes on `lower(email)` and `created_at desc`. Admin-only RLS policies for full CRUD on contacts/suppressions and SELECT on log.
 
-## Expected outcome
-- `curl` on any of the 8 public URLs returns real HTML with the page's content, correct `<title>`, `<meta description>`, canonical URL, OG/Twitter tags, and a `<noscript>` text block — no empty `<div id="root">`.
-- Google, Bing, and social scrapers see full content immediately, no JS execution required.
-- React hydrates on load; user-facing navigation and behavior are unchanged.
+Note: the spec's `lifetime_spend`, `total_purchases`, `last_login_at` columns do not exist on `profiles`. Tag computation derives these inside the edge function:
+
+- `total_purchases` / `lifetime_spend` → aggregate from `invoices` where `status = 'paid'` for the user.
+- `last_login_at` → fall back to `auth.users.last_sign_in_at` (read via service role).
+
+## Edge function: `sync-contact-to-sendfox`
+
+Idempotent POST handler taking `{ user_id }`.
+
+1. Load `profiles` row (must have email).
+2. Short-circuit if email is in `email_suppressions` — log `skip_suppressed`, return.
+3. Compute aggregates (paid invoice sum/count) and pull `last_sign_in_at` via `supabase.auth.admin.getUserById`.
+4. Compute tag set: `customer|lead`, `low_credits` (<5), `high_value` (≥$100), `active` (≤7d), `inactive_30d` (≥30d or never).
+5. Look up existing `sendfox_contacts.sendfox_contact_id`. PATCH if found, else POST `/contacts` with `lists: [SENDFOX_LIST_ID]`.
+6. Upsert mapping row + `sendfox_sync_log` success entry.
+7. On error: log to `sendfox_sync_log` with `status=failed` and return 500.
+
+Uses `SENDFOX_ACCESS_TOKEN` Bearer auth against `https://api.sendfox.com`. Tags are stored locally; per spec, richer tag-as-list segmentation can be added later by creating SendFox lists per tag.
+
+## Edge function: `sendfox-webhook`
+
+Public POST endpoint (will deploy with `verify_jwt = false` in `supabase/config.toml`).
+
+- Verifies shared secret from `x-webhook-secret` header or `?secret=` query against `SENDFOX_WEBHOOK_SECRET`.
+- Parses event, normalises type → reason (`unsubscribe`/`bounce`/`complaint`).
+- Upserts into `email_suppressions` and logs.
+
+## Auto-sync wiring
+
+Per spec's fallback note (pg_net + GUC config not standard here), uses **application-level invocation** instead of a DB trigger. We add a tiny client helper `triggerSendfoxSync(userId)` that fires `supabase.functions.invoke('sync-contact-to-sendfox', ...)` and call it from:
+
+- Signup handler (after profile insert succeeds) in `AuthContext.signUp` and the Google OAuth completion path.
+- Successful payment webhooks (server-side): `paddle-webhook`, `dodo-webhook`, `paypal-webhook`, `nowpayments`, and the Stripe checkout success handler. We add a single `await fetch` call to the sync function at the end of the credit-grant block (failures are swallowed and logged — never block the payment flow).
+- Credit deduction path: after `consume_user_credit`, fire-and-forget sync (debounced client-side to avoid spam — only when balance crosses the <5 threshold).
+
+This keeps `SENDPULSE_*` env vars and every `send-*-email` function completely untouched.
+
+## Admin UI: `/admin/email-sync`
+
+New page (admin-route guarded like other admin pages, using `DashboardLayout`):
+
+- Summary cards: total synced contacts, last sync time, error count (24h).
+- Tag breakdown table — counts per tag computed via `sendfox_contacts.current_tags` unnest.
+- Last 50 sync log entries with status badges and error tooltips.
+- "Force resync all users" button — calls a new `resync-all-sendfox` edge function that paginates `profiles` and invokes `sync-contact-to-sendfox` in batches of 10/sec.
+- Suppression list manager — table with manual add (email + reason) and remove.
+- Read-only display of configured `SENDFOX_LIST_ID` (fetched via a tiny `get-sendfox-config` function that returns only the list id, never the token).
+
+Built with shadcn/ui + TanStack Query, matching existing admin page patterns.
+
+## Secrets to add
+
+`SENDFOX_ACCESS_TOKEN`, `SENDFOX_LIST_ID`, `SENDFOX_WEBHOOK_SECRET`. `APP_URL` is optional — we already have project URLs available. The user will be prompted to add these via the secrets tool once they generate them in SendFox.
+
+## Documentation
+
+`docs/email/README.md` explaining the dual-pipeline architecture, the SendFox dashboard setup checklist (token, list, webhook URL, sender domain — emphasising "merge SPF, never replace SendPulse DNS"), the trademark constraint on from-addresses, and the testing checklist.
+
+## Out of scope / preserved
+
+- Zero changes to any file matching `sendpulse` (case-insensitive) or any `SENDPULSE_*` secret.
+- Transactional emails (receipts, password reset, order confirmation, credit alerts) continue via SendPulse and are exempt from suppression.
+- No changes to existing email templates, `handle-unsubscribe`, or `email_unsubscribed` profile flag (those govern SendPulse opt-out and remain authoritative for transactional preferences).
+
+## Deliverables
+
+1. Migration creating the three tables + RLS.
+2. Edge functions: `sync-contact-to-sendfox`, `sendfox-webhook`, `resync-all-sendfox`, `get-sendfox-config` (deployed automatically).
+3. `supabase/config.toml` entry to disable JWT verification on `sendfox-webhook` only.
+4. App-level sync hooks in signup + payment success paths.
+5. `/admin/email-sync` admin page wired into the admin sidebar/router.
+6. Secrets request for the three SendFox values.
+7. `docs/email/README.md` with dashboard setup + testing checklist.
