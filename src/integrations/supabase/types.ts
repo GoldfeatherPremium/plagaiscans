@@ -1048,6 +1048,30 @@ export type Database = {
         }
         Relationships: []
       }
+      email_suppressions: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          reason: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          reason?: string
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          reason?: string
+          source?: string
+        }
+        Relationships: []
+      }
       email_warmup_settings: {
         Row: {
           created_at: string
@@ -2305,6 +2329,63 @@ export type Database = {
           remark_text?: string
           sort_order?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      sendfox_contacts: {
+        Row: {
+          current_tags: string[]
+          email: string
+          last_synced_at: string
+          sendfox_contact_id: string
+          sync_status: string
+          user_id: string
+        }
+        Insert: {
+          current_tags?: string[]
+          email: string
+          last_synced_at?: string
+          sendfox_contact_id: string
+          sync_status?: string
+          user_id: string
+        }
+        Update: {
+          current_tags?: string[]
+          email?: string
+          last_synced_at?: string
+          sendfox_contact_id?: string
+          sync_status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sendfox_sync_log: {
+        Row: {
+          action: string | null
+          created_at: string
+          email: string | null
+          error: string | null
+          id: string
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string
+          email?: string | null
+          error?: string | null
+          id?: string
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string | null
+          created_at?: string
+          email?: string | null
+          error?: string | null
+          id?: string
+          status?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
