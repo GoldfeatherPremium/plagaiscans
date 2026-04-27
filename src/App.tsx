@@ -49,6 +49,7 @@ const AdminManualPayments = lazy(() => import("./pages/AdminManualPayments"));
 
 const AdminStaffPermissions = lazy(() => import("./pages/AdminStaffPermissions"));
 const AdminEmails = lazy(() => import("./pages/AdminEmails"));
+const AdminEmailSync = lazy(() => import("./pages/AdminEmailSync"));
 const AdminEmailDeliveryLogs = lazy(() => import("./pages/AdminEmailDeliveryLogs"));
 const StaffStats = lazy(() => import("./pages/StaffStats"));
 const StaffProcessed = lazy(() => import("./pages/StaffProcessed"));
