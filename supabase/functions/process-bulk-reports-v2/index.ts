@@ -644,6 +644,7 @@ serve(async (req: Request) => {
             normalizedFilename,
             filePath: report.filePath,
             reason: 'Multiple matching documents - ambiguous',
+            extractedFilename: coverFilename,
           });
 
           await supabase.from('unmatched_reports').insert({
@@ -655,7 +656,6 @@ serve(async (req: Request) => {
           });
           continue;
         }
-      }
 
       // We have a target document
       const doc = targetDoc!;
