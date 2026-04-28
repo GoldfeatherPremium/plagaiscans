@@ -1,106 +1,111 @@
-# SendFox Promotional Email Integration
+## Goal
 
-Adds SendFox as the dedicated promotional email channel, fully isolated from the existing SendPulse transactional pipeline. Customer records sync automatically with behavioural tags; unsubscribes flow back into a shared suppression list that only promotional sends respect.
+Build a **new** AI-scan bulk upload page (V2) alongside the existing one. Same look, same workflow, same edge function logic — but **matching happens after upload by reading the original filename printed on page 1 of each Turnitin report** (e.g. `file-678337070(8).docx`), not from the report's own filename uploaded by the admin.
 
-## Architecture
+Existing `/dashboard/bulk-upload` (AI), its page, and its `process-bulk-reports` edge function are **NOT touched**.
 
-```text
-                    ┌─────────────────────────────┐
-   profile change ─►│ sync-contact-to-sendfox     │──► SendFox API
-   admin "resync"  ─►│  (idempotent, tag compute) │
-                    └──────────┬──────────────────┘
-                               │ writes
-                    ┌──────────▼──────────┐
-                    │ sendfox_contacts    │
-                    │ sendfox_sync_log    │
-                    └─────────────────────┘
+---
 
-   SendFox webhooks ──► sendfox-webhook ──► email_suppressions
-                                            (promotional only)
+## What's new vs. existing flow
 
-   SendPulse transactional pipeline: UNTOUCHED — always sends.
+| Aspect | Existing (V1) | New (V2) |
+|---|---|---|
+| Match key source | The report file's **own filename** (e.g. `john_essay.pdf`) | The **original document name printed on page 1** of the PDF (Turnitin "Cover Page" → `file-XXXXXX(8).docx`) |
+| Match preview | Done **before** upload (client computes preview from filenames) | Done **after** upload (server extracts page 1, then matches) |
+| Pre-upload preview dialog | Yes (`MatchPreviewDialog`) | Removed — replaced by a post-process review step for unmatched items |
+| Page used for type/percentage | Page 2 (modern) → last 10 (classical) → brute-force | **Same** (unchanged) |
+| Manual reassignment for unmatched | Yes via existing Unmatched Reports page | **Same** (unchanged, reuses `unmatched_reports` table) |
+
+Everything else (ZIP extraction, file list UI, progress bar, completion notifications, push, email, role/permission gate, completion → both reports filled, etc.) is identical.
+
+---
+
+## Files to create
+
+1. **`src/pages/AdminBulkReportUploadV2.tsx`**
+   - Copy of `AdminBulkReportUpload.tsx`.
+   - Removes pre-upload `MatchPreviewDialog`, `previewMatches`, `matchStats`, `manualMappings`, `pending-full-scan-documents` query, and the "Preview Matches" button.
+   - Header text: "Bulk Report Upload V2 (Match by PDF Cover Page)".
+   - Description: "Reports are matched after upload by reading the original filename from page 1 of each PDF."
+   - Calls new edge function `process-bulk-reports-v2` (no `documentId` overrides — server determines all matches).
+   - Result panel still shows mapped / unmatched / completed / needs-review counts and links to the existing Unmatched Reports admin page.
+
+2. **`supabase/functions/process-bulk-reports-v2/index.ts`**
+   - Copy of `process-bulk-reports/index.ts`.
+   - Adds a new step **before** the existing fuzzy matcher: extract page 1 text, parse the original filename printed there, normalize it, and use **that** as the match key instead of the uploaded report's filename.
+   - Page 1 extraction logic (Turnitin cover page format):
+     - Pull text from page 1 via existing `extractPageText(pdf, 1)`.
+     - Look for a line matching the original document filename. Strategy:
+       1. Regex for any token ending in a known extension: `/([\w\-.()\s]+?\.(?:docx?|pdf|txt|rtf|odt))/i` — pick the **last** match on page 1 (Turnitin prints student name then filename right under it).
+       2. If none, fallback regex for `file-\d+(?:\(\d+\))?\.\w+`.
+       3. If still none → mark report as **unmatched** with reason "Could not read filename from cover page" and insert into `unmatched_reports` so admin can manually assign.
+   - Use the extracted filename (normalized via existing `normalizeFilename`) as the match key fed into the existing exact + fuzzy matcher against `documents.normalized_filename`.
+   - Falls back to V1 behavior (matching on uploaded filename) only if explicitly enabled — **not enabled** by default to keep V2 behavior pure.
+   - Page 2/classical/brute-force PDF type & percentage detection: **unchanged**.
+   - Completion side effects (status → completed, notifications, push, completion email, guest completion email): **unchanged**.
+
+3. **`supabase/config.toml`** — add `[functions.process-bulk-reports-v2]` block mirroring the existing `process-bulk-reports` settings (verify_jwt remains default).
+
+## Files to edit
+
+4. **`src/App.tsx`**
+   - Add lazy import for `AdminBulkReportUploadV2`.
+   - Add route `/dashboard/bulk-upload-v2` (admin + staff with `can_batch_process`, same guard as V1).
+
+5. **`src/components/DashboardSidebar.tsx`**
+   - Under both the staff section (line ~335) and the admin section (line ~368), add a new entry **right below the existing "Bulk Upload (AI)"**:
+     - `{ to: '/dashboard/bulk-upload-v2', icon: FileStack, label: 'Bulk Upload AI V2' }`
+   - Existing "Bulk Upload (AI)" / "Bulk Upload (Full)" / "Bulk Upload (Sim)" entries stay exactly as they are.
+
+## Files NOT touched
+
+- `src/pages/AdminBulkReportUpload.tsx`
+- `src/pages/AdminSimilarityBulkUpload.tsx`
+- `supabase/functions/process-bulk-reports/index.ts`
+- `supabase/functions/process-similarity-bulk-reports/index.ts`
+- `src/components/BulkUploadPanel.tsx`
+- `src/components/MatchPreviewDialog.tsx`
+- `src/utils/filenameMatching.ts`
+
+---
+
+## Technical detail: page-1 filename extraction
+
+Turnitin Modern View cover page (per the screenshot) prints:
+
+```
+Estudiante N/a
+file-678337070(8).docx
+─────────────────
+Document Details
+Submission ID  trn:oid:::...
+File Name      file-67833-1777361269675.docx     ← internal Turnitin name (ignore)
 ```
 
-## Database migration
+The visible large filename right under the student name is the **original upload name** that we stored on the `documents` row. The "File Name" field in Document Details is Turnitin's internal name — we must **not** use that.
 
-New tables (RLS via existing `has_role(auth.uid(), 'admin')` helper, not `auth.jwt() ->> 'role'`):
+Extraction approach inside the edge function:
 
-- `sendfox_contacts` — `user_id` PK → `auth.users`, `sendfox_contact_id`, `email`, `current_tags text[]`, `last_synced_at`, `sync_status`.
-- `email_suppressions` — `email` unique, `reason` (`user_unsubscribe|bounce|complaint|manual`), `source`, `created_at`. Shared across future promo channels.
-- `sendfox_sync_log` — append-only audit (`user_id`, `email`, `action`, `status`, `error`, `created_at`).
+```ts
+async function extractCoverPageFilename(pdf): Promise<string | null> {
+  const text = await extractPageText(pdf, 1);
+  // 1. Find all filename-like tokens with known extensions
+  const exts = /([^\s\/\\:*?"<>|]+\.(?:docx?|pdf|txt|rtf|odt))/gi;
+  const matches = [...text.matchAll(exts)].map(m => m[1].trim());
+  if (matches.length === 0) return null;
+  // 2. Prefer the FIRST match — it's the prominent one under student name.
+  //    Document Details "File Name: ..." appears later in page text.
+  return matches[0];
+}
+```
 
-Indexes on `lower(email)` and `created_at desc`. Admin-only RLS policies for full CRUD on contacts/suppressions and SELECT on log.
+The chosen filename is then run through the existing `normalizeFilename` and matched against `documents.normalized_filename` using the same exact-then-fuzzy ladder already in V1.
 
-Note: the spec's `lifetime_spend`, `total_purchases`, `last_login_at` columns do not exist on `profiles`. Tag computation derives these inside the edge function:
+---
 
-- `total_purchases` / `lifetime_spend` → aggregate from `invoices` where `status = 'paid'` for the user.
-- `last_login_at` → fall back to `auth.users.last_sign_in_at` (read via service role).
+## Verification steps after build
 
-## Edge function: `sync-contact-to-sendfox`
-
-Idempotent POST handler taking `{ user_id }`.
-
-1. Load `profiles` row (must have email).
-2. Short-circuit if email is in `email_suppressions` — log `skip_suppressed`, return.
-3. Compute aggregates (paid invoice sum/count) and pull `last_sign_in_at` via `supabase.auth.admin.getUserById`.
-4. Compute tag set: `customer|lead`, `low_credits` (<5), `high_value` (≥$100), `active` (≤7d), `inactive_30d` (≥30d or never).
-5. Look up existing `sendfox_contacts.sendfox_contact_id`. PATCH if found, else POST `/contacts` with `lists: [SENDFOX_LIST_ID]`.
-6. Upsert mapping row + `sendfox_sync_log` success entry.
-7. On error: log to `sendfox_sync_log` with `status=failed` and return 500.
-
-Uses `SENDFOX_ACCESS_TOKEN` Bearer auth against `https://api.sendfox.com`. Tags are stored locally; per spec, richer tag-as-list segmentation can be added later by creating SendFox lists per tag.
-
-## Edge function: `sendfox-webhook`
-
-Public POST endpoint (will deploy with `verify_jwt = false` in `supabase/config.toml`).
-
-- Verifies shared secret from `x-webhook-secret` header or `?secret=` query against `SENDFOX_WEBHOOK_SECRET`.
-- Parses event, normalises type → reason (`unsubscribe`/`bounce`/`complaint`).
-- Upserts into `email_suppressions` and logs.
-
-## Auto-sync wiring
-
-Per spec's fallback note (pg_net + GUC config not standard here), uses **application-level invocation** instead of a DB trigger. We add a tiny client helper `triggerSendfoxSync(userId)` that fires `supabase.functions.invoke('sync-contact-to-sendfox', ...)` and call it from:
-
-- Signup handler (after profile insert succeeds) in `AuthContext.signUp` and the Google OAuth completion path.
-- Successful payment webhooks (server-side): `paddle-webhook`, `dodo-webhook`, `paypal-webhook`, `nowpayments`, and the Stripe checkout success handler. We add a single `await fetch` call to the sync function at the end of the credit-grant block (failures are swallowed and logged — never block the payment flow).
-- Credit deduction path: after `consume_user_credit`, fire-and-forget sync (debounced client-side to avoid spam — only when balance crosses the <5 threshold).
-
-This keeps `SENDPULSE_*` env vars and every `send-*-email` function completely untouched.
-
-## Admin UI: `/admin/email-sync`
-
-New page (admin-route guarded like other admin pages, using `DashboardLayout`):
-
-- Summary cards: total synced contacts, last sync time, error count (24h).
-- Tag breakdown table — counts per tag computed via `sendfox_contacts.current_tags` unnest.
-- Last 50 sync log entries with status badges and error tooltips.
-- "Force resync all users" button — calls a new `resync-all-sendfox` edge function that paginates `profiles` and invokes `sync-contact-to-sendfox` in batches of 10/sec.
-- Suppression list manager — table with manual add (email + reason) and remove.
-- Read-only display of configured `SENDFOX_LIST_ID` (fetched via a tiny `get-sendfox-config` function that returns only the list id, never the token).
-
-Built with shadcn/ui + TanStack Query, matching existing admin page patterns.
-
-## Secrets to add
-
-`SENDFOX_ACCESS_TOKEN`, `SENDFOX_LIST_ID`, `SENDFOX_WEBHOOK_SECRET`. `APP_URL` is optional — we already have project URLs available. The user will be prompted to add these via the secrets tool once they generate them in SendFox.
-
-## Documentation
-
-`docs/email/README.md` explaining the dual-pipeline architecture, the SendFox dashboard setup checklist (token, list, webhook URL, sender domain — emphasising "merge SPF, never replace SendPulse DNS"), the trademark constraint on from-addresses, and the testing checklist.
-
-## Out of scope / preserved
-
-- Zero changes to any file matching `sendpulse` (case-insensitive) or any `SENDPULSE_*` secret.
-- Transactional emails (receipts, password reset, order confirmation, credit alerts) continue via SendPulse and are exempt from suppression.
-- No changes to existing email templates, `handle-unsubscribe`, or `email_unsubscribed` profile flag (those govern SendPulse opt-out and remain authoritative for transactional preferences).
-
-## Deliverables
-
-1. Migration creating the three tables + RLS.
-2. Edge functions: `sync-contact-to-sendfox`, `sendfox-webhook`, `resync-all-sendfox`, `get-sendfox-config` (deployed automatically).
-3. `supabase/config.toml` entry to disable JWT verification on `sendfox-webhook` only.
-4. App-level sync hooks in signup + payment success paths.
-5. `/admin/email-sync` admin page wired into the admin sidebar/router.
-6. Secrets request for the three SendFox values.
-7. `docs/email/README.md` with dashboard setup + testing checklist.
+1. Visit `/dashboard/bulk-upload-v2` as admin — page renders, V1 page at `/dashboard/bulk-upload` still renders unchanged.
+2. Upload a Turnitin PDF whose cover page shows `file-678337070(8).docx` while a pending document with that same `file_name` exists — report auto-maps.
+3. Upload a PDF whose cover page filename has no matching document — appears in unmatched list and in Admin → Unmatched Reports for manual assignment.
+4. Confirm V1 flow unchanged: upload via `/dashboard/bulk-upload` still uses report-filename-based pre-upload preview.
