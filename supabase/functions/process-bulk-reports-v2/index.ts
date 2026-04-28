@@ -237,6 +237,43 @@ async function analyzePdf(pdfBuffer: ArrayBuffer): Promise<ReportAnalysis> {
 }
 
 /**
+ * V2: Run cover-page filename extraction + standard analysis in one PDF load.
+ */
+async function analyzePdfV2(
+  pdfBuffer: ArrayBuffer,
+): Promise<{ analysis: ReportAnalysis; coverFilename: string | null }> {
+  try {
+    const pdf = await getDocument({ data: new Uint8Array(pdfBuffer), useSystemFonts: true }).promise;
+
+    const coverFilename = await extractCoverPageFilename(pdf);
+
+    // Step 1: Modern View
+    if (pdf.numPages >= 2) {
+      const result = await analyzeModernView(pdf);
+      if (result.reportType !== 'unknown') return { analysis: result, coverFilename };
+    }
+    // Step 2: Classical View
+    const classicalResult = await analyzeClassicalView(pdf);
+    if (classicalResult.reportType !== 'unknown') return { analysis: classicalResult, coverFilename };
+
+    // Step 3: Brute force
+    const bruteResult = await bruteForceScan(pdf);
+    if (bruteResult.reportType !== 'unknown') return { analysis: bruteResult, coverFilename };
+
+    return {
+      analysis: { reportType: 'unknown', percentage: null, textSnippet: 'no markers found' },
+      coverFilename,
+    };
+  } catch (error) {
+    console.error('PDF V2 analysis error:', error);
+    return {
+      analysis: { reportType: 'unknown', percentage: null, textSnippet: 'error: ' + (error as Error).message },
+      coverFilename: null,
+    };
+  }
+}
+
+/**
  * Brute-force: scan every page for any similarity or AI percentage pattern.
  * Used as a last resort when modern + classical view detection both fail.
  */
