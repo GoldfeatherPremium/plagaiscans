@@ -675,6 +675,7 @@ serve(async (req: Request) => {
             normalizedFilename,
             filePath: report.filePath,
             reason: 'Document already has both reports',
+            extractedFilename: coverFilename,
           });
 
           await supabase.from('unmatched_reports').insert({
