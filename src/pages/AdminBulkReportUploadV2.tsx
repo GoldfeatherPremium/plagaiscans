@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,27 +7,23 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
-import { 
-  Upload, 
-  FileText, 
-  X, 
-  CheckCircle2, 
-  AlertCircle, 
-  Clock, 
+import {
+  Upload,
+  FileText,
+  X,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
   Archive,
   Loader2,
   FileCheck,
   FileWarning,
-  Eye,
   Zap,
-  ShieldX
+  ShieldX,
 } from 'lucide-react';
 import JSZip from 'jszip';
-import { MatchPreviewDialog } from '@/components/MatchPreviewDialog';
-import { previewMatches } from '@/utils/filenameMatching';
 
 interface ReportFile {
   file: File;
@@ -44,12 +40,13 @@ interface MappingResult {
   percentage: number | null;
   success: boolean;
   message?: string;
+  extractedFilename?: string;
 }
 
 interface ProcessingResult {
   success: boolean;
   mapped: MappingResult[];
-  unmatched: { fileName: string; normalizedFilename: string; filePath: string; reason: string }[];
+  unmatched: { fileName: string; normalizedFilename: string; filePath: string; reason: string; extractedFilename?: string }[];
   needsReview: { documentId: string; reason: string }[];
   completedDocuments: string[];
   stats: {
@@ -61,20 +58,7 @@ interface ProcessingResult {
   };
 }
 
-/**
- * Normalize filename for display:
- * - Remove extension
- * - Remove trailing (number) patterns
- * - Lowercase and trim
- */
-function normalizeFilename(filename: string): string {
-  let result = filename.toLowerCase();
-  result = result.replace(/\.[^.]+$/, '');
-  result = result.replace(/\s*\(\d+\)$/, '');
-  return result.trim();
-}
-
-export default function AdminBulkReportUpload() {
+export default function AdminBulkReportUploadV2() {
   const { role } = useAuth();
   const { permissions, loading: permissionsLoading } = useStaffPermissions();
   const [files, setFiles] = useState<ReportFile[]>([]);
@@ -82,54 +66,14 @@ export default function AdminBulkReportUpload() {
   const [processing, setProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
-  const [manualMappings, setManualMappings] = useState<Map<string, string>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Fetch pending/in-progress documents for full scan queue
-  const { data: pendingDocuments = [], isLoading: loadingDocuments } = useQuery({
-    queryKey: ['pending-full-scan-documents'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('documents')
-        .select('id, file_name, normalized_filename, status, similarity_report_path, ai_report_path')
-        .in('status', ['pending', 'in_progress'])
-        .neq('scan_type', 'similarity_only')
-        .eq('needs_review', false)
-        .is('deleted_at', null);
-      
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Calculate match preview stats
-  const matchStats = useMemo(() => {
-    if (files.length === 0 || pendingDocuments.length === 0) {
-      return { exact: 0, partial: 0, none: 0 };
-    }
-    
-    const reportFilenames = files.map(f => f.fileName);
-    const previews = previewMatches(reportFilenames, pendingDocuments.map(doc => ({
-      id: doc.id,
-      file_name: doc.file_name,
-      normalized_filename: doc.normalized_filename,
-      status: doc.status,
-    })));
-    
-    return {
-      exact: previews.filter(p => p.status === 'exact').length,
-      partial: previews.filter(p => p.status === 'partial').length,
-      none: previews.filter(p => p.status === 'none').length,
-    };
-  }, [files, pendingDocuments]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
+    if (e.type === 'dragenter' || e.type === 'dragover') {
       setDragActive(true);
-    } else if (e.type === "dragleave") {
+    } else if (e.type === 'dragleave') {
       setDragActive(false);
     }
   }, []);
@@ -158,11 +102,7 @@ export default function AdminBulkReportUpload() {
         try {
           const extractedFiles = await extractZipFiles(file);
           for (const extractedFile of extractedFiles) {
-            newFiles.push({
-              file: extractedFile,
-              fileName: extractedFile.name,
-              status: 'pending',
-            });
+            newFiles.push({ file: extractedFile, fileName: extractedFile.name, status: 'pending' });
           }
           toast.success(`Extracted ${extractedFiles.length} PDF files from ${file.name}`);
         } catch (error) {
@@ -170,24 +110,19 @@ export default function AdminBulkReportUpload() {
           toast.error(`Failed to extract ${file.name}`);
         }
       } else if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-        newFiles.push({
-          file,
-          fileName: file.name,
-          status: 'pending',
-        });
+        newFiles.push({ file, fileName: file.name, status: 'pending' });
       } else {
         toast.error(`Unsupported file type: ${file.name}`);
       }
     }
 
-    setFiles(prev => [...prev, ...newFiles]);
+    setFiles((prev) => [...prev, ...newFiles]);
   };
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       await processFiles(e.dataTransfer.files);
     }
@@ -200,7 +135,7 @@ export default function AdminBulkReportUpload() {
   };
 
   const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const clearAll = () => {
@@ -209,20 +144,11 @@ export default function AdminBulkReportUpload() {
     setUploadProgress(0);
   };
 
-  const handlePreviewConfirm = (assignments: Map<string, string>) => {
-    setManualMappings(assignments);
-    setShowPreview(false);
-    // Auto-start upload after confirmation
-    uploadAndProcess(assignments);
-  };
-
-  const uploadAndProcess = async (mappingsOverride?: Map<string, string>) => {
+  const uploadAndProcess = async () => {
     if (files.length === 0) {
       toast.error('No files to process');
       return;
     }
-
-    const mappings = mappingsOverride || manualMappings;
 
     setProcessing(true);
     setUploadProgress(0);
@@ -236,19 +162,16 @@ export default function AdminBulkReportUpload() {
         return;
       }
 
-      const uploadedReports: { fileName: string; filePath: string; documentId?: string }[] = [];
+      const uploadedReports: { fileName: string; filePath: string }[] = [];
       const totalFiles = files.length;
 
-      // Upload each file to storage
       for (let i = 0; i < files.length; i++) {
         const reportFile = files[i];
-        setFiles(prev => prev.map((f, idx) => 
-          idx === i ? { ...f, status: 'uploading' } : f
-        ));
+        setFiles((prev) => prev.map((f, idx) => (idx === i ? { ...f, status: 'uploading' } : f)));
 
         const timestamp = Date.now();
         const sanitizedName = reportFile.fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const filePath = `bulk-reports/${timestamp}_${sanitizedName}`;
+        const filePath = `bulk-reports-v2/${timestamp}_${sanitizedName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('reports')
@@ -256,24 +179,12 @@ export default function AdminBulkReportUpload() {
 
         if (uploadError) {
           console.error('Upload error:', uploadError);
-          setFiles(prev => prev.map((f, idx) => 
-            idx === i ? { ...f, status: 'error', error: uploadError.message } : f
-          ));
+          setFiles((prev) => prev.map((f, idx) => (idx === i ? { ...f, status: 'error', error: uploadError.message } : f)));
           continue;
         }
 
-        setFiles(prev => prev.map((f, idx) => 
-          idx === i ? { ...f, status: 'uploaded', filePath } : f
-        ));
-
-        // Include manual mapping if available
-        const manualDocId = mappings.get(reportFile.fileName);
-        uploadedReports.push({
-          fileName: reportFile.fileName,
-          filePath,
-          ...(manualDocId && { documentId: manualDocId }),
-        });
-
+        setFiles((prev) => prev.map((f, idx) => (idx === i ? { ...f, status: 'uploaded', filePath } : f)));
+        uploadedReports.push({ fileName: reportFile.fileName, filePath });
         setUploadProgress(Math.round(((i + 1) / totalFiles) * 50));
       }
 
@@ -283,10 +194,9 @@ export default function AdminBulkReportUpload() {
         return;
       }
 
-      // Call edge function for PDF analysis and auto-mapping
       setUploadProgress(60);
-      
-      const { data, error } = await supabase.functions.invoke('process-bulk-reports', {
+
+      const { data, error } = await supabase.functions.invoke('process-bulk-reports-v2', {
         body: { reports: uploadedReports },
       });
 
@@ -313,7 +223,6 @@ export default function AdminBulkReportUpload() {
       if (stats.needsReviewCount > 0) {
         toast.warning(`${stats.needsReviewCount} documents need manual review`);
       }
-
     } catch (error) {
       console.error('Error:', error);
       toast.error('An error occurred during processing');
@@ -322,11 +231,10 @@ export default function AdminBulkReportUpload() {
     }
   };
 
-  const pendingCount = files.filter(f => f.status === 'pending').length;
-  const uploadedCount = files.filter(f => f.status === 'uploaded').length;
-  const errorCount = files.filter(f => f.status === 'error').length;
+  const pendingCount = files.filter((f) => f.status === 'pending').length;
+  const uploadedCount = files.filter((f) => f.status === 'uploaded').length;
+  const errorCount = files.filter((f) => f.status === 'error').length;
 
-  // Check if staff has permission
   if (role === 'staff' && !permissionsLoading && !permissions.can_batch_process) {
     return (
       <DashboardLayout>
@@ -345,15 +253,12 @@ export default function AdminBulkReportUpload() {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">
-            {role === 'admin' ? 'Bulk Report Upload' : 'AI Reports Bulk Upload'}
-          </h1>
+          <h1 className="text-3xl font-bold">Bulk Report Upload V2 (Match by PDF Cover Page)</h1>
           <p className="text-muted-foreground">
-            Upload PDF reports or ZIP archives. Reports are auto-classified using page 2 analysis.
+            Reports are matched after upload by reading the original filename printed on page 1 of each PDF.
           </p>
         </div>
 
-        {/* Upload Area */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -361,15 +266,15 @@ export default function AdminBulkReportUpload() {
               Upload Reports
             </CardTitle>
             <CardDescription>
-              Drag and drop PDF files or ZIP archives. Each PDF's page 2 is analyzed to classify as Similarity or AI report.
+              Drag and drop PDF files or ZIP archives. Each PDF's page 1 is scanned to extract the original document
+              filename, then matched to a pending document. Page 2 / classical view is then used to detect report
+              type and percentage.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div
               className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                dragActive 
-                  ? 'border-primary bg-primary/5' 
-                  : 'border-muted-foreground/25 hover:border-primary/50'
+                dragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'
               }`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
@@ -384,62 +289,48 @@ export default function AdminBulkReportUpload() {
                 className="hidden"
                 onChange={handleFileSelect}
               />
-              
+
               <div className="flex flex-col items-center gap-3">
                 <div className="p-4 bg-muted rounded-full">
                   <Archive className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <div>
                   <p className="font-medium">Drop PDF files or ZIP archives here</p>
-                  <p className="text-sm text-muted-foreground">
-                    or click to browse
-                  </p>
+                  <p className="text-sm text-muted-foreground">or click to browse</p>
                 </div>
-                <Button 
-                  variant="outline" 
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={processing}
-                >
+                <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={processing}>
                   Select Files
                 </Button>
               </div>
             </div>
 
-            {/* File List */}
             {files.length > 0 && (
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-medium">
                     Files ({files.length})
                     {uploadedCount > 0 && (
-                      <span className="text-muted-foreground ml-2">
-                        • {uploadedCount} uploaded
-                      </span>
+                      <span className="text-muted-foreground ml-2">• {uploadedCount} uploaded</span>
                     )}
                     {errorCount > 0 && (
-                      <span className="text-destructive ml-2">
-                        • {errorCount} failed
-                      </span>
+                      <span className="text-destructive ml-2">• {errorCount} failed</span>
                     )}
                   </h4>
                   <Button variant="ghost" size="sm" onClick={clearAll} disabled={processing}>
                     Clear All
                   </Button>
                 </div>
-                
+
                 <ScrollArea className="h-[200px] border rounded-lg">
                   <div className="p-3 space-y-2">
                     {files.map((file, index) => (
-                      <div 
-                        key={index}
-                        className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
-                      >
+                      <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium truncate">{file.fileName}</p>
                             <p className="text-xs text-muted-foreground">
-                              Key: {normalizeFilename(file.fileName)}
+                              Match key will be read from PDF page 1
                             </p>
                           </div>
                         </div>
@@ -484,7 +375,6 @@ export default function AdminBulkReportUpload() {
                   </div>
                 </ScrollArea>
 
-                {/* Progress */}
                 {processing && (
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-2">
@@ -495,41 +385,8 @@ export default function AdminBulkReportUpload() {
                   </div>
                 )}
 
-                {/* Match Preview Stats */}
-                {files.length > 0 && pendingDocuments.length > 0 && !processing && (
-                  <div className="mt-4 grid grid-cols-3 gap-3">
-                    <div className="text-center p-3 bg-green-500/10 rounded-lg border border-green-200">
-                      <p className="text-xl font-bold text-green-600">{matchStats.exact}</p>
-                      <p className="text-xs text-muted-foreground">Exact Matches</p>
-                    </div>
-                    <div className="text-center p-3 bg-yellow-500/10 rounded-lg border border-yellow-200">
-                      <p className="text-xl font-bold text-yellow-600">{matchStats.partial}</p>
-                      <p className="text-xs text-muted-foreground">Partial Matches</p>
-                    </div>
-                    <div className="text-center p-3 bg-red-500/10 rounded-lg border border-red-200">
-                      <p className="text-xl font-bold text-red-600">{matchStats.none}</p>
-                      <p className="text-xs text-muted-foreground">No Match</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
                 <div className="mt-4 flex justify-end gap-3">
-                  {files.length > 0 && pendingDocuments.length > 0 && !processing && (
-                    <Button 
-                      variant="outline"
-                      onClick={() => setShowPreview(true)}
-                      disabled={loadingDocuments}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      Preview Matches
-                    </Button>
-                  )}
-                  <Button 
-                    onClick={() => uploadAndProcess()}
-                    disabled={processing || pendingCount === 0}
-                    size="lg"
-                  >
+                  <Button onClick={uploadAndProcess} disabled={processing || pendingCount === 0} size="lg">
                     {processing ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -538,7 +395,7 @@ export default function AdminBulkReportUpload() {
                     ) : (
                       <>
                         <Zap className="h-4 w-4 mr-2" />
-                        Quick Upload ({pendingCount} files)
+                        Upload &amp; Match ({pendingCount} files)
                       </>
                     )}
                   </Button>
@@ -548,32 +405,15 @@ export default function AdminBulkReportUpload() {
           </CardContent>
         </Card>
 
-        {/* Match Preview Dialog */}
-        <MatchPreviewDialog
-          open={showPreview}
-          onOpenChange={setShowPreview}
-          reportFilenames={files.map(f => f.fileName)}
-          documents={pendingDocuments.map(doc => ({
-            id: doc.id,
-            file_name: doc.file_name,
-            normalized_filename: doc.normalized_filename,
-            status: doc.status,
-          }))}
-          onConfirm={handlePreviewConfirm}
-          isProcessing={processing}
-        />
-
-        {/* Processing Results */}
         {processingResult && (
           <Card>
             <CardHeader>
               <CardTitle>Processing Results</CardTitle>
               <CardDescription>
-                PDF page 2 analysis and auto-mapping summary
+                Cover-page filename extraction and auto-mapping summary
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Stats Grid */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                 <div className="text-center p-4 bg-muted rounded-lg">
                   <p className="text-2xl font-bold">{processingResult.stats.totalReports}</p>
@@ -597,25 +437,29 @@ export default function AdminBulkReportUpload() {
                 </div>
               </div>
 
-              {/* Mapped Reports */}
               {processingResult.mapped.length > 0 && (
                 <div className="mb-6">
                   <h4 className="font-medium mb-3 flex items-center gap-2">
                     <FileCheck className="h-4 w-4 text-green-600" />
                     Mapped Reports ({processingResult.mapped.length})
                   </h4>
-                  <ScrollArea className="h-[150px] border rounded-lg">
+                  <ScrollArea className="h-[200px] border rounded-lg">
                     <div className="p-3 space-y-2">
                       {processingResult.mapped.map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-green-500/5 rounded-lg">
-                          <span className="text-sm truncate flex-1">{item.fileName}</span>
-                          <div className="flex items-center gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm truncate">{item.fileName}</p>
+                            {item.extractedFilename && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                Cover page: {item.extractedFilename}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 ml-2">
                             <Badge variant={item.reportType === 'similarity' ? 'default' : 'secondary'}>
                               {item.reportType}
                             </Badge>
-                            {item.percentage !== null && (
-                              <Badge variant="outline">{item.percentage}%</Badge>
-                            )}
+                            {item.percentage !== null && <Badge variant="outline">{item.percentage}%</Badge>}
                           </div>
                         </div>
                       ))}
@@ -624,19 +468,23 @@ export default function AdminBulkReportUpload() {
                 </div>
               )}
 
-              {/* Unmatched Reports */}
               {processingResult.unmatched.length > 0 && (
                 <div className="mb-6">
                   <h4 className="font-medium mb-3 flex items-center gap-2">
                     <FileWarning className="h-4 w-4 text-yellow-600" />
                     Unmatched Reports ({processingResult.unmatched.length})
                   </h4>
-                  <ScrollArea className="h-[150px] border rounded-lg">
+                  <ScrollArea className="h-[200px] border rounded-lg">
                     <div className="p-3 space-y-2">
                       {processingResult.unmatched.map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-yellow-500/5 rounded-lg">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm truncate">{item.fileName}</p>
+                            {item.extractedFilename && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                Cover page: {item.extractedFilename}
+                              </p>
+                            )}
                             <p className="text-xs text-muted-foreground">{item.reason}</p>
                           </div>
                         </div>
@@ -644,12 +492,11 @@ export default function AdminBulkReportUpload() {
                     </div>
                   </ScrollArea>
                   <p className="text-sm text-muted-foreground mt-2">
-                    View and manage unmatched reports in the Unmatched Reports page.
+                    View and manually assign unmatched reports in the Unmatched Reports admin page.
                   </p>
                 </div>
               )}
 
-              {/* Completed Documents */}
               {processingResult.completedDocuments.length > 0 && (
                 <div className="p-4 bg-green-500/10 rounded-lg">
                   <p className="text-sm font-medium text-green-700">
