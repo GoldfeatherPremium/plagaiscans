@@ -26,12 +26,13 @@ interface MappingResult {
   percentage: number | null;
   success: boolean;
   message?: string;
+  extractedFilename?: string;
 }
 
 interface ProcessingResult {
   success: boolean;
   mapped: MappingResult[];
-  unmatched: { fileName: string; normalizedFilename: string; filePath: string; reason: string }[];
+  unmatched: { fileName: string; normalizedFilename: string; filePath: string; reason: string; extractedFilename?: string }[];
   needsReview: { documentId: string; reason: string }[];
   completedDocuments: string[];
   stats: {
