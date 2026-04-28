@@ -541,78 +541,88 @@ serve(async (req: Request) => {
 
     // Process each report
     for (const report of reports) {
-      const normalizedFilename = normalizeFilename(report.fileName);
-      console.log(`Processing: ${report.fileName} -> normalized: ${normalizedFilename}`);
+      console.log(`V2 Processing: ${report.fileName}`);
 
-      // Download PDF from storage for analysis
+      // Download PDF from storage
       const { data: pdfData, error: downloadError } = await supabase.storage
         .from('reports')
         .download(report.filePath);
 
       let analysis: ReportAnalysis = { reportType: 'unknown', percentage: null, textSnippet: '' };
-      
+      let coverFilename: string | null = null;
+
       if (downloadError) {
         console.error(`Failed to download PDF ${report.filePath}:`, downloadError);
       } else {
-        // Analyze PDF page 2
         const buffer = await pdfData.arrayBuffer();
-        analysis = await analyzePdf(buffer);
-        console.log(`Analysis result for ${report.fileName}:`, analysis);
+        const v2 = await analyzePdfV2(buffer);
+        analysis = v2.analysis;
+        coverFilename = v2.coverFilename;
+        console.log(`V2 cover filename for ${report.fileName}: "${coverFilename}" | analysis:`, analysis);
       }
 
-      // Check for manual assignment first
+      // V2 MATCH KEY = filename extracted from PDF page 1 (cover page).
+      // If extraction fails, the report cannot be matched automatically.
+      if (!coverFilename) {
+        result.unmatched.push({
+          fileName: report.fileName,
+          normalizedFilename: '',
+          filePath: report.filePath,
+          reason: 'Could not read original filename from PDF cover page (page 1)',
+          extractedFilename: undefined,
+        });
+        await supabase.from('unmatched_reports').insert({
+          file_name: report.fileName,
+          normalized_filename: '',
+          file_path: report.filePath,
+          report_type: analysis.reportType === 'unknown' ? null : analysis.reportType,
+          uploaded_by: user.id,
+        });
+        continue;
+      }
+
+      const normalizedFilename = normalizeFilename(coverFilename);
+      console.log(`V2 normalized cover filename: ${normalizedFilename}`);
+
       let targetDoc: typeof documents[0] | null = null;
-      
-      if (report.documentId) {
-        // Manual assignment from preview - find the document directly
-        targetDoc = (documents || []).find(d => d.id === report.documentId) || null;
-        if (targetDoc) {
-          console.log(`Using manual assignment for ${report.fileName} -> ${targetDoc.file_name}`);
-        }
-      }
 
-      // If no manual assignment, try exact match then fuzzy match
-      if (!targetDoc) {
-        // Try exact match first
-        const matchingDocs = docsByNormalized.get(normalizedFilename) || [];
-        
-        if (matchingDocs.length === 1) {
-          targetDoc = matchingDocs[0];
-        } else if (matchingDocs.length === 0) {
-          // Try fuzzy matching
-          const { bestMatch, suggestions } = findBestMatch(normalizedFilename, documents || []);
-          
-          if (bestMatch && bestMatch.confidence >= 90) {
-            // High confidence fuzzy match - auto-assign
-            targetDoc = bestMatch.doc;
-            console.log(`Fuzzy match (${bestMatch.confidence}%) for ${report.fileName} -> ${targetDoc.file_name}`);
-          } else {
-            // No good match - add to unmatched with suggestions
-            result.unmatched.push({
-              fileName: report.fileName,
-              normalizedFilename,
-              filePath: report.filePath,
-              reason: bestMatch 
-                ? `Best match ${bestMatch.doc.file_name} (${bestMatch.confidence}%) below threshold`
-                : 'No matching document found',
-            });
+      // Exact match first
+      const matchingDocs = docsByNormalized.get(normalizedFilename) || [];
 
-            // Store suggestions in unmatched_reports
-            await supabase.from('unmatched_reports').insert({
-              file_name: report.fileName,
-              normalized_filename: normalizedFilename,
-              file_path: report.filePath,
-              report_type: analysis.reportType === 'unknown' ? null : analysis.reportType,
-              uploaded_by: user.id,
-              suggested_documents: suggestions.map(s => ({
-                id: s.doc.id,
-                fileName: s.doc.file_name,
-                confidence: s.confidence,
-              })),
-            });
-            continue;
-          }
+      if (matchingDocs.length === 1) {
+        targetDoc = matchingDocs[0];
+      } else if (matchingDocs.length === 0) {
+        // Fuzzy match
+        const { bestMatch, suggestions } = findBestMatch(normalizedFilename, documents || []);
+
+        if (bestMatch && bestMatch.confidence >= 90) {
+          targetDoc = bestMatch.doc;
+          console.log(`V2 fuzzy match (${bestMatch.confidence}%) for ${coverFilename} -> ${targetDoc.file_name}`);
         } else {
+          result.unmatched.push({
+            fileName: report.fileName,
+            normalizedFilename,
+            filePath: report.filePath,
+            reason: bestMatch
+              ? `Best match ${bestMatch.doc.file_name} (${bestMatch.confidence}%) below threshold`
+              : 'No matching document found for cover-page filename',
+            extractedFilename: coverFilename,
+          });
+          await supabase.from('unmatched_reports').insert({
+            file_name: report.fileName,
+            normalized_filename: normalizedFilename,
+            file_path: report.filePath,
+            report_type: analysis.reportType === 'unknown' ? null : analysis.reportType,
+            uploaded_by: user.id,
+            suggested_documents: suggestions.map((s) => ({
+              id: s.doc.id,
+              fileName: s.doc.file_name,
+              confidence: s.confidence,
+            })),
+          });
+          continue;
+        }
+      } else {
           // Multiple exact matches - ambiguous
           for (const doc of matchingDocs) {
             await supabase
