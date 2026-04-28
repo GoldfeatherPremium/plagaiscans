@@ -163,6 +163,40 @@ function findBestMatch(
 }
 
 /**
+/**
+ * V2: Extract original document filename from PDF cover page (page 1).
+ * Turnitin Modern View prints the student name then the original filename
+ * directly underneath, e.g. "file-678337070(8).docx".
+ *
+ * Strategy:
+ *   1. Find all tokens ending in a known document extension on page 1.
+ *   2. Skip Turnitin's internal "File Name" field value (which appears later
+ *      under "Document Details") by preferring the FIRST match in reading order.
+ *   3. Fallback to a `file-<digits>(<n>).ext` pattern if no extension match.
+ */
+// deno-lint-ignore no-explicit-any
+async function extractCoverPageFilename(pdf: any): Promise<string | null> {
+  if (pdf.numPages < 1) return null;
+  const text = await extractPageText(pdf, 1);
+
+  // Primary: any token with a known document extension
+  const extRegex = /([^\s\/\\:*?"<>|]+?\.(?:docx?|pdf|txt|rtf|odt))/gi;
+  const matches = [...text.matchAll(extRegex)].map((m) => m[1].trim());
+  if (matches.length > 0) {
+    // The prominent filename printed under the student name appears FIRST in
+    // reading order. The "File Name: ..." entry in Document Details comes later
+    // and is Turnitin's internal storage name — we ignore it by picking [0].
+    return matches[0];
+  }
+
+  // Fallback: file-<digits>(<n>).<ext>
+  const fallback = text.match(/file-\d+(?:\(\d+\))?\.\w+/i);
+  if (fallback) return fallback[0];
+
+  return null;
+}
+
+/**
  * Analyze PDF to classify report type and extract percentage.
  * Strategy:
  *   1. Try page 2 (Modern View) first
