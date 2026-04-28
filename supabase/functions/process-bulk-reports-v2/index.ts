@@ -774,6 +774,7 @@ serve(async (req: Request) => {
           normalizedFilename,
           filePath: report.filePath,
           reason: 'Failed to update document: ' + updateError.message,
+          extractedFilename: coverFilename,
         });
         continue;
       }
@@ -784,6 +785,7 @@ serve(async (req: Request) => {
         reportType: reportType as 'similarity' | 'ai',
         percentage: analysis.percentage,
         success: true,
+        extractedFilename: coverFilename,
       });
       result.stats.mappedCount++;
 
