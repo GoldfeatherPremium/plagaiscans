@@ -332,8 +332,7 @@ export const DashboardSidebar: React.FC = () => {
     if (canAccessAI) {
       links.push(
         { to: '/dashboard/queue', icon: FileCheck, label: t('sidebar.fullScanQueue') },
-        { to: '/dashboard/bulk-upload', icon: FileStack, label: 'Bulk Upload (AI)' },
-        { to: '/dashboard/bulk-upload-v2', icon: FileStack, label: 'Bulk Upload AI V2' }
+        { to: '/dashboard/bulk-upload', icon: FileStack, label: 'Bulk Upload (AI)' }
       );
     }
     
@@ -367,7 +366,6 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/needs-review', icon: AlertTriangle, label: 'Needs Review' },
         { to: '/dashboard/magic-links', icon: Upload, label: 'Magic Links' },
         { to: '/dashboard/bulk-upload', icon: FileStack, label: 'Bulk Upload (Full)' },
-        { to: '/dashboard/bulk-upload-v2', icon: FileStack, label: 'Bulk Upload AI V2' },
         { to: '/dashboard/similarity-bulk-upload', icon: FileStack, label: 'Bulk Upload (Sim)' },
         { to: '/dashboard/unmatched-reports', icon: FileQuestion, label: 'Unmatched Reports' },
         { to: '/dashboard/deleted-documents', icon: Trash2, label: 'Deleted Docs' },

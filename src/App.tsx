@@ -64,7 +64,6 @@ const StaffPerformance = lazy(() => import("./pages/StaffPerformance"));
 const CustomerDocumentAnalytics = lazy(() => import("./pages/CustomerDocumentAnalytics"));
 const AdminAIHelper = lazy(() => import("./pages/AdminAIHelper"));
 const AdminBulkReportUpload = lazy(() => import("./pages/AdminBulkReportUpload"));
-const AdminBulkReportUploadV2 = lazy(() => import("./pages/AdminBulkReportUploadV2"));
 const AdminSimilarityBulkUpload = lazy(() => import("./pages/AdminSimilarityBulkUpload"));
 const AdminUnmatchedReports = lazy(() => import("./pages/AdminUnmatchedReports"));
 const AdminNeedsReview = lazy(() => import("./pages/AdminNeedsReview"));
@@ -339,7 +338,6 @@ const AppRoutes = () => (
       <Route path="/dashboard/performance" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><StaffPerformance /></ProtectedRoute>} />
       <Route path="/dashboard/ai-helper" element={<ProtectedRoute allowedRoles={['admin']}><AdminAIHelper /></ProtectedRoute>} />
       <Route path="/dashboard/bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminBulkReportUpload /></ProtectedRoute>} />
-      <Route path="/dashboard/bulk-upload-v2" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminBulkReportUploadV2 /></ProtectedRoute>} />
       <Route path="/dashboard/similarity-bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminSimilarityBulkUpload /></ProtectedRoute>} />
       <Route path="/dashboard/unmatched-reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminUnmatchedReports /></ProtectedRoute>} />
       <Route path="/dashboard/needs-review" element={<ProtectedRoute allowedRoles={['admin']}><AdminNeedsReview /></ProtectedRoute>} />
