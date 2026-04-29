@@ -1,106 +1,120 @@
-# SendFox Promotional Email Integration
+## Goal
 
-Adds SendFox as the dedicated promotional email channel, fully isolated from the existing SendPulse transactional pipeline. Customer records sync automatically with behavioural tags; unsubscribes flow back into a shared suppression list that only promotional sends respect.
+Add a second AI-scan bulk upload pipeline ("V2") that does **post-upload matching using the document name printed on the cover page** of each Turnitin PDF — instead of matching by uploaded filename. The existing V1 pipeline (`/dashboard/bulk-upload` + `process-bulk-reports`) stays exactly as-is.
 
-## Architecture
+## Scope (only this, no scope creep)
 
-```text
-                    ┌─────────────────────────────┐
-   profile change ─►│ sync-contact-to-sendfox     │──► SendFox API
-   admin "resync"  ─►│  (idempotent, tag compute) │
-                    └──────────┬──────────────────┘
-                               │ writes
-                    ┌──────────▼──────────┐
-                    │ sendfox_contacts    │
-                    │ sendfox_sync_log    │
-                    └─────────────────────┘
+- New page, new edge function, new sidebar link.
+- Same UI, same drag/drop, same ZIP extraction, same progress, same result panels, same permissions, same notifications, same completion logic.
+- **Only difference**: matching keys come from the PDF first-page text, not from the uploaded filename.
 
-   SendFox webhooks ──► sendfox-webhook ──► email_suppressions
-                                            (promotional only)
+## Files to create
 
-   SendPulse transactional pipeline: UNTOUCHED — always sends.
+### 1. `src/pages/AdminBulkReportUploadV2.tsx`
+Direct copy of `src/pages/AdminBulkReportUpload.tsx` with these adjustments:
+- Page title: `"Bulk Report Upload V2"` (admin) / `"AI Reports Bulk Upload V2"` (staff).
+- Subtitle: "Reports are matched after upload by reading each PDF's cover page."
+- **Remove** the pre-upload match preview UI: `matchStats` memo, the "Match Preview" card, the `MatchPreviewDialog`, the `previewMatches` import, the `manualMappings` state, and the `handlePreviewConfirm` handler. (Matching only happens server-side after upload now, so previewing client-side is meaningless.)
+- Remove the `pendingDocuments` query — no longer needed for preview.
+- The "Process Reports" button calls `supabase.functions.invoke('process-bulk-reports-v2', { body: { reports: uploadedReports } })`.
+- Result panels (mapped / unmatched / needs review / completed) stay identical to V1 — they already display by `fileName`, which works for both pipelines.
+
+### 2. `supabase/functions/process-bulk-reports-v2/index.ts`
+Direct copy of `supabase/functions/process-bulk-reports/index.ts` with one logical change in the matching layer:
+
+**New step before matching, per report:**
+1. Download PDF from `reports` bucket (already done for analysis).
+2. Extract text from **page 1** via `pdfjs-serverless` (`extractPageText(pdf, 1)`).
+3. Run `extractDocumentNameFromCoverPage(text)` to find the original document filename printed on the cover. Strategies (in order):
+   - Regex for an explicit label: `/(?:submission\s*(?:title|name)|document\s*(?:title|name)|file\s*name|paper\s*title)\s*[:\-]?\s*([^\n\r]{1,200})/i`
+   - Regex for any token ending in a known extension: `/([\w\-.()\[\]\s]{1,200}\.(?:docx?|pdf|txt|rtf|odt))/i` — pick the first match that isn't the report's own file path.
+   - Fallback: take the first non-empty, non-boilerplate line of page 1 (skip lines containing "turnitin", "originality report", "similarity report", "page", "submitted to", purely numeric lines, percentage-only lines).
+4. Normalize the extracted name with the existing `normalizeFilename()` helper — this is the **matching key** instead of `normalizeFilename(report.fileName)`.
+5. Feed that key into the existing exact-then-fuzzy matcher (`docsByNormalized` / `findBestMatch`). Everything downstream — slot assignment, percentage extraction, `needs_review`, `unmatched_reports` insert, completion + notifications — is unchanged.
+
+**Improved-reliability features added to V2:**
+- If cover-page extraction returns nothing, **fall back** to `normalizeFilename(report.fileName)` (so V2 is never worse than V1).
+- Lower the auto-assign fuzzy threshold to `>= 85` (vs V1's `90`), since cover-page extraction is noisier.
+- Persist the extracted cover name into `unmatched_reports.suggested_documents` payload as `extracted_cover_name` so admins can see what the parser found when reviewing a miss.
+- Log both `report.fileName` and `extractedCoverName` for every report (helps debugging).
+
+**Untouched in V2:**
+- All PDF type/percentage analysis (`analyzePdf`, `analyzeModernView`, `analyzeClassicalView`, `bruteForceScan`).
+- Auth/role check (admin or staff).
+- Storage bucket (`reports`).
+- Tables written to (`documents`, `unmatched_reports`).
+- Completion notifications (user notification, push, completion email, guest completion email).
+
+### 3. `supabase/config.toml`
+Append:
+```
+[functions.process-bulk-reports-v2]
+verify_jwt = false
 ```
 
-## Database migration
+### 4. `src/App.tsx`
+- Add lazy import: `const AdminBulkReportUploadV2 = lazy(() => import("./pages/AdminBulkReportUploadV2"));`
+- Add route alongside existing one:
+  `<Route path="/dashboard/bulk-upload-v2" element={<ProtectedRoute allowedRoles={['admin','staff']}><AdminBulkReportUploadV2 /></ProtectedRoute>} />`
 
-New tables (RLS via existing `has_role(auth.uid(), 'admin')` helper, not `auth.jwt() ->> 'role'`):
+### 5. `src/components/DashboardSidebar.tsx`
+Add a new entry **next to** (not replacing) each existing AI bulk-upload link:
+- Staff section: `{ to: '/dashboard/bulk-upload-v2', icon: FileStack, label: 'Bulk Upload AI V2' }`
+- Admin section: `{ to: '/dashboard/bulk-upload-v2', icon: FileStack, label: 'Bulk Upload AI V2' }`
 
-- `sendfox_contacts` — `user_id` PK → `auth.users`, `sendfox_contact_id`, `email`, `current_tags text[]`, `last_synced_at`, `sync_status`.
-- `email_suppressions` — `email` unique, `reason` (`user_unsubscribe|bounce|complaint|manual`), `source`, `created_at`. Shared across future promo channels.
-- `sendfox_sync_log` — append-only audit (`user_id`, `email`, `action`, `status`, `error`, `created_at`).
+## Files explicitly NOT touched
 
-Indexes on `lower(email)` and `created_at desc`. Admin-only RLS policies for full CRUD on contacts/suppressions and SELECT on log.
+- `src/pages/AdminBulkReportUpload.tsx`
+- `supabase/functions/process-bulk-reports/index.ts`
+- `supabase/functions/bulk-report-upload/index.ts`
+- `src/pages/AdminSimilarityBulkUpload.tsx`
+- `supabase/functions/process-similarity-bulk-reports/index.ts`
+- `src/components/MatchPreviewDialog.tsx`, `src/utils/filenameMatching.ts` (V1 still uses them)
+- All notification, document, credit, RLS, and DB schema code
 
-Note: the spec's `lifetime_spend`, `total_purchases`, `last_login_at` columns do not exist on `profiles`. Tag computation derives these inside the edge function:
+## Technical details (for reviewers)
 
-- `total_purchases` / `lifetime_spend` → aggregate from `invoices` where `status = 'paid'` for the user.
-- `last_login_at` → fall back to `auth.users.last_sign_in_at` (read via service role).
+### Cover-page name extraction pseudocode
+```ts
+function extractDocumentNameFromCoverPage(pageOneText: string, ownPath: string): string | null {
+  const text = pageOneText.replace(/\s+/g, ' ').trim();
 
-## Edge function: `sync-contact-to-sendfox`
+  // 1. Explicit label
+  const labelRe = /(?:submission\s*(?:title|name)|document\s*(?:title|name)|file\s*name|paper\s*title)\s*[:\-]?\s*([^\n\r|]{1,200}?)(?:\s{2,}|$)/i;
+  const labelMatch = text.match(labelRe);
+  if (labelMatch?.[1]) return labelMatch[1].trim();
 
-Idempotent POST handler taking `{ user_id }`.
+  // 2. Token ending in a known doc extension
+  const extRe = /([^\s|]{1,200}\.(?:docx?|pdf|txt|rtf|odt))/i;
+  const allExt = [...text.matchAll(new RegExp(extRe, 'gi'))]
+    .map(m => m[1])
+    .filter(name => !ownPath.toLowerCase().includes(name.toLowerCase()));
+  if (allExt.length) return allExt[0];
 
-1. Load `profiles` row (must have email).
-2. Short-circuit if email is in `email_suppressions` — log `skip_suppressed`, return.
-3. Compute aggregates (paid invoice sum/count) and pull `last_sign_in_at` via `supabase.auth.admin.getUserById`.
-4. Compute tag set: `customer|lead`, `low_credits` (<5), `high_value` (≥$100), `active` (≤7d), `inactive_30d` (≥30d or never).
-5. Look up existing `sendfox_contacts.sendfox_contact_id`. PATCH if found, else POST `/contacts` with `lists: [SENDFOX_LIST_ID]`.
-6. Upsert mapping row + `sendfox_sync_log` success entry.
-7. On error: log to `sendfox_sync_log` with `status=failed` and return 500.
+  // 3. First meaningful line
+  const lines = pageOneText.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+  const skip = /^(turnitin|originality report|similarity report|ai report|page \d+|submitted to|\d+%?|by\s+)/i;
+  const candidate = lines.find(l => l.length >= 3 && l.length <= 200 && !skip.test(l));
+  return candidate ?? null;
+}
+```
 
-Uses `SENDFOX_ACCESS_TOKEN` Bearer auth against `https://api.sendfox.com`. Tags are stored locally; per spec, richer tag-as-list segmentation can be added later by creating SendFox lists per tag.
+### Matching key swap (single call site change)
+```ts
+// V1:
+const normalizedFilename = normalizeFilename(report.fileName);
 
-## Edge function: `sendfox-webhook`
+// V2:
+const coverPageText = await extractPageText(pdf, 1);
+const extractedCoverName = extractDocumentNameFromCoverPage(coverPageText, report.filePath);
+const matchKey = extractedCoverName ? normalizeFilename(extractedCoverName) : normalizeFilename(report.fileName);
+const normalizedFilename = matchKey;  // rest of code is identical
+```
 
-Public POST endpoint (will deploy with `verify_jwt = false` in `supabase/config.toml`).
-
-- Verifies shared secret from `x-webhook-secret` header or `?secret=` query against `SENDFOX_WEBHOOK_SECRET`.
-- Parses event, normalises type → reason (`unsubscribe`/`bounce`/`complaint`).
-- Upserts into `email_suppressions` and logs.
-
-## Auto-sync wiring
-
-Per spec's fallback note (pg_net + GUC config not standard here), uses **application-level invocation** instead of a DB trigger. We add a tiny client helper `triggerSendfoxSync(userId)` that fires `supabase.functions.invoke('sync-contact-to-sendfox', ...)` and call it from:
-
-- Signup handler (after profile insert succeeds) in `AuthContext.signUp` and the Google OAuth completion path.
-- Successful payment webhooks (server-side): `paddle-webhook`, `dodo-webhook`, `paypal-webhook`, `nowpayments`, and the Stripe checkout success handler. We add a single `await fetch` call to the sync function at the end of the credit-grant block (failures are swallowed and logged — never block the payment flow).
-- Credit deduction path: after `consume_user_credit`, fire-and-forget sync (debounced client-side to avoid spam — only when balance crosses the <5 threshold).
-
-This keeps `SENDPULSE_*` env vars and every `send-*-email` function completely untouched.
-
-## Admin UI: `/admin/email-sync`
-
-New page (admin-route guarded like other admin pages, using `DashboardLayout`):
-
-- Summary cards: total synced contacts, last sync time, error count (24h).
-- Tag breakdown table — counts per tag computed via `sendfox_contacts.current_tags` unnest.
-- Last 50 sync log entries with status badges and error tooltips.
-- "Force resync all users" button — calls a new `resync-all-sendfox` edge function that paginates `profiles` and invokes `sync-contact-to-sendfox` in batches of 10/sec.
-- Suppression list manager — table with manual add (email + reason) and remove.
-- Read-only display of configured `SENDFOX_LIST_ID` (fetched via a tiny `get-sendfox-config` function that returns only the list id, never the token).
-
-Built with shadcn/ui + TanStack Query, matching existing admin page patterns.
-
-## Secrets to add
-
-`SENDFOX_ACCESS_TOKEN`, `SENDFOX_LIST_ID`, `SENDFOX_WEBHOOK_SECRET`. `APP_URL` is optional — we already have project URLs available. The user will be prompted to add these via the secrets tool once they generate them in SendFox.
-
-## Documentation
-
-`docs/email/README.md` explaining the dual-pipeline architecture, the SendFox dashboard setup checklist (token, list, webhook URL, sender domain — emphasising "merge SPF, never replace SendPulse DNS"), the trademark constraint on from-addresses, and the testing checklist.
-
-## Out of scope / preserved
-
-- Zero changes to any file matching `sendpulse` (case-insensitive) or any `SENDPULSE_*` secret.
-- Transactional emails (receipts, password reset, order confirmation, credit alerts) continue via SendPulse and are exempt from suppression.
-- No changes to existing email templates, `handle-unsubscribe`, or `email_unsubscribed` profile flag (those govern SendPulse opt-out and remain authoritative for transactional preferences).
-
-## Deliverables
-
-1. Migration creating the three tables + RLS.
-2. Edge functions: `sync-contact-to-sendfox`, `sendfox-webhook`, `resync-all-sendfox`, `get-sendfox-config` (deployed automatically).
-3. `supabase/config.toml` entry to disable JWT verification on `sendfox-webhook` only.
-4. App-level sync hooks in signup + payment success paths.
-5. `/admin/email-sync` admin page wired into the admin sidebar/router.
-6. Secrets request for the three SendFox values.
-7. `docs/email/README.md` with dashboard setup + testing checklist.
+### Verification checklist after implementation
+- V1 page `/dashboard/bulk-upload` still loads, still shows match preview, still completes uploads via `process-bulk-reports`.
+- V2 page `/dashboard/bulk-upload-v2` loads, has no preview UI, accepts PDFs/ZIPs, calls `process-bulk-reports-v2`.
+- A V2 upload with a renamed file (e.g. `report_xyz.pdf` whose cover page says `Essay_Final.docx`) matches against a queue document named `Essay_Final.docx`.
+- A V2 upload whose cover page can't be parsed falls back to filename matching (parity with V1).
+- Both edge functions appear in deployed function list; both have `verify_jwt = false`.
+- No edits in `src/pages/AdminBulkReportUpload.tsx` or `supabase/functions/process-bulk-reports/index.ts`.
