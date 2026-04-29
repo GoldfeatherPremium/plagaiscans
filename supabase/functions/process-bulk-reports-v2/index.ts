@@ -10,12 +10,41 @@ const corsHeaders = {
 interface ReportFile {
   fileName: string;
   filePath: string;
+  // Optional manual override (used in 'apply' phase)
+  documentId?: string | null;
+  // Optional carry-through analysis from 'analyze' phase (so apply doesn't re-scan)
+  reportType?: 'similarity' | 'ai' | 'unknown';
+  percentage?: number | null;
+  extractedCoverName?: string | null;
 }
 
 interface ReportAnalysis {
   reportType: 'similarity' | 'ai' | 'unknown';
   percentage: number | null;
   textSnippet: string;
+}
+
+interface MatchSuggestion {
+  documentId: string;
+  fileName: string;
+  normalizedFilename: string;
+  confidence: number;
+  hasSimilarityReport: boolean;
+  hasAIReport: boolean;
+}
+
+interface AnalysisItem {
+  fileName: string;
+  filePath: string;
+  extractedCoverName: string | null;
+  matchKey: string;
+  matchSource: 'cover_page' | 'filename_fallback';
+  reportType: 'similarity' | 'ai' | 'unknown';
+  percentage: number | null;
+  bestMatch: MatchSuggestion | null;
+  suggestions: MatchSuggestion[];
+  autoStatus: 'auto_matched' | 'ambiguous' | 'unmatched' | 'error';
+  reason?: string;
 }
 
 interface MappingResult {
@@ -28,10 +57,10 @@ interface MappingResult {
   extractedCoverName?: string | null;
 }
 
-interface ProcessingResult {
+interface ApplyResult {
   success: boolean;
   mapped: MappingResult[];
-  unmatched: { fileName: string; normalizedFilename: string; filePath: string; reason: string; extractedCoverName?: string | null }[];
+  unmatched: { fileName: string; filePath: string; reason: string; extractedCoverName?: string | null }[];
   needsReview: { documentId: string; reason: string }[];
   completedDocuments: string[];
   stats: {
@@ -79,43 +108,36 @@ function calculateSimilarity(a: string, b: string): number {
   return Math.round(((maxLength - distance) / maxLength) * 100);
 }
 
-interface MatchCandidate {
-  doc: {
-    id: string;
-    file_name: string;
-    normalized_filename: string | null;
-    similarity_report_path: string | null;
-    ai_report_path: string | null;
-    user_id: string | null;
-    status: string;
-    needs_review: boolean | null;
-  };
-  confidence: number;
-  matchType: 'exact' | 'fuzzy';
+interface DocRow {
+  id: string;
+  file_name: string;
+  normalized_filename: string | null;
+  similarity_report_path: string | null;
+  ai_report_path: string | null;
+  user_id: string | null;
+  status: string;
+  needs_review: boolean | null;
+  magic_link_id?: string | null;
 }
 
-function findBestMatch(
-  normalizedReport: string,
-  documents: MatchCandidate['doc'][],
-  minConfidence: number = 80
-): { bestMatch: MatchCandidate | null; suggestions: MatchCandidate[] } {
-  const candidates: MatchCandidate[] = [];
+function rankCandidates(normalizedReport: string, documents: DocRow[], minConfidence = 60): MatchSuggestion[] {
+  const candidates: MatchSuggestion[] = [];
   for (const doc of documents) {
     const docNormalized = doc.normalized_filename || getDocumentBaseName(doc.file_name);
-    const similarity = calculateSimilarity(normalizedReport, docNormalized);
-    if (similarity >= minConfidence) {
+    const confidence = calculateSimilarity(normalizedReport, docNormalized);
+    if (confidence >= minConfidence) {
       candidates.push({
-        doc,
-        confidence: similarity,
-        matchType: similarity === 100 ? 'exact' : 'fuzzy',
+        documentId: doc.id,
+        fileName: doc.file_name,
+        normalizedFilename: docNormalized,
+        confidence,
+        hasSimilarityReport: !!doc.similarity_report_path,
+        hasAIReport: !!doc.ai_report_path,
       });
     }
   }
   candidates.sort((a, b) => b.confidence - a.confidence);
-  return {
-    bestMatch: candidates.length > 0 ? candidates[0] : null,
-    suggestions: candidates.slice(0, 3),
-  };
+  return candidates.slice(0, 5);
 }
 
 // deno-lint-ignore no-explicit-any
@@ -126,17 +148,9 @@ async function extractPageText(pdf: any, pageNum: number): Promise<string> {
   return (textContent.items as any[]).map((item) => item.str || '').join(' ');
 }
 
-/**
- * Extract the original document filename printed on the PDF cover page.
- * Strategy:
- *   1. Look for an explicit label like "Submission Title:", "File Name:", etc.
- *   2. Look for any token ending in a known doc extension (.docx, .pdf, .txt, .rtf, .odt)
- *   3. Fallback: first meaningful non-boilerplate line
- */
 function extractDocumentNameFromCoverPage(pageOneText: string, ownPath: string): string | null {
   if (!pageOneText) return null;
 
-  // 1. Explicit label
   const labelRe = /(?:submission\s*(?:title|name)|document\s*(?:title|name)|file\s*name|paper\s*title)\s*[:\-]?\s*([^\n\r|]{1,200}?)(?:\s{2,}|$)/i;
   const labelMatch = pageOneText.match(labelRe);
   if (labelMatch?.[1]) {
@@ -144,7 +158,6 @@ function extractDocumentNameFromCoverPage(pageOneText: string, ownPath: string):
     if (cleaned.length >= 2) return cleaned;
   }
 
-  // 2. Token ending in known extension
   const extRe = /([^\s|]{1,200}\.(?:docx?|pdf|txt|rtf|odt))/gi;
   const ownPathLower = ownPath.toLowerCase();
   const ownBase = ownPath.split('/').pop()?.toLowerCase() ?? '';
@@ -156,13 +169,13 @@ function extractDocumentNameFromCoverPage(pageOneText: string, ownPath: string):
     });
   if (allExt.length > 0) return allExt[0];
 
-  // 3. First meaningful line
   const lines = pageOneText.split(/[\r\n]+/).map((l) => l.trim()).filter(Boolean);
   const skip = /^(turnitin|originality report|similarity report|ai report|page \d+|submitted to|by\s+|\d+\s*%?\s*$)/i;
   const candidate = lines.find((l) => l.length >= 3 && l.length <= 200 && !skip.test(l));
   return candidate ?? null;
 }
 
+// deno-lint-ignore no-explicit-any
 async function analyzePdf(pdfBuffer: ArrayBuffer): Promise<{ analysis: ReportAnalysis; pdf: any | null }> {
   try {
     const pdf = await getDocument({ data: new Uint8Array(pdfBuffer), useSystemFonts: true }).promise;
@@ -328,48 +341,40 @@ serve(async (req: Request) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
     const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .single();
-
+      .from('user_roles').select('role').eq('user_id', user.id).single();
     if (!roleData || (roleData.role !== 'admin' && roleData.role !== 'staff')) {
       return new Response(JSON.stringify({ error: 'Forbidden - Admin/Staff only' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const { reports } = await req.json() as { reports: ReportFile[] };
+    const body = await req.json() as { reports: ReportFile[]; phase?: 'analyze' | 'apply' };
+    const phase: 'analyze' | 'apply' = body.phase === 'apply' ? 'apply' : 'analyze';
+    const reports = body.reports;
 
     if (!reports || !Array.isArray(reports) || reports.length === 0) {
       return new Response(JSON.stringify({ error: 'No reports provided' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`[V2] Processing ${reports.length} reports with cover-page matching`);
+    console.log(`[V2] Phase=${phase}, processing ${reports.length} reports`);
 
+    // Fetch eligible documents
     const { data: documents, error: docError } = await supabase
       .from('documents')
-      .select('id, file_name, normalized_filename, user_id, similarity_report_path, ai_report_path, status, needs_review')
+      .select('id, file_name, normalized_filename, user_id, similarity_report_path, ai_report_path, status, needs_review, magic_link_id')
       .in('status', ['pending', 'in_progress'])
       .eq('needs_review', false);
 
@@ -377,17 +382,134 @@ serve(async (req: Request) => {
       console.error('Error fetching documents:', docError);
       throw new Error('Failed to fetch documents');
     }
+    const docs: DocRow[] = (documents || []) as DocRow[];
+    console.log(`[V2] Found ${docs.length} eligible documents`);
 
-    console.log(`[V2] Found ${documents?.length || 0} eligible documents`);
-
-    const docsByNormalized = new Map<string, typeof documents>();
-    for (const doc of documents || []) {
+    const docsByNormalized = new Map<string, DocRow[]>();
+    for (const doc of docs) {
       const normalized = doc.normalized_filename || getDocumentBaseName(doc.file_name);
       if (!docsByNormalized.has(normalized)) docsByNormalized.set(normalized, []);
       docsByNormalized.get(normalized)!.push(doc);
     }
 
-    const result: ProcessingResult = {
+    // ========== PHASE: ANALYZE ==========
+    if (phase === 'analyze') {
+      const items: AnalysisItem[] = [];
+
+      for (const report of reports) {
+        console.log(`[V2/analyze] ${report.fileName}`);
+
+        let analysis: ReportAnalysis = { reportType: 'unknown', percentage: null, textSnippet: '' };
+        let extractedCoverName: string | null = null;
+
+        const { data: pdfData, error: downloadError } = await supabase.storage
+          .from('reports').download(report.filePath);
+
+        if (downloadError) {
+          console.error(`[V2/analyze] Download failed ${report.filePath}:`, downloadError);
+          items.push({
+            fileName: report.fileName,
+            filePath: report.filePath,
+            extractedCoverName: null,
+            matchKey: normalizeFilename(report.fileName),
+            matchSource: 'filename_fallback',
+            reportType: 'unknown',
+            percentage: null,
+            bestMatch: null,
+            suggestions: [],
+            autoStatus: 'error',
+            reason: 'Failed to download uploaded PDF',
+          });
+          continue;
+        }
+
+        const buffer = await pdfData.arrayBuffer();
+        const analyzed = await analyzePdf(buffer);
+        analysis = analyzed.analysis;
+        const pdfRef = analyzed.pdf;
+
+        if (pdfRef && pdfRef.numPages >= 1) {
+          try {
+            const coverText = await extractPageText(pdfRef, 1);
+            extractedCoverName = extractDocumentNameFromCoverPage(coverText, report.filePath);
+          } catch (e) {
+            console.error(`[V2/analyze] Cover extraction failed:`, e);
+          }
+        }
+
+        const matchKey = extractedCoverName
+          ? normalizeFilename(extractedCoverName)
+          : normalizeFilename(report.fileName);
+        const matchSource: 'cover_page' | 'filename_fallback' =
+          extractedCoverName ? 'cover_page' : 'filename_fallback';
+
+        // Build suggestions
+        const exactMatches = docsByNormalized.get(matchKey) || [];
+        let suggestions: MatchSuggestion[] = [];
+        if (exactMatches.length > 0) {
+          suggestions = exactMatches.map((d) => ({
+            documentId: d.id,
+            fileName: d.file_name,
+            normalizedFilename: d.normalized_filename || getDocumentBaseName(d.file_name),
+            confidence: 100,
+            hasSimilarityReport: !!d.similarity_report_path,
+            hasAIReport: !!d.ai_report_path,
+          }));
+          // Add fuzzy matches too
+          const fuzzy = rankCandidates(matchKey, docs, 60).filter((s) =>
+            !suggestions.some((x) => x.documentId === s.documentId)
+          );
+          suggestions = [...suggestions, ...fuzzy].slice(0, 5);
+        } else {
+          suggestions = rankCandidates(matchKey, docs, 60);
+        }
+
+        let bestMatch: MatchSuggestion | null = null;
+        let autoStatus: AnalysisItem['autoStatus'] = 'unmatched';
+        let reason: string | undefined;
+
+        if (exactMatches.length === 1) {
+          bestMatch = suggestions[0];
+          autoStatus = 'auto_matched';
+        } else if (exactMatches.length > 1) {
+          bestMatch = suggestions[0];
+          autoStatus = 'ambiguous';
+          reason = `${exactMatches.length} documents share this name`;
+        } else if (suggestions.length > 0 && suggestions[0].confidence >= 85) {
+          bestMatch = suggestions[0];
+          autoStatus = 'auto_matched';
+        } else if (suggestions.length > 0) {
+          bestMatch = suggestions[0];
+          autoStatus = 'unmatched';
+          reason = `Best candidate ${suggestions[0].confidence}% below threshold`;
+        } else {
+          autoStatus = 'unmatched';
+          reason = 'No candidates found';
+        }
+
+        items.push({
+          fileName: report.fileName,
+          filePath: report.filePath,
+          extractedCoverName,
+          matchKey,
+          matchSource,
+          reportType: analysis.reportType,
+          percentage: analysis.percentage,
+          bestMatch,
+          suggestions,
+          autoStatus,
+          reason,
+        });
+      }
+
+      return new Response(JSON.stringify({ phase: 'analyze', items }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ========== PHASE: APPLY ==========
+    const result: ApplyResult = {
       success: true,
       mapped: [],
       unmatched: [],
@@ -403,225 +525,130 @@ serve(async (req: Request) => {
     };
 
     for (const report of reports) {
-      console.log(`[V2] Processing report: ${report.fileName}`);
+      // In apply phase, we trust the carry-through analysis from the client
+      // (already scanned during analyze). If missing, re-scan.
+      let reportType: 'similarity' | 'ai' | 'unknown' = report.reportType ?? 'unknown';
+      let percentage: number | null = report.percentage ?? null;
+      const extractedCoverName: string | null = report.extractedCoverName ?? null;
 
-      // Download PDF
-      const { data: pdfData, error: downloadError } = await supabase.storage
-        .from('reports')
-        .download(report.filePath);
+      if (reportType === 'unknown' || percentage === null) {
+        const { data: pdfData, error: downloadError } = await supabase.storage
+          .from('reports').download(report.filePath);
+        if (!downloadError) {
+          const buffer = await pdfData.arrayBuffer();
+          const analyzed = await analyzePdf(buffer);
+          if (reportType === 'unknown') reportType = analyzed.analysis.reportType;
+          if (percentage === null) percentage = analyzed.analysis.percentage;
+        }
+      }
 
-      let analysis: ReportAnalysis = { reportType: 'unknown', percentage: null, textSnippet: '' };
-      let extractedCoverName: string | null = null;
-      let pdfRef: any = null;
+      const matchKey = extractedCoverName
+        ? normalizeFilename(extractedCoverName)
+        : normalizeFilename(report.fileName);
 
-      if (downloadError) {
-        console.error(`[V2] Failed to download PDF ${report.filePath}:`, downloadError);
+      // Resolve target document: manual override first, then exact, then fuzzy
+      let targetDoc: DocRow | null = null;
+
+      if (report.documentId) {
+        targetDoc = docs.find((d) => d.id === report.documentId) ?? null;
+        if (!targetDoc) {
+          // Document might exist but not in eligible set; fetch directly
+          const { data: directDoc } = await supabase
+            .from('documents')
+            .select('id, file_name, normalized_filename, user_id, similarity_report_path, ai_report_path, status, needs_review, magic_link_id')
+            .eq('id', report.documentId)
+            .maybeSingle();
+          targetDoc = (directDoc as DocRow) ?? null;
+        }
       } else {
-        const buffer = await pdfData.arrayBuffer();
-        const analyzed = await analyzePdf(buffer);
-        analysis = analyzed.analysis;
-        pdfRef = analyzed.pdf;
-
-        // Extract cover-page name from page 1
-        if (pdfRef && pdfRef.numPages >= 1) {
-          try {
-            const coverText = await extractPageText(pdfRef, 1);
-            extractedCoverName = extractDocumentNameFromCoverPage(coverText, report.filePath);
-            console.log(`[V2] ${report.fileName} -> cover name: ${extractedCoverName ?? '(none)'}`);
-          } catch (e) {
-            console.error(`[V2] Cover-page extraction failed for ${report.fileName}:`, e);
+        const matchingDocs = docsByNormalized.get(matchKey) || [];
+        if (matchingDocs.length === 1) {
+          targetDoc = matchingDocs[0];
+        } else if (matchingDocs.length === 0) {
+          const suggestions = rankCandidates(matchKey, docs, 60);
+          if (suggestions.length > 0 && suggestions[0].confidence >= 85) {
+            targetDoc = docs.find((d) => d.id === suggestions[0].documentId) ?? null;
           }
         }
       }
 
-      // Determine match key: cover name first, fall back to filename
-      const matchKey = extractedCoverName
-        ? normalizeFilename(extractedCoverName)
-        : normalizeFilename(report.fileName);
-      const normalizedFilename = matchKey;
-
-      console.log(`[V2] ${report.fileName} -> match key: "${normalizedFilename}" (from ${extractedCoverName ? 'cover' : 'filename fallback'})`);
-
-      // Match document
-      let targetDoc: typeof documents[0] | null = null;
-      const matchingDocs = docsByNormalized.get(normalizedFilename) || [];
-
-      if (matchingDocs.length === 1) {
-        targetDoc = matchingDocs[0];
-      } else if (matchingDocs.length === 0) {
-        // Fuzzy match (V2 uses 85 threshold, vs V1's 90)
-        const { bestMatch, suggestions } = findBestMatch(normalizedFilename, documents || [], 80);
-
-        if (bestMatch && bestMatch.confidence >= 85) {
-          targetDoc = bestMatch.doc;
-          console.log(`[V2] Fuzzy match (${bestMatch.confidence}%) for ${report.fileName} -> ${targetDoc.file_name}`);
-        } else {
-          result.unmatched.push({
-            fileName: report.fileName,
-            normalizedFilename,
-            filePath: report.filePath,
-            reason: bestMatch
-              ? `Best match ${bestMatch.doc.file_name} (${bestMatch.confidence}%) below threshold`
-              : 'No matching document found',
-            extractedCoverName,
-          });
-
-          await supabase.from('unmatched_reports').insert({
-            file_name: report.fileName,
-            normalized_filename: normalizedFilename,
-            file_path: report.filePath,
-            report_type: analysis.reportType === 'unknown' ? null : analysis.reportType,
-            uploaded_by: user.id,
-            suggested_documents: {
-              extracted_cover_name: extractedCoverName,
-              source: extractedCoverName ? 'cover_page' : 'filename_fallback',
-              candidates: suggestions.map((s) => ({
-                id: s.doc.id,
-                fileName: s.doc.file_name,
-                confidence: s.confidence,
-              })),
-            },
-          });
-          continue;
-        }
-      } else {
-        // Multiple exact matches - ambiguous
-        for (const doc of matchingDocs) {
-          await supabase
-            .from('documents')
-            .update({
-              needs_review: true,
-              review_reason: `[V2] Multiple documents share normalized filename: ${normalizedFilename}`,
-            })
-            .eq('id', doc.id);
-
-          result.needsReview.push({
-            documentId: doc.id,
-            reason: 'Multiple documents with same normalized filename',
-          });
-        }
-
+      if (!targetDoc) {
         result.unmatched.push({
           fileName: report.fileName,
-          normalizedFilename,
           filePath: report.filePath,
-          reason: 'Multiple matching documents - ambiguous',
+          reason: 'No target document selected and no auto-match found',
           extractedCoverName,
         });
-
         await supabase.from('unmatched_reports').insert({
           file_name: report.fileName,
-          normalized_filename: normalizedFilename,
+          normalized_filename: matchKey,
           file_path: report.filePath,
-          report_type: analysis.reportType === 'unknown' ? null : analysis.reportType,
+          report_type: reportType === 'unknown' ? null : reportType,
           uploaded_by: user.id,
-          suggested_documents: {
-            extracted_cover_name: extractedCoverName,
-            source: extractedCoverName ? 'cover_page' : 'filename_fallback',
-          },
+          suggested_documents: { extracted_cover_name: extractedCoverName },
         });
         continue;
       }
 
-      const doc = targetDoc!;
-
-      // Determine report type
-      let reportType = analysis.reportType;
-      if (reportType === 'unknown') {
-        if (doc.similarity_report_path && !doc.ai_report_path) {
-          reportType = 'ai';
-        } else if (!doc.similarity_report_path) {
-          reportType = 'similarity';
-        } else {
+      // Determine final report type
+      let finalType = reportType;
+      if (finalType === 'unknown') {
+        if (targetDoc.similarity_report_path && !targetDoc.ai_report_path) finalType = 'ai';
+        else if (!targetDoc.similarity_report_path) finalType = 'similarity';
+        else {
           result.unmatched.push({
-            fileName: report.fileName,
-            normalizedFilename,
-            filePath: report.filePath,
-            reason: 'Document already has both reports',
-            extractedCoverName,
-          });
-          await supabase.from('unmatched_reports').insert({
-            file_name: report.fileName,
-            normalized_filename: normalizedFilename,
-            file_path: report.filePath,
-            uploaded_by: user.id,
+            fileName: report.fileName, filePath: report.filePath,
+            reason: 'Document already has both reports', extractedCoverName,
           });
           continue;
         }
       }
-
-      if (reportType === 'similarity' && doc.similarity_report_path) {
-        if (!doc.ai_report_path) {
-          reportType = 'ai';
-        } else {
+      if (finalType === 'similarity' && targetDoc.similarity_report_path) {
+        if (!targetDoc.ai_report_path) finalType = 'ai';
+        else {
           result.unmatched.push({
-            fileName: report.fileName,
-            normalizedFilename,
-            filePath: report.filePath,
-            reason: 'Document already has both reports',
-            extractedCoverName,
-          });
-          await supabase.from('unmatched_reports').insert({
-            file_name: report.fileName,
-            normalized_filename: normalizedFilename,
-            file_path: report.filePath,
-            report_type: reportType,
-            uploaded_by: user.id,
+            fileName: report.fileName, filePath: report.filePath,
+            reason: 'Document already has both reports', extractedCoverName,
           });
           continue;
         }
-      } else if (reportType === 'ai' && doc.ai_report_path) {
-        if (!doc.similarity_report_path) {
-          reportType = 'similarity';
-        } else {
+      } else if (finalType === 'ai' && targetDoc.ai_report_path) {
+        if (!targetDoc.similarity_report_path) finalType = 'similarity';
+        else {
           result.unmatched.push({
-            fileName: report.fileName,
-            normalizedFilename,
-            filePath: report.filePath,
-            reason: 'Document already has both reports',
-            extractedCoverName,
-          });
-          await supabase.from('unmatched_reports').insert({
-            file_name: report.fileName,
-            normalized_filename: normalizedFilename,
-            file_path: report.filePath,
-            report_type: reportType,
-            uploaded_by: user.id,
+            fileName: report.fileName, filePath: report.filePath,
+            reason: 'Document already has both reports', extractedCoverName,
           });
           continue;
         }
       }
 
       const updateData: Record<string, unknown> = {};
-      if (reportType === 'similarity') {
+      if (finalType === 'similarity') {
         updateData.similarity_report_path = report.filePath;
-        if (analysis.percentage !== null) updateData.similarity_percentage = analysis.percentage;
+        if (percentage !== null) updateData.similarity_percentage = percentage;
       } else {
         updateData.ai_report_path = report.filePath;
-        if (analysis.percentage !== null) updateData.ai_percentage = analysis.percentage;
+        if (percentage !== null) updateData.ai_percentage = percentage;
       }
 
-      const willHaveSimilarity = reportType === 'similarity' || doc.similarity_report_path;
-      const willHaveAI = reportType === 'ai' || doc.ai_report_path;
+      const willHaveSimilarity = finalType === 'similarity' || targetDoc.similarity_report_path;
+      const willHaveAI = finalType === 'ai' || targetDoc.ai_report_path;
 
       if (willHaveSimilarity && willHaveAI) {
         updateData.status = 'completed';
         updateData.completed_at = new Date().toISOString();
-        result.completedDocuments.push(doc.id);
+        result.completedDocuments.push(targetDoc.id);
         result.stats.completedCount++;
       }
 
       const { error: updateError } = await supabase
-        .from('documents')
-        .update(updateData)
-        .eq('id', doc.id);
+        .from('documents').update(updateData).eq('id', targetDoc.id);
 
       if (updateError) {
-        console.error(`[V2] Error updating document ${doc.id}:`, updateError);
+        console.error(`[V2/apply] Update failed ${targetDoc.id}:`, updateError);
         result.unmatched.push({
-          fileName: report.fileName,
-          normalizedFilename,
-          filePath: report.filePath,
+          fileName: report.fileName, filePath: report.filePath,
           reason: 'Failed to update document: ' + updateError.message,
           extractedCoverName,
         });
@@ -629,20 +656,17 @@ serve(async (req: Request) => {
       }
 
       result.mapped.push({
-        documentId: doc.id,
+        documentId: targetDoc.id,
         fileName: report.fileName,
-        reportType: reportType as 'similarity' | 'ai',
-        percentage: analysis.percentage,
+        reportType: finalType as 'similarity' | 'ai',
+        percentage,
         success: true,
         extractedCoverName,
       });
       result.stats.mappedCount++;
 
-      if (reportType === 'similarity') {
-        doc.similarity_report_path = report.filePath;
-      } else {
-        doc.ai_report_path = report.filePath;
-      }
+      if (finalType === 'similarity') targetDoc.similarity_report_path = report.filePath;
+      else targetDoc.ai_report_path = report.filePath;
     }
 
     result.stats.unmatchedCount = result.unmatched.length;
@@ -653,8 +677,7 @@ serve(async (req: Request) => {
       const { data: completedDoc } = await supabase
         .from('documents')
         .select('id, file_name, user_id, magic_link_id, similarity_percentage, ai_percentage')
-        .eq('id', docId)
-        .single();
+        .eq('id', docId).single();
 
       if (completedDoc?.user_id) {
         await supabase.from('user_notifications').insert({
@@ -663,7 +686,6 @@ serve(async (req: Request) => {
           message: `Your document "${completedDoc.file_name}" has been processed and is ready for download.`,
           created_by: user.id,
         });
-
         try {
           await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
             method: 'POST',
@@ -675,10 +697,7 @@ serve(async (req: Request) => {
               url: '/my-documents',
             }),
           });
-        } catch (e) {
-          console.error('[V2] Push notification failed:', e);
-        }
-
+        } catch (e) { console.error('[V2] Push failed:', e); }
         try {
           await fetch(`${supabaseUrl}/functions/v1/send-completion-email`, {
             method: 'POST',
@@ -689,11 +708,8 @@ serve(async (req: Request) => {
               fileName: completedDoc.file_name,
             }),
           });
-        } catch (e) {
-          console.error('[V2] Completion email failed:', e);
-        }
+        } catch (e) { console.error('[V2] Email failed:', e); }
       }
-
       if (completedDoc?.magic_link_id) {
         try {
           await fetch(`${supabaseUrl}/functions/v1/send-guest-completion-email`, {
@@ -707,20 +723,18 @@ serve(async (req: Request) => {
               aiPercentage: completedDoc.ai_percentage,
             }),
           });
-        } catch (e) {
-          console.error('[V2] Guest completion email failed:', e);
-        }
+        } catch (e) { console.error('[V2] Guest email failed:', e); }
       }
     }
 
-    console.log('[V2] Bulk report processing complete:', result.stats);
+    console.log('[V2/apply] Complete:', result.stats);
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({ phase: 'apply', ...result }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('[V2] Error in process-bulk-reports-v2:', error);
+    console.error('[V2] Error:', error);
     return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
