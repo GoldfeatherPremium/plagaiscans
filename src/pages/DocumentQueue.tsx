@@ -842,7 +842,7 @@ export default function DocumentQueue() {
             </TabsContent>
 
             <TabsContent value="bulk-upload-v2" className="mt-4">
-              <BulkUploadPanel scanType="full" compact useV2 />
+              <BulkReportUploadV2Content embedded />
             </TabsContent>
           </Tabs>
         ) : (
