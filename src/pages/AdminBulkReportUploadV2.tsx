@@ -80,7 +80,11 @@ interface ApplyResult {
 
 const UNMATCHED_VALUE = '__unmatched__';
 
-export default function AdminBulkReportUploadV2() {
+interface BulkReportUploadV2ContentProps {
+  embedded?: boolean;
+}
+
+export function BulkReportUploadV2Content({ embedded = false }: BulkReportUploadV2ContentProps = {}) {
   const { role } = useAuth();
   const { permissions, loading: permissionsLoading } = useStaffPermissions();
   const [files, setFiles] = useState<ReportFile[]>([]);
@@ -356,22 +360,21 @@ export default function AdminBulkReportUploadV2() {
   const processing = uploading || analyzing || applying;
 
   if (role === 'staff' && !permissionsLoading && !permissions.can_batch_process) {
-    return (
-      <DashboardLayout>
-        <div className="flex flex-col items-center justify-center py-16">
-          <ShieldX className="h-16 w-16 text-muted-foreground mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-          <p className="text-muted-foreground text-center max-w-md">
-            You don't have permission to access bulk upload. Please contact an administrator.
-          </p>
-        </div>
-      </DashboardLayout>
+    const denied = (
+      <div className="flex flex-col items-center justify-center py-16">
+        <ShieldX className="h-16 w-16 text-muted-foreground mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          You don't have permission to access bulk upload. Please contact an administrator.
+        </p>
+      </div>
     );
+    return embedded ? denied : <DashboardLayout>{denied}</DashboardLayout>;
   }
 
-  return (
-    <DashboardLayout>
-      <div className="space-y-6">
+  const inner = (
+    <div className="space-y-6">
+      {!embedded && (
         <div className="mb-6">
           <h1 className="text-3xl font-bold">
             {role === 'admin' ? 'Bulk Report Upload V2' : 'AI Reports Bulk Upload V2'}
@@ -380,6 +383,7 @@ export default function AdminBulkReportUploadV2() {
             Reports are matched after upload by reading each PDF's cover page. Review matches and adjust manually before confirming.
           </p>
         </div>
+      )}
 
         {/* Available queue documents card removed per request — the queue list
             is still accessible inside each row's "Assign to Document" dropdown. */}
@@ -859,8 +863,13 @@ export default function AdminBulkReportUploadV2() {
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
-    </DashboardLayout>
+      )}
+    </div>
   );
+
+  return embedded ? inner : <DashboardLayout>{inner}</DashboardLayout>;
+}
+
+export default function AdminBulkReportUploadV2() {
+  return <BulkReportUploadV2Content />;
 }

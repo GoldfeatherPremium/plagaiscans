@@ -14,6 +14,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentDialog';
 import { CancelDocumentDialog } from '@/components/CancelDocumentDialog';
 import { BulkUploadPanel } from '@/components/BulkUploadPanel';
+import { BulkReportUploadV2Content } from '@/pages/AdminBulkReportUploadV2';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare, CheckCheck, FolderUp, Pencil, Ban } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -842,7 +843,7 @@ export default function DocumentQueue() {
             </TabsContent>
 
             <TabsContent value="bulk-upload-v2" className="mt-4">
-              <BulkUploadPanel scanType="full" compact useV2 />
+              <BulkReportUploadV2Content embedded />
             </TabsContent>
           </Tabs>
         ) : (
