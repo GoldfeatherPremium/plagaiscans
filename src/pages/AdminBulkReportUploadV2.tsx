@@ -605,8 +605,8 @@ export default function AdminBulkReportUploadV2() {
                       const assignedName = assignedDoc
                         ? ('fileName' in assignedDoc ? assignedDoc.fileName : assignedDoc.file_name)
                         : null;
-                      const assignedFilePath = assignedDoc
-                        ? ('filePath' in assignedDoc ? assignedDoc.filePath : assignedDoc.file_path)
+                      const assignedFilePath: string | null = assignedDoc
+                        ? ((assignedDoc as any).filePath ?? (assignedDoc as any).file_path ?? null)
                         : null;
                       const isManual = !!item.selectedDocId
                         && item.bestMatch
