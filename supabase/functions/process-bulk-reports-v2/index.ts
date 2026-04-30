@@ -239,16 +239,15 @@ function extractDocumentNameFromCoverPage(
   // Filter out obvious noise lines for the title-block scan
   const visibleLines = lines.filter((l) => !NOISE_RE.test(l.text));
 
+  // Header noise we always want to skip when picking title-block lines
+  const HEADER_NOISE = /^(page \d+( of \d+)?( - cover page)?|turnitin|cover page|originality report|similarity report|ai (?:writing )?report)$/i;
+
   // ---- MODERN VIEW ----
-  // The title block sits above "Document Details". Find that anchor.
+  // Title block sits above "Document Details". Line 1 = student name, Line 2 = filename (what we want).
   const docDetailsIdx = lines.findIndex((l) => /^document\s+details$/i.test(l.text));
   if (docDetailsIdx > 0) {
-    // Title block = lines above docDetails, skipping pure header noise
-    const block = lines.slice(0, docDetailsIdx).filter((l) =>
-      !/^(page \d+( of \d+)?( - cover page)?|turnitin|cover page)$/i.test(l.text)
-    );
+    const block = lines.slice(0, docDetailsIdx).filter((l) => !HEADER_NOISE.test(l.text));
     if (block.length >= 2) {
-      // Modern layout: line[0] = student name, line[1] = filename (the one we want)
       const candidate = cleanCoverName(block[1].text);
       if (candidate.length >= 2 && !NOISE_RE.test(candidate)) {
         return { name: candidate, source: 'modern_second_line' };
@@ -256,6 +255,19 @@ function extractDocumentNameFromCoverPage(
     } else if (block.length === 1) {
       const candidate = cleanCoverName(block[0].text);
       if (candidate.length >= 2) return { name: candidate, source: 'modern_second_line' };
+    }
+  }
+
+  // ---- MODERN VIEW (no anchor) ----
+  // If "Document Details" wasn't detected, still prefer line 2 of the cover page,
+  // skipping page header noise. This guarantees we never use the first line
+  // (which is typically the student name) as the match key.
+  const cleanTop = lines.filter((l) => !HEADER_NOISE.test(l.text)).slice(0, 6);
+  if (cleanTop.length >= 2) {
+    const second = cleanCoverName(cleanTop[1].text);
+    // Only accept if it's not obviously noise and looks like a title (not "by ..." etc).
+    if (second.length >= 2 && !NOISE_RE.test(second) && !/^by\s+/i.test(second)) {
+      return { name: second, source: 'modern_second_line' };
     }
   }
 
