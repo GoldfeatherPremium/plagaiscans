@@ -508,7 +508,7 @@ export function BulkUploadPanel({ scanType, compact = false, useV2 = false }: Bu
 
               {/* Action Buttons */}
               <div className="mt-4 flex justify-end gap-2">
-                {files.length > 0 && pendingDocuments.length > 0 && !processing && (
+                {!useV2 && files.length > 0 && pendingDocuments.length > 0 && !processing && (
                   <Button 
                     variant="outline"
                     size="sm"
