@@ -582,6 +582,7 @@ serve(async (req: Request) => {
             confidence: 100,
             hasSimilarityReport: !!d.similarity_report_path,
             hasAIReport: !!d.ai_report_path,
+            filePath: (d as any).file_path ?? null,
           }));
           // Add fuzzy matches too
           const fuzzy = rankCandidates(matchKey, docs, 60).filter((s) =>
