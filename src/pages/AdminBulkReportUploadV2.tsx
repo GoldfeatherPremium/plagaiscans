@@ -577,64 +577,72 @@ export default function AdminBulkReportUploadV2() {
 
                       return (
                         <div key={index} className={`border rounded-lg overflow-hidden ${borderClass}`}>
-                          {/* Main row */}
+                          {/* Main row — stacks on mobile, inline on sm+ */}
                           <div
-                            className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/30 ${bgClass}`}
+                            className={`p-3 cursor-pointer hover:bg-muted/30 ${bgClass}`}
                             onClick={() => toggleRow(index)}
                           >
-                            {status === 'exact' && <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />}
-                            {status === 'partial' && <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0" />}
-                            {status === 'none' && <XCircle className="h-4 w-4 text-red-600 shrink-0" />}
+                            <div className="flex items-start gap-2">
+                              {status === 'exact' && <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />}
+                              {status === 'partial' && <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />}
+                              {status === 'none' && <XCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />}
 
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{item.fileName}</p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                Cover: {item.extractedCoverName || <em>(not detected)</em>} • Key: <span className="font-mono">{item.matchKey}</span>
-                              </p>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium break-words">{item.fileName}</p>
+                                <p className="text-xs text-muted-foreground break-words">
+                                  Cover: {item.extractedCoverName || <em>(not detected)</em>}
+                                </p>
+                                <p className="text-xs text-muted-foreground break-all">
+                                  Key: <span className="font-mono">{item.matchKey}</span>
+                                </p>
+                              </div>
+
+                              {isExpanded
+                                ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                                : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
                             </div>
 
-                            <Button
-                              variant="ghost" size="icon" className="h-7 w-7 shrink-0"
-                              onClick={(e) => { e.stopPropagation(); previewReport(item.filePath); }}
-                              title="Preview uploaded report PDF"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            {/* Action / assignment row — wraps on mobile */}
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <Button
+                                variant="outline" size="sm" className="h-7 px-2 text-xs"
+                                onClick={(e) => { e.stopPropagation(); previewReport(item.filePath); }}
+                                title="Preview uploaded report PDF"
+                              >
+                                <Eye className="h-3.5 w-3.5 mr-1" /> Report
+                              </Button>
 
-                            <div className="flex items-center gap-2 shrink-0">
                               {currentAssignment ? (
                                 <>
                                   <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                                  <div className="text-right max-w-[220px]">
-                                    <p className="text-sm truncate">{assignedName || 'Unknown'}</p>
-                                    <div className="flex items-center justify-end gap-1">
-                                      {item.bestMatch && !isManual && (
-                                        <Badge
-                                          variant={item.bestMatch.confidence >= 95 ? 'default' : item.bestMatch.confidence >= 85 ? 'secondary' : 'outline'}
-                                          className="text-[10px]"
-                                        >
-                                          {item.bestMatch.confidence}% match
-                                        </Badge>
-                                      )}
-                                      {isManual && <Badge variant="secondary" className="text-[10px]">Manual</Badge>}
-                                      <Button
-                                        variant="ghost" size="icon" className="h-6 w-6"
-                                        onClick={(e) => { e.stopPropagation(); previewQueueDocument(assignedFilePath as any); }}
-                                        title="Preview matched original document"
+                                  <div className="flex flex-wrap items-center gap-1 min-w-0">
+                                    <span className="text-xs sm:text-sm truncate max-w-[180px] sm:max-w-[260px]">
+                                      {assignedName || 'Unknown'}
+                                    </span>
+                                    {item.bestMatch && !isManual && (
+                                      <Badge
+                                        variant={item.bestMatch.confidence >= 95 ? 'default' : item.bestMatch.confidence >= 85 ? 'secondary' : 'outline'}
+                                        className="text-[10px]"
                                       >
-                                        <Eye className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </div>
+                                        {item.bestMatch.confidence}%
+                                      </Badge>
+                                    )}
+                                    {isManual && <Badge variant="secondary" className="text-[10px]">Manual</Badge>}
+                                    <Button
+                                      variant="outline" size="sm" className="h-7 px-2 text-xs"
+                                      onClick={(e) => { e.stopPropagation(); previewQueueDocument(assignedFilePath as any); }}
+                                      title="Preview matched original document"
+                                    >
+                                      <Eye className="h-3.5 w-3.5 mr-1" /> Original
+                                    </Button>
                                   </div>
                                 </>
                               ) : (
-                                <span className="text-sm text-red-600">No assignment</span>
+                                <span className="text-xs sm:text-sm text-red-600">No assignment — tap to assign</span>
                               )}
-                              {isExpanded
-                                ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                                : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                             </div>
                           </div>
+
 
                           {/* Expanded content */}
                           {isExpanded && (
