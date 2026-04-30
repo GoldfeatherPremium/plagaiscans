@@ -499,7 +499,7 @@ serve(async (req: Request) => {
     // Fetch eligible documents
     const { data: documents, error: docError } = await supabase
       .from('documents')
-      .select('id, file_name, normalized_filename, user_id, similarity_report_path, ai_report_path, status, needs_review, magic_link_id')
+      .select('id, file_name, file_path, normalized_filename, user_id, similarity_report_path, ai_report_path, status, needs_review, magic_link_id')
       .in('status', ['pending', 'in_progress'])
       .eq('needs_review', false);
 
@@ -688,7 +688,7 @@ serve(async (req: Request) => {
           // Document might exist but not in eligible set; fetch directly
           const { data: directDoc } = await supabase
             .from('documents')
-            .select('id, file_name, normalized_filename, user_id, similarity_report_path, ai_report_path, status, needs_review, magic_link_id')
+            .select('id, file_name, file_path, normalized_filename, user_id, similarity_report_path, ai_report_path, status, needs_review, magic_link_id')
             .eq('id', report.documentId)
             .maybeSingle();
           targetDoc = (directDoc as DocRow) ?? null;
