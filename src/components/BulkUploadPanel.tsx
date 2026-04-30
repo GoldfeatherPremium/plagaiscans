@@ -73,7 +73,7 @@ function normalizeFilename(filename: string): string {
   return result.trim();
 }
 
-export function BulkUploadPanel({ scanType, compact = false }: BulkUploadPanelProps) {
+export function BulkUploadPanel({ scanType, compact = false, useV2 = false }: BulkUploadPanelProps) {
   const { role } = useAuth();
   const { permissions, loading: permissionsLoading } = useStaffPermissions();
   const [files, setFiles] = useState<ReportFile[]>([]);
@@ -86,7 +86,9 @@ export function BulkUploadPanel({ scanType, compact = false }: BulkUploadPanelPr
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isSimilarityOnly = scanType === 'similarity_only';
-  const edgeFunctionName = isSimilarityOnly ? 'process-similarity-bulk-reports' : 'process-bulk-reports';
+  const edgeFunctionName = useV2
+    ? 'process-bulk-reports-v2'
+    : (isSimilarityOnly ? 'process-similarity-bulk-reports' : 'process-bulk-reports');
 
   // Fetch pending/in-progress documents for the appropriate queue
   const { data: pendingDocuments = [], isLoading: loadingDocuments } = useQuery({
