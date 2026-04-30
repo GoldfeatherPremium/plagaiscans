@@ -63,6 +63,7 @@ interface ProcessingResult {
 interface BulkUploadPanelProps {
   scanType: 'full' | 'similarity_only';
   compact?: boolean;
+  useV2?: boolean;
 }
 
 function normalizeFilename(filename: string): string {
@@ -72,7 +73,7 @@ function normalizeFilename(filename: string): string {
   return result.trim();
 }
 
-export function BulkUploadPanel({ scanType, compact = false }: BulkUploadPanelProps) {
+export function BulkUploadPanel({ scanType, compact = false, useV2 = false }: BulkUploadPanelProps) {
   const { role } = useAuth();
   const { permissions, loading: permissionsLoading } = useStaffPermissions();
   const [files, setFiles] = useState<ReportFile[]>([]);
@@ -85,7 +86,9 @@ export function BulkUploadPanel({ scanType, compact = false }: BulkUploadPanelPr
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isSimilarityOnly = scanType === 'similarity_only';
-  const edgeFunctionName = isSimilarityOnly ? 'process-similarity-bulk-reports' : 'process-bulk-reports';
+  const edgeFunctionName = useV2
+    ? 'process-bulk-reports-v2'
+    : (isSimilarityOnly ? 'process-similarity-bulk-reports' : 'process-bulk-reports');
 
   // Fetch pending/in-progress documents for the appropriate queue
   const { data: pendingDocuments = [], isLoading: loadingDocuments } = useQuery({
@@ -349,12 +352,14 @@ export function BulkUploadPanel({ scanType, compact = false }: BulkUploadPanelPr
         <CardHeader className={compact ? "pb-3" : undefined}>
           <CardTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            {isSimilarityOnly ? 'Similarity Reports Upload' : 'AI Reports Upload'}
+            {useV2 ? 'AI Reports Upload (V2)' : (isSimilarityOnly ? 'Similarity Reports Upload' : 'AI Reports Upload')}
           </CardTitle>
           <CardDescription>
-            {isSimilarityOnly 
-              ? 'Upload PDF similarity reports. Reports are auto-matched to documents.'
-              : 'Upload PDF reports or ZIP archives. Each PDF is analyzed to classify as Similarity or AI report.'}
+            {useV2
+              ? 'Upload PDF reports or ZIP archives. Reports are matched after upload by reading each PDF\u2019s cover page.'
+              : (isSimilarityOnly 
+                ? 'Upload PDF similarity reports. Reports are auto-matched to documents.'
+                : 'Upload PDF reports or ZIP archives. Each PDF is analyzed to classify as Similarity or AI report.')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -484,7 +489,7 @@ export function BulkUploadPanel({ scanType, compact = false }: BulkUploadPanelPr
               )}
 
               {/* Match Preview Stats */}
-              {files.length > 0 && pendingDocuments.length > 0 && !processing && (
+              {!useV2 && files.length > 0 && pendingDocuments.length > 0 && !processing && (
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   <div className="text-center p-2 bg-green-500/10 rounded-lg border border-green-200">
                     <p className="text-lg font-bold text-green-600">{matchStats.exact}</p>
@@ -503,7 +508,7 @@ export function BulkUploadPanel({ scanType, compact = false }: BulkUploadPanelPr
 
               {/* Action Buttons */}
               <div className="mt-4 flex justify-end gap-2">
-                {files.length > 0 && pendingDocuments.length > 0 && !processing && (
+                {!useV2 && files.length > 0 && pendingDocuments.length > 0 && !processing && (
                   <Button 
                     variant="outline"
                     size="sm"

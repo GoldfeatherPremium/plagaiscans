@@ -830,6 +830,7 @@ export default function DocumentQueue() {
             <TabsList>
               <TabsTrigger value="queue">Queue</TabsTrigger>
               <TabsTrigger value="bulk-upload">Bulk Upload</TabsTrigger>
+              <TabsTrigger value="bulk-upload-v2">Bulk Upload V2</TabsTrigger>
             </TabsList>
             
             <TabsContent value="queue" className="mt-4 space-y-4">
@@ -838,6 +839,10 @@ export default function DocumentQueue() {
             
             <TabsContent value="bulk-upload" className="mt-4">
               <BulkUploadPanel scanType="full" compact />
+            </TabsContent>
+
+            <TabsContent value="bulk-upload-v2" className="mt-4">
+              <BulkUploadPanel scanType="full" compact useV2 />
             </TabsContent>
           </Tabs>
         ) : (
