@@ -213,6 +213,7 @@ function groupIntoLines(items: PositionedItem[]): { y: number; height: number; t
 }
 
 const NOISE_RE = /^(turnitin|originality report|similarity report|ai (?:writing )?report|page \d+( of \d+)?( - cover page)?|submitted to|submission(?: id| date)?|download date|file name|file size|word count|character count|document details|by\s+|\d+\s*%?\s*$|cover page)$/i;
+const HEADER_NOISE_RE = /(?:turnitin|page\s+\d+\s+of\s+\d+|cover\s+page|submission\s+id|trn:oid|originality\s+report|similarity\s+report|ai\s+(?:writing\s+)?report)/i;
 
 function cleanCoverName(raw: string): string {
   return raw
@@ -220,6 +221,19 @@ function cleanCoverName(raw: string): string {
     .replace(/^[\s\-–—:]+/, '')
     .replace(/[\s\-–—:]+$/, '')
     .trim();
+}
+
+function isCoverNoiseLine(text: string): boolean {
+  const cleaned = cleanCoverName(text);
+  return NOISE_RE.test(cleaned) || HEADER_NOISE_RE.test(cleaned);
+}
+
+function looksLikeDocumentTitle(text: string): boolean {
+  const cleaned = cleanCoverName(text);
+  return cleaned.length >= 2
+    && !isCoverNoiseLine(cleaned)
+    && !/^by\s+/i.test(cleaned)
+    && !/^\d+(?:\.\d+)?\s*%/.test(cleaned);
 }
 
 // Heuristics:
@@ -239,22 +253,21 @@ function extractDocumentNameFromCoverPage(
   // Filter out obvious noise lines for the title-block scan
   const visibleLines = lines.filter((l) => !NOISE_RE.test(l.text));
 
-  // Header noise we always want to skip when picking title-block lines
-  const HEADER_NOISE = /^(page \d+( of \d+)?( - cover page)?|turnitin|cover page|originality report|similarity report|ai (?:writing )?report)$/i;
-
   // ---- MODERN VIEW ----
   // Title block sits above "Document Details". Line 1 = student name, Line 2 = filename (what we want).
   const docDetailsIdx = lines.findIndex((l) => /^document\s+details$/i.test(l.text));
   if (docDetailsIdx > 0) {
-    const block = lines.slice(0, docDetailsIdx).filter((l) => !HEADER_NOISE.test(l.text));
-    if (block.length >= 2) {
-      const candidate = cleanCoverName(block[1].text);
-      if (candidate.length >= 2 && !NOISE_RE.test(candidate)) {
+    const block = lines.slice(0, docDetailsIdx).filter((l) => !isCoverNoiseLine(l.text));
+    const maxHeight = block.length > 0 ? Math.max(...block.map((l) => l.height)) : 0;
+    const titleBlock = maxHeight > 0
+      ? block.filter((l) => l.height >= maxHeight * 0.65 && looksLikeDocumentTitle(l.text))
+      : block.filter((l) => looksLikeDocumentTitle(l.text));
+
+    if (titleBlock.length >= 2) {
+      const candidate = cleanCoverName(titleBlock.slice(1).map((l) => l.text).join(' '));
+      if (looksLikeDocumentTitle(candidate)) {
         return { name: candidate, source: 'modern_second_line' };
       }
-    } else if (block.length === 1) {
-      const candidate = cleanCoverName(block[0].text);
-      if (candidate.length >= 2) return { name: candidate, source: 'modern_second_line' };
     }
   }
 
@@ -262,11 +275,13 @@ function extractDocumentNameFromCoverPage(
   // If "Document Details" wasn't detected, still prefer line 2 of the cover page,
   // skipping page header noise. This guarantees we never use the first line
   // (which is typically the student name) as the match key.
-  const cleanTop = lines.filter((l) => !HEADER_NOISE.test(l.text)).slice(0, 6);
-  if (cleanTop.length >= 2) {
-    const second = cleanCoverName(cleanTop[1].text);
+  const cleanTop = lines.filter((l) => !isCoverNoiseLine(l.text) && looksLikeDocumentTitle(l.text)).slice(0, 6);
+  const maxTopHeight = cleanTop.length > 0 ? Math.max(...cleanTop.map((l) => l.height)) : 0;
+  const topTitleBlock = maxTopHeight > 0 ? cleanTop.filter((l) => l.height >= maxTopHeight * 0.65) : cleanTop;
+  if (topTitleBlock.length >= 2) {
+    const second = cleanCoverName(topTitleBlock.slice(1).map((l) => l.text).join(' '));
     // Only accept if it's not obviously noise and looks like a title (not "by ..." etc).
-    if (second.length >= 2 && !NOISE_RE.test(second) && !/^by\s+/i.test(second)) {
+    if (looksLikeDocumentTitle(second)) {
       return { name: second, source: 'modern_second_line' };
     }
   }
