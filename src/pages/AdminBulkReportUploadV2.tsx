@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +10,11 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
+import { useQuery } from '@tanstack/react-query';
 import {
   Upload, FileText, X, CheckCircle2, AlertCircle, Clock, Archive,
   Loader2, FileCheck, FileWarning, Zap, ShieldX, ScanLine, ArrowRight,
+  Eye, ChevronDown, ChevronUp, AlertTriangle, XCircle,
 } from 'lucide-react';
 import JSZip from 'jszip';
 
@@ -31,6 +33,7 @@ interface MatchSuggestion {
   confidence: number;
   hasSimilarityReport: boolean;
   hasAIReport: boolean;
+  filePath?: string | null;
 }
 
 interface AnalysisItem {
