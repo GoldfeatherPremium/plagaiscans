@@ -304,9 +304,15 @@ export function BulkUploadPanel({ scanType, compact = false, useV2 = false }: Bu
       }
 
       setUploadProgress(100);
+
+      const stats = (data as any)?.stats;
+      if (!stats) {
+        toast.warning('Reports uploaded. Awaiting server processing — refresh shortly to see results.');
+        return;
+      }
+
       setProcessingResult(data as ProcessingResult);
 
-      const stats = data.stats;
       if (stats.completedCount > 0) {
         toast.success(`Successfully completed ${stats.completedCount} documents!`);
       }
