@@ -37,6 +37,7 @@ interface AnalysisItem {
   fileName: string;
   filePath: string;
   extractedCoverName: string | null;
+  extractionSource: string | null;
   matchKey: string;
   matchSource: 'cover_page' | 'filename_fallback';
   reportType: 'similarity' | 'ai' | 'unknown';
@@ -499,6 +500,14 @@ export default function AdminBulkReportUploadV2() {
                                   <span className="font-mono">{item.extractedCoverName}</span>
                                 ) : (
                                   <span className="italic text-muted-foreground">(not detected — using filename)</span>
+                                )}
+                                {item.extractionSource && (
+                                  <Badge variant="outline" className="ml-2 text-[10px] py-0">
+                                    {item.extractionSource === 'modern_second_line' ? 'modern (line 2)' :
+                                     item.extractionSource === 'classic_large_heading' ? 'classic (heading)' :
+                                     item.extractionSource === 'label_fallback' ? 'label' :
+                                     item.extractionSource === 'extension_fallback' ? 'ext' : item.extractionSource}
+                                  </Badge>
                                 )}
                               </div>
                               <div>
