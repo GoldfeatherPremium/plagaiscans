@@ -381,6 +381,53 @@ export default function AdminBulkReportUploadV2() {
           </p>
         </div>
 
+        {/* Available AI-scan queue documents */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4" />
+              Available Queue Documents ({pendingDocuments.length})
+            </CardTitle>
+            <CardDescription>
+              Pending and in-progress AI scan documents available for matching. Click the eye icon to preview the original.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingDocuments ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading queue…
+              </div>
+            ) : pendingDocuments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No pending AI-scan documents in queue.</p>
+            ) : (
+              <ScrollArea className="h-[180px] border rounded-lg">
+                <div className="p-2 space-y-1">
+                  {pendingDocuments.map((doc) => (
+                    <div key={doc.id} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm truncate">{doc.file_name}</p>
+                        <p className="text-xs text-muted-foreground truncate">Key: {doc.normalized_filename || '—'}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Badge variant="outline" className="text-[10px]">{doc.status}</Badge>
+                        {doc.similarity_report_path && <Badge variant="secondary" className="text-[10px]">SIM</Badge>}
+                        {doc.ai_report_path && <Badge variant="secondary" className="text-[10px]">AI</Badge>}
+                        <Button
+                          variant="ghost" size="icon" className="h-7 w-7"
+                          onClick={() => previewQueueDocument(doc.file_path)}
+                          title="Preview original document"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Upload Area */}
         <Card>
           <CardHeader>
