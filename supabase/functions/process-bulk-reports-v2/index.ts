@@ -37,6 +37,7 @@ interface AnalysisItem {
   fileName: string;
   filePath: string;
   extractedCoverName: string | null;
+  extractionSource: string | null;
   matchKey: string;
   matchSource: 'cover_page' | 'filename_fallback';
   reportType: 'similarity' | 'ai' | 'unknown';
