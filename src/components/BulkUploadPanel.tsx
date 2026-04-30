@@ -489,7 +489,7 @@ export function BulkUploadPanel({ scanType, compact = false, useV2 = false }: Bu
               )}
 
               {/* Match Preview Stats */}
-              {files.length > 0 && pendingDocuments.length > 0 && !processing && (
+              {!useV2 && files.length > 0 && pendingDocuments.length > 0 && !processing && (
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   <div className="text-center p-2 bg-green-500/10 rounded-lg border border-green-200">
                     <p className="text-lg font-bold text-green-600">{matchStats.exact}</p>
