@@ -92,6 +92,54 @@ export default function AdminBulkReportUploadV2() {
   const [analysisItems, setAnalysisItems] = useState<AnalysisItem[] | null>(null);
   const [applyResult, setApplyResult] = useState<ApplyResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+
+  // Pending AI-scan queue documents (mirrors V1)
+  const { data: pendingDocuments = [], isLoading: loadingDocuments } = useQuery({
+    queryKey: ['v2-pending-full-scan-documents'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('id, file_name, file_path, normalized_filename, status, similarity_report_path, ai_report_path')
+        .in('status', ['pending', 'in_progress'])
+        .neq('scan_type', 'similarity_only')
+        .eq('needs_review', false)
+        .is('deleted_at', null)
+        .order('uploaded_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const toggleRow = (index: number) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index); else next.add(index);
+      return next;
+    });
+  };
+
+  const previewReport = async (filePath: string) => {
+    const { data, error } = await supabase.storage.from('reports').createSignedUrl(filePath, 300);
+    if (error || !data?.signedUrl) {
+      toast.error('Could not open report preview');
+      return;
+    }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const previewQueueDocument = async (filePath: string | null | undefined) => {
+    if (!filePath) {
+      toast.error('Original document file is unavailable');
+      return;
+    }
+    const { data, error } = await supabase.storage.from('documents').createSignedUrl(filePath, 300);
+    if (error || !data?.signedUrl) {
+      toast.error('Could not open document preview');
+      return;
+    }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  };
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
