@@ -619,6 +619,7 @@ serve(async (req: Request) => {
           fileName: report.fileName,
           filePath: report.filePath,
           extractedCoverName,
+          extractionSource,
           matchKey,
           matchSource,
           reportType: analysis.reportType,
