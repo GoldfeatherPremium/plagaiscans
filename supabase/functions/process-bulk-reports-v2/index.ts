@@ -268,9 +268,6 @@ function extractDocumentNameFromCoverPage(
       if (looksLikeDocumentTitle(candidate)) {
         return { name: candidate, source: 'modern_second_line' };
       }
-    } else if (titleBlock.length === 1) {
-      const candidate = cleanCoverName(titleBlock[0].text);
-      if (looksLikeDocumentTitle(candidate)) return { name: candidate, source: 'modern_second_line' };
     }
   }
 
