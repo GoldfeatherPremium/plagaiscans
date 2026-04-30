@@ -533,6 +533,7 @@ serve(async (req: Request) => {
             fileName: report.fileName,
             filePath: report.filePath,
             extractedCoverName: null,
+            extractionSource: null,
             matchKey: normalizeFilename(report.fileName),
             matchSource: 'filename_fallback',
             reportType: 'unknown',
