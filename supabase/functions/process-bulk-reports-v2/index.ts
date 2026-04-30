@@ -37,6 +37,7 @@ interface AnalysisItem {
   fileName: string;
   filePath: string;
   extractedCoverName: string | null;
+  extractionSource: string | null;
   matchKey: string;
   matchSource: 'cover_page' | 'filename_fallback';
   reportType: 'similarity' | 'ai' | 'unknown';
@@ -148,31 +149,152 @@ async function extractPageText(pdf: any, pageNum: number): Promise<string> {
   return (textContent.items as any[]).map((item) => item.str || '').join(' ');
 }
 
-function extractDocumentNameFromCoverPage(pageOneText: string, ownPath: string): string | null {
-  if (!pageOneText) return null;
+interface PositionedItem {
+  str: string;
+  x: number;
+  y: number;
+  height: number;
+  fontName: string;
+}
 
-  const labelRe = /(?:submission\s*(?:title|name)|document\s*(?:title|name)|file\s*name|paper\s*title)\s*[:\-]?\s*([^\n\r|]{1,200}?)(?:\s{2,}|$)/i;
-  const labelMatch = pageOneText.match(labelRe);
-  if (labelMatch?.[1]) {
-    const cleaned = labelMatch[1].trim();
-    if (cleaned.length >= 2) return cleaned;
+// deno-lint-ignore no-explicit-any
+async function extractPositionedItems(pdf: any, pageNum: number): Promise<PositionedItem[]> {
+  const page = await pdf.getPage(pageNum);
+  const textContent = await page.getTextContent();
+  // deno-lint-ignore no-explicit-any
+  const items: PositionedItem[] = (textContent.items as any[])
+    .map((item) => {
+      const str = (item.str || '').toString();
+      const tr = item.transform || [1, 0, 0, 1, 0, 0];
+      // transform: [scaleX, skewY, skewX, scaleY, x, y]
+      return {
+        str,
+        x: tr[4] ?? 0,
+        y: tr[5] ?? 0,
+        height: Math.abs(tr[3] ?? item.height ?? 0),
+        fontName: item.fontName || '',
+      };
+    })
+    .filter((it) => it.str && it.str.trim().length > 0);
+  return items;
+}
+
+// Group items into visual lines by Y coordinate, sort top-to-bottom, left-to-right.
+function groupIntoLines(items: PositionedItem[]): { y: number; height: number; text: string }[] {
+  if (items.length === 0) return [];
+  // Sort by y desc (PDF coords: higher y = higher on page), then x asc
+  const sorted = [...items].sort((a, b) => (b.y - a.y) || (a.x - b.x));
+  const lines: { y: number; height: number; items: PositionedItem[] }[] = [];
+  for (const it of sorted) {
+    const tol = Math.max(2, it.height * 0.5);
+    const line = lines.find((l) => Math.abs(l.y - it.y) <= tol);
+    if (line) {
+      line.items.push(it);
+      line.height = Math.max(line.height, it.height);
+    } else {
+      lines.push({ y: it.y, height: it.height, items: [it] });
+    }
+  }
+  return lines.map((l) => {
+    const sortedItems = l.items.sort((a, b) => a.x - b.x);
+    // Join with space when there's a noticeable x-gap
+    let text = '';
+    let prevEnd = -Infinity;
+    for (const it of sortedItems) {
+      if (text.length > 0 && it.x - prevEnd > it.height * 0.3) text += ' ';
+      text += it.str;
+      prevEnd = it.x + (it.str.length * it.height * 0.4);
+    }
+    return { y: l.y, height: l.height, text: text.replace(/\s+/g, ' ').trim() };
+  }).filter((l) => l.text.length > 0);
+}
+
+const NOISE_RE = /^(turnitin|originality report|similarity report|ai (?:writing )?report|page \d+( of \d+)?( - cover page)?|submitted to|submission(?: id| date)?|download date|file name|file size|word count|character count|document details|by\s+|\d+\s*%?\s*$|cover page)$/i;
+
+function cleanCoverName(raw: string): string {
+  return raw
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s\-–—:]+/, '')
+    .replace(/[\s\-–—:]+$/, '')
+    .trim();
+}
+
+// Heuristics:
+// - Modern Turnitin (screenshot 1): title block has 2 lines (student name, then filename).
+//   We want the SECOND line (e.g. "Personal Philosophy.pdf"). The "File Name" label
+//   below shows an internal id (e.g. "personal-p-...pdf") which must be IGNORED.
+// - Classic Turnitin (screenshot 2): large heading at top (may wrap across 2+ lines),
+//   followed by "by ...". Take everything before "by".
+function extractDocumentNameFromCoverPage(
+  lines: { y: number; height: number; text: string }[],
+  ownPath: string,
+): { name: string | null; source: 'modern_second_line' | 'classic_large_heading' | 'label_fallback' | 'extension_fallback' | null } {
+  if (!lines || lines.length === 0) return { name: null, source: null };
+
+  const ownBase = (ownPath.split('/').pop() || '').toLowerCase();
+
+  // Filter out obvious noise lines for the title-block scan
+  const visibleLines = lines.filter((l) => !NOISE_RE.test(l.text));
+
+  // ---- MODERN VIEW ----
+  // The title block sits above "Document Details". Find that anchor.
+  const docDetailsIdx = lines.findIndex((l) => /^document\s+details$/i.test(l.text));
+  if (docDetailsIdx > 0) {
+    // Title block = lines above docDetails, skipping pure header noise
+    const block = lines.slice(0, docDetailsIdx).filter((l) =>
+      !/^(page \d+( of \d+)?( - cover page)?|turnitin|cover page)$/i.test(l.text)
+    );
+    if (block.length >= 2) {
+      // Modern layout: line[0] = student name, line[1] = filename (the one we want)
+      const candidate = cleanCoverName(block[1].text);
+      if (candidate.length >= 2 && !NOISE_RE.test(candidate)) {
+        return { name: candidate, source: 'modern_second_line' };
+      }
+    } else if (block.length === 1) {
+      const candidate = cleanCoverName(block[0].text);
+      if (candidate.length >= 2) return { name: candidate, source: 'modern_second_line' };
+    }
   }
 
-  const extRe = /([^\s|]{1,200}\.(?:docx?|pdf|txt|rtf|odt))/gi;
-  const ownPathLower = ownPath.toLowerCase();
-  const ownBase = ownPath.split('/').pop()?.toLowerCase() ?? '';
-  const allExt = [...pageOneText.matchAll(extRe)]
-    .map((m) => m[1])
-    .filter((name) => {
-      const lower = name.toLowerCase();
-      return !ownPathLower.includes(lower) && !ownBase.includes(lower);
-    });
-  if (allExt.length > 0) return allExt[0];
+  // ---- CLASSIC VIEW ----
+  // Largest font lines at the top, before "by ...".
+  const byIdx = visibleLines.findIndex((l) => /^by\s+/i.test(l.text));
+  const headPool = byIdx > 0 ? visibleLines.slice(0, byIdx) : visibleLines.slice(0, 6);
+  if (headPool.length > 0) {
+    const maxHeight = Math.max(...headPool.map((l) => l.height));
+    if (maxHeight > 0) {
+      // "Large" = within 80% of the max heading size
+      const largeLines = headPool.filter((l) => l.height >= maxHeight * 0.8);
+      if (largeLines.length > 0) {
+        const merged = cleanCoverName(largeLines.map((l) => l.text).join(' '));
+        if (merged.length >= 2 && !NOISE_RE.test(merged)) {
+          return { name: merged, source: 'classic_large_heading' };
+        }
+      }
+    }
+  }
 
-  const lines = pageOneText.split(/[\r\n]+/).map((l) => l.trim()).filter(Boolean);
-  const skip = /^(turnitin|originality report|similarity report|ai report|page \d+|submitted to|by\s+|\d+\s*%?\s*$)/i;
-  const candidate = lines.find((l) => l.length >= 3 && l.length <= 200 && !skip.test(l));
-  return candidate ?? null;
+  // ---- LABEL FALLBACK ----
+  // Try to read a labelled "Submission Title" / "Paper Title" (NOT "File Name", which is the internal id).
+  const allText = lines.map((l) => l.text).join('\n');
+  const labelRe = /(?:submission\s*(?:title|name)|document\s*(?:title|name)|paper\s*title)\s*[:\-]?\s*([^\n\r|]{1,200})/i;
+  const labelMatch = allText.match(labelRe);
+  if (labelMatch?.[1]) {
+    const cleaned = cleanCoverName(labelMatch[1]);
+    if (cleaned.length >= 2) return { name: cleaned, source: 'label_fallback' };
+  }
+
+  // ---- EXTENSION FALLBACK ----
+  // Any filename-looking token that isn't our own uploaded path.
+  const extRe = /([^\s|/\\]{1,200}\.(?:docx?|pdf|txt|rtf|odt))/gi;
+  const allExt = [...allText.matchAll(extRe)]
+    .map((m) => m[1])
+    .filter((name) => !ownBase.includes(name.toLowerCase()))
+    // skip Turnitin internal ids like "personal-p-1777506402829.pdf"
+    .filter((name) => !/-p-\d{8,}\.pdf$/i.test(name) && !/^trn[:_-]/i.test(name));
+  if (allExt.length > 0) return { name: cleanCoverName(allExt[0]), source: 'extension_fallback' };
+
+  return { name: null, source: null };
 }
 
 // deno-lint-ignore no-explicit-any
@@ -411,6 +533,7 @@ serve(async (req: Request) => {
             fileName: report.fileName,
             filePath: report.filePath,
             extractedCoverName: null,
+            extractionSource: null,
             matchKey: normalizeFilename(report.fileName),
             matchSource: 'filename_fallback',
             reportType: 'unknown',
@@ -428,10 +551,15 @@ serve(async (req: Request) => {
         analysis = analyzed.analysis;
         const pdfRef = analyzed.pdf;
 
+        let extractionSource: string | null = null;
         if (pdfRef && pdfRef.numPages >= 1) {
           try {
-            const coverText = await extractPageText(pdfRef, 1);
-            extractedCoverName = extractDocumentNameFromCoverPage(coverText, report.filePath);
+            const items = await extractPositionedItems(pdfRef, 1);
+            const lines = groupIntoLines(items);
+            const result = extractDocumentNameFromCoverPage(lines, report.filePath);
+            extractedCoverName = result.name;
+            extractionSource = result.source;
+            console.log(`[V2/analyze] Cover extracted: "${extractedCoverName}" via ${extractionSource}`);
           } catch (e) {
             console.error(`[V2/analyze] Cover extraction failed:`, e);
           }
@@ -491,6 +619,7 @@ serve(async (req: Request) => {
           fileName: report.fileName,
           filePath: report.filePath,
           extractedCoverName,
+          extractionSource,
           matchKey,
           matchSource,
           reportType: analysis.reportType,
