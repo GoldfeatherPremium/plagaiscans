@@ -31,6 +31,7 @@ interface MatchSuggestion {
   confidence: number;
   hasSimilarityReport: boolean;
   hasAIReport: boolean;
+  filePath?: string | null;
 }
 
 interface AnalysisItem {
@@ -112,6 +113,7 @@ function calculateSimilarity(a: string, b: string): number {
 interface DocRow {
   id: string;
   file_name: string;
+  file_path: string | null;
   normalized_filename: string | null;
   similarity_report_path: string | null;
   ai_report_path: string | null;
@@ -134,6 +136,7 @@ function rankCandidates(normalizedReport: string, documents: DocRow[], minConfid
         confidence,
         hasSimilarityReport: !!doc.similarity_report_path,
         hasAIReport: !!doc.ai_report_path,
+        filePath: doc.file_path,
       });
     }
   }
