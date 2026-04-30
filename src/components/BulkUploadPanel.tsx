@@ -352,12 +352,14 @@ export function BulkUploadPanel({ scanType, compact = false, useV2 = false }: Bu
         <CardHeader className={compact ? "pb-3" : undefined}>
           <CardTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            {isSimilarityOnly ? 'Similarity Reports Upload' : 'AI Reports Upload'}
+            {useV2 ? 'AI Reports Upload (V2)' : (isSimilarityOnly ? 'Similarity Reports Upload' : 'AI Reports Upload')}
           </CardTitle>
           <CardDescription>
-            {isSimilarityOnly 
-              ? 'Upload PDF similarity reports. Reports are auto-matched to documents.'
-              : 'Upload PDF reports or ZIP archives. Each PDF is analyzed to classify as Similarity or AI report.'}
+            {useV2
+              ? 'Upload PDF reports or ZIP archives. Reports are matched after upload by reading each PDF\u2019s cover page.'
+              : (isSimilarityOnly 
+                ? 'Upload PDF similarity reports. Reports are auto-matched to documents.'
+                : 'Upload PDF reports or ZIP archives. Each PDF is analyzed to classify as Similarity or AI report.')}
           </CardDescription>
         </CardHeader>
         <CardContent>
