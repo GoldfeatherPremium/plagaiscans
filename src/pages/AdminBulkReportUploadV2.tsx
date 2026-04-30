@@ -537,158 +537,268 @@ export default function AdminBulkReportUploadV2() {
           </CardContent>
         </Card>
 
-        {/* Step 2 — Audit & Manual Match */}
-        {analysisItems && analysisItems.length > 0 && !applyResult && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileCheck className="h-5 w-5" />
-                Step 2 — Review Matches
-              </CardTitle>
-              <CardDescription>
-                Each row shows the extracted cover-page name, the auto-matched queue document, and the confidence score. Adjust any incorrect matches before applying.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="text-center p-3 bg-muted rounded-lg">
-                  <p className="text-2xl font-bold">{analysisItems.length}</p>
-                  <p className="text-xs text-muted-foreground">Total</p>
-                </div>
-                <div className="text-center p-3 bg-green-500/10 rounded-lg">
-                  <p className="text-2xl font-bold text-green-600">
-                    {analysisItems.filter((i) => i.autoStatus === 'auto_matched').length}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Auto-matched</p>
-                </div>
-                <div className="text-center p-3 bg-yellow-500/10 rounded-lg">
-                  <p className="text-2xl font-bold text-yellow-600">
-                    {analysisItems.filter((i) => i.autoStatus === 'ambiguous').length}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Ambiguous</p>
-                </div>
-                <div className="text-center p-3 bg-orange-500/10 rounded-lg">
-                  <p className="text-2xl font-bold text-orange-600">
-                    {analysisItems.filter((i) => i.autoStatus === 'unmatched' || i.autoStatus === 'error').length}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Need Attention</p>
-                </div>
-              </div>
+        {/* Step 2 — Audit & Manual Match (V1-style preview) */}
+        {analysisItems && analysisItems.length > 0 && !applyResult && (() => {
+          const classify = (it: AnalysisItem): 'exact' | 'partial' | 'none' => {
+            const conf = it.bestMatch?.confidence ?? 0;
+            if (it.autoStatus === 'auto_matched' && conf >= 95) return 'exact';
+            if (it.autoStatus === 'unmatched' || it.autoStatus === 'error' || !it.bestMatch) return 'none';
+            return 'partial';
+          };
+          const stats = {
+            exact: analysisItems.filter((i) => classify(i) === 'exact').length,
+            partial: analysisItems.filter((i) => classify(i) === 'partial').length,
+            none: analysisItems.filter((i) => classify(i) === 'none').length,
+          };
+          const assignedCount = analysisItems.filter((i) => i.selectedDocId && i.selectedDocId !== UNMATCHED_VALUE).length;
 
-              <ScrollArea className="max-h-[600px] border rounded-lg">
-                <div className="p-3 space-y-3">
-                  {analysisItems.map((item, index) => {
-                    const statusColor =
-                      item.autoStatus === 'auto_matched' ? 'bg-green-500/5 border-green-500/30'
-                        : item.autoStatus === 'ambiguous' ? 'bg-yellow-500/5 border-yellow-500/30'
-                        : 'bg-orange-500/5 border-orange-500/30';
-                    return (
-                      <div key={index} className={`p-3 rounded-lg border ${statusColor}`}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {/* Left: report info */}
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                              <p className="text-sm font-medium truncate" title={item.fileName}>{item.fileName}</p>
+          return (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileCheck className="h-5 w-5" />
+                  Step 2 — Match Preview
+                </CardTitle>
+                <CardDescription>
+                  Review matches before processing. You can manually assign reports and preview both files.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* V1-style stats */}
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-lg border border-green-500/30">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="text-sm font-medium text-green-700 dark:text-green-300">{stats.exact} Exact</p>
+                      <p className="text-xs text-green-600/80">Auto-matched</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
+                    <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                    <div>
+                      <p className="text-sm font-medium text-yellow-700 dark:text-yellow-300">{stats.partial} Partial</p>
+                      <p className="text-xs text-yellow-600/80">Review suggested</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-red-500/10 rounded-lg border border-red-500/30">
+                    <XCircle className="h-5 w-5 text-red-600" />
+                    <div>
+                      <p className="text-sm font-medium text-red-700 dark:text-red-300">{stats.none} No Match</p>
+                      <p className="text-xs text-red-600/80">Manual assign needed</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Match list */}
+                <ScrollArea className="h-[480px] border rounded-lg">
+                  <div className="p-2 space-y-1">
+                    {analysisItems.map((item, index) => {
+                      const status = classify(item);
+                      const isExpanded = expandedRows.has(index);
+                      const currentAssignment = item.selectedDocId && item.selectedDocId !== UNMATCHED_VALUE
+                        ? item.selectedDocId
+                        : null;
+                      const assignedDoc = currentAssignment
+                        ? (item.suggestions.find((s) => s.documentId === currentAssignment)
+                            || pendingDocuments.find((d) => d.id === currentAssignment))
+                        : null;
+                      const assignedName = assignedDoc
+                        ? ('fileName' in assignedDoc ? assignedDoc.fileName : assignedDoc.file_name)
+                        : null;
+                      const assignedFilePath = assignedDoc
+                        ? ('filePath' in assignedDoc ? assignedDoc.filePath : assignedDoc.file_path)
+                        : null;
+                      const isManual = !!item.selectedDocId
+                        && item.bestMatch
+                        && item.selectedDocId !== item.bestMatch.documentId;
+
+                      const borderClass = status === 'exact'
+                        ? 'border-green-500/30'
+                        : status === 'partial' ? 'border-yellow-500/30' : 'border-red-500/30';
+                      const bgClass = status === 'exact'
+                        ? 'bg-green-500/5'
+                        : status === 'partial' ? 'bg-yellow-500/5' : 'bg-red-500/5';
+
+                      return (
+                        <div key={index} className={`border rounded-lg overflow-hidden ${borderClass}`}>
+                          {/* Main row */}
+                          <div
+                            className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/30 ${bgClass}`}
+                            onClick={() => toggleRow(index)}
+                          >
+                            {status === 'exact' && <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />}
+                            {status === 'partial' && <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0" />}
+                            {status === 'none' && <XCircle className="h-4 w-4 text-red-600 shrink-0" />}
+
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{item.fileName}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                Cover: {item.extractedCoverName || <em>(not detected)</em>} • Key: <span className="font-mono">{item.matchKey}</span>
+                              </p>
                             </div>
-                            <div className="text-xs space-y-1 pl-6">
-                              <div>
-                                <span className="text-muted-foreground">Cover-page name: </span>
-                                {item.extractedCoverName ? (
-                                  <span className="font-mono">{item.extractedCoverName}</span>
-                                ) : (
-                                  <span className="italic text-muted-foreground">(not detected — using filename)</span>
-                                )}
+
+                            <Button
+                              variant="ghost" size="icon" className="h-7 w-7 shrink-0"
+                              onClick={(e) => { e.stopPropagation(); previewReport(item.filePath); }}
+                              title="Preview uploaded report PDF"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              {currentAssignment ? (
+                                <>
+                                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                                  <div className="text-right max-w-[220px]">
+                                    <p className="text-sm truncate">{assignedName || 'Unknown'}</p>
+                                    <div className="flex items-center justify-end gap-1">
+                                      {item.bestMatch && !isManual && (
+                                        <Badge
+                                          variant={item.bestMatch.confidence >= 95 ? 'default' : item.bestMatch.confidence >= 85 ? 'secondary' : 'outline'}
+                                          className="text-[10px]"
+                                        >
+                                          {item.bestMatch.confidence}% match
+                                        </Badge>
+                                      )}
+                                      {isManual && <Badge variant="secondary" className="text-[10px]">Manual</Badge>}
+                                      <Button
+                                        variant="ghost" size="icon" className="h-6 w-6"
+                                        onClick={(e) => { e.stopPropagation(); previewQueueDocument(assignedFilePath as any); }}
+                                        title="Preview matched original document"
+                                      >
+                                        <Eye className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </>
+                              ) : (
+                                <span className="text-sm text-red-600">No assignment</span>
+                              )}
+                              {isExpanded
+                                ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                            </div>
+                          </div>
+
+                          {/* Expanded content */}
+                          {isExpanded && (
+                            <div className="p-3 border-t bg-background space-y-3">
+                              <div className="flex flex-wrap gap-2 text-xs">
                                 {item.extractionSource && (
-                                  <Badge variant="outline" className="ml-2 text-[10px] py-0">
+                                  <Badge variant="outline" className="text-[10px]">
                                     {item.extractionSource === 'modern_second_line' ? 'modern (line 2)' :
                                      item.extractionSource === 'classic_large_heading' ? 'classic (heading)' :
                                      item.extractionSource === 'label_fallback' ? 'label' :
                                      item.extractionSource === 'extension_fallback' ? 'ext' : item.extractionSource}
                                   </Badge>
                                 )}
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Match key: </span>
-                                <span className="font-mono">{item.matchKey}</span>
-                                <Badge variant="outline" className="ml-2 text-[10px] py-0">
-                                  {item.matchSource === 'cover_page' ? 'cover' : 'filename'}
+                                <Badge variant="outline" className="text-[10px]">
+                                  source: {item.matchSource === 'cover_page' ? 'cover' : 'filename'}
                                 </Badge>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-muted-foreground">Detected:</span>
                                 <Badge variant={item.reportType === 'similarity' ? 'default' : item.reportType === 'ai' ? 'secondary' : 'outline'} className="text-[10px]">
                                   {item.reportType}
                                 </Badge>
                                 {item.percentage !== null && <Badge variant="outline" className="text-[10px]">{item.percentage}%</Badge>}
+                                {item.reason && <span className="text-muted-foreground">{item.reason}</span>}
                               </div>
-                            </div>
-                          </div>
 
-                          {/* Right: match selection */}
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-2">
-                              <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                              <span className="text-sm font-medium">Matched queue document</span>
-                              {item.bestMatch && (
-                                <Badge
-                                  variant={item.bestMatch.confidence >= 95 ? 'default' : item.bestMatch.confidence >= 85 ? 'secondary' : 'outline'}
-                                  className="text-[10px]"
+                              <div>
+                                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                                  Assign to Document:
+                                </label>
+                                <Select
+                                  value={item.selectedDocId ?? ''}
+                                  onValueChange={(v) => updateSelection(index, v)}
                                 >
-                                  {item.bestMatch.confidence}% confidence
-                                </Badge>
+                                  <SelectTrigger className="w-full h-9 text-xs">
+                                    <SelectValue placeholder="Select document..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value={UNMATCHED_VALUE}>
+                                      <span className="text-muted-foreground italic">— Don't assign —</span>
+                                    </SelectItem>
+                                    {/* Suggestions first (with confidence) */}
+                                    {item.suggestions.map((s) => (
+                                      <SelectItem key={s.documentId} value={s.documentId}>
+                                        <div className="flex items-center gap-2">
+                                          <span className="truncate max-w-[260px]">{s.fileName}</span>
+                                          <Badge variant="outline" className="text-[10px]">{s.confidence}%</Badge>
+                                          {s.hasSimilarityReport && <Badge variant="secondary" className="text-[10px]">SIM</Badge>}
+                                          {s.hasAIReport && <Badge variant="secondary" className="text-[10px]">AI</Badge>}
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                    {/* All other queue documents */}
+                                    {pendingDocuments
+                                      .filter((d) => !item.suggestions.some((s) => s.documentId === d.id))
+                                      .map((d) => (
+                                        <SelectItem key={d.id} value={d.id}>
+                                          <div className="flex items-center gap-2">
+                                            <span className="truncate max-w-[260px]">{d.file_name}</span>
+                                            {d.similarity_report_path && <Badge variant="secondary" className="text-[10px]">SIM</Badge>}
+                                            {d.ai_report_path && <Badge variant="secondary" className="text-[10px]">AI</Badge>}
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              {item.suggestions.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                                    Suggestions (click to assign, eye to preview):
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {item.suggestions.map((s) => (
+                                      <div key={s.documentId} className="flex items-center gap-1 border rounded-md pl-2 pr-1 py-1">
+                                        <button
+                                          type="button"
+                                          className="text-xs hover:underline truncate max-w-[200px]"
+                                          onClick={() => updateSelection(index, s.documentId)}
+                                        >
+                                          {s.fileName}
+                                        </button>
+                                        <Badge variant="secondary" className="text-[10px]">{s.confidence}%</Badge>
+                                        <Button
+                                          variant="ghost" size="icon" className="h-6 w-6"
+                                          onClick={() => previewQueueDocument(s.filePath ?? null)}
+                                          title="Preview document"
+                                        >
+                                          <Eye className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
                               )}
                             </div>
-                            <Select
-                              value={item.selectedDocId ?? ''}
-                              onValueChange={(v) => updateSelection(index, v)}
-                            >
-                              <SelectTrigger className="h-9 text-xs">
-                                <SelectValue placeholder="Select queue document..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {item.suggestions.length === 0 && (
-                                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No candidates found</div>
-                                )}
-                                {item.suggestions.map((s) => (
-                                  <SelectItem key={s.documentId} value={s.documentId}>
-                                    <div className="flex items-center gap-2">
-                                      <span className="truncate max-w-[300px]">{s.fileName}</span>
-                                      <Badge variant="outline" className="text-[10px]">{s.confidence}%</Badge>
-                                      {s.hasSimilarityReport && <Badge variant="secondary" className="text-[10px]">SIM</Badge>}
-                                      {s.hasAIReport && <Badge variant="secondary" className="text-[10px]">AI</Badge>}
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                                <SelectItem value={UNMATCHED_VALUE}>
-                                  <span className="text-muted-foreground italic">Leave unmatched</span>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                            {item.reason && (
-                              <p className="text-xs text-muted-foreground pl-6">{item.reason}</p>
-                            )}
-                          </div>
+                          )}
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
 
-              <div className="mt-4 flex justify-end gap-3">
-                <Button variant="outline" onClick={clearAll} disabled={applying}>Cancel</Button>
-                <Button onClick={applyMatches} disabled={applying} size="lg">
-                  {applying ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Applying...</>
-                  ) : (
-                    <><Zap className="h-4 w-4 mr-2" />Confirm &amp; Apply Matches</>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <p className="text-sm text-muted-foreground">
+                    {assignedCount} of {analysisItems.length} reports will be processed
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={clearAll} disabled={applying}>Cancel</Button>
+                    <Button onClick={applyMatches} disabled={applying || assignedCount === 0} size="lg">
+                      {applying ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Applying...</>
+                      ) : (
+                        <><Zap className="h-4 w-4 mr-2" />Confirm &amp; Apply ({assignedCount})</>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* Apply Results */}
         {applyResult && (
