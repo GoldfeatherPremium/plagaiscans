@@ -80,7 +80,11 @@ interface ApplyResult {
 
 const UNMATCHED_VALUE = '__unmatched__';
 
-export default function AdminBulkReportUploadV2() {
+interface BulkReportUploadV2ContentProps {
+  embedded?: boolean;
+}
+
+export function BulkReportUploadV2Content({ embedded = false }: BulkReportUploadV2ContentProps = {}) {
   const { role } = useAuth();
   const { permissions, loading: permissionsLoading } = useStaffPermissions();
   const [files, setFiles] = useState<ReportFile[]>([]);
