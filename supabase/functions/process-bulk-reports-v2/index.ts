@@ -31,6 +31,7 @@ interface MatchSuggestion {
   confidence: number;
   hasSimilarityReport: boolean;
   hasAIReport: boolean;
+  filePath?: string | null;
 }
 
 interface AnalysisItem {
@@ -112,6 +113,7 @@ function calculateSimilarity(a: string, b: string): number {
 interface DocRow {
   id: string;
   file_name: string;
+  file_path: string | null;
   normalized_filename: string | null;
   similarity_report_path: string | null;
   ai_report_path: string | null;
@@ -134,6 +136,7 @@ function rankCandidates(normalizedReport: string, documents: DocRow[], minConfid
         confidence,
         hasSimilarityReport: !!doc.similarity_report_path,
         hasAIReport: !!doc.ai_report_path,
+        filePath: doc.file_path,
       });
     }
   }
@@ -496,7 +499,7 @@ serve(async (req: Request) => {
     // Fetch eligible documents
     const { data: documents, error: docError } = await supabase
       .from('documents')
-      .select('id, file_name, normalized_filename, user_id, similarity_report_path, ai_report_path, status, needs_review, magic_link_id')
+      .select('id, file_name, file_path, normalized_filename, user_id, similarity_report_path, ai_report_path, status, needs_review, magic_link_id')
       .in('status', ['pending', 'in_progress'])
       .eq('needs_review', false);
 
@@ -582,6 +585,7 @@ serve(async (req: Request) => {
             confidence: 100,
             hasSimilarityReport: !!d.similarity_report_path,
             hasAIReport: !!d.ai_report_path,
+            filePath: (d as any).file_path ?? null,
           }));
           // Add fuzzy matches too
           const fuzzy = rankCandidates(matchKey, docs, 60).filter((s) =>
@@ -684,7 +688,7 @@ serve(async (req: Request) => {
           // Document might exist but not in eligible set; fetch directly
           const { data: directDoc } = await supabase
             .from('documents')
-            .select('id, file_name, normalized_filename, user_id, similarity_report_path, ai_report_path, status, needs_review, magic_link_id')
+            .select('id, file_name, file_path, normalized_filename, user_id, similarity_report_path, ai_report_path, status, needs_review, magic_link_id')
             .eq('id', report.documentId)
             .maybeSingle();
           targetDoc = (directDoc as DocRow) ?? null;
