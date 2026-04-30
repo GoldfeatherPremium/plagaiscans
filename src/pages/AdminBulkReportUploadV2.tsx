@@ -95,7 +95,7 @@ export default function AdminBulkReportUploadV2() {
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
   // Pending AI-scan queue documents (mirrors V1)
-  const { data: pendingDocuments = [], isLoading: loadingDocuments } = useQuery({
+  const { data: pendingDocuments = [] } = useQuery({
     queryKey: ['v2-pending-full-scan-documents'],
     queryFn: async () => {
       const { data, error } = await supabase
