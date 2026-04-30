@@ -63,6 +63,7 @@ interface ProcessingResult {
 interface BulkUploadPanelProps {
   scanType: 'full' | 'similarity_only';
   compact?: boolean;
+  useV2?: boolean;
 }
 
 function normalizeFilename(filename: string): string {
