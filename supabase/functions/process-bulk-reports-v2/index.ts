@@ -549,10 +549,15 @@ serve(async (req: Request) => {
         analysis = analyzed.analysis;
         const pdfRef = analyzed.pdf;
 
+        let extractionSource: string | null = null;
         if (pdfRef && pdfRef.numPages >= 1) {
           try {
-            const coverText = await extractPageText(pdfRef, 1);
-            extractedCoverName = extractDocumentNameFromCoverPage(coverText, report.filePath);
+            const items = await extractPositionedItems(pdfRef, 1);
+            const lines = groupIntoLines(items);
+            const result = extractDocumentNameFromCoverPage(lines, report.filePath);
+            extractedCoverName = result.name;
+            extractionSource = result.source;
+            console.log(`[V2/analyze] Cover extracted: "${extractedCoverName}" via ${extractionSource}`);
           } catch (e) {
             console.error(`[V2/analyze] Cover extraction failed:`, e);
           }
