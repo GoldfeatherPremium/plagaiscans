@@ -863,8 +863,13 @@ export function BulkReportUploadV2Content({ embedded = false }: BulkReportUpload
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
-    </DashboardLayout>
+      )}
+    </div>
   );
+
+  return embedded ? inner : <DashboardLayout>{inner}</DashboardLayout>;
+}
+
+export default function AdminBulkReportUploadV2() {
+  return <BulkReportUploadV2Content />;
 }
