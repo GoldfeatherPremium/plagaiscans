@@ -203,6 +203,64 @@ const handler = async (req: Request): Promise<Response> => {
     const userName = profile.full_name || "Customer";
     const subject = "Your Document Has Been Processed - Plagaiscans";
 
+    // Fetch report paths and generate signed download URLs (7 days, matches notice)
+    const { data: docRow } = await supabase
+      .from("documents")
+      .select("similarity_report_path, ai_report_path, scan_type")
+      .eq("id", documentId)
+      .maybeSingle();
+
+    const SIGN_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
+    let similarityDownloadUrl: string | null = null;
+    let aiDownloadUrl: string | null = null;
+
+    const safeBase = (fileName || "report").replace(/\.[^.]+$/, "");
+    if (docRow?.similarity_report_path) {
+      const { data: signed } = await supabase.storage
+        .from("reports")
+        .createSignedUrl(docRow.similarity_report_path, SIGN_TTL_SECONDS, {
+          download: `${safeBase}_similarity.pdf`,
+        });
+      similarityDownloadUrl = signed?.signedUrl ?? null;
+    }
+    if (docRow?.ai_report_path) {
+      const { data: signed } = await supabase.storage
+        .from("reports")
+        .createSignedUrl(docRow.ai_report_path, SIGN_TTL_SECONDS, {
+          download: `${safeBase}_ai.pdf`,
+        });
+      aiDownloadUrl = signed?.signedUrl ?? null;
+    }
+
+    const downloadButtonsHtml = (similarityDownloadUrl || aiDownloadUrl) ? `
+      <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-top: 20px;">
+        <p style="margin: 0 0 14px 0; color: #374151; font-size: 14px; font-weight: 600; text-align: center;">
+          Download your reports
+        </p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            ${similarityDownloadUrl ? `
+            <td align="center" style="padding: 6px;">
+              <a href="${similarityDownloadUrl}"
+                 style="display: inline-block; background-color: #2563eb; color: white; text-decoration: none; padding: 12px 22px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                ⬇ Download Similarity Report
+              </a>
+            </td>` : ''}
+            ${aiDownloadUrl ? `
+            <td align="center" style="padding: 6px;">
+              <a href="${aiDownloadUrl}"
+                 style="display: inline-block; background-color: #7c3aed; color: white; text-decoration: none; padding: 12px 22px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                ⬇ Download AI Report
+              </a>
+            </td>` : ''}
+          </tr>
+        </table>
+        <p style="margin: 14px 0 0 0; color: #6b7280; font-size: 12px; text-align: center;">
+          These download links are valid for 7 days.
+        </p>
+      </div>
+    ` : '';
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -239,7 +297,9 @@ const handler = async (req: Request): Promise<Response> => {
                         View Full Report
                       </a>
                     </div>
-                    
+
+                    ${downloadButtonsHtml}
+
                     <div style="background-color: #fef3c7; border-radius: 8px; padding: 16px; margin-top: 20px; border-left: 4px solid #f59e0b;">
                       <p style="margin: 0; color: #92400e; font-size: 13px; line-height: 1.5;">
                         <strong>⚠️ Important:</strong> Please download your reports within <strong>7 days</strong>. 
