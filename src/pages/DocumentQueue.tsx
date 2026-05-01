@@ -669,17 +669,24 @@ export default function DocumentQueue() {
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            {isAssignedToMe ? (
-                              <span className="text-xs text-primary font-medium">You</span>
-                            ) : doc.staff_profile ? (
-                              <span className="text-xs text-muted-foreground" title={doc.staff_profile.email}>
-                                {doc.staff_profile.full_name || doc.staff_profile.email}
-                              </span>
-                            ) : doc.assigned_staff_id ? (
-                              <span className="text-xs text-muted-foreground">Staff</span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
+                            <div className="flex flex-col items-center gap-1">
+                              {isAssignedToMe ? (
+                                <span className="text-xs text-primary font-medium">You</span>
+                              ) : doc.staff_profile ? (
+                                <span className="text-xs text-muted-foreground" title={doc.staff_profile.email}>
+                                  {doc.staff_profile.full_name || doc.staff_profile.email}
+                                </span>
+                              ) : doc.assigned_staff_id ? (
+                                <span className="text-xs text-muted-foreground">Staff</span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                              {isAdmin && (doc as any).external_api_order_id && ['submitted','queued','processing'].includes((doc as any).external_api_status ?? '') && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary border border-primary/20" title="Being processed by external API">
+                                  Processing by API
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             {elapsedInfo ? (
