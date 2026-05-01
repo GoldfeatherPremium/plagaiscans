@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     onlyDocumentId = body?.documentId ?? null;
   }
 
-  const SELECT_COLS = 'id, file_name, user_id, scan_type, external_api_order_id, external_api_status, external_api_attempt_count, status, reseller_scan_id';
+  const SELECT_COLS = 'id, file_name, user_id, scan_type, external_api_order_id, external_api_status, external_api_attempt_count, status, reseller_scan_id, magic_link_id';
   let query = supabase
     .from('documents')
     .select(SELECT_COLS)
