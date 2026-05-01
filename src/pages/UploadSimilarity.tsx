@@ -14,6 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { SEO } from '@/components/SEO';
 import { useTranslation } from 'react-i18next';
 import { ServiceStatusBanner } from '@/components/ServiceStatusBanner';
+import { ALLOWED_UPLOAD_ACCEPT, ALLOWED_UPLOAD_LABEL, ALLOWED_UPLOAD_EXTENSIONS, isAllowedUploadFile } from '@/lib/allowedUploadFormats';
 
 const UploadSimilarity: React.FC = () => {
   const navigate = useNavigate();
@@ -59,25 +60,13 @@ const UploadSimilarity: React.FC = () => {
   const addFiles = useCallback((files: FileList | File[]) => {
     const fileArray = Array.from(files);
 
-    // Block .doc files (only .docx is allowed)
-    const docFiles = fileArray.filter(file => /\.doc$/i.test(file.name));
-    if (docFiles.length > 0) {
-      toast({
-        title: '.doc format not supported',
-        description: 'Please convert your .doc files to .docx and try again.',
-        variant: 'destructive',
-      });
-    }
+    const validFiles = fileArray.filter((file) => isAllowedUploadFile(file.name));
+    const rejected = fileArray.length - validFiles.length;
 
-    const validFiles = fileArray.filter(file => {
-      const ext = file.name.toLowerCase().split('.').pop();
-      return ['pdf', 'docx', 'txt', 'rtf', 'xlsx', 'pptx', 'ps', 'html', 'odt', 'hwp'].includes(ext || '');
-    });
-
-    if (validFiles.length !== fileArray.length - docFiles.length) {
+    if (rejected > 0) {
       toast({
-        title: t('uploadSimilarity.invalidFiles'),
-        description: t('uploadSimilarity.invalidFilesDesc'),
+        title: 'Unsupported file type',
+        description: `${rejected} file(s) skipped. Allowed formats: ${ALLOWED_UPLOAD_LABEL}.`,
         variant: 'destructive',
       });
     }
