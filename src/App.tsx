@@ -107,6 +107,7 @@ const AdminDeletedDocuments = lazy(() => import("./pages/AdminDeletedDocuments")
 const AdminExtensionDownload = lazy(() => import("./pages/AdminExtensionDownload"));
 const BlogWhatIsPlagiarism = lazy(() => import("./pages/BlogWhatIsPlagiarism"));
 const BlogAfterPlagiarismReport = lazy(() => import("./pages/BlogAfterPlagiarismReport"));
+const ApiDocs = lazy(() => import("./pages/ApiDocs"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -281,6 +282,7 @@ const AppRoutes = () => (
       <Route path="/resources/:slug" element={<Article />} />
       <Route path="/blog/what-is-plagiarism" element={<BlogWhatIsPlagiarism />} />
       <Route path="/blog/after-plagiarism-report" element={<BlogAfterPlagiarismReport />} />
+      <Route path="/api-docs" element={<ApiDocs />} />
       
       <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
       {/* Password reset page - bypasses auth checks to allow password change */}
