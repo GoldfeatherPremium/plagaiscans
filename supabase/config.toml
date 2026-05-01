@@ -137,3 +137,12 @@ verify_jwt = false
 
 [functions.process-bulk-reports-v2]
 verify_jwt = false
+
+[functions.reseller-api]
+verify_jwt = false
+
+[functions.reseller-webhook-dispatch]
+verify_jwt = false
+
+[functions.reseller-webhook-retry]
+verify_jwt = false
