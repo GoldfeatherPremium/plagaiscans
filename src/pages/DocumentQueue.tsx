@@ -635,11 +635,6 @@ export default function DocumentQueue() {
                           <TableCell className="text-center">
                             <div className="flex flex-col items-center gap-1">
                               <StatusBadge status={doc.status} />
-                              {(doc as any).external_api_order_id && ['submitted','queued','processing'].includes((doc as any).external_api_status ?? '') && (
-                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary border border-primary/20" title="Being processed by external API">
-                                  Processing by API
-                                </span>
-                              )}
                               {(doc as any).external_api_status === 'rate_limited' && (
                                 <span className="px-1.5 py-0.5 rounded text-[10px] bg-yellow-500/10 text-yellow-700 border border-yellow-500/20" title="API rate limited — will retry">
                                   API: rate-limited
