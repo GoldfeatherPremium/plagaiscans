@@ -113,6 +113,8 @@ Deno.serve(async (req) => {
       external_api_attempt_count: (doc.external_api_attempt_count ?? 0) + 1,
       automation_status: 'processing',
       automation_started_at: new Date().toISOString(),
+      // Move out of the pending bucket — the API has picked it up
+      status: 'in_progress',
     }).eq('id', doc.id);
 
     return json({ ok: true, orderId: apiJson.orderId });
