@@ -326,7 +326,7 @@ export default function UploadDocument() {
                 <p>You can upload up to <strong className="text-foreground">{maxFilesAllowed} files</strong> based on your credits</p>
                 <p>Each file must be less than <strong className="text-foreground">100 MB</strong></p>
                 <p>Supported file types:</p>
-                <p className="text-amber-600 dark:text-amber-500">.docx, .xlsx, .pptx, .ps, .pdf, .html, .rtf, .odt, .hwp, .txt</p>
+                <p className="text-amber-600 dark:text-amber-500">.pdf, .docx, .txt, .rtf, .odt</p>
               </div>
             </div>
           </div>
