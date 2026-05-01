@@ -663,10 +663,12 @@ export default function Dashboard() {
                             )}
                           </TableCell>
                           <TableCell className="text-center">
-                            {doc.ai_percentage !== null && doc.ai_percentage !== undefined ? (
+                            {doc.scan_type === 'similarity_only' ? (
+                              <span className="text-muted-foreground">-</span>
+                            ) : doc.ai_percentage !== null && doc.ai_percentage !== undefined ? (
                               <span className="font-medium">{doc.ai_percentage}%</span>
                             ) : (
-                              <span className="font-medium">*</span>
+                              <span className="font-medium">*%</span>
                             )}
                           </TableCell>
                           <TableCell className="text-center">
