@@ -311,7 +311,7 @@ export default function UploadDocument() {
               ref={inputRef}
               type="file"
               className="hidden"
-              accept=".pdf,.docx,.txt,.xlsx,.pptx,.ps,.html,.rtf,.odt,.hwp"
+              accept=".pdf,.docx,.txt,.rtf,.odt"
               onChange={handleChange}
               disabled={!hasCredits || selectedFiles.length >= maxFilesAllowed}
               multiple
