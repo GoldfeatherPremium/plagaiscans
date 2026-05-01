@@ -724,7 +724,7 @@ export const DashboardSidebar: React.FC = () => {
           )}
           
           <div className="px-4">
-            <p className="text-sm font-medium truncate">{profile?.full_name || profile?.email}</p>
+            <p className="text-sm font-medium truncate">{profile?.full_name || profile?.email || user?.email}</p>
             <p className="text-xs text-muted-foreground capitalize">{role}</p>
           </div>
 
