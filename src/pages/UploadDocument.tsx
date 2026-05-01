@@ -14,7 +14,6 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { ServiceStatusBanner } from '@/components/ServiceStatusBanner';
-import { ALLOWED_UPLOAD_ACCEPT, ALLOWED_UPLOAD_LABEL, isAllowedUploadFile, getUnsupportedFormatMessage } from '@/lib/allowedUploadFormats';
 
 export default function UploadDocument() {
   const { t } = useTranslation('dashboard');
@@ -89,15 +88,11 @@ export default function UploadDocument() {
   const addFiles = (newFiles: File[]) => {
     setUploadResults(null);
 
-    // Restrict to API-supported formats (pdf, docx, txt, rtf)
-    const unsupported = newFiles.filter((f) => !isAllowedUploadFile(f.name));
-    if (unsupported.length > 0) {
-      toast.error(
-        unsupported.length === 1
-          ? getUnsupportedFormatMessage(unsupported[0].name)
-          : `${unsupported.length} files were skipped. Allowed formats: ${ALLOWED_UPLOAD_LABEL}.`
-      );
-      newFiles = newFiles.filter((f) => isAllowedUploadFile(f.name));
+    // Block .doc files (only .docx is allowed)
+    const docFiles = newFiles.filter((f) => /\.doc$/i.test(f.name));
+    if (docFiles.length > 0) {
+      toast.error('.doc format is not supported. Please convert to .docx and try again.');
+      newFiles = newFiles.filter((f) => !/\.doc$/i.test(f.name));
       if (newFiles.length === 0) return;
     }
 
@@ -313,7 +308,7 @@ export default function UploadDocument() {
               ref={inputRef}
               type="file"
               className="hidden"
-              accept={ALLOWED_UPLOAD_ACCEPT}
+              accept=".pdf,.docx,.txt,.xlsx,.pptx,.ps,.html,.rtf,.odt,.hwp"
               onChange={handleChange}
               disabled={!hasCredits || selectedFiles.length >= maxFilesAllowed}
               multiple
@@ -328,7 +323,7 @@ export default function UploadDocument() {
                 <p>You can upload up to <strong className="text-foreground">{maxFilesAllowed} files</strong> based on your credits</p>
                 <p>Each file must be less than <strong className="text-foreground">100 MB</strong></p>
                 <p>Supported file types:</p>
-                <p className="font-semibold text-foreground">{ALLOWED_UPLOAD_LABEL}</p>
+                <p className="text-amber-600 dark:text-amber-500">.docx, .xlsx, .pptx, .ps, .pdf, .html, .rtf, .odt, .hwp, .txt</p>
               </div>
             </div>
           </div>
