@@ -89,11 +89,15 @@ export default function UploadDocument() {
   const addFiles = (newFiles: File[]) => {
     setUploadResults(null);
 
-    // Block .doc files (only .docx is allowed)
-    const docFiles = newFiles.filter((f) => /\.doc$/i.test(f.name));
-    if (docFiles.length > 0) {
-      toast.error('.doc format is not supported. Please convert to .docx and try again.');
-      newFiles = newFiles.filter((f) => !/\.doc$/i.test(f.name));
+    // Restrict to API-supported formats (pdf, docx, txt, rtf)
+    const unsupported = newFiles.filter((f) => !isAllowedUploadFile(f.name));
+    if (unsupported.length > 0) {
+      toast.error(
+        unsupported.length === 1
+          ? getUnsupportedFormatMessage(unsupported[0].name)
+          : `${unsupported.length} files were skipped. Allowed formats: ${ALLOWED_UPLOAD_LABEL}.`
+      );
+      newFiles = newFiles.filter((f) => isAllowedUploadFile(f.name));
       if (newFiles.length === 0) return;
     }
 
