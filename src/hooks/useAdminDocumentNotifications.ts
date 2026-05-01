@@ -223,9 +223,15 @@ export const useAdminDocumentNotifications = () => {
             const oldStatus = payload.old?.status;
             const newStatus = payload.new?.status;
             const fileName = payload.new?.file_name;
+            const externalApiOrderId = payload.new?.external_api_order_id;
+            const externalApiStatus = payload.new?.external_api_status;
 
-            // Notify when document becomes pending (e.g., after being released)
-            if (newStatus === 'pending' && oldStatus !== 'pending' && fileName) {
+            // Suppress sound/toast for API-driven transitions (auto-dispatch / poll cycles)
+            // The external API picks docs up automatically — admins don't need a sound for that.
+            const isApiDriven = !!externalApiOrderId || ['submitted','queued','processing','completed','rate_limited','submit_failed'].includes(externalApiStatus ?? '');
+
+            // Notify when document becomes pending (e.g., after being released by a human)
+            if (newStatus === 'pending' && oldStatus !== 'pending' && fileName && !isApiDriven) {
               handleDocumentPending(fileName);
             }
           }

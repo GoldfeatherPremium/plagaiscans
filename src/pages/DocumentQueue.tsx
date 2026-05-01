@@ -633,7 +633,24 @@ export default function DocumentQueue() {
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            <StatusBadge status={doc.status} />
+                            <div className="flex flex-col items-center gap-1">
+                              <StatusBadge status={doc.status} />
+                              {(doc as any).external_api_order_id && ['submitted','queued','processing'].includes((doc as any).external_api_status ?? '') && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary border border-primary/20" title="Being processed by external API">
+                                  Processing by API
+                                </span>
+                              )}
+                              {(doc as any).external_api_status === 'rate_limited' && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-yellow-500/10 text-yellow-700 border border-yellow-500/20" title="API rate limited — will retry">
+                                  API: rate-limited
+                                </span>
+                              )}
+                              {(doc as any).external_api_status === 'submit_failed' && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-destructive/10 text-destructive border border-destructive/20" title={(doc as any).external_api_error || 'API submit failed'}>
+                                  API: submit failed
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex flex-wrap items-center justify-center gap-1 text-xs">
