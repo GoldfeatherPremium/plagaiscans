@@ -14,6 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { ServiceStatusBanner } from '@/components/ServiceStatusBanner';
+import { ALLOWED_UPLOAD_ACCEPT, ALLOWED_UPLOAD_LABEL, isAllowedUploadFile, getUnsupportedFormatMessage } from '@/lib/allowedUploadFormats';
 
 export default function UploadDocument() {
   const { t } = useTranslation('dashboard');
