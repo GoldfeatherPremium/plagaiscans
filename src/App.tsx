@@ -30,6 +30,7 @@ const PaymentHistory = lazy(() => import("./pages/PaymentHistory"));
 const DocumentQueue = lazy(() => import("./pages/DocumentQueue"));
 const SimilarityQueue = lazy(() => import("./pages/SimilarityQueue"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
+const AdminResellers = lazy(() => import("./pages/AdminResellers"));
 const AdminAnalytics = lazy(() => import("./pages/AdminAnalytics"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings"));
 const AdminPricing = lazy(() => import("./pages/AdminPricing"));
