@@ -313,6 +313,7 @@ const AppRoutes = () => (
       
       {/* Admin Routes */}
       <Route path="/dashboard/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsers /></ProtectedRoute>} />
+      <Route path="/dashboard/resellers" element={<ProtectedRoute allowedRoles={['admin']}><AdminResellers /></ProtectedRoute>} />
       <Route path="/dashboard/admin-analytics" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnalytics /></ProtectedRoute>} />
       <Route path="/dashboard/pricing" element={<ProtectedRoute allowedRoles={['admin']}><AdminPricing /></ProtectedRoute>} />
       <Route path="/dashboard/magic-links" element={<ProtectedRoute allowedRoles={['admin']}><AdminMagicLinks /></ProtectedRoute>} />
