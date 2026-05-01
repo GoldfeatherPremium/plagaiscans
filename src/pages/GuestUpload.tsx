@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { SimilarityFiltersPanel } from '@/components/SimilarityFiltersPanel';
 import { Badge } from '@/components/ui/badge';
 import { useMagicLinks, MagicUploadLink, MagicUploadFile } from '@/hooks/useMagicLinks';
 import { supabase } from '@/integrations/supabase/client';
