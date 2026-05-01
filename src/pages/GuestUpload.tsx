@@ -535,7 +535,7 @@ export default function GuestUpload() {
                           <div className="text-sm text-muted-foreground space-y-1">
                             <p>Uploaded file must be less than <strong className="text-foreground">100 MB</strong></p>
                             <p>Files must contain <strong className="text-foreground">over 20 words</strong></p>
-                            <p className="text-amber-600 dark:text-amber-500">.docx, .xlsx, .pptx, .pdf, .html, .rtf, .odt, .txt</p>
+                            <p className="text-amber-600 dark:text-amber-500">.pdf, .docx, .txt, .rtf, .odt</p>
                           </div>
                         </div>
                       )}
