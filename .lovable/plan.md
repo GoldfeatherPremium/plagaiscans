@@ -1,120 +1,93 @@
-## Goal
+## Reseller API Integration System
 
-Add a second AI-scan bulk upload pipeline ("V2") that does **post-upload matching using the document name printed on the cover page** of each Turnitin PDF — instead of matching by uploaded filename. The existing V1 pipeline (`/dashboard/bulk-upload` + `process-bulk-reports`) stays exactly as-is.
+A complete API for external reseller sites to submit AI-only scans, with prepaid credits, webhooks, polling, and full admin management.
 
-## Scope (only this, no scope creep)
+### Database (1 migration)
 
-- New page, new edge function, new sidebar link.
-- Same UI, same drag/drop, same ZIP extraction, same progress, same result panels, same permissions, same notifications, same completion logic.
-- **Only difference**: matching keys come from the PDF first-page text, not from the uploaded filename.
+New tables:
+- **`resellers`** — name, contact_email, status (active/suspended), credit_balance, total_credits_purchased, total_credits_used, webhook_url, webhook_secret, notes, created_by
+- **`reseller_api_keys`** — reseller_id, key_hash (sha256), key_prefix (first 8 chars, shown in UI), label, last_used_at, revoked_at, expires_at
+- **`reseller_credit_transactions`** — reseller_id, amount, balance_before, balance_after, type (topup/deduction/refund/adjustment), description, performed_by, scan_id
+- **`reseller_scans`** — reseller_id, api_key_id, external_reference (reseller's own ID), document_id (links to existing `documents` table), status, ai_percentage, ai_report_path, error, created_at, completed_at, ip_address
+- **`reseller_webhook_logs`** — reseller_id, scan_id, url, payload, response_status, response_body, attempt_number, succeeded, next_retry_at, created_at
+- **`reseller_api_logs`** — reseller_id, api_key_id, method, path, status_code, ip, user_agent, request_size, response_time_ms, created_at
 
-## Files to create
+Helper functions:
+- `consume_reseller_credit(reseller_id, scan_id, description)` — atomic FIFO-style deduction, inserts transaction
+- `topup_reseller_credits(reseller_id, amount, description, performed_by)` — admin top-up
+- `is_admin()` reuse existing `has_role` for RLS
 
-### 1. `src/pages/AdminBulkReportUploadV2.tsx`
-Direct copy of `src/pages/AdminBulkReportUpload.tsx` with these adjustments:
-- Page title: `"Bulk Report Upload V2"` (admin) / `"AI Reports Bulk Upload V2"` (staff).
-- Subtitle: "Reports are matched after upload by reading each PDF's cover page."
-- **Remove** the pre-upload match preview UI: `matchStats` memo, the "Match Preview" card, the `MatchPreviewDialog`, the `previewMatches` import, the `manualMappings` state, and the `handlePreviewConfirm` handler. (Matching only happens server-side after upload now, so previewing client-side is meaningless.)
-- Remove the `pendingDocuments` query — no longer needed for preview.
-- The "Process Reports" button calls `supabase.functions.invoke('process-bulk-reports-v2', { body: { reports: uploadedReports } })`.
-- Result panels (mapped / unmatched / needs review / completed) stay identical to V1 — they already display by `fileName`, which works for both pipelines.
+RLS: only admins can read/write reseller tables. Edge functions use service role to bypass RLS.
 
-### 2. `supabase/functions/process-bulk-reports-v2/index.ts`
-Direct copy of `supabase/functions/process-bulk-reports/index.ts` with one logical change in the matching layer:
+### Edge Functions (new, all `verify_jwt = false`, custom auth via API key header)
 
-**New step before matching, per report:**
-1. Download PDF from `reports` bucket (already done for analysis).
-2. Extract text from **page 1** via `pdfjs-serverless` (`extractPageText(pdf, 1)`).
-3. Run `extractDocumentNameFromCoverPage(text)` to find the original document filename printed on the cover. Strategies (in order):
-   - Regex for an explicit label: `/(?:submission\s*(?:title|name)|document\s*(?:title|name)|file\s*name|paper\s*title)\s*[:\-]?\s*([^\n\r]{1,200})/i`
-   - Regex for any token ending in a known extension: `/([\w\-.()\[\]\s]{1,200}\.(?:docx?|pdf|txt|rtf|odt))/i` — pick the first match that isn't the report's own file path.
-   - Fallback: take the first non-empty, non-boilerplate line of page 1 (skip lines containing "turnitin", "originality report", "similarity report", "page", "submitted to", purely numeric lines, percentage-only lines).
-4. Normalize the extracted name with the existing `normalizeFilename()` helper — this is the **matching key** instead of `normalizeFilename(report.fileName)`.
-5. Feed that key into the existing exact-then-fuzzy matcher (`docsByNormalized` / `findBestMatch`). Everything downstream — slot assignment, percentage extraction, `needs_review`, `unmatched_reports` insert, completion + notifications — is unchanged.
+- **`reseller-api`** — single function routing all reseller endpoints by path:
+  - `POST /scans` — submit (multipart: file + optional excludeBibliography/excludeQuotes/excludeCitations/minWords + external_reference). Validates API key, checks credits, uploads to `documents` storage bucket, creates `documents` row with `scan_type='ai_only_reseller'`, creates `reseller_scans` row, deducts 1 credit, dispatches to `external-api-submit`. Returns `{ scan_id, status: 'queued' }`.
+  - `GET /scans/{id}` — poll status. Returns scan info + (when completed) signed AI report download URL valid 1h.
+  - `GET /scans/{id}/report` — direct redirect to signed download URL.
+  - `GET /account` — credit balance, usage stats.
+  - `GET /scans` — list scans (paginated, filterable by status/date).
+- **`reseller-webhook-dispatch`** — internal: called when a reseller scan completes; POSTs JSON `{ scan_id, external_reference, status, ai_percentage, report_url }` with header `X-Plagaiscans-Signature: sha256=<hmac>` (signed with reseller's webhook_secret). Logs every attempt. Retries with exponential backoff (1m, 5m, 30m, 2h, 12h) up to 5 attempts.
+- **`reseller-webhook-retry`** — cron (every minute): retries pending webhook deliveries.
 
-**Improved-reliability features added to V2:**
-- If cover-page extraction returns nothing, **fall back** to `normalizeFilename(report.fileName)` (so V2 is never worse than V1).
-- Lower the auto-assign fuzzy threshold to `>= 85` (vs V1's `90`), since cover-page extraction is noisier.
-- Persist the extracted cover name into `unmatched_reports.suggested_documents` payload as `extracted_cover_name` so admins can see what the parser found when reviewing a miss.
-- Log both `report.fileName` and `extractedCoverName` for every report (helps debugging).
+Hook into existing `external-api-poll`: when a `reseller_scans`-linked document completes, mark the reseller_scan completed, trigger `reseller-webhook-dispatch`.
 
-**Untouched in V2:**
-- All PDF type/percentage analysis (`analyzePdf`, `analyzeModernView`, `analyzeClassicalView`, `bruteForceScan`).
-- Auth/role check (admin or staff).
-- Storage bucket (`reports`).
-- Tables written to (`documents`, `unmatched_reports`).
-- Completion notifications (user notification, push, completion email, guest completion email).
+### Admin UI
 
-### 3. `supabase/config.toml`
-Append:
-```
-[functions.process-bulk-reports-v2]
-verify_jwt = false
-```
+New section "Resellers" in admin sidebar with subpages:
+- **`/admin/resellers`** — list all resellers (name, status, balance, total used, last activity, actions: edit/suspend/view)
+- **`/admin/resellers/new`** — create reseller form
+- **`/admin/resellers/:id`** — detail with tabs:
+  - **Overview** — info, status toggle, edit, webhook URL & rotate secret
+  - **API Keys** — create key (shows full key once, then prefix only), revoke, label, last used
+  - **Credits** — current balance, top-up form, transaction history
+  - **Scans** — list of all scans by this reseller with status/score/links to report
+  - **API Logs** — recent API requests with method/path/status/IP
+  - **Webhook Logs** — delivery attempts, status, payloads, retry now button
 
-### 4. `src/App.tsx`
-- Add lazy import: `const AdminBulkReportUploadV2 = lazy(() => import("./pages/AdminBulkReportUploadV2"));`
-- Add route alongside existing one:
-  `<Route path="/dashboard/bulk-upload-v2" element={<ProtectedRoute allowedRoles={['admin','staff']}><AdminBulkReportUploadV2 /></ProtectedRoute>} />`
+Single AdminResellers route added to `App.tsx` admin section, protected by `useUserRole` admin check.
 
-### 5. `src/components/DashboardSidebar.tsx`
-Add a new entry **next to** (not replacing) each existing AI bulk-upload link:
-- Staff section: `{ to: '/dashboard/bulk-upload-v2', icon: FileStack, label: 'Bulk Upload AI V2' }`
-- Admin section: `{ to: '/dashboard/bulk-upload-v2', icon: FileStack, label: 'Bulk Upload AI V2' }`
+### Documentation
 
-## Files explicitly NOT touched
+Public docs page `/api-docs` (linked from footer) with:
+- Authentication (X-API-Key header)
+- Endpoints with curl + JS examples
+- Webhook payload format and signature verification
+- Error codes table
+- Credit & rate-limit info
 
-- `src/pages/AdminBulkReportUpload.tsx`
-- `supabase/functions/process-bulk-reports/index.ts`
-- `supabase/functions/bulk-report-upload/index.ts`
-- `src/pages/AdminSimilarityBulkUpload.tsx`
-- `supabase/functions/process-similarity-bulk-reports/index.ts`
-- `src/components/MatchPreviewDialog.tsx`, `src/utils/filenameMatching.ts` (V1 still uses them)
-- All notification, document, credit, RLS, and DB schema code
+### Notes
 
-## Technical details (for reviewers)
+- AI scan only — no similarity_only path. `scan_type='ai_only_reseller'` is filtered out from existing customer/staff queues.
+- Documents from resellers are excluded from regular `Dashboard`/`MyDocuments`/`DocumentQueue`/`SimilarityQueue` views (filter `scan_type != 'ai_only_reseller'` or `magic_link_id is null AND user_id is null AND reseller_id is set` — we'll add a guard in those queries).
+- API key shown once on creation (toast + copy button). Stored only as sha256 hash.
+- Rate limiting: simple in-memory per-key counter inside `reseller-api` (60 req/min) to start; documented as such.
+- Webhook signature: `sha256=HMAC_SHA256(webhook_secret, raw_body)`.
 
-### Cover-page name extraction pseudocode
-```ts
-function extractDocumentNameFromCoverPage(pageOneText: string, ownPath: string): string | null {
-  const text = pageOneText.replace(/\s+/g, ' ').trim();
+### Files
 
-  // 1. Explicit label
-  const labelRe = /(?:submission\s*(?:title|name)|document\s*(?:title|name)|file\s*name|paper\s*title)\s*[:\-]?\s*([^\n\r|]{1,200}?)(?:\s{2,}|$)/i;
-  const labelMatch = text.match(labelRe);
-  if (labelMatch?.[1]) return labelMatch[1].trim();
+Created:
+- 1 migration
+- `supabase/functions/reseller-api/index.ts`
+- `supabase/functions/reseller-webhook-dispatch/index.ts`
+- `supabase/functions/reseller-webhook-retry/index.ts`
+- `src/pages/AdminResellers.tsx`
+- `src/pages/AdminResellerDetail.tsx`
+- `src/pages/ApiDocs.tsx`
+- `src/hooks/useResellers.ts`
 
-  // 2. Token ending in a known doc extension
-  const extRe = /([^\s|]{1,200}\.(?:docx?|pdf|txt|rtf|odt))/i;
-  const allExt = [...text.matchAll(new RegExp(extRe, 'gi'))]
-    .map(m => m[1])
-    .filter(name => !ownPath.toLowerCase().includes(name.toLowerCase()));
-  if (allExt.length) return allExt[0];
+Modified:
+- `supabase/functions/external-api-poll/index.ts` — trigger reseller webhook on completion
+- `supabase/functions/external-api-dispatch/index.ts` — include reseller scans in dispatch (already filters by scan_type != similarity_only, fine)
+- `supabase/config.toml` — register new functions
+- `src/App.tsx` — routes
+- `src/components/DashboardSidebar.tsx` — admin nav item
+- `src/components/Footer.tsx` — link to /api-docs
+- Existing query files (Dashboard, MyDocuments, DocumentQueue) — exclude reseller scans
 
-  // 3. First meaningful line
-  const lines = pageOneText.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
-  const skip = /^(turnitin|originality report|similarity report|ai report|page \d+|submitted to|\d+%?|by\s+)/i;
-  const candidate = lines.find(l => l.length >= 3 && l.length <= 200 && !skip.test(l));
-  return candidate ?? null;
-}
-```
+### Out of scope (can add later)
 
-### Matching key swap (single call site change)
-```ts
-// V1:
-const normalizedFilename = normalizeFilename(report.fileName);
-
-// V2:
-const coverPageText = await extractPageText(pdf, 1);
-const extractedCoverName = extractDocumentNameFromCoverPage(coverPageText, report.filePath);
-const matchKey = extractedCoverName ? normalizeFilename(extractedCoverName) : normalizeFilename(report.fileName);
-const normalizedFilename = matchKey;  // rest of code is identical
-```
-
-### Verification checklist after implementation
-- V1 page `/dashboard/bulk-upload` still loads, still shows match preview, still completes uploads via `process-bulk-reports`.
-- V2 page `/dashboard/bulk-upload-v2` loads, has no preview UI, accepts PDFs/ZIPs, calls `process-bulk-reports-v2`.
-- A V2 upload with a renamed file (e.g. `report_xyz.pdf` whose cover page says `Essay_Final.docx`) matches against a queue document named `Essay_Final.docx`.
-- A V2 upload whose cover page can't be parsed falls back to filename matching (parity with V1).
-- Both edge functions appear in deployed function list; both have `verify_jwt = false`.
-- No edits in `src/pages/AdminBulkReportUpload.tsx` or `supabase/functions/process-bulk-reports/index.ts`.
+- Self-serve reseller signup portal
+- OAuth2 client_credentials flow (deferred — API key sufficient for v1)
+- Per-reseller custom AI exclusion defaults
+- Reseller-facing dashboard (this is API-only; admin manages everything)

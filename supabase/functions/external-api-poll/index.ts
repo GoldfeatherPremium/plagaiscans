@@ -27,9 +27,10 @@ Deno.serve(async (req) => {
     onlyDocumentId = body?.documentId ?? null;
   }
 
+  const SELECT_COLS = 'id, file_name, user_id, scan_type, external_api_order_id, external_api_status, external_api_attempt_count, status, reseller_scan_id';
   let query = supabase
     .from('documents')
-    .select('id, file_name, user_id, scan_type, external_api_order_id, external_api_status, external_api_attempt_count, status')
+    .select(SELECT_COLS)
     .not('external_api_order_id', 'is', null)
     .in('external_api_status', ['submitted', 'processing', 'queued'])
     .limit(50);
@@ -37,7 +38,7 @@ Deno.serve(async (req) => {
   if (onlyDocumentId) {
     query = supabase
       .from('documents')
-      .select('id, file_name, user_id, scan_type, external_api_order_id, external_api_status, external_api_attempt_count, status')
+      .select(SELECT_COLS)
       .eq('id', onlyDocumentId);
   }
 
@@ -79,6 +80,7 @@ Deno.serve(async (req) => {
 
       if (remoteStatus === 'completed') {
         const finalised = await finaliseCompleted(supabase, apiToken, doc, data);
+        await handleResellerHook(supabase, doc, 'completed', (finalised as any).aiPath ?? null, typeof data.aiScore === 'number' ? Math.round(data.aiScore * 100) : null, null);
         results.push({ id: doc.id, status: 'completed', ...finalised });
         continue;
       }
@@ -87,6 +89,7 @@ Deno.serve(async (req) => {
       // error -> system error, refund credit if not already
       if (remoteStatus === 'failed_invalid' || remoteStatus === 'error') {
         await handleFailure(supabase, doc, remoteStatus, data);
+        await handleResellerHook(supabase, doc, 'failed', null, null, (data?.error as string) ?? remoteStatus);
         results.push({ id: doc.id, status: remoteStatus });
         continue;
       }
@@ -246,6 +249,49 @@ async function logEvent(
       response_payload: response as object | null,
       error_message: errorMessage,
     });
+  } catch (_) { /* swallow */ }
+}
+
+async function handleResellerHook(
+  supabase: ReturnType<typeof createClient>,
+  doc: { id: string; reseller_scan_id?: string | null },
+  status: 'completed' | 'failed',
+  aiPath: string | null,
+  aiPercentage: number | null,
+  errorMsg: string | null,
+) {
+  if (!doc.reseller_scan_id) return;
+  try {
+    await supabase.from('reseller_scans').update({
+      status,
+      ai_percentage: aiPercentage,
+      ai_report_path: aiPath,
+      error: errorMsg,
+      completed_at: new Date().toISOString(),
+      webhook_next_retry_at: new Date().toISOString(),
+    }).eq('id', doc.reseller_scan_id);
+
+    // If failed, refund the credit
+    if (status === 'failed') {
+      const { data: scan } = await supabase.from('reseller_scans').select('reseller_id').eq('id', doc.reseller_scan_id).maybeSingle();
+      if (scan?.reseller_id) {
+        await supabase.rpc('refund_reseller_credit', {
+          p_reseller_id: scan.reseller_id,
+          p_scan_id: doc.reseller_scan_id,
+          p_description: 'Scan failed - automatic refund',
+        });
+      }
+    }
+
+    // Fire webhook (best-effort)
+    fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/reseller-webhook-dispatch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+      },
+      body: JSON.stringify({ scanId: doc.reseller_scan_id }),
+    }).catch(() => {});
   } catch (_) { /* swallow */ }
 }
 

@@ -30,6 +30,7 @@ const PaymentHistory = lazy(() => import("./pages/PaymentHistory"));
 const DocumentQueue = lazy(() => import("./pages/DocumentQueue"));
 const SimilarityQueue = lazy(() => import("./pages/SimilarityQueue"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
+const AdminResellers = lazy(() => import("./pages/AdminResellers"));
 const AdminAnalytics = lazy(() => import("./pages/AdminAnalytics"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings"));
 const AdminPricing = lazy(() => import("./pages/AdminPricing"));
@@ -312,6 +313,7 @@ const AppRoutes = () => (
       
       {/* Admin Routes */}
       <Route path="/dashboard/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsers /></ProtectedRoute>} />
+      <Route path="/dashboard/resellers" element={<ProtectedRoute allowedRoles={['admin']}><AdminResellers /></ProtectedRoute>} />
       <Route path="/dashboard/admin-analytics" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnalytics /></ProtectedRoute>} />
       <Route path="/dashboard/pricing" element={<ProtectedRoute allowedRoles={['admin']}><AdminPricing /></ProtectedRoute>} />
       <Route path="/dashboard/magic-links" element={<ProtectedRoute allowedRoles={['admin']}><AdminMagicLinks /></ProtectedRoute>} />

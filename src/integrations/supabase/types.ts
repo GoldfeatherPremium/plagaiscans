@@ -786,6 +786,7 @@ export type Database = {
           normalized_filename: string | null
           pending_reminder_sent_at: string | null
           remarks: string | null
+          reseller_scan_id: string | null
           review_reason: string | null
           scan_type: string
           similarity_percentage: number | null
@@ -833,6 +834,7 @@ export type Database = {
           normalized_filename?: string | null
           pending_reminder_sent_at?: string | null
           remarks?: string | null
+          reseller_scan_id?: string | null
           review_reason?: string | null
           scan_type?: string
           similarity_percentage?: number | null
@@ -880,6 +882,7 @@ export type Database = {
           normalized_filename?: string | null
           pending_reminder_sent_at?: string | null
           remarks?: string | null
+          reseller_scan_id?: string | null
           review_reason?: string | null
           scan_type?: string
           similarity_percentage?: number | null
@@ -895,6 +898,13 @@ export type Database = {
             columns: ["magic_link_id"]
             isOneToOne: false
             referencedRelation: "magic_upload_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_reseller_scan_id_fkey"
+            columns: ["reseller_scan_id"]
+            isOneToOne: false
+            referencedRelation: "reseller_scans"
             referencedColumns: ["id"]
           },
         ]
@@ -2403,6 +2413,350 @@ export type Database = {
         }
         Relationships: []
       }
+      reseller_api_keys: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          key_hash: string
+          key_prefix: string
+          label: string | null
+          last_used_at: string | null
+          reseller_id: string
+          revoked_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          key_hash: string
+          key_prefix: string
+          label?: string | null
+          last_used_at?: string | null
+          reseller_id: string
+          revoked_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          label?: string | null
+          last_used_at?: string | null
+          reseller_id?: string
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reseller_api_keys_reseller_id_fkey"
+            columns: ["reseller_id"]
+            isOneToOne: false
+            referencedRelation: "resellers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reseller_api_logs: {
+        Row: {
+          api_key_id: string | null
+          created_at: string
+          error: string | null
+          id: string
+          ip_address: string | null
+          method: string
+          path: string
+          reseller_id: string | null
+          response_time_ms: number | null
+          status_code: number
+          user_agent: string | null
+        }
+        Insert: {
+          api_key_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          ip_address?: string | null
+          method: string
+          path: string
+          reseller_id?: string | null
+          response_time_ms?: number | null
+          status_code: number
+          user_agent?: string | null
+        }
+        Update: {
+          api_key_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          ip_address?: string | null
+          method?: string
+          path?: string
+          reseller_id?: string | null
+          response_time_ms?: number | null
+          status_code?: number
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reseller_api_logs_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "reseller_api_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reseller_api_logs_reseller_id_fkey"
+            columns: ["reseller_id"]
+            isOneToOne: false
+            referencedRelation: "resellers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reseller_credit_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          balance_before: number
+          created_at: string
+          description: string | null
+          id: string
+          performed_by: string | null
+          reseller_id: string
+          scan_id: string | null
+          transaction_type: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          balance_before: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          performed_by?: string | null
+          reseller_id: string
+          scan_id?: string | null
+          transaction_type: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          balance_before?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          performed_by?: string | null
+          reseller_id?: string
+          scan_id?: string | null
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reseller_credit_transactions_reseller_id_fkey"
+            columns: ["reseller_id"]
+            isOneToOne: false
+            referencedRelation: "resellers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reseller_scans: {
+        Row: {
+          ai_percentage: number | null
+          ai_report_path: string | null
+          api_key_id: string | null
+          completed_at: string | null
+          created_at: string
+          document_id: string | null
+          error: string | null
+          external_reference: string | null
+          file_name: string
+          id: string
+          ip_address: string | null
+          reseller_id: string
+          status: string
+          updated_at: string
+          webhook_attempts: number
+          webhook_delivered: boolean
+          webhook_next_retry_at: string | null
+        }
+        Insert: {
+          ai_percentage?: number | null
+          ai_report_path?: string | null
+          api_key_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          document_id?: string | null
+          error?: string | null
+          external_reference?: string | null
+          file_name: string
+          id?: string
+          ip_address?: string | null
+          reseller_id: string
+          status?: string
+          updated_at?: string
+          webhook_attempts?: number
+          webhook_delivered?: boolean
+          webhook_next_retry_at?: string | null
+        }
+        Update: {
+          ai_percentage?: number | null
+          ai_report_path?: string | null
+          api_key_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          document_id?: string | null
+          error?: string | null
+          external_reference?: string | null
+          file_name?: string
+          id?: string
+          ip_address?: string | null
+          reseller_id?: string
+          status?: string
+          updated_at?: string
+          webhook_attempts?: number
+          webhook_delivered?: boolean
+          webhook_next_retry_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reseller_scans_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "reseller_api_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reseller_scans_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reseller_scans_reseller_id_fkey"
+            columns: ["reseller_id"]
+            isOneToOne: false
+            referencedRelation: "resellers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reseller_webhook_logs: {
+        Row: {
+          attempt_number: number
+          created_at: string
+          error: string | null
+          id: string
+          payload: Json | null
+          reseller_id: string
+          response_body: string | null
+          response_status: number | null
+          scan_id: string | null
+          succeeded: boolean
+          url: string
+        }
+        Insert: {
+          attempt_number?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          payload?: Json | null
+          reseller_id: string
+          response_body?: string | null
+          response_status?: number | null
+          scan_id?: string | null
+          succeeded?: boolean
+          url: string
+        }
+        Update: {
+          attempt_number?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          payload?: Json | null
+          reseller_id?: string
+          response_body?: string | null
+          response_status?: number | null
+          scan_id?: string | null
+          succeeded?: boolean
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reseller_webhook_logs_reseller_id_fkey"
+            columns: ["reseller_id"]
+            isOneToOne: false
+            referencedRelation: "resellers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reseller_webhook_logs_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "reseller_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resellers: {
+        Row: {
+          contact_email: string | null
+          contact_name: string | null
+          created_at: string
+          created_by: string | null
+          credit_balance: number
+          id: string
+          name: string
+          notes: string | null
+          rate_limit_per_min: number
+          status: string
+          total_credits_purchased: number
+          total_credits_used: number
+          updated_at: string
+          webhook_secret: string
+          webhook_url: string | null
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_balance?: number
+          id?: string
+          name: string
+          notes?: string | null
+          rate_limit_per_min?: number
+          status?: string
+          total_credits_purchased?: number
+          total_credits_used?: number
+          updated_at?: string
+          webhook_secret?: string
+          webhook_url?: string | null
+        }
+        Update: {
+          contact_email?: string | null
+          contact_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_balance?: number
+          id?: string
+          name?: string
+          notes?: string | null
+          rate_limit_per_min?: number
+          status?: string
+          total_credits_purchased?: number
+          total_credits_used?: number
+          updated_at?: string
+          webhook_secret?: string
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
       sendfox_contacts: {
         Row: {
           current_tags: string[]
@@ -3417,6 +3771,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consume_reseller_credit: {
+        Args: {
+          p_description?: string
+          p_reseller_id: string
+          p_scan_id?: string
+        }
+        Returns: Json
+      }
       consume_user_credit: {
         Args: {
           p_credit_type?: string
@@ -3441,6 +3803,23 @@ export type Database = {
       increment_promo_uses: { Args: { promo_id: string }; Returns: undefined }
       is_special_user: { Args: { _user_id: string }; Returns: boolean }
       normalize_filename: { Args: { filename: string }; Returns: string }
+      refund_reseller_credit: {
+        Args: {
+          p_description?: string
+          p_reseller_id: string
+          p_scan_id?: string
+        }
+        Returns: Json
+      }
+      topup_reseller_credits: {
+        Args: {
+          p_amount: number
+          p_description?: string
+          p_performed_by?: string
+          p_reseller_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "staff" | "customer"
