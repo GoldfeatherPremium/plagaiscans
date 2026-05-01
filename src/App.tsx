@@ -293,7 +293,8 @@ const AppRoutes = () => (
       <Route path="/guest-upload" element={<PublicRoute><GuestUpload /></PublicRoute>} />
       
       {/* Customer Routes */}
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute><RoleHomeRedirect /></ProtectedRoute>} />
+      <Route path="/reseller" element={<ProtectedRoute allowedRoles={['reseller']}><ResellerDashboard /></ProtectedRoute>} />
       <Route path="/dashboard/upload" element={<ProtectedRoute allowedRoles={['customer']}><UploadDocument /></ProtectedRoute>} />
       <Route path="/dashboard/upload-similarity" element={<ProtectedRoute allowedRoles={['customer']}><UploadSimilarity /></ProtectedRoute>} />
       <Route path="/dashboard/documents" element={<ProtectedRoute><MyDocuments /></ProtectedRoute>} />
