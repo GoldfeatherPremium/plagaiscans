@@ -136,8 +136,10 @@ async function finaliseCompleted(
     automation_status: 'completed',
     completed_at: new Date().toISOString(),
   };
+  // Similarity is returned as a percentage (e.g. 9.39 = 9%).
+  // AI is returned on a 0-1 scale (e.g. 0.37 = 37%) — multiply by 100.
   if (typeof data.similarityScore === 'number') update.similarity_percentage = Math.round(data.similarityScore);
-  if (typeof data.aiScore === 'number' && doc.scan_type !== 'similarity_only') update.ai_percentage = Math.round(data.aiScore);
+  if (typeof data.aiScore === 'number' && doc.scan_type !== 'similarity_only') update.ai_percentage = Math.round(data.aiScore * 100);
   if (similarityPath) update.similarity_report_path = similarityPath;
   if (aiPath) update.ai_report_path = aiPath;
 

@@ -167,15 +167,22 @@ export default function GuestUpload() {
     }
   };
 
+  const ALLOWED_EXT = /\.(pdf|docx|txt|rtf|odt)$/i;
+  const acceptFile = (file: File): boolean => {
+    if (!ALLOWED_EXT.test(file.name)) {
+      toast.error('Unsupported file type. Only .pdf, .docx, .txt, .rtf, .odt are allowed.');
+      return false;
+    }
+    return true;
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      if (/\.doc$/i.test(file.name)) {
-        toast.error('.doc format is not supported. Please convert to .docx and try again.');
-      } else {
+      if (acceptFile(file)) {
         setSelectedFile(file);
         setUploadSuccess(false);
       }
@@ -187,9 +194,7 @@ export default function GuestUpload() {
     e.preventDefault();
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (/\.doc$/i.test(file.name)) {
-        toast.error('.doc format is not supported. Please convert to .docx and try again.');
-      } else {
+      if (acceptFile(file)) {
         setSelectedFile(file);
         setUploadSuccess(false);
       }
@@ -494,7 +499,7 @@ export default function GuestUpload() {
                         ref={inputRef}
                         type="file"
                         className="hidden"
-                        accept=".pdf,.docx,.txt,.xlsx,.pptx,.ps,.html,.rtf,.odt,.hwp"
+                        accept=".pdf,.docx,.txt,.rtf,.odt"
                         onChange={handleChange}
                       />
                       
@@ -530,7 +535,7 @@ export default function GuestUpload() {
                           <div className="text-sm text-muted-foreground space-y-1">
                             <p>Uploaded file must be less than <strong className="text-foreground">100 MB</strong></p>
                             <p>Files must contain <strong className="text-foreground">over 20 words</strong></p>
-                            <p className="text-amber-600 dark:text-amber-500">.docx, .xlsx, .pptx, .pdf, .html, .rtf, .odt, .txt</p>
+                            <p className="text-amber-600 dark:text-amber-500">.pdf, .docx, .txt, .rtf, .odt</p>
                           </div>
                         </div>
                       )}
