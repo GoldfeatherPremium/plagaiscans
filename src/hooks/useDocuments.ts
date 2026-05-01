@@ -75,6 +75,7 @@ async function fetchDocumentsCore(
   let query = supabase
     .from('documents')
     .select('*')
+    .neq('scan_type', 'ai_only_reseller')
     .order('uploaded_at', { ascending: false })
     .limit(MAX_ROWS);
 

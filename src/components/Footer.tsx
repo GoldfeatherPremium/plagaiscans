@@ -33,6 +33,7 @@ const Footer = () => {
       links: [
         { label: t('footer.aboutUs'), to: "/about-us" },
         { label: t('footer.contact'), to: "/contact" },
+        { label: "Reseller API", to: "/api-docs" },
       ],
     },
     {
