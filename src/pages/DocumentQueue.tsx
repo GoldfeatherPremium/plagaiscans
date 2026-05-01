@@ -15,6 +15,7 @@ import { EditCompletedDocumentDialog } from '@/components/EditCompletedDocumentD
 import { CancelDocumentDialog } from '@/components/CancelDocumentDialog';
 import { BulkUploadPanel } from '@/components/BulkUploadPanel';
 import { BulkReportUploadV2Content } from '@/pages/AdminBulkReportUploadV2';
+import { ExternalApiStatusPanel } from '@/components/ExternalApiStatusPanel';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare, CheckCheck, FolderUp, Pencil, Ban } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -832,6 +833,7 @@ export default function DocumentQueue() {
               <TabsTrigger value="queue">Queue</TabsTrigger>
               <TabsTrigger value="bulk-upload">Bulk Upload</TabsTrigger>
               <TabsTrigger value="bulk-upload-v2">Bulk Upload V2</TabsTrigger>
+              {isAdmin && <TabsTrigger value="external-api">External API</TabsTrigger>}
             </TabsList>
             
             <TabsContent value="queue" className="mt-4 space-y-4">
@@ -845,6 +847,12 @@ export default function DocumentQueue() {
             <TabsContent value="bulk-upload-v2" className="mt-4">
               <BulkReportUploadV2Content embedded />
             </TabsContent>
+
+            {isAdmin && (
+              <TabsContent value="external-api" className="mt-4">
+                <ExternalApiStatusPanel />
+              </TabsContent>
+            )}
           </Tabs>
         ) : (
           <div className="space-y-4">

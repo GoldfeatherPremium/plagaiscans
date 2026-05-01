@@ -768,6 +768,12 @@ export type Database = {
           exclude_bibliography: boolean
           exclude_quotes: boolean
           exclude_small_sources: boolean
+          external_api_attempt_count: number
+          external_api_error: string | null
+          external_api_last_polled_at: string | null
+          external_api_order_id: string | null
+          external_api_status: string | null
+          external_api_submitted_at: string | null
           file_name: string
           file_path: string | null
           files_cleaned_at: string | null
@@ -807,6 +813,12 @@ export type Database = {
           exclude_bibliography?: boolean
           exclude_quotes?: boolean
           exclude_small_sources?: boolean
+          external_api_attempt_count?: number
+          external_api_error?: string | null
+          external_api_last_polled_at?: string | null
+          external_api_order_id?: string | null
+          external_api_status?: string | null
+          external_api_submitted_at?: string | null
           file_name: string
           file_path?: string | null
           files_cleaned_at?: string | null
@@ -846,6 +858,12 @@ export type Database = {
           exclude_bibliography?: boolean
           exclude_quotes?: boolean
           exclude_small_sources?: boolean
+          external_api_attempt_count?: number
+          external_api_error?: string | null
+          external_api_last_polled_at?: string | null
+          external_api_order_id?: string | null
+          external_api_status?: string | null
+          external_api_submitted_at?: string | null
           file_name?: string
           file_path?: string | null
           files_cleaned_at?: string | null
@@ -1235,6 +1253,53 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      external_api_logs: {
+        Row: {
+          action: string
+          created_at: string
+          document_id: string | null
+          error_message: string | null
+          http_status: number | null
+          id: string
+          order_id: string | null
+          request_payload: Json | null
+          response_payload: Json | null
+          status: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          document_id?: string | null
+          error_message?: string | null
+          http_status?: number | null
+          id?: string
+          order_id?: string | null
+          request_payload?: Json | null
+          response_payload?: Json | null
+          status: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          document_id?: string | null
+          error_message?: string | null
+          http_status?: number | null
+          id?: string
+          order_id?: string | null
+          request_payload?: Json | null
+          response_payload?: Json | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "external_api_logs_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
         ]
