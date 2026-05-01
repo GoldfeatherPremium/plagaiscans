@@ -354,6 +354,11 @@ export const DashboardSidebar: React.FC = () => {
     return links;
   }, [t, canAccessAI, canAccessSimilarity]);
 
+  const resellerLinks: NavLink[] = useMemo(() => [
+    { to: '/reseller', icon: LayoutDashboard, label: 'Reseller Dashboard' },
+    { to: '/api-docs', icon: FileText, label: 'API Documentation' },
+  ], []);
+
   // Admin grouped navigation
   const adminGroups: NavGroup[] = [
     {
