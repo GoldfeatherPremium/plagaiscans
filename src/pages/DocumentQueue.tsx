@@ -798,6 +798,208 @@ export default function DocumentQueue() {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Mobile: card list view */}
+              <div className="md:hidden divide-y">
+                {availableDocs.length === 0 && (
+                  <div className="p-6 text-center text-sm text-muted-foreground">No documents</div>
+                )}
+                {availableDocs.map((doc, index) => {
+                  const isAssignedToMe = doc.assigned_staff_id === user?.id;
+                  const { date, time } = formatDateTime(doc.uploaded_at);
+                  const elapsedInfo = getElapsedTime(doc.assigned_at);
+                  const overdue = isOverdue(doc.assigned_at);
+                  const isSelected = selectedDocIds.has(doc.id);
+
+                  return (
+                    <div
+                      key={doc.id}
+                      className={`p-3 space-y-3 ${isSelected ? 'bg-primary/10' : ''} ${isAssignedToMe ? 'bg-primary/5' : ''} ${overdue ? 'bg-destructive/5' : ''}`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleDocSelection(doc.id)}
+                          className="mt-1"
+                        />
+                        <FileText className="h-4 w-4 text-primary flex-shrink-0 mt-1" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">#{index + 1}</span>
+                            <span className="font-medium text-sm truncate" title={doc.file_name}>
+                              {doc.file_name}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate" title={doc.customer_profile?.email}>
+                            {doc.customer_profile?.full_name || doc.customer_profile?.email || (doc.magic_link_id ? 'Guest' : '-')}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <div className="text-muted-foreground">Uploaded</div>
+                          <div>{date}</div>
+                          <div className="text-muted-foreground">{time}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Status</div>
+                          <div className="flex flex-col gap-1 mt-0.5">
+                            <StatusBadge status={doc.status} />
+                            {(doc as any).external_api_status === 'rate_limited' && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-yellow-500/10 text-yellow-700 border border-yellow-500/20 w-fit">
+                                API: rate-limited
+                              </span>
+                            )}
+                            {(doc as any).external_api_status === 'submit_failed' && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-destructive/10 text-destructive border border-destructive/20 w-fit">
+                                API: submit failed
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Processing By</div>
+                          <div className="flex flex-col gap-1 mt-0.5">
+                            {isAssignedToMe ? (
+                              <span className="text-primary font-medium">You</span>
+                            ) : doc.staff_profile ? (
+                              <span className="text-muted-foreground">{doc.staff_profile.full_name || doc.staff_profile.email}</span>
+                            ) : doc.assigned_staff_id ? (
+                              <span className="text-muted-foreground">Staff</span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                            {isAdmin && (doc as any).external_api_order_id && ['submitted','queued','processing'].includes((doc as any).external_api_status ?? '') && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary border border-primary/20 w-fit">
+                                Processing by API
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Time Elapsed</div>
+                          {elapsedInfo ? (
+                            <div className={`flex items-center gap-1 mt-0.5 ${overdue ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                              <Clock className="h-3 w-3" />
+                              {elapsedInfo.display}
+                              {overdue && <span>(overdue)</span>}
+                            </div>
+                          ) : (
+                            <div className="text-muted-foreground mt-0.5">-</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {(doc.exclude_bibliography || doc.exclude_quotes || (doc as any).exclude_citations || ((doc as any).exclude_small_matches_words ?? 0) > 0) && (
+                        <div className="flex flex-wrap items-center gap-1 text-xs">
+                          <span className="text-muted-foreground">Exclusions:</span>
+                          {doc.exclude_bibliography && (
+                            <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Bib</span>
+                          )}
+                          {doc.exclude_quotes && (
+                            <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Quotes</span>
+                          )}
+                          {(doc as any).exclude_citations && (
+                            <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Cited</span>
+                          )}
+                          {((doc as any).exclude_small_matches_words ?? 0) > 0 && (
+                            <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                              &lt;{(doc as any).exclude_small_matches_words}w
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-2 pt-1 border-t">
+                        {doc.status === 'pending' && !isAssignedToMe && (
+                          <Button
+                            size="sm"
+                            onClick={() => handlePickDocument(doc)}
+                            disabled={!canPickMore}
+                          >
+                            Pick
+                          </Button>
+                        )}
+
+                        {isAssignedToMe && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                downloadFile(
+                                  doc.file_path,
+                                  doc.magic_link_id ? 'magic-uploads' : 'documents',
+                                  doc.file_name
+                                )
+                              }
+                            >
+                              <Download className="h-4 w-4 mr-1" /> Download
+                            </Button>
+                            <Button size="sm" onClick={() => handleOpenDialog(doc)}>
+                              <Upload className="h-4 w-4 mr-1" /> Upload
+                            </Button>
+                          </>
+                        )}
+
+                        {role === 'admin' && !isAssignedToMe && doc.status === 'in_progress' && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                downloadFile(
+                                  doc.file_path,
+                                  doc.magic_link_id ? 'magic-uploads' : 'documents',
+                                  doc.file_name
+                                )
+                              }
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-amber-600 border-amber-600/30"
+                              onClick={() => handleReleaseDocument(doc)}
+                            >
+                              <Unlock className="h-4 w-4 mr-1" /> Release
+                            </Button>
+                          </>
+                        )}
+
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setDocumentToEdit(doc);
+                              setEditDialogOpen(true);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+
+                        {isAdmin && (doc.status === 'pending' || doc.status === 'in_progress') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => {
+                              setDocumentToCancel(doc);
+                              setCancelDialogOpen(true);
+                            }}
+                          >
+                            <Ban className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
         </>
