@@ -275,7 +275,7 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${supabaseKey}`,
           },
-          body: JSON.stringify({ userId }),
+          body: JSON.stringify({ userId, paymentAmountUsd: amountUsd }),
         });
       } catch (refErr) {
         console.error('Failed to process referral reward:', refErr);
