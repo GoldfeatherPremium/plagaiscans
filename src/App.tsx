@@ -193,6 +193,12 @@ const ProtectedRoute = ({ children, allowedRoles, bypassMaintenance = false, all
   return <>{children}</>;
 };
 
+const RoleHomeRedirect = () => {
+  const { role } = useAuth();
+  if (role === 'reseller') return <Navigate to="/reseller" replace />;
+  return <Dashboard />;
+};
+
 const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   const { loading: maintenanceLoading } = useMaintenanceMode();
