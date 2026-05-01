@@ -167,15 +167,22 @@ export default function GuestUpload() {
     }
   };
 
+  const ALLOWED_EXT = /\.(pdf|docx|txt|rtf|odt)$/i;
+  const acceptFile = (file: File): boolean => {
+    if (!ALLOWED_EXT.test(file.name)) {
+      toast.error('Unsupported file type. Only .pdf, .docx, .txt, .rtf, .odt are allowed.');
+      return false;
+    }
+    return true;
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      if (/\.doc$/i.test(file.name)) {
-        toast.error('.doc format is not supported. Please convert to .docx and try again.');
-      } else {
+      if (acceptFile(file)) {
         setSelectedFile(file);
         setUploadSuccess(false);
       }
@@ -187,9 +194,7 @@ export default function GuestUpload() {
     e.preventDefault();
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (/\.doc$/i.test(file.name)) {
-        toast.error('.doc format is not supported. Please convert to .docx and try again.');
-      } else {
+      if (acceptFile(file)) {
         setSelectedFile(file);
         setUploadSuccess(false);
       }
