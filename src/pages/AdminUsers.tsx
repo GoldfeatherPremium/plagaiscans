@@ -36,7 +36,7 @@ interface UserProfile {
   credit_balance: number;
   similarity_credit_balance: number;
   created_at: string;
-  role?: 'admin' | 'staff' | 'customer';
+  role?: 'admin' | 'staff' | 'customer' | 'reseller';
   is_special?: boolean;
 }
 
@@ -74,7 +74,7 @@ export default function AdminUsers() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'staff' | 'customer'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'staff' | 'customer' | 'reseller'>('all');
   const [specialFilter, setSpecialFilter] = useState<'all' | 'special' | 'normal'>('all');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
@@ -87,7 +87,7 @@ export default function AdminUsers() {
 
   // Role assignment state
   const [selectedUserForRole, setSelectedUserForRole] = useState('');
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'staff' | 'customer'>('staff');
+  const [selectedRole, setSelectedRole] = useState<'admin' | 'staff' | 'customer' | 'reseller'>('staff');
   const [roleSearchQuery, setRoleSearchQuery] = useState('');
 
   // Staff settings state
@@ -243,7 +243,7 @@ export default function AdminUsers() {
     setLoadingHistory(false);
   };
 
-  const assignRole = async (userId?: string, role?: 'admin' | 'staff' | 'customer') => {
+  const assignRole = async (userId?: string, role?: 'admin' | 'staff' | 'customer' | 'reseller') => {
     const targetUser = userId || selectedUserForRole;
     const targetRole = role || selectedRole;
     if (!targetUser || !targetRole) return;
@@ -634,7 +634,7 @@ export default function AdminUsers() {
                 </div>
                 <div className="space-y-2">
                   <Label>Assign Role</Label>
-                  <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as 'admin' | 'staff' | 'customer')}>
+                  <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as 'admin' | 'staff' | 'customer' | 'reseller')}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

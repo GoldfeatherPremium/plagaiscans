@@ -105,7 +105,7 @@ const setSeenCount = (key: keyof SeenCounts, count: number) => {
 
 export const DashboardSidebar: React.FC = () => {
   const { t } = useTranslation('dashboard');
-  const { role, profile, signOut } = useAuth();
+  const { role, profile, signOut, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -353,6 +353,11 @@ export const DashboardSidebar: React.FC = () => {
     
     return links;
   }, [t, canAccessAI, canAccessSimilarity]);
+
+  const resellerLinks: NavLink[] = useMemo(() => [
+    { to: '/reseller', icon: LayoutDashboard, label: 'Reseller Dashboard' },
+    { to: '/api-docs', icon: FileText, label: 'API Documentation' },
+  ], []);
 
   // Admin grouped navigation
   const adminGroups: NavGroup[] = [
@@ -697,6 +702,8 @@ export const DashboardSidebar: React.FC = () => {
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {role === 'admin' ? (
             renderAdminNav()
+          ) : role === 'reseller' ? (
+            resellerLinks.map((link) => renderLink(link))
           ) : (
             (role === 'staff' ? staffLinks : customerLinks).map((link) => renderLink(link))
           )}
@@ -717,7 +724,7 @@ export const DashboardSidebar: React.FC = () => {
           )}
           
           <div className="px-4">
-            <p className="text-sm font-medium truncate">{profile?.full_name || profile?.email}</p>
+            <p className="text-sm font-medium truncate">{profile?.full_name || profile?.email || user?.email}</p>
             <p className="text-xs text-muted-foreground capitalize">{role}</p>
           </div>
 

@@ -31,6 +31,7 @@ const DocumentQueue = lazy(() => import("./pages/DocumentQueue"));
 const SimilarityQueue = lazy(() => import("./pages/SimilarityQueue"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
 const AdminResellers = lazy(() => import("./pages/AdminResellers"));
+const ResellerDashboard = lazy(() => import("./pages/ResellerDashboard"));
 const AdminAnalytics = lazy(() => import("./pages/AdminAnalytics"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings"));
 const AdminPricing = lazy(() => import("./pages/AdminPricing"));
@@ -192,6 +193,12 @@ const ProtectedRoute = ({ children, allowedRoles, bypassMaintenance = false, all
   return <>{children}</>;
 };
 
+const RoleHomeRedirect = () => {
+  const { role } = useAuth();
+  if (role === 'reseller') return <Navigate to="/reseller" replace />;
+  return <Dashboard />;
+};
+
 const AuthRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   const { loading: maintenanceLoading } = useMaintenanceMode();
@@ -292,7 +299,8 @@ const AppRoutes = () => (
       <Route path="/guest-upload" element={<PublicRoute><GuestUpload /></PublicRoute>} />
       
       {/* Customer Routes */}
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute><RoleHomeRedirect /></ProtectedRoute>} />
+      <Route path="/reseller" element={<ProtectedRoute allowedRoles={['reseller']}><ResellerDashboard /></ProtectedRoute>} />
       <Route path="/dashboard/upload" element={<ProtectedRoute allowedRoles={['customer']}><UploadDocument /></ProtectedRoute>} />
       <Route path="/dashboard/upload-similarity" element={<ProtectedRoute allowedRoles={['customer']}><UploadSimilarity /></ProtectedRoute>} />
       <Route path="/dashboard/documents" element={<ProtectedRoute><MyDocuments /></ProtectedRoute>} />

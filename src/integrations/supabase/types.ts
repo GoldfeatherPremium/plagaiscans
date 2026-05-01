@@ -2718,6 +2718,7 @@ export type Database = {
           total_credits_purchased: number
           total_credits_used: number
           updated_at: string
+          user_id: string | null
           webhook_secret: string
           webhook_url: string | null
         }
@@ -2735,6 +2736,7 @@ export type Database = {
           total_credits_purchased?: number
           total_credits_used?: number
           updated_at?: string
+          user_id?: string | null
           webhook_secret?: string
           webhook_url?: string | null
         }
@@ -2752,6 +2754,7 @@ export type Database = {
           total_credits_purchased?: number
           total_credits_used?: number
           updated_at?: string
+          user_id?: string | null
           webhook_secret?: string
           webhook_url?: string | null
         }
@@ -3801,6 +3804,7 @@ export type Database = {
         Returns: boolean
       }
       increment_promo_uses: { Args: { promo_id: string }; Returns: undefined }
+      is_reseller_owner: { Args: { _reseller_id: string }; Returns: boolean }
       is_special_user: { Args: { _user_id: string }; Returns: boolean }
       normalize_filename: { Args: { filename: string }; Returns: string }
       refund_reseller_credit: {
@@ -3822,7 +3826,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "staff" | "customer"
+      app_role: "admin" | "staff" | "customer" | "reseller"
       document_status: "pending" | "in_progress" | "completed" | "cancelled"
       similarity_queue_status: "queued" | "processing" | "completed" | "failed"
     }
@@ -3952,7 +3956,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "staff", "customer"],
+      app_role: ["admin", "staff", "customer", "reseller"],
       document_status: ["pending", "in_progress", "completed", "cancelled"],
       similarity_queue_status: ["queued", "processing", "completed", "failed"],
     },
