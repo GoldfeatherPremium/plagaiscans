@@ -81,6 +81,46 @@ Deno.serve(async (req) => {
       if (remoteStatus === 'completed') {
         const finalised = await finaliseCompleted(supabase, apiToken, doc, data);
         await handleResellerHook(supabase, doc, 'completed', (finalised as any).aiPath ?? null, typeof data.aiScore === 'number' ? Math.round(data.aiScore * 100) : null, null);
+
+        // Skip customer/guest emails for reseller-originated scans
+        if (!doc.reseller_scan_id) {
+          if (doc.user_id) {
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/send-completion-email`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${serviceKey}`,
+                },
+                body: JSON.stringify({
+                  documentId: doc.id,
+                  userId: doc.user_id,
+                  fileName: doc.file_name,
+                }),
+              });
+            } catch (e) {
+              console.error('Completion email failed:', e);
+            }
+          }
+          if ((doc as any).magic_link_id) {
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/send-guest-completion-email`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${serviceKey}`,
+                },
+                body: JSON.stringify({
+                  documentId: doc.id,
+                  fileName: doc.file_name,
+                }),
+              });
+            } catch (e) {
+              console.error('Guest completion email failed:', e);
+            }
+          }
+        }
+
         results.push({ id: doc.id, status: 'completed', ...finalised });
         continue;
       }
