@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     // Load document
     const { data: doc, error: docErr } = await supabase
       .from('documents')
-      .select('id, file_name, file_path, scan_type, exclude_quotes, exclude_bibliography, exclude_small_sources, status, external_api_order_id, external_api_status, external_api_attempt_count, deleted_by_user, cancelled_at')
+      .select('id, file_name, file_path, scan_type, exclude_quotes, exclude_bibliography, exclude_small_sources, exclude_citations, exclude_small_matches_words, status, external_api_order_id, external_api_status, external_api_attempt_count, deleted_by_user, cancelled_at')
       .eq('id', documentId)
       .maybeSingle();
 
@@ -67,8 +67,14 @@ Deno.serve(async (req) => {
     form.append('file', new File([await fileData.arrayBuffer()], doc.file_name));
     if (doc.exclude_quotes) form.append('excludeQuotes', 'true');
     if (doc.exclude_bibliography) form.append('excludeBibliography', 'true');
-    // exclude_small_sources -> minWords filter (not directly equivalent, but closest)
-    if (doc.exclude_small_sources) form.append('minWords', '8');
+    if (doc.exclude_citations) form.append('excludeCitations', 'true');
+    // Numeric small-matches threshold (preferred); fall back to legacy boolean default of 8
+    const smallWords = Number(doc.exclude_small_matches_words ?? 0);
+    if (smallWords > 0) {
+      form.append('minWords', String(smallWords));
+    } else if (doc.exclude_small_sources) {
+      form.append('minWords', '8');
+    }
     form.append('title', doc.file_name);
 
     const apiResp = await fetch(`${API_BASE}/documents`, {

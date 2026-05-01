@@ -766,7 +766,9 @@ export type Database = {
           deleted_by_user: boolean | null
           error_message: string | null
           exclude_bibliography: boolean
+          exclude_citations: boolean
           exclude_quotes: boolean
+          exclude_small_matches_words: number
           exclude_small_sources: boolean
           external_api_attempt_count: number
           external_api_error: string | null
@@ -811,7 +813,9 @@ export type Database = {
           deleted_by_user?: boolean | null
           error_message?: string | null
           exclude_bibliography?: boolean
+          exclude_citations?: boolean
           exclude_quotes?: boolean
+          exclude_small_matches_words?: number
           exclude_small_sources?: boolean
           external_api_attempt_count?: number
           external_api_error?: string | null
@@ -856,7 +860,9 @@ export type Database = {
           deleted_by_user?: boolean | null
           error_message?: string | null
           exclude_bibliography?: boolean
+          exclude_citations?: boolean
           exclude_quotes?: boolean
+          exclude_small_matches_words?: number
           exclude_small_sources?: boolean
           external_api_attempt_count?: number
           external_api_error?: string | null

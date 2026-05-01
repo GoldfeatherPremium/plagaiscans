@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { SimilarityFiltersPanel, SimilarityFiltersValue } from '@/components/SimilarityFiltersPanel';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -34,9 +35,12 @@ export default function UploadDocument() {
   const [uploadResults, setUploadResults] = useState<{ success: number; failed: number } | null>(null);
   const [showPushPrompt, setShowPushPrompt] = useState(false);
   
-  const [excludeBibliographic, setExcludeBibliographic] = useState(true);
-  const [excludeQuoted, setExcludeQuoted] = useState(true);
-  const [excludeSmallSources, setExcludeSmallSources] = useState(true);
+  const [filters, setFilters] = useState<SimilarityFiltersValue>({
+    exclude_bibliography: false,
+    exclude_quotes: false,
+    exclude_citations: false,
+    exclude_small_matches_words: 0,
+  });
   const inputRef = useRef<HTMLInputElement>(null);
 
   const creditBalance = profile?.credit_balance || 0;
@@ -125,9 +129,11 @@ export default function UploadDocument() {
       { 
         uploadType: 'single',
         exclusions: {
-          exclude_bibliography: excludeBibliographic,
-          exclude_quotes: excludeQuoted,
-          exclude_small_sources: excludeSmallSources,
+          exclude_bibliography: filters.exclude_bibliography,
+          exclude_quotes: filters.exclude_quotes,
+          exclude_citations: filters.exclude_citations,
+          exclude_small_matches_words: filters.exclude_small_matches_words,
+          exclude_small_sources: filters.exclude_small_matches_words > 0,
         }
       }
     );
@@ -276,48 +282,7 @@ export default function UploadDocument() {
           </CardContent>
         </Card>
 
-        {/* Options (exclusion) */}
-        <div className="space-y-4">
-          <Label className="text-base">Options ( exclusion )</Label>
-          
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="exclude-bibliographic" className="font-normal cursor-pointer">
-                Exclude bibliographic materials
-              </Label>
-              <Switch
-                id="exclude-bibliographic"
-                checked={excludeBibliographic}
-                onCheckedChange={setExcludeBibliographic}
-                disabled={!hasCredits}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <Label htmlFor="exclude-quoted" className="font-normal cursor-pointer">
-                Exclude quoted materials
-              </Label>
-              <Switch
-                id="exclude-quoted"
-                checked={excludeQuoted}
-                onCheckedChange={setExcludeQuoted}
-                disabled={!hasCredits}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <Label htmlFor="exclude-small" className="font-normal cursor-pointer">
-                Exclude small sources (Small match exclusion type)
-              </Label>
-              <Switch
-                id="exclude-small"
-                checked={excludeSmallSources}
-                onCheckedChange={setExcludeSmallSources}
-                disabled={!hasCredits}
-              />
-            </div>
-          </div>
-        </div>
+        <SimilarityFiltersPanel value={filters} onChange={setFilters} disabled={!hasCredits} />
 
         {/* Document Upload Area */}
         <div className="space-y-2">

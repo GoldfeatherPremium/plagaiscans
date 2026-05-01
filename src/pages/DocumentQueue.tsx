@@ -636,17 +636,22 @@ export default function DocumentQueue() {
                             <StatusBadge status={doc.status} />
                           </TableCell>
                           <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-2 text-xs">
+                            <div className="flex flex-wrap items-center justify-center gap-1 text-xs">
                               {doc.exclude_bibliography && (
-                                <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title="Exclude bibliography">Bib</span>
+                                <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title="Exclude Bibliography">Bib</span>
                               )}
                               {doc.exclude_quotes && (
-                                <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title="Exclude quotes">Quotes</span>
+                                <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title="Exclude Quotes">Quotes</span>
                               )}
-                              {doc.exclude_small_sources && (
-                                <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title="Exclude small sources">Small</span>
+                              {(doc as any).exclude_citations && (
+                                <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title="Exclude Cited Text">Cited</span>
                               )}
-                              {!doc.exclude_bibliography && !doc.exclude_quotes && !doc.exclude_small_sources && (
+                              {((doc as any).exclude_small_matches_words ?? 0) > 0 && (
+                                <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground" title={`Exclude matches under ${(doc as any).exclude_small_matches_words} words`}>
+                                  &lt;{(doc as any).exclude_small_matches_words}w
+                                </span>
+                              )}
+                              {!doc.exclude_bibliography && !doc.exclude_quotes && !(doc as any).exclude_citations && !((doc as any).exclude_small_matches_words > 0) && (
                                 <span className="text-muted-foreground">—</span>
                               )}
                             </div>
