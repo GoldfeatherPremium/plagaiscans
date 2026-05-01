@@ -568,7 +568,8 @@ export default function DocumentQueue() {
 
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
+              {/* Desktop / tablet: table view */}
+              <div className="overflow-x-auto hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
