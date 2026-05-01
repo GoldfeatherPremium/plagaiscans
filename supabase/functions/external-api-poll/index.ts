@@ -252,6 +252,49 @@ async function logEvent(
   } catch (_) { /* swallow */ }
 }
 
+async function handleResellerHook(
+  supabase: ReturnType<typeof createClient>,
+  doc: { id: string; reseller_scan_id?: string | null },
+  status: 'completed' | 'failed',
+  aiPath: string | null,
+  aiPercentage: number | null,
+  errorMsg: string | null,
+) {
+  if (!doc.reseller_scan_id) return;
+  try {
+    await supabase.from('reseller_scans').update({
+      status,
+      ai_percentage: aiPercentage,
+      ai_report_path: aiPath,
+      error: errorMsg,
+      completed_at: new Date().toISOString(),
+      webhook_next_retry_at: new Date().toISOString(),
+    }).eq('id', doc.reseller_scan_id);
+
+    // If failed, refund the credit
+    if (status === 'failed') {
+      const { data: scan } = await supabase.from('reseller_scans').select('reseller_id').eq('id', doc.reseller_scan_id).maybeSingle();
+      if (scan?.reseller_id) {
+        await supabase.rpc('refund_reseller_credit', {
+          p_reseller_id: scan.reseller_id,
+          p_scan_id: doc.reseller_scan_id,
+          p_description: 'Scan failed - automatic refund',
+        });
+      }
+    }
+
+    // Fire webhook (best-effort)
+    fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/reseller-webhook-dispatch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+      },
+      body: JSON.stringify({ scanId: doc.reseller_scan_id }),
+    }).catch(() => {});
+  } catch (_) { /* swallow */ }
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
