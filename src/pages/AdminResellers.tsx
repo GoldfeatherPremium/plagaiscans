@@ -31,8 +31,10 @@ export default function AdminResellers() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Reseller | null>(null);
 
-  const [form, setForm] = useState({ name: "", contact_email: "", webhook_url: "" });
+  const [form, setForm] = useState({ name: "", contact_email: "", webhook_url: "", initial_credits: "" });
   const [newKey, setNewKey] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [credentials, setCredentials] = useState<{ email: string; password: string; emailSent: boolean } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -44,17 +46,24 @@ export default function AdminResellers() {
   useEffect(() => { load(); }, []);
 
   const createReseller = async () => {
-    if (!form.name) return toast.error("Name required");
-    const { data, error } = await supabase.from("resellers").insert({
-      name: form.name,
-      contact_email: form.contact_email || null,
-      webhook_url: form.webhook_url || null,
-    }).select().single();
-    if (error) return toast.error(error.message);
-    toast.success("Reseller created");
+    if (!form.name || !form.contact_email) return toast.error("Name and email required");
+    setCreating(true);
+    const { data, error } = await supabase.functions.invoke("create-reseller-with-account", {
+      body: {
+        name: form.name,
+        contact_email: form.contact_email,
+        webhook_url: form.webhook_url || null,
+        initial_credits: form.initial_credits ? parseInt(form.initial_credits, 10) : 0,
+      },
+    });
+    setCreating(false);
+    if (error || !(data as any)?.success) {
+      return toast.error((data as any)?.error || error?.message || "Failed to create reseller");
+    }
+    toast.success("Reseller account created and email sent");
     setCreateOpen(false);
-    setForm({ name: "", contact_email: "", webhook_url: "" });
-    setSelected(data as Reseller);
+    setCredentials({ email: form.contact_email, password: (data as any).password, emailSent: !!(data as any).emailSent });
+    setForm({ name: "", contact_email: "", webhook_url: "", initial_credits: "" });
     load();
   };
 
