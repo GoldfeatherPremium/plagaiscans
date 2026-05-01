@@ -14,6 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { SEO } from '@/components/SEO';
 import { useTranslation } from 'react-i18next';
 import { ServiceStatusBanner } from '@/components/ServiceStatusBanner';
+import { ALLOWED_UPLOAD_ACCEPT, ALLOWED_UPLOAD_LABEL, ALLOWED_UPLOAD_EXTENSIONS, isAllowedUploadFile } from '@/lib/allowedUploadFormats';
 
 const UploadSimilarity: React.FC = () => {
   const navigate = useNavigate();
