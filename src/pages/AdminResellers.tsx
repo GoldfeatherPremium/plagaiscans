@@ -114,13 +114,42 @@ export default function AdminResellers() {
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Create Reseller</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Create Reseller</DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
             <div><Label>Name *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-            <div><Label>Contact Email</Label><Input type="email" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} /></div>
+            <div><Label>Contact Email *</Label><Input type="email" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} /></div>
             <div><Label>Webhook URL (optional)</Label><Input value={form.webhook_url} onChange={(e) => setForm({ ...form, webhook_url: e.target.value })} placeholder="https://..." /></div>
+            <div><Label>Initial Credits (optional)</Label><Input type="number" min="0" value={form.initial_credits} onChange={(e) => setForm({ ...form, initial_credits: e.target.value })} placeholder="0" /></div>
+            <p className="text-xs text-muted-foreground">A login account will be created automatically and credentials emailed to the reseller.</p>
           </div>
-          <DialogFooter><Button onClick={createReseller}>Create</Button></DialogFooter>
+          <DialogFooter><Button onClick={createReseller} disabled={creating}>{creating ? "Creating…" : "Create & Send Email"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!credentials} onOpenChange={(o) => !o && setCredentials(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reseller Account Created</DialogTitle>
+          </DialogHeader>
+          {credentials && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {credentials.emailSent
+                  ? "Login credentials have been emailed to the reseller."
+                  : "Account created, but the welcome email failed. Share the credentials manually:"}
+              </p>
+              <div className="p-3 bg-muted rounded space-y-2">
+                <div className="flex justify-between gap-2"><span className="text-xs font-medium">Email</span><code className="text-xs">{credentials.email}</code></div>
+                <div className="flex justify-between gap-2"><span className="text-xs font-medium">Password</span><code className="text-xs">{credentials.password}</code></div>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(`Email: ${credentials.email}\nPassword: ${credentials.password}`); toast.success("Copied"); }}>
+                <Copy className="h-4 w-4 mr-2" />Copy
+              </Button>
+            </div>
+          )}
+          <DialogFooter><Button onClick={() => setCredentials(null)}>Done</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
