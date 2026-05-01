@@ -160,7 +160,9 @@ const handler = async (req: Request): Promise<Response> => {
                         View Your Documents
                       </a>
                     </div>
-                    
+
+                    ${downloadButtonsHtml}
+
                     <div style="background-color: #fef3c7; border-radius: 8px; padding: 16px; margin-top: 20px; border-left: 4px solid #f59e0b;">
                       <p style="margin: 0; color: #92400e; font-size: 13px; line-height: 1.5;">
                         <strong>⚠️ Important:</strong> Please download your reports within <strong>7 days</strong>. 
