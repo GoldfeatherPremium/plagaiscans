@@ -100,10 +100,11 @@ export default function Dashboard() {
         let q = supabase
           .from('documents')
           .select('id', { count: 'exact', head: true })
-          .eq('status', status);
+          .eq('status', status)
+          .neq('scan_type', 'ai_only_reseller');
         q = scanFilter === 'similarity_only'
           ? q.eq('scan_type', 'similarity_only')
-          : q.neq('scan_type', 'similarity_only');
+          : q.eq('scan_type', 'full');
         const { count } = await baseFilter(q);
         return count ?? 0;
       };
