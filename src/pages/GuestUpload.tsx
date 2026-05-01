@@ -86,9 +86,12 @@ export default function GuestUpload() {
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   
-  const [excludeBibliographic, setExcludeBibliographic] = useState(true);
-  const [excludeQuoted, setExcludeQuoted] = useState(false);
-  const [excludeSmallSources, setExcludeSmallSources] = useState(false);
+  const [filters, setFilters] = useState({
+    exclude_bibliography: false,
+    exclude_quotes: false,
+    exclude_citations: false,
+    exclude_small_matches_words: 0,
+  });
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [packages, setPackages] = useState<PricingPackage[]>([]);
@@ -199,9 +202,11 @@ export default function GuestUpload() {
 
     setUploading(true);
     const success = await uploadFileWithMagicLink(token, selectedFile, {
-      exclude_bibliography: excludeBibliographic,
-      exclude_quotes: excludeQuoted,
-      exclude_small_sources: excludeSmallSources,
+      exclude_bibliography: filters.exclude_bibliography,
+      exclude_quotes: filters.exclude_quotes,
+      exclude_citations: filters.exclude_citations,
+      exclude_small_matches_words: filters.exclude_small_matches_words,
+      exclude_small_sources: filters.exclude_small_matches_words > 0,
     });
     setUploading(false);
 
@@ -467,44 +472,7 @@ export default function GuestUpload() {
               {/* Options (exclusion) */}
               {canUpload && (
                 <>
-                  <div className="space-y-4">
-                    <Label className="text-base">Options (exclusion)</Label>
-                    
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="exclude-bibliographic" className="font-normal cursor-pointer">
-                          Exclude bibliographic materials
-                        </Label>
-                        <Switch
-                          id="exclude-bibliographic"
-                          checked={excludeBibliographic}
-                          onCheckedChange={setExcludeBibliographic}
-                        />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="exclude-quoted" className="font-normal cursor-pointer">
-                          Exclude quoted materials
-                        </Label>
-                        <Switch
-                          id="exclude-quoted"
-                          checked={excludeQuoted}
-                          onCheckedChange={setExcludeQuoted}
-                        />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="exclude-small" className="font-normal cursor-pointer">
-                          Exclude small sources
-                        </Label>
-                        <Switch
-                          id="exclude-small"
-                          checked={excludeSmallSources}
-                          onCheckedChange={setExcludeSmallSources}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  <SimilarityFiltersPanel value={filters} onChange={setFilters} />
 
                   {/* Document Upload Area */}
                   <div className="space-y-2">
