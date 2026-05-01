@@ -105,7 +105,7 @@ const setSeenCount = (key: keyof SeenCounts, count: number) => {
 
 export const DashboardSidebar: React.FC = () => {
   const { t } = useTranslation('dashboard');
-  const { role, profile, signOut } = useAuth();
+  const { role, profile, signOut, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
