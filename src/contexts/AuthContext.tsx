@@ -3,7 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { triggerSendfoxSync } from '@/lib/sendfoxSync';
 
-type AppRole = 'admin' | 'staff' | 'customer';
+type AppRole = 'admin' | 'staff' | 'customer' | 'reseller';
 
 interface AuthContextType {
   user: User | null;
