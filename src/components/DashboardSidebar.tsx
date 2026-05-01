@@ -702,6 +702,8 @@ export const DashboardSidebar: React.FC = () => {
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {role === 'admin' ? (
             renderAdminNav()
+          ) : role === 'reseller' ? (
+            resellerLinks.map((link) => renderLink(link))
           ) : (
             (role === 'staff' ? staffLinks : customerLinks).map((link) => renderLink(link))
           )}
