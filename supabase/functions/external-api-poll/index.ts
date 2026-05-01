@@ -27,9 +27,10 @@ Deno.serve(async (req) => {
     onlyDocumentId = body?.documentId ?? null;
   }
 
+  const SELECT_COLS = 'id, file_name, user_id, scan_type, external_api_order_id, external_api_status, external_api_attempt_count, status, reseller_scan_id';
   let query = supabase
     .from('documents')
-    .select('id, file_name, user_id, scan_type, external_api_order_id, external_api_status, external_api_attempt_count, status')
+    .select(SELECT_COLS)
     .not('external_api_order_id', 'is', null)
     .in('external_api_status', ['submitted', 'processing', 'queued'])
     .limit(50);
@@ -37,7 +38,7 @@ Deno.serve(async (req) => {
   if (onlyDocumentId) {
     query = supabase
       .from('documents')
-      .select('id, file_name, user_id, scan_type, external_api_order_id, external_api_status, external_api_attempt_count, status')
+      .select(SELECT_COLS)
       .eq('id', onlyDocumentId);
   }
 
