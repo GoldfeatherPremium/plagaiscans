@@ -143,8 +143,38 @@ async function finaliseCompleted(
   if (similarityPath) update.similarity_report_path = similarityPath;
   if (aiPath) update.ai_report_path = aiPath;
 
+  // If this is a full scan but the API did not deliver an AI report,
+  // still auto-complete and add the preset "AI unavailable" remark so the
+  // customer/staff sees the explanation.
+  const aiMissing =
+    doc.scan_type !== 'similarity_only' &&
+    !aiPath &&
+    (typeof data.aiScore !== 'number');
+
+  if (aiMissing) {
+    try {
+      const { data: preset } = await supabase
+        .from('remark_presets')
+        .select('remark_text')
+        .eq('is_active', true)
+        .ilike('remark_text', 'AI writing detection is unavailable%')
+        .order('sort_order', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (preset?.remark_text) {
+        update.remarks = preset.remark_text;
+      } else {
+        update.remarks = 'AI writing detection is unavailable for this submission.';
+      }
+    } catch (_) {
+      update.remarks = 'AI writing detection is unavailable for this submission.';
+    }
+    // Clear any stored AI score since report is unavailable
+    update.ai_percentage = null;
+  }
+
   await supabase.from('documents').update(update).eq('id', doc.id);
-  return { similarityPath, aiPath, similarityScore: data.similarityScore, aiScore: data.aiScore };
+  return { similarityPath, aiPath, similarityScore: data.similarityScore, aiScore: data.aiScore, aiMissing };
 }
 
 async function downloadAndUpload(supabase: ReturnType<typeof createClient>, url: string, path: string): Promise<boolean> {
