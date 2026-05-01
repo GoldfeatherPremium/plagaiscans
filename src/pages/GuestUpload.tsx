@@ -669,7 +669,7 @@ export default function GuestUpload() {
                                     {file.ai_percentage}%
                                   </Badge>
                                 ) : (
-                                  <span className="font-medium">*</span>
+                                  <span className="font-medium">*%</span>
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
