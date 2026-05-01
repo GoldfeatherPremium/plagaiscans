@@ -568,8 +568,8 @@ export default function DocumentQueue() {
 
           <Card>
             <CardContent className="p-0">
-              {/* Desktop / tablet: table view */}
-              <div className="overflow-x-auto hidden md:block">
+              {/* Table view (all viewports) */}
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1056,12 +1056,14 @@ export default function DocumentQueue() {
         {/* Tabs for Queue and Bulk Upload */}
         {canAccessBulkUpload ? (
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="queue">Queue</TabsTrigger>
-              <TabsTrigger value="bulk-upload">Bulk Upload</TabsTrigger>
-              <TabsTrigger value="bulk-upload-v2">Bulk Upload V2</TabsTrigger>
-              {isAdmin && <TabsTrigger value="external-api">External API</TabsTrigger>}
-            </TabsList>
+            <div className="w-full overflow-x-auto">
+              <TabsList className="inline-flex w-max">
+                <TabsTrigger value="queue">Queue</TabsTrigger>
+                <TabsTrigger value="bulk-upload">Bulk Upload</TabsTrigger>
+                <TabsTrigger value="bulk-upload-v2">Bulk Upload V2</TabsTrigger>
+                {isAdmin && <TabsTrigger value="external-api">External API</TabsTrigger>}
+              </TabsList>
+            </div>
             
             <TabsContent value="queue" className="mt-4 space-y-4">
               {renderQueueContent()}
