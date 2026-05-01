@@ -80,6 +80,7 @@ Deno.serve(async (req) => {
 
       if (remoteStatus === 'completed') {
         const finalised = await finaliseCompleted(supabase, apiToken, doc, data);
+        await handleResellerHook(supabase, doc, 'completed', (finalised as any).aiPath ?? null, typeof data.aiScore === 'number' ? Math.round(data.aiScore * 100) : null, null);
         results.push({ id: doc.id, status: 'completed', ...finalised });
         continue;
       }
@@ -88,6 +89,7 @@ Deno.serve(async (req) => {
       // error -> system error, refund credit if not already
       if (remoteStatus === 'failed_invalid' || remoteStatus === 'error') {
         await handleFailure(supabase, doc, remoteStatus, data);
+        await handleResellerHook(supabase, doc, 'failed', null, null, (data?.error as string) ?? remoteStatus);
         results.push({ id: doc.id, status: remoteStatus });
         continue;
       }
