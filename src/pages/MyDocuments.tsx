@@ -440,7 +440,7 @@ export default function MyDocuments() {
                                 </PopoverContent>
                               </Popover>
                             ) : doc.ai_percentage !== null && doc.ai_percentage !== undefined ? (
-                              <span className="font-medium">{doc.ai_percentage}%</span>
+                              <span className="font-medium">{doc.ai_percentage >= 1 && doc.ai_percentage <= 19 ? '*%' : `${doc.ai_percentage}%`}</span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
@@ -501,7 +501,7 @@ export default function MyDocuments() {
                               ) : (
                                 <span className="text-sm text-muted-foreground">-</span>
                               )}
-                              {doc.status === 'completed' && (doc.ai_percentage === null || doc.ai_percentage === undefined) && doc.scan_type === 'full' && doc.similarity_report_path && doc.ai_report_path && (
+                              {doc.status === 'completed' && doc.scan_type === 'full' && doc.similarity_report_path && doc.ai_report_path && (doc.ai_percentage === null || doc.ai_percentage === undefined || (doc.ai_percentage >= 1 && doc.ai_percentage <= 19)) && (
                                 <Popover>
                                   <PopoverTrigger asChild>
                                     <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full flex-shrink-0">

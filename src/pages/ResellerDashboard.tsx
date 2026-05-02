@@ -218,7 +218,7 @@ export default function ResellerDashboard() {
                         <TableCell className="text-xs">{s.file_name}</TableCell>
                         <TableCell className="text-xs">{s.external_reference ?? "—"}</TableCell>
                         <TableCell><Badge>{s.status}</Badge></TableCell>
-                        <TableCell>{s.ai_percentage != null ? `${s.ai_percentage}%` : "—"}</TableCell>
+                        <TableCell>{s.ai_percentage != null ? (s.ai_percentage >= 1 && s.ai_percentage <= 19 ? '*%' : `${s.ai_percentage}%`) : "—"}</TableCell>
                       </TableRow>
                     ))}
                 </TableBody>
