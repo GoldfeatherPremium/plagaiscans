@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
       'submit',
       apiResp.ok ? 'success' : 'error',
       apiResp.status,
-      { file_name: doc.file_name, exclude_quotes: doc.exclude_quotes, exclude_bibliography: doc.exclude_bibliography, exclude_small_sources: doc.exclude_small_sources },
+      { file_name: doc.file_name, exclude_quotes: doc.exclude_quotes, exclude_bibliography: doc.exclude_bibliography, exclude_citations: doc.exclude_citations, exclude_small_matches_words: doc.exclude_small_matches_words, exclude_small_sources: doc.exclude_small_sources, minWords: smallWords > 0 ? smallWords : (doc.exclude_small_sources ? 8 : 0) },
       apiJson,
       apiResp.ok ? null : (apiJson?.error || apiJson?.code || `HTTP ${apiResp.status}`),
     );
