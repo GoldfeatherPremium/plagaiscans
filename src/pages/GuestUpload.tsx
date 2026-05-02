@@ -665,9 +665,13 @@ export default function GuestUpload() {
                               </TableCell>
                               <TableCell className="text-center">
                                 {!isDeleted && file.ai_percentage !== null && file.ai_percentage !== undefined ? (
-                                  <Badge variant={file.ai_percentage > 20 ? 'destructive' : file.ai_percentage > 10 ? 'secondary' : 'default'}>
-                                    {file.ai_percentage}%
-                                  </Badge>
+                                  file.ai_percentage >= 1 && file.ai_percentage <= 19 ? (
+                                    <Badge variant="default">*%</Badge>
+                                  ) : (
+                                    <Badge variant={file.ai_percentage > 20 ? 'destructive' : file.ai_percentage > 10 ? 'secondary' : 'default'}>
+                                      {file.ai_percentage}%
+                                    </Badge>
+                                  )
                                 ) : (
                                   <span className="text-muted-foreground">·</span>
                                 )}
@@ -736,7 +740,7 @@ export default function GuestUpload() {
                                 ) : (
                                   <span className="text-sm text-muted-foreground">-</span>
                                 )}
-                                {status === 'completed' && (file.ai_percentage === null || file.ai_percentage === undefined) && file.similarity_report_path && file.ai_report_path && (
+                                {status === 'completed' && file.similarity_report_path && file.ai_report_path && (file.ai_percentage === null || file.ai_percentage === undefined || (file.ai_percentage >= 1 && file.ai_percentage <= 19)) && (
                                   <Popover>
                                     <PopoverTrigger asChild>
                                       <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full flex-shrink-0">
