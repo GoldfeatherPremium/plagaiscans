@@ -266,17 +266,22 @@ async function listScans(supabase: ReturnType<typeof createClient>, resellerId: 
 async function getScan(supabase: ReturnType<typeof createClient>, resellerId: string, id: string): Promise<Response> {
   const { data: scan } = await supabase
     .from('reseller_scans')
-    .select('id, external_reference, file_name, status, ai_percentage, ai_report_path, error, created_at, completed_at')
+    .select('id, external_reference, file_name, status, ai_percentage, ai_report_path, similarity_percentage, similarity_report_path, error, created_at, completed_at')
     .eq('reseller_id', resellerId)
     .eq('id', id)
     .maybeSingle();
 
   if (!scan) return json({ error: 'Scan not found' }, 404);
 
-  let report_url: string | null = null;
+  let ai_report_url: string | null = null;
+  let similarity_report_url: string | null = null;
   if (scan.status === 'completed' && scan.ai_report_path) {
     const { data: signed } = await supabase.storage.from('reports').createSignedUrl(scan.ai_report_path, 3600);
-    report_url = signed?.signedUrl ?? null;
+    ai_report_url = signed?.signedUrl ?? null;
+  }
+  if (scan.status === 'completed' && scan.similarity_report_path) {
+    const { data: signed } = await supabase.storage.from('reports').createSignedUrl(scan.similarity_report_path, 3600);
+    similarity_report_url = signed?.signedUrl ?? null;
   }
 
   return json({
@@ -285,8 +290,11 @@ async function getScan(supabase: ReturnType<typeof createClient>, resellerId: st
     file_name: scan.file_name,
     status: scan.status,
     ai_percentage: scan.ai_percentage,
+    similarity_percentage: scan.similarity_percentage,
     error: scan.error,
-    report_url,
+    report_url: ai_report_url,
+    ai_report_url,
+    similarity_report_url,
     created_at: scan.created_at,
     completed_at: scan.completed_at,
   });

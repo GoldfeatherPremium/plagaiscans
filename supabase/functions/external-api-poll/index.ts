@@ -80,7 +80,16 @@ Deno.serve(async (req) => {
 
       if (remoteStatus === 'completed') {
         const finalised = await finaliseCompleted(supabase, apiToken, doc, data);
-        await handleResellerHook(supabase, doc, 'completed', (finalised as any).aiPath ?? null, typeof data.aiScore === 'number' ? Math.round(data.aiScore * 100) : null, null);
+        await handleResellerHook(
+          supabase,
+          doc,
+          'completed',
+          (finalised as any).aiPath ?? null,
+          typeof data.aiScore === 'number' ? Math.round(data.aiScore * 100) : null,
+          (finalised as any).similarityPath ?? null,
+          typeof data.similarityScore === 'number' ? Math.round(data.similarityScore) : null,
+          null,
+        );
 
         // Skip customer/guest emails for reseller-originated scans
         if (!doc.reseller_scan_id) {
@@ -129,7 +138,7 @@ Deno.serve(async (req) => {
       // error -> system error, refund credit if not already
       if (remoteStatus === 'failed_invalid' || remoteStatus === 'error') {
         await handleFailure(supabase, doc, remoteStatus, data);
-        await handleResellerHook(supabase, doc, 'failed', null, null, (data?.error as string) ?? remoteStatus);
+        await handleResellerHook(supabase, doc, 'failed', null, null, null, null, (data?.error as string) ?? remoteStatus);
         results.push({ id: doc.id, status: remoteStatus });
         continue;
       }
@@ -298,6 +307,8 @@ async function handleResellerHook(
   status: 'completed' | 'failed',
   aiPath: string | null,
   aiPercentage: number | null,
+  similarityPath: string | null,
+  similarityPercentage: number | null,
   errorMsg: string | null,
 ) {
   if (!doc.reseller_scan_id) return;
@@ -306,6 +317,8 @@ async function handleResellerHook(
       status,
       ai_percentage: aiPercentage,
       ai_report_path: aiPath,
+      similarity_percentage: similarityPercentage,
+      similarity_report_path: similarityPath,
       error: errorMsg,
       completed_at: new Date().toISOString(),
       webhook_next_retry_at: new Date().toISOString(),
