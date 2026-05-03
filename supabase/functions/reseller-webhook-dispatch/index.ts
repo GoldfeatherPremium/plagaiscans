@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
 
   const { data: scan } = await supabase
     .from('reseller_scans')
-    .select('id, reseller_id, external_reference, file_name, status, ai_percentage, ai_report_path, error, webhook_attempts, webhook_delivered, completed_at')
+    .select('id, reseller_id, external_reference, file_name, status, ai_percentage, ai_report_path, similarity_percentage, similarity_report_path, error, webhook_attempts, webhook_delivered, completed_at')
     .eq('id', scanId)
     .maybeSingle();
 
@@ -52,11 +52,16 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ ok: true, no_webhook: true }), { headers: corsHeaders });
   }
 
-  // Build signed report URL if available
-  let report_url: string | null = null;
+  // Build signed report URLs if available
+  let ai_report_url: string | null = null;
+  let similarity_report_url: string | null = null;
   if (scan.status === 'completed' && scan.ai_report_path) {
     const { data: signed } = await supabase.storage.from('reports').createSignedUrl(scan.ai_report_path, 7 * 24 * 3600);
-    report_url = signed?.signedUrl ?? null;
+    ai_report_url = signed?.signedUrl ?? null;
+  }
+  if (scan.status === 'completed' && scan.similarity_report_path) {
+    const { data: signed } = await supabase.storage.from('reports').createSignedUrl(scan.similarity_report_path, 7 * 24 * 3600);
+    similarity_report_url = signed?.signedUrl ?? null;
   }
 
   const payload = {
@@ -66,8 +71,12 @@ Deno.serve(async (req) => {
     file_name: scan.file_name,
     status: scan.status,
     ai_percentage: scan.ai_percentage,
+    similarity_percentage: scan.similarity_percentage,
     error: scan.error,
-    report_url,
+    // Backward-compatible alias for resellers already consuming `report_url` (AI report)
+    report_url: ai_report_url,
+    ai_report_url,
+    similarity_report_url,
     completed_at: scan.completed_at,
     timestamp: new Date().toISOString(),
   };
