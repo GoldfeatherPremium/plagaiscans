@@ -93,7 +93,23 @@ export default function ApiDocs() {
   -H "X-API-Key: psk_live_xxxxxxxxxxxxxxxx" \\
   -F "file=@./essay.pdf" \\
   -F "external_reference=order_12345" \\
-  -F "exclude_bibliography=true"`}</CodeBlock>
+  -F "exclude_bibliography=true" \\
+  -F "exclude_quotes=true" \\
+  -F "exclude_citations=true" \\
+  -F "exclude_small_matches_words=8"`}</CodeBlock>
+            <div className="rounded-md border border-border bg-muted/40 p-3">
+              <h4 className="font-semibold mb-2">Similarity filters</h4>
+              <p className="text-muted-foreground mb-2">
+                These optional filters are stored with the scan and forwarded to our analysis engine,
+                so the generated report respects your exclusions. Defaults to <em>none excluded</em>.
+              </p>
+              <ul className="text-sm space-y-1 text-muted-foreground list-disc pl-5">
+                <li><code>exclude_bibliography</code> — skip bibliography/references section</li>
+                <li><code>exclude_quotes</code> — skip text wrapped in quotation marks</li>
+                <li><code>exclude_citations</code> — skip in-text citations</li>
+                <li><code>exclude_small_matches_words</code> — minimum word count threshold; matches under this size are ignored (e.g. <code>8</code>)</li>
+              </ul>
+            </div>
             <CodeBlock lang="json">{`{
   "scan_id": "9f3c...",
   "external_reference": "order_12345",
