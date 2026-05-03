@@ -879,7 +879,7 @@ export default function DocumentQueue() {
 
             {isAdmin && (
               <TabsContent value="external-api" className="mt-4">
-                <ExternalApiStatusPanel />
+                {activeTab === 'external-api' && <ExternalApiStatusPanel />}
               </TabsContent>
             )}
           </Tabs>
