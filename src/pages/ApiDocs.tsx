@@ -200,7 +200,7 @@ function verify(rawBody, signatureHeader, secret) {
         <Card className="mb-8">
           <CardHeader><CardTitle>Credits & Billing</CardTitle></CardHeader>
           <CardContent className="text-sm space-y-2">
-            <p>Reseller accounts use a <strong>prepaid credit pool</strong>. 1 credit = 1 AI scan.</p>
+            <p>Reseller accounts use a <strong>prepaid credit pool</strong>. 1 credit = 1 scan, which includes <strong>both an AI report and a Similarity report</strong>.</p>
             <p>Failed scans are <strong>automatically refunded</strong> to your balance.</p>
             <p>Top-ups are managed by your account manager. Check your balance anytime via <code>GET /account</code>.</p>
           </CardContent>
