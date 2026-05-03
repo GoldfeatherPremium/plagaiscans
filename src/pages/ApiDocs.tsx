@@ -36,7 +36,8 @@ export default function ApiDocs() {
           <Badge variant="secondary" className="mb-3">For Resellers & Partners</Badge>
           <h1 className="text-4xl md:text-5xl font-display font-bold mb-4">Reseller API</h1>
           <p className="text-lg text-muted-foreground">
-            Programmatically submit documents for AI content analysis from your own platform.
+            Programmatically submit documents from your own platform and receive both
+            <strong> AI content</strong> and <strong>Similarity</strong> reports.
             Prepaid credits, signed webhooks, and polling — built for production reseller integrations.
           </p>
           <p className="text-sm text-muted-foreground mt-4">
