@@ -78,7 +78,7 @@ export default function ApiDocs() {
         <Card className="mb-8">
           <CardHeader><CardTitle>POST /scans — Submit a document</CardTitle></CardHeader>
           <CardContent className="space-y-4 text-sm">
-            <p>Multipart form upload. Costs <strong>1 credit</strong> per submission. Returns immediately with <code>scan_id</code>.</p>
+            <p>Multipart form upload. Costs <strong>1 credit</strong> per submission. Each submission returns <strong>both an AI report and a Similarity report</strong>. Returns immediately with <code>scan_id</code>.</p>
             <div>
               <h4 className="font-semibold mb-2">Form fields</h4>
               <ul className="text-sm space-y-1 text-muted-foreground list-disc pl-5">
