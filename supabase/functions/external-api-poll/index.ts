@@ -80,7 +80,16 @@ Deno.serve(async (req) => {
 
       if (remoteStatus === 'completed') {
         const finalised = await finaliseCompleted(supabase, apiToken, doc, data);
-        await handleResellerHook(supabase, doc, 'completed', (finalised as any).aiPath ?? null, typeof data.aiScore === 'number' ? Math.round(data.aiScore * 100) : null, null);
+        await handleResellerHook(
+          supabase,
+          doc,
+          'completed',
+          (finalised as any).aiPath ?? null,
+          typeof data.aiScore === 'number' ? Math.round(data.aiScore * 100) : null,
+          (finalised as any).similarityPath ?? null,
+          typeof data.similarityScore === 'number' ? Math.round(data.similarityScore) : null,
+          null,
+        );
 
         // Skip customer/guest emails for reseller-originated scans
         if (!doc.reseller_scan_id) {
