@@ -2578,6 +2578,8 @@ export type Database = {
           id: string
           ip_address: string | null
           reseller_id: string
+          similarity_percentage: number | null
+          similarity_report_path: string | null
           status: string
           updated_at: string
           webhook_attempts: number
@@ -2597,6 +2599,8 @@ export type Database = {
           id?: string
           ip_address?: string | null
           reseller_id: string
+          similarity_percentage?: number | null
+          similarity_report_path?: string | null
           status?: string
           updated_at?: string
           webhook_attempts?: number
@@ -2616,6 +2620,8 @@ export type Database = {
           id?: string
           ip_address?: string | null
           reseller_id?: string
+          similarity_percentage?: number | null
+          similarity_report_path?: string | null
           status?: string
           updated_at?: string
           webhook_attempts?: number
