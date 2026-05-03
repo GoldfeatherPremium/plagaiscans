@@ -133,12 +133,16 @@ export default function ApiDocs() {
   "file_name": "essay.pdf",
   "status": "completed",
   "ai_percentage": 23,
-  "report_url": "https://.../signed-url-valid-1h.pdf",
+  "similarity_percentage": 15,
+  "ai_report_url": "https://.../ai-report-signed.pdf",
+  "similarity_report_url": "https://.../similarity-report-signed.pdf",
+  "report_url": "https://.../ai-report-signed.pdf",
   "created_at": "2026-05-01T18:00:00Z",
   "completed_at": "2026-05-01T18:08:00Z"
 }`}</CodeBlock>
             <p className="text-muted-foreground">
-              <code>report_url</code> is a signed URL valid for 1 hour. Re-fetch the scan to get a fresh URL.
+              <code>ai_report_url</code> and <code>similarity_report_url</code> are signed URLs valid for 1 hour.
+              Re-fetch the scan to get fresh URLs. <code>report_url</code> is a backward-compatible alias for the AI report.
               Statuses: <code>queued</code> → <code>in_progress</code> → <code>completed</code> | <code>failed</code>.
             </p>
           </CardContent>
