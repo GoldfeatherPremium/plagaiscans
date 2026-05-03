@@ -158,14 +158,22 @@ export default function ApiDocs() {
             <div>
               <h4 className="font-semibold mb-2">Payload</h4>
               <CodeBlock lang="json">{`{
+  "event": "scan.completed",
   "scan_id": "9f3c...",
   "external_reference": "order_12345",
   "status": "completed",
   "ai_percentage": 23,
+  "similarity_percentage": 15,
   "file_name": "essay.pdf",
-  "report_url": "https://.../signed-url-valid-1h.pdf",
+  "ai_report_url": "https://.../ai-report-signed.pdf",
+  "similarity_report_url": "https://.../similarity-report-signed.pdf",
+  "report_url": "https://.../ai-report-signed.pdf",
   "completed_at": "2026-05-01T18:08:00Z"
 }`}</CodeBlock>
+              <p className="text-xs text-muted-foreground mt-2">
+                <code>report_url</code> is kept as a backward-compatible alias for the AI report.
+                Signed report URLs are valid for 7 days; refetch <code>GET /scans/:id</code> for fresh URLs anytime.
+              </p>
             </div>
             <div>
               <h4 className="font-semibold mb-2">Signature verification</h4>
