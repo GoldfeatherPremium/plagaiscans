@@ -1,0 +1,2 @@
+ALTER TABLE public.documents DROP CONSTRAINT documents_scan_type_check;
+ALTER TABLE public.documents ADD CONSTRAINT documents_scan_type_check CHECK (scan_type = ANY (ARRAY['full'::text, 'similarity_only'::text, 'ai_only_reseller'::text]));
