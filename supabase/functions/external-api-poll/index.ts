@@ -307,6 +307,8 @@ async function handleResellerHook(
   status: 'completed' | 'failed',
   aiPath: string | null,
   aiPercentage: number | null,
+  similarityPath: string | null,
+  similarityPercentage: number | null,
   errorMsg: string | null,
 ) {
   if (!doc.reseller_scan_id) return;
@@ -315,6 +317,8 @@ async function handleResellerHook(
       status,
       ai_percentage: aiPercentage,
       ai_report_path: aiPath,
+      similarity_percentage: similarityPercentage,
+      similarity_report_path: similarityPath,
       error: errorMsg,
       completed_at: new Date().toISOString(),
       webhook_next_retry_at: new Date().toISOString(),
