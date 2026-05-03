@@ -36,7 +36,8 @@ export default function ApiDocs() {
           <Badge variant="secondary" className="mb-3">For Resellers & Partners</Badge>
           <h1 className="text-4xl md:text-5xl font-display font-bold mb-4">Reseller API</h1>
           <p className="text-lg text-muted-foreground">
-            Programmatically submit documents for AI content analysis from your own platform.
+            Programmatically submit documents from your own platform and receive both
+            <strong> AI content</strong> and <strong>Similarity</strong> reports.
             Prepaid credits, signed webhooks, and polling — built for production reseller integrations.
           </p>
           <p className="text-sm text-muted-foreground mt-4">
@@ -77,7 +78,7 @@ export default function ApiDocs() {
         <Card className="mb-8">
           <CardHeader><CardTitle>POST /scans — Submit a document</CardTitle></CardHeader>
           <CardContent className="space-y-4 text-sm">
-            <p>Multipart form upload. Costs <strong>1 credit</strong> per submission. Returns immediately with <code>scan_id</code>.</p>
+            <p>Multipart form upload. Costs <strong>1 credit</strong> per submission. Each submission returns <strong>both an AI report and a Similarity report</strong>. Returns immediately with <code>scan_id</code>.</p>
             <div>
               <h4 className="font-semibold mb-2">Form fields</h4>
               <ul className="text-sm space-y-1 text-muted-foreground list-disc pl-5">
@@ -132,12 +133,16 @@ export default function ApiDocs() {
   "file_name": "essay.pdf",
   "status": "completed",
   "ai_percentage": 23,
-  "report_url": "https://.../signed-url-valid-1h.pdf",
+  "similarity_percentage": 15,
+  "ai_report_url": "https://.../ai-report-signed.pdf",
+  "similarity_report_url": "https://.../similarity-report-signed.pdf",
+  "report_url": "https://.../ai-report-signed.pdf",
   "created_at": "2026-05-01T18:00:00Z",
   "completed_at": "2026-05-01T18:08:00Z"
 }`}</CodeBlock>
             <p className="text-muted-foreground">
-              <code>report_url</code> is a signed URL valid for 1 hour. Re-fetch the scan to get a fresh URL.
+              <code>ai_report_url</code> and <code>similarity_report_url</code> are signed URLs valid for 1 hour.
+              Re-fetch the scan to get fresh URLs. <code>report_url</code> is a backward-compatible alias for the AI report.
               Statuses: <code>queued</code> → <code>in_progress</code> → <code>completed</code> | <code>failed</code>.
             </p>
           </CardContent>
@@ -153,14 +158,22 @@ export default function ApiDocs() {
             <div>
               <h4 className="font-semibold mb-2">Payload</h4>
               <CodeBlock lang="json">{`{
+  "event": "scan.completed",
   "scan_id": "9f3c...",
   "external_reference": "order_12345",
   "status": "completed",
   "ai_percentage": 23,
+  "similarity_percentage": 15,
   "file_name": "essay.pdf",
-  "report_url": "https://.../signed-url-valid-1h.pdf",
+  "ai_report_url": "https://.../ai-report-signed.pdf",
+  "similarity_report_url": "https://.../similarity-report-signed.pdf",
+  "report_url": "https://.../ai-report-signed.pdf",
   "completed_at": "2026-05-01T18:08:00Z"
 }`}</CodeBlock>
+              <p className="text-xs text-muted-foreground mt-2">
+                <code>report_url</code> is kept as a backward-compatible alias for the AI report.
+                Signed report URLs are valid for 7 days; refetch <code>GET /scans/:id</code> for fresh URLs anytime.
+              </p>
             </div>
             <div>
               <h4 className="font-semibold mb-2">Signature verification</h4>
@@ -187,7 +200,7 @@ function verify(rawBody, signatureHeader, secret) {
         <Card className="mb-8">
           <CardHeader><CardTitle>Credits & Billing</CardTitle></CardHeader>
           <CardContent className="text-sm space-y-2">
-            <p>Reseller accounts use a <strong>prepaid credit pool</strong>. 1 credit = 1 AI scan.</p>
+            <p>Reseller accounts use a <strong>prepaid credit pool</strong>. 1 credit = 1 scan, which includes <strong>both an AI report and a Similarity report</strong>.</p>
             <p>Failed scans are <strong>automatically refunded</strong> to your balance.</p>
             <p>Top-ups are managed by your account manager. Check your balance anytime via <code>GET /account</code>.</p>
           </CardContent>
