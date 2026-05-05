@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     // Load document
     const { data: doc, error: docErr } = await supabase
       .from('documents')
-      .select('id, file_name, file_path, scan_type, exclude_quotes, exclude_bibliography, exclude_small_sources, exclude_citations, exclude_small_matches_words, status, external_api_order_id, external_api_status, external_api_attempt_count, deleted_by_user, cancelled_at')
+      .select('id, file_name, file_path, scan_type, exclude_quotes, exclude_bibliography, exclude_small_sources, exclude_citations, exclude_small_matches_words, status, external_api_order_id, external_api_status, external_api_attempt_count, deleted_by_user, cancelled_at, magic_link_id')
       .eq('id', documentId)
       .maybeSingle();
 
