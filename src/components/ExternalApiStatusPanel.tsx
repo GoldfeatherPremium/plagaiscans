@@ -87,6 +87,7 @@ export function ExternalApiStatusPanel() {
 
   useEffect(() => {
     load();
+    loadToggle();
     const channel = supabase
       .channel('external-api-status-panel')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'documents' }, () => load())
