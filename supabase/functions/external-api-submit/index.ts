@@ -47,9 +47,10 @@ Deno.serve(async (req) => {
       return json({ error: `document status is ${doc.status}, expected pending` }, 400);
     }
 
-    // Download file from storage
+    // Download file from storage — guests live in magic-uploads bucket
+    const bucket = doc.magic_link_id ? 'magic-uploads' : 'documents';
     const { data: fileData, error: dlErr } = await supabase.storage
-      .from('documents')
+      .from(bucket)
       .download(doc.file_path);
 
     if (dlErr || !fileData) {
