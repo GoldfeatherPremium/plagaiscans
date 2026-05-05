@@ -41,6 +41,33 @@ export function ExternalApiStatusPanel() {
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
   const [batchAction, setBatchAction] = useState<string | null>(null);
+  const [autoDispatch, setAutoDispatch] = useState<boolean>(true);
+  const [savingToggle, setSavingToggle] = useState(false);
+
+  const loadToggle = async () => {
+    const { data } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'external_api_auto_dispatch_enabled')
+      .maybeSingle();
+    setAutoDispatch(data ? String(data.value) === 'true' : true);
+  };
+
+  const toggleAutoDispatch = async (next: boolean) => {
+    setSavingToggle(true);
+    const prev = autoDispatch;
+    setAutoDispatch(next);
+    const { error } = await supabase
+      .from('settings')
+      .upsert({ key: 'external_api_auto_dispatch_enabled', value: String(next) }, { onConflict: 'key' });
+    setSavingToggle(false);
+    if (error) {
+      setAutoDispatch(prev);
+      toast.error(error.message);
+    } else {
+      toast.success(`Auto-dispatch ${next ? 'enabled' : 'disabled'}`);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
