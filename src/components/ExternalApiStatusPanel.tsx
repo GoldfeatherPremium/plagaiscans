@@ -145,10 +145,21 @@ export function ExternalApiStatusPanel() {
       <CardHeader>
         <CardTitle className="flex items-center justify-between flex-wrap gap-2">
           <span className="flex items-center gap-2"><Activity className="w-5 h-5" /> External API automation</span>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-muted/30">
+              <Switch
+                id="auto-dispatch-toggle"
+                checked={autoDispatch}
+                disabled={savingToggle}
+                onCheckedChange={toggleAutoDispatch}
+              />
+              <Label htmlFor="auto-dispatch-toggle" className="text-xs cursor-pointer">
+                Auto-send AI scans to API
+              </Label>
+            </div>
             <Button size="sm" variant="outline" onClick={() => runBatch('external-api-dispatch')} disabled={batchAction !== null}>
               {batchAction === 'external-api-dispatch' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              <span className="ml-2">Dispatch pending</span>
+              <span className="ml-2">Send all now</span>
             </Button>
             <Button size="sm" variant="outline" onClick={() => runBatch('external-api-poll')} disabled={batchAction !== null}>
               {batchAction === 'external-api-poll' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
