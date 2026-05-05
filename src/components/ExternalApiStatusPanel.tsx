@@ -128,7 +128,8 @@ export function ExternalApiStatusPanel() {
   const runBatch = async (fn: 'external-api-dispatch' | 'external-api-poll') => {
     setBatchAction(fn);
     try {
-      const { data, error } = await supabase.functions.invoke(fn, { body: {} });
+      const body = fn === 'external-api-dispatch' ? { force: true } : {};
+      const { data, error } = await supabase.functions.invoke(fn, { body });
       if (error) throw error;
       const summary = (data as { dispatched?: number; polled?: number }) ?? {};
       toast.success(`Batch ran: dispatched=${summary.dispatched ?? 0}, polled=${summary.polled ?? 0}`);
