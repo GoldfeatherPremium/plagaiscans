@@ -20,6 +20,24 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(supabaseUrl, serviceKey);
 
+  // Allow manual force-run to bypass toggle
+  let force = false;
+  try {
+    const body = await req.json().catch(() => ({}));
+    force = Boolean(body?.force);
+  } catch (_) { /* ignore */ }
+
+  if (!force) {
+    const { data: toggle } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'external_api_auto_dispatch_enabled')
+      .maybeSingle();
+    if (toggle && String(toggle.value) !== 'true') {
+      return json({ ok: true, dispatched: 0, reason: 'auto-dispatch disabled' });
+    }
+  }
+
   // Check account capacity
   let capacity = MAX_BATCH;
   try {

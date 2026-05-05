@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, RefreshCw, Send, Activity } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -39,6 +41,33 @@ export function ExternalApiStatusPanel() {
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
   const [batchAction, setBatchAction] = useState<string | null>(null);
+  const [autoDispatch, setAutoDispatch] = useState<boolean>(true);
+  const [savingToggle, setSavingToggle] = useState(false);
+
+  const loadToggle = async () => {
+    const { data } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'external_api_auto_dispatch_enabled')
+      .maybeSingle();
+    setAutoDispatch(data ? String(data.value) === 'true' : true);
+  };
+
+  const toggleAutoDispatch = async (next: boolean) => {
+    setSavingToggle(true);
+    const prev = autoDispatch;
+    setAutoDispatch(next);
+    const { error } = await supabase
+      .from('settings')
+      .upsert({ key: 'external_api_auto_dispatch_enabled', value: String(next) }, { onConflict: 'key' });
+    setSavingToggle(false);
+    if (error) {
+      setAutoDispatch(prev);
+      toast.error(error.message);
+    } else {
+      toast.success(`Auto-dispatch ${next ? 'enabled' : 'disabled'}`);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -58,6 +87,7 @@ export function ExternalApiStatusPanel() {
 
   useEffect(() => {
     load();
+    loadToggle();
     const channel = supabase
       .channel('external-api-status-panel')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'documents' }, () => load())
@@ -98,7 +128,8 @@ export function ExternalApiStatusPanel() {
   const runBatch = async (fn: 'external-api-dispatch' | 'external-api-poll') => {
     setBatchAction(fn);
     try {
-      const { data, error } = await supabase.functions.invoke(fn, { body: {} });
+      const body = fn === 'external-api-dispatch' ? { force: true } : {};
+      const { data, error } = await supabase.functions.invoke(fn, { body });
       if (error) throw error;
       const summary = (data as { dispatched?: number; polled?: number }) ?? {};
       toast.success(`Batch ran: dispatched=${summary.dispatched ?? 0}, polled=${summary.polled ?? 0}`);
@@ -115,10 +146,21 @@ export function ExternalApiStatusPanel() {
       <CardHeader>
         <CardTitle className="flex items-center justify-between flex-wrap gap-2">
           <span className="flex items-center gap-2"><Activity className="w-5 h-5" /> External API automation</span>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-muted/30">
+              <Switch
+                id="auto-dispatch-toggle"
+                checked={autoDispatch}
+                disabled={savingToggle}
+                onCheckedChange={toggleAutoDispatch}
+              />
+              <Label htmlFor="auto-dispatch-toggle" className="text-xs cursor-pointer">
+                Auto-send AI scans to API
+              </Label>
+            </div>
             <Button size="sm" variant="outline" onClick={() => runBatch('external-api-dispatch')} disabled={batchAction !== null}>
               {batchAction === 'external-api-dispatch' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              <span className="ml-2">Dispatch pending</span>
+              <span className="ml-2">Send all now</span>
             </Button>
             <Button size="sm" variant="outline" onClick={() => runBatch('external-api-poll')} disabled={batchAction !== null}>
               {batchAction === 'external-api-poll' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
