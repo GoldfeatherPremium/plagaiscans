@@ -43,6 +43,7 @@ Deno.serve(async (req) => {
   try {
     const acctResp = await fetch(`${API_BASE}/account`, {
       headers: { Authorization: `Bearer ${apiToken}` },
+      signal: AbortSignal.timeout(3000),
     });
     if (acctResp.ok) {
       const acct = await acctResp.json();
