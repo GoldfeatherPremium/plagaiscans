@@ -10,6 +10,8 @@ const corsHeaders = {
 
 const API_BASE = 'https://api.similaritycheck.app/api/v1';
 
+type SupabaseClient = ReturnType<typeof createClient>;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -23,29 +25,76 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(supabaseUrl, serviceKey);
 
-  let documentId: string | null = null;
   try {
     const body = await req.json().catch(() => ({}));
-    documentId = body?.documentId ?? null;
+    const documentId = body?.documentId ?? null;
+    const waitForCompletion = Boolean(body?.background);
     if (!documentId) return json({ error: 'documentId required' }, 400);
 
-    // Load document
+    const validation = await validateDocumentForSubmit(supabase, documentId);
+    if (!validation.ok) return json({ error: validation.error, orderId: validation.orderId }, validation.status);
+
+    await supabase
+      .from('documents')
+      .update({ external_api_status: 'queued', external_api_error: null })
+      .eq('id', documentId);
+
+    const job = submitDocumentToExternalApi(supabase, apiToken, documentId);
+    if (waitForCompletion) {
+      const result = await job;
+      return json(result.body, result.status);
+    }
+
+    const edgeRuntime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime;
+    if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(job);
+    else job.catch(() => undefined);
+
+    return json({ ok: true, queued: true, documentId }, 202);
+  } catch (e) {
+    return json({ error: e instanceof Error ? e.message : 'unknown' }, 500);
+  }
+});
+
+async function validateDocumentForSubmit(supabase: SupabaseClient, documentId: string) {
+  const { data: doc, error } = await supabase
+    .from('documents')
+    .select('id, status, external_api_order_id, deleted_by_user, cancelled_at')
+    .eq('id', documentId)
+    .maybeSingle();
+
+  if (error || !doc) return { ok: false, status: 404, error: 'document not found' };
+  if (doc.deleted_by_user || doc.cancelled_at) {
+    return { ok: false, status: 400, error: 'document is cancelled or deleted' };
+  }
+  if (doc.external_api_order_id) {
+    return { ok: false, status: 200, error: 'already submitted', orderId: doc.external_api_order_id };
+  }
+  if (!['pending', 'in_progress'].includes(doc.status)) {
+    return { ok: false, status: 400, error: `document status is ${doc.status}, expected pending or in_progress` };
+  }
+  return { ok: true, status: 200 };
+}
+
+async function submitDocumentToExternalApi(supabase: SupabaseClient, apiToken: string, documentId: string): Promise<{ status: number; body: Record<string, unknown> }> {
+  try {
     const { data: doc, error: docErr } = await supabase
       .from('documents')
       .select('id, file_name, file_path, scan_type, exclude_quotes, exclude_bibliography, exclude_small_sources, exclude_citations, exclude_small_matches_words, status, external_api_order_id, external_api_status, external_api_attempt_count, deleted_by_user, cancelled_at, magic_link_id')
       .eq('id', documentId)
       .maybeSingle();
 
-    if (docErr || !doc) return json({ error: 'document not found' }, 404);
+    if (docErr || !doc) return { status: 404, body: { error: 'document not found' } };
     if (doc.deleted_by_user || doc.cancelled_at) {
-      return json({ error: 'document is cancelled or deleted' }, 400);
+      return { status: 400, body: { error: 'document is cancelled or deleted' } };
     }
     if (doc.external_api_order_id) {
-      return json({ ok: true, message: 'already submitted', orderId: doc.external_api_order_id });
+      return { status: 200, body: { ok: true, message: 'already submitted', orderId: doc.external_api_order_id } };
     }
-    if (doc.status !== 'pending') {
-      return json({ error: `document status is ${doc.status}, expected pending` }, 400);
+    if (!['pending', 'in_progress'].includes(doc.status)) {
+      return { status: 400, body: { error: `document status is ${doc.status}, expected pending or in_progress` } };
     }
+
+    await supabase.from('documents').update({ external_api_status: 'downloading', external_api_error: null }).eq('id', doc.id);
 
     // Download file from storage — guests live in magic-uploads bucket
     const bucket = doc.magic_link_id ? 'magic-uploads' : 'documents';
@@ -54,22 +103,22 @@ Deno.serve(async (req) => {
       .download(doc.file_path);
 
     if (dlErr || !fileData) {
-      await logEvent(supabase, doc.id, null, 'submit', 'error', null, { exclude_quotes: doc.exclude_quotes }, null, dlErr?.message ?? 'download failed');
+      await logEvent(supabase, doc.id, null, 'submit', 'error', null, { bucket, exclude_quotes: doc.exclude_quotes }, null, dlErr?.message ?? 'download failed');
       await supabase.from('documents').update({
         external_api_status: 'submit_failed',
         external_api_error: `Failed to download file: ${dlErr?.message ?? 'unknown'}`,
         external_api_attempt_count: (doc.external_api_attempt_count ?? 0) + 1,
       }).eq('id', doc.id);
-      return json({ error: 'file download failed', details: dlErr?.message }, 500);
+      return { status: 500, body: { error: 'file download failed', details: dlErr?.message } };
     }
 
-    // Build multipart form
+    await supabase.from('documents').update({ external_api_status: 'submitting', external_api_error: null }).eq('id', doc.id);
+
     const form = new FormData();
     form.append('file', new File([await fileData.arrayBuffer()], doc.file_name));
     if (doc.exclude_quotes) form.append('excludeQuotes', 'true');
     if (doc.exclude_bibliography) form.append('excludeBibliography', 'true');
     if (doc.exclude_citations) form.append('excludeCitations', 'true');
-    // Numeric small-matches threshold (preferred); fall back to legacy boolean default of 8
     const smallWords = Number(doc.exclude_small_matches_words ?? 0);
     if (smallWords > 0) {
       form.append('minWords', String(smallWords));
@@ -82,6 +131,7 @@ Deno.serve(async (req) => {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiToken}` },
       body: form,
+      signal: AbortSignal.timeout(90000),
     });
 
     const apiJson = await apiResp.json().catch(() => ({}));
@@ -103,7 +153,7 @@ Deno.serve(async (req) => {
         external_api_error: `${apiJson?.code ?? `HTTP ${apiResp.status}`}: ${apiJson?.error ?? 'submit failed'}`,
         external_api_attempt_count: (doc.external_api_attempt_count ?? 0) + 1,
       }).eq('id', doc.id);
-      return json({ error: 'API submit failed', status: apiResp.status, details: apiJson }, 502);
+      return { status: 502, body: { error: 'API submit failed', status: apiResp.status, details: apiJson } };
     }
 
     await supabase.from('documents').update({
@@ -114,22 +164,23 @@ Deno.serve(async (req) => {
       external_api_attempt_count: (doc.external_api_attempt_count ?? 0) + 1,
       automation_status: 'processing',
       automation_started_at: new Date().toISOString(),
-      // Move out of the pending bucket — the API has picked it up
       status: 'in_progress',
     }).eq('id', doc.id);
 
-    return json({ ok: true, orderId: apiJson.orderId });
+    return { status: 200, body: { ok: true, orderId: apiJson.orderId } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown';
-    if (documentId) {
-      await logEvent(supabase, documentId, null, 'submit', 'error', null, null, null, msg);
-    }
-    return json({ error: msg }, 500);
+    await logEvent(supabase, documentId, null, 'submit', 'error', null, null, null, msg);
+    await supabase.from('documents').update({
+      external_api_status: 'submit_failed',
+      external_api_error: msg,
+    }).eq('id', documentId);
+    return { status: 500, body: { error: msg } };
   }
-});
+}
 
 async function logEvent(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   documentId: string | null,
   orderId: string | null,
   action: string,
