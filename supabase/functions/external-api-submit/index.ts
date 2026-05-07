@@ -29,6 +29,44 @@ Deno.serve(async (req) => {
     documentId = body?.documentId ?? null;
     if (!documentId) return json({ error: 'documentId required' }, 400);
 
+    if (!body?.background) {
+      const { data: existing, error: existingErr } = await supabase
+        .from('documents')
+        .select('id, external_api_order_id, status, deleted_by_user, cancelled_at')
+        .eq('id', documentId)
+        .maybeSingle();
+
+      if (existingErr || !existing) return json({ error: 'document not found' }, 404);
+      if (existing.deleted_by_user || existing.cancelled_at) {
+        return json({ error: 'document is cancelled or deleted' }, 400);
+      }
+      if (existing.external_api_order_id) {
+        return json({ ok: true, message: 'already submitted', orderId: existing.external_api_order_id });
+      }
+      if (!['pending', 'in_progress'].includes(existing.status)) {
+        return json({ error: `document status is ${existing.status}, expected pending or in_progress` }, 400);
+      }
+
+      await supabase
+        .from('documents')
+        .update({ external_api_status: 'queued', external_api_error: null })
+        .eq('id', documentId);
+
+      const backgroundSubmit = fetch(`${supabaseUrl}/functions/v1/external-api-submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({ documentId, background: true }),
+      });
+      const edgeRuntime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime;
+      if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(backgroundSubmit);
+      else backgroundSubmit.catch(() => undefined);
+
+      return json({ ok: true, queued: true, documentId }, 202);
+    }
+
     // Load document
     const { data: doc, error: docErr } = await supabase
       .from('documents')
