@@ -52,7 +52,7 @@ export default function AdminExternalApiStats() {
       const { data: rows, error } = await supabase
         .from('documents')
         .select('external_api_status, external_api_submitted_at, external_api_order_id, completed_at, status')
-        .or('deleted_by_user.is.null,deleted_by_user.eq.false')
+        .eq('deleted_by_user', false)
         .is('cancelled_at', null)
         .or('scan_type.is.null,scan_type.neq.similarity_only')
         .limit(20000);
