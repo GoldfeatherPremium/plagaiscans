@@ -72,26 +72,36 @@ Deno.serve(async (req) => {
   if (error) return json({ error: error.message }, 500);
   if (!candidates || candidates.length === 0) return json({ ok: true, dispatched: 0 });
 
-  const results: Array<Record<string, unknown>> = [];
-  for (const c of candidates) {
+  await supabase
+    .from('documents')
+    .update({ external_api_status: 'queued', external_api_error: null })
+    .in('id', candidates.map((c) => c.id));
+
+  const dispatchPromise = dispatchCandidates(supabaseUrl, serviceKey, candidates.map((c) => c.id));
+  const edgeRuntime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime;
+  if (edgeRuntime?.waitUntil) {
+    edgeRuntime.waitUntil(dispatchPromise);
+  } else {
+    dispatchPromise.catch(() => undefined);
+  }
+
+  return json({ ok: true, dispatched: candidates.length, queued: candidates.map((c) => c.id) }, 202);
+});
+
+async function dispatchCandidates(supabaseUrl: string, serviceKey: string, ids: string[]) {
+  await Promise.all(ids.map(async (id) => {
     try {
-      const r = await fetch(`${supabaseUrl}/functions/v1/external-api-submit`, {
+      await fetch(`${supabaseUrl}/functions/v1/external-api-submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${serviceKey}`,
         },
-        body: JSON.stringify({ documentId: c.id }),
+        body: JSON.stringify({ documentId: id }),
       });
-      const j = await r.json().catch(() => ({}));
-      results.push({ id: c.id, ok: r.ok, ...j });
-    } catch (e) {
-      results.push({ id: c.id, ok: false, error: e instanceof Error ? e.message : 'unknown' });
-    }
-  }
-
-  return json({ ok: true, dispatched: results.length, results });
-});
+    } catch (_) { /* external-api-submit records document-level failures when reached */ }
+  }));
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
