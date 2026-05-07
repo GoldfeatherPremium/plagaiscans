@@ -55,12 +55,12 @@ Deno.serve(async (req) => {
 
   if (capacity <= 0) return json({ ok: true, dispatched: 0, reason: 'no capacity' });
 
-  // Find candidates: pending AI scan queue docs (scan_type != similarity_only) with no order id yet,
+  // Find candidates: AI scan queue docs (scan_type != similarity_only) with no order id yet,
   // not deleted/cancelled.
   const { data: candidates, error } = await supabase
     .from('documents')
     .select('id')
-    .eq('status', 'pending')
+    .in('status', ['pending', 'in_progress'])
     .is('external_api_order_id', null)
     .or('external_api_status.is.null,external_api_status.in.(submit_failed,rate_limited)')
     .neq('deleted_by_user', true)

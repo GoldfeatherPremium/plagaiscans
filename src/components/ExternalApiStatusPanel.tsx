@@ -206,7 +206,7 @@ export function ExternalApiStatusPanel() {
                   <TableCell className="font-mono text-xs">{r.external_api_order_id ?? '—'}</TableCell>
                   <TableCell>{r.external_api_attempt_count ?? 0}</TableCell>
                   <TableCell className="text-right">
-                    {!r.external_api_order_id && r.status === 'pending' && (
+                    {!r.external_api_order_id && ['pending', 'in_progress'].includes(r.status) && (
                       <Button size="sm" variant="outline" disabled={actingId === r.id} onClick={() => submitDoc(r.id)}>
                         {actingId === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Submit'}
                       </Button>

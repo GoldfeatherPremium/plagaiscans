@@ -43,8 +43,8 @@ Deno.serve(async (req) => {
     if (doc.external_api_order_id) {
       return json({ ok: true, message: 'already submitted', orderId: doc.external_api_order_id });
     }
-    if (doc.status !== 'pending') {
-      return json({ error: `document status is ${doc.status}, expected pending` }, 400);
+    if (!['pending', 'in_progress'].includes(doc.status)) {
+      return json({ error: `document status is ${doc.status}, expected pending or in_progress` }, 400);
     }
 
     // Download file from storage — guests live in magic-uploads bucket
