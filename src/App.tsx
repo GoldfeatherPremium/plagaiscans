@@ -38,6 +38,7 @@ const AdminPricing = lazy(() => import("./pages/AdminPricing"));
 const AdminMagicLinks = lazy(() => import("./pages/AdminMagicLinks"));
 const AdminActivityLogs = lazy(() => import("./pages/AdminActivityLogs"));
 const AdminSystemHealth = lazy(() => import("./pages/AdminSystemHealth"));
+const AdminExternalApiStats = lazy(() => import("./pages/AdminExternalApiStats"));
 const AdminRevenue = lazy(() => import("./pages/AdminRevenue"));
 const AdminReports = lazy(() => import("./pages/AdminReports"));
 const AdminPromoCodes = lazy(() => import("./pages/AdminPromoCodes"));
