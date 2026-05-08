@@ -17,11 +17,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const apiToken = Deno.env.get('SIMILARITYCHECK_API_TOKEN');
-
-  if (!apiToken) {
-    return json({ error: 'SIMILARITYCHECK_API_TOKEN not configured' }, 500);
-  }
+  const fallbackToken = Deno.env.get('SIMILARITYCHECK_API_TOKEN');
 
   const supabase = createClient(supabaseUrl, serviceKey);
 
