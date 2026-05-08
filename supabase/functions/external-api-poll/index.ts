@@ -45,9 +45,25 @@ Deno.serve(async (req) => {
   if (error) return json({ error: error.message }, 500);
   if (!docs || docs.length === 0) return json({ ok: true, polled: 0 });
 
+  // Pre-load enabled accounts to map id -> token (avoids per-doc DB lookup).
+  const { data: accountsRaw } = await supabase
+    .from('external_api_accounts')
+    .select('id, api_token, enabled');
+  const accountTokenMap = new Map<string, string>();
+  for (const a of (accountsRaw ?? []) as Array<{ id: string; api_token: string; enabled: boolean }>) {
+    if (a.enabled) accountTokenMap.set(a.id, a.api_token);
+  }
+
   const results: Array<Record<string, unknown>> = [];
   for (const doc of docs) {
     if (!doc.external_api_order_id) continue;
+    const apiToken = (doc as { external_api_account_id?: string | null }).external_api_account_id
+      ? accountTokenMap.get((doc as { external_api_account_id: string }).external_api_account_id) ?? fallbackToken
+      : fallbackToken;
+    if (!apiToken) {
+      results.push({ id: doc.id, status: 'no_token' });
+      continue;
+    }
     try {
       const apiResp = await fetch(`${API_BASE}/documents/${doc.external_api_order_id}`, {
         headers: { Authorization: `Bearer ${apiToken}` },
