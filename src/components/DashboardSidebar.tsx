@@ -423,6 +423,7 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/reports', icon: FileDown, label: 'Reports' },
         { to: '/dashboard/activity-logs', icon: Activity, label: 'Activity Logs' },
         { to: '/dashboard/system-health', icon: Server, label: 'System Health' },
+        { to: '/dashboard/external-api-accounts', icon: KeyRound, label: 'External API Accounts' },
       ],
     },
     {
