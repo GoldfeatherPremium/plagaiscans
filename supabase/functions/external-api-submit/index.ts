@@ -17,11 +17,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const apiToken = Deno.env.get('SIMILARITYCHECK_API_TOKEN');
-
-  if (!apiToken) {
-    return json({ error: 'SIMILARITYCHECK_API_TOKEN not configured' }, 500);
-  }
+  const fallbackToken = Deno.env.get('SIMILARITYCHECK_API_TOKEN');
 
   const supabase = createClient(supabaseUrl, serviceKey);
 
@@ -39,6 +35,10 @@ Deno.serve(async (req) => {
       .update({ external_api_status: 'queued', external_api_error: null })
       .eq('id', documentId);
 
+    // Resolve which account token to use
+    const apiToken = await resolveApiToken(supabase, documentId, fallbackToken);
+    if (!apiToken) return json({ error: 'no API account available for this document' }, 500);
+
     const job = submitDocumentToExternalApi(supabase, apiToken, documentId);
     if (waitForCompletion) {
       const result = await job;
@@ -54,6 +54,35 @@ Deno.serve(async (req) => {
     return json({ error: e instanceof Error ? e.message : 'unknown' }, 500);
   }
 });
+
+async function resolveApiToken(supabase: SupabaseClient, documentId: string, fallback: string | undefined): Promise<string | null> {
+  const { data: doc } = await supabase
+    .from('documents')
+    .select('external_api_account_id')
+    .eq('id', documentId)
+    .maybeSingle();
+  if (doc?.external_api_account_id) {
+    const { data: acc } = await supabase
+      .from('external_api_accounts')
+      .select('api_token, enabled')
+      .eq('id', doc.external_api_account_id)
+      .maybeSingle();
+    if (acc?.enabled && acc.api_token) return acc.api_token as string;
+  }
+  // Fallback: pick first enabled account; else env token.
+  const { data: any } = await supabase
+    .from('external_api_accounts')
+    .select('id, api_token')
+    .eq('enabled', true)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (any?.api_token) {
+    await supabase.from('documents').update({ external_api_account_id: any.id }).eq('id', documentId);
+    return any.api_token as string;
+  }
+  return fallback ?? null;
+}
 
 async function validateDocumentForSubmit(supabase: SupabaseClient, documentId: string) {
   const { data: doc, error } = await supabase

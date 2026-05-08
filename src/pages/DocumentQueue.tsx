@@ -16,6 +16,7 @@ import { CancelDocumentDialog } from '@/components/CancelDocumentDialog';
 import { BulkUploadPanel } from '@/components/BulkUploadPanel';
 import { BulkReportUploadV2Content } from '@/pages/AdminBulkReportUploadV2';
 import { ExternalApiStatusPanel } from '@/components/ExternalApiStatusPanel';
+import { ExternalApiAccountsManager } from '@/components/ExternalApiAccountsManager';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { FileText, Download, Upload, Loader2, Lock, Clock, Unlock, CheckSquare, CheckCheck, FolderUp, Pencil, Ban } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -879,7 +880,12 @@ export default function DocumentQueue() {
 
             {isAdmin && (
               <TabsContent value="external-api" className="mt-4">
-                {activeTab === 'external-api' && <ExternalApiStatusPanel />}
+                {activeTab === 'external-api' && (
+                  <div className="space-y-4">
+                    <ExternalApiAccountsManager />
+                    <ExternalApiStatusPanel />
+                  </div>
+                )}
               </TabsContent>
             )}
           </Tabs>

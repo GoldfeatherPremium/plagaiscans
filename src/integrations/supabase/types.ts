@@ -770,6 +770,7 @@ export type Database = {
           exclude_quotes: boolean
           exclude_small_matches_words: number
           exclude_small_sources: boolean
+          external_api_account_id: string | null
           external_api_attempt_count: number
           external_api_error: string | null
           external_api_last_polled_at: string | null
@@ -818,6 +819,7 @@ export type Database = {
           exclude_quotes?: boolean
           exclude_small_matches_words?: number
           exclude_small_sources?: boolean
+          external_api_account_id?: string | null
           external_api_attempt_count?: number
           external_api_error?: string | null
           external_api_last_polled_at?: string | null
@@ -866,6 +868,7 @@ export type Database = {
           exclude_quotes?: boolean
           exclude_small_matches_words?: number
           exclude_small_sources?: boolean
+          external_api_account_id?: string | null
           external_api_attempt_count?: number
           external_api_error?: string | null
           external_api_last_polled_at?: string | null
@@ -893,6 +896,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "documents_external_api_account_id_fkey"
+            columns: ["external_api_account_id"]
+            isOneToOne: false
+            referencedRelation: "external_api_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documents_magic_link_id_fkey"
             columns: ["magic_link_id"]
@@ -1272,6 +1282,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      external_api_accounts: {
+        Row: {
+          api_token: string
+          created_at: string
+          enabled: boolean
+          id: string
+          label: string
+          max_concurrency: number
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          api_token: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          label: string
+          max_concurrency?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          api_token?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          label?: string
+          max_concurrency?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       external_api_logs: {
         Row: {

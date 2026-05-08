@@ -1,5 +1,5 @@
 // Cron dispatcher: finds pending AI-scan-queue documents that haven't been submitted
-// to the external API yet and submits them, respecting concurrency.
+// to the external API yet and assigns them across multiple API accounts based on free capacity.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
@@ -8,19 +8,19 @@ const corsHeaders = {
 };
 
 const API_BASE = 'https://api.similaritycheck.app/api/v1';
-const MAX_BATCH = 10;
+const MAX_BATCH_PER_ACCOUNT = 10;
+
+type Account = { id: string; label: string; api_token: string; max_concurrency: number };
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const apiToken = Deno.env.get('SIMILARITYCHECK_API_TOKEN');
-  if (!apiToken) return json({ error: 'SIMILARITYCHECK_API_TOKEN not configured' }, 500);
+  const fallbackToken = Deno.env.get('SIMILARITYCHECK_API_TOKEN');
 
   const supabase = createClient(supabaseUrl, serviceKey);
 
-  // Allow manual force-run to bypass toggle
   let force = false;
   try {
     const body = await req.json().catch(() => ({}));
@@ -38,25 +38,40 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Check account capacity
-  let capacity = MAX_BATCH;
-  try {
-    const acctResp = await fetch(`${API_BASE}/account`, {
-      headers: { Authorization: `Bearer ${apiToken}` },
-      signal: AbortSignal.timeout(3000),
-    });
-    if (acctResp.ok) {
-      const acct = await acctResp.json();
-      const limit = Number(acct?.concurrencyLimit ?? 0);
-      const current = Number(acct?.currentConcurrent ?? 0);
-      if (limit > 0) capacity = Math.max(0, Math.min(MAX_BATCH, limit - current));
-    }
-  } catch (_) { /* ignore */ }
+  // Load enabled accounts; fall back to env-token single account if table empty.
+  const { data: accountsRaw } = await supabase
+    .from('external_api_accounts')
+    .select('id, label, api_token, max_concurrency')
+    .eq('enabled', true);
 
-  if (capacity <= 0) return json({ ok: true, dispatched: 0, reason: 'no capacity' });
+  let accounts: Account[] = (accountsRaw ?? []) as Account[];
+  if (accounts.length === 0 && fallbackToken) {
+    accounts = [{ id: '', label: 'env-fallback', api_token: fallbackToken, max_concurrency: 4 }];
+  }
+  if (accounts.length === 0) return json({ error: 'no API accounts configured' }, 500);
 
-  // Find candidates: AI scan queue docs (scan_type != similarity_only) with no order id yet,
-  // not deleted/cancelled.
+  // Probe each account in parallel for free capacity.
+  const capacities = await Promise.all(accounts.map(async (acc) => {
+    let cap = Math.min(MAX_BATCH_PER_ACCOUNT, acc.max_concurrency);
+    try {
+      const resp = await fetch(`${API_BASE}/account`, {
+        headers: { Authorization: `Bearer ${acc.api_token}` },
+        signal: AbortSignal.timeout(3000),
+      });
+      if (resp.ok) {
+        const j = await resp.json();
+        const limit = Number(j?.concurrencyLimit ?? acc.max_concurrency);
+        const current = Number(j?.currentConcurrent ?? 0);
+        cap = Math.max(0, Math.min(MAX_BATCH_PER_ACCOUNT, Math.min(limit, acc.max_concurrency) - current));
+      }
+    } catch (_) { /* ignore */ }
+    return { account: acc, capacity: cap };
+  }));
+
+  const totalCapacity = capacities.reduce((sum, c) => sum + c.capacity, 0);
+  if (totalCapacity <= 0) return json({ ok: true, dispatched: 0, reason: 'no capacity', capacities: capacities.map(c => ({ label: c.account.label, capacity: c.capacity })) });
+
+  // Find candidates
   const { data: candidates, error } = await supabase
     .from('documents')
     .select('id')
@@ -67,39 +82,55 @@ Deno.serve(async (req) => {
     .is('cancelled_at', null)
     .or('scan_type.is.null,scan_type.neq.similarity_only')
     .order('uploaded_at', { ascending: true })
-    .limit(capacity);
+    .limit(totalCapacity);
 
   if (error) return json({ error: error.message }, 500);
   if (!candidates || candidates.length === 0) return json({ ok: true, dispatched: 0 });
 
-  await supabase
-    .from('documents')
-    .update({ external_api_status: 'queued', external_api_error: null })
-    .in('id', candidates.map((c) => c.id));
-
-  const dispatchPromise = dispatchCandidates(supabaseUrl, serviceKey, candidates.map((c) => c.id));
-  const edgeRuntime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime;
-  if (edgeRuntime?.waitUntil) {
-    edgeRuntime.waitUntil(dispatchPromise);
-  } else {
-    dispatchPromise.catch(() => undefined);
+  // Assign documents round-robin / fill-by-capacity across accounts.
+  const assignments: { documentId: string; account: Account }[] = [];
+  let cursor = 0;
+  for (const slot of capacities) {
+    const take = candidates.slice(cursor, cursor + slot.capacity);
+    cursor += slot.capacity;
+    for (const c of take) assignments.push({ documentId: c.id, account: slot.account });
+    if (cursor >= candidates.length) break;
   }
 
-  return json({ ok: true, dispatched: candidates.length, queued: candidates.map((c) => c.id) }, 202);
+  // Mark queued + assigned account.
+  await Promise.all(assignments.map((a) =>
+    supabase.from('documents').update({
+      external_api_status: 'queued',
+      external_api_error: null,
+      external_api_account_id: a.account.id || null,
+    }).eq('id', a.documentId)
+  ));
+
+  const dispatchPromise = dispatchAll(supabaseUrl, serviceKey, assignments);
+  const edgeRuntime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+  if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(dispatchPromise);
+  else dispatchPromise.catch(() => undefined);
+
+  return json({
+    ok: true,
+    dispatched: assignments.length,
+    by_account: capacities.map((c) => ({
+      label: c.account.label,
+      capacity: c.capacity,
+      assigned: assignments.filter(a => a.account.id === c.account.id).length,
+    })),
+  }, 202);
 });
 
-async function dispatchCandidates(supabaseUrl: string, serviceKey: string, ids: string[]) {
-  await Promise.all(ids.map(async (id) => {
+async function dispatchAll(supabaseUrl: string, serviceKey: string, assignments: { documentId: string; account: Account }[]) {
+  await Promise.all(assignments.map(async (a) => {
     try {
       await fetch(`${supabaseUrl}/functions/v1/external-api-submit`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${serviceKey}`,
-        },
-        body: JSON.stringify({ documentId: id }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceKey}` },
+        body: JSON.stringify({ documentId: a.documentId }),
       });
-    } catch (_) { /* external-api-submit records document-level failures when reached */ }
+    } catch (_) { /* swallowed */ }
   }));
 }
 
