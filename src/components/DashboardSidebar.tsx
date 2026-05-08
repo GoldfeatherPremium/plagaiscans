@@ -37,6 +37,7 @@ import {
   Wrench,
   Search,
   ExternalLink,
+  KeyRound,
   Bot,
   FileStack,
   FileQuestion,
