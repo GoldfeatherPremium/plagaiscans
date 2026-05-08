@@ -1285,31 +1285,67 @@ export type Database = {
       }
       external_api_accounts: {
         Row: {
+          account_name: string | null
           api_token: string
+          client_id: string | null
+          concurrency_limit: number | null
           created_at: string
+          credits_remaining: number | null
+          credits_total: number | null
+          current_concurrent: number | null
+          daily_limit: number | null
+          daily_usage: number | null
           enabled: boolean
+          expires_at: string | null
           id: string
+          is_active_remote: boolean | null
           label: string
+          last_checked_at: string | null
+          last_probe_error: string | null
           max_concurrency: number
           notes: string | null
           updated_at: string
         }
         Insert: {
+          account_name?: string | null
           api_token: string
+          client_id?: string | null
+          concurrency_limit?: number | null
           created_at?: string
+          credits_remaining?: number | null
+          credits_total?: number | null
+          current_concurrent?: number | null
+          daily_limit?: number | null
+          daily_usage?: number | null
           enabled?: boolean
+          expires_at?: string | null
           id?: string
+          is_active_remote?: boolean | null
           label: string
+          last_checked_at?: string | null
+          last_probe_error?: string | null
           max_concurrency?: number
           notes?: string | null
           updated_at?: string
         }
         Update: {
+          account_name?: string | null
           api_token?: string
+          client_id?: string | null
+          concurrency_limit?: number | null
           created_at?: string
+          credits_remaining?: number | null
+          credits_total?: number | null
+          current_concurrent?: number | null
+          daily_limit?: number | null
+          daily_usage?: number | null
           enabled?: boolean
+          expires_at?: string | null
           id?: string
+          is_active_remote?: boolean | null
           label?: string
+          last_checked_at?: string | null
+          last_probe_error?: string | null
           max_concurrency?: number
           notes?: string | null
           updated_at?: string

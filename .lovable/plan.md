@@ -1,93 +1,116 @@
-## Reseller API Integration System
+# External API multi-account: smart routing + dashboard
 
-A complete API for external reseller sites to submit AI-only scans, with prepaid credits, webhooks, polling, and full admin management.
+## Goals
+1. Manage all 3 tokens (existing Lovable secret + 2 new DB rows) from one place.
+2. Dispatcher automatically picks the account with the **most credits remaining** that still has free concurrency, and skips accounts that are out of credits, expired, disabled, or full.
+3. A dedicated admin dashboard shows credits left, concurrency in use, expiry date, and daily usage for each account in real time.
+4. Verify the whole flow end-to-end.
 
-### Database (1 migration)
+---
 
-New tables:
-- **`resellers`** — name, contact_email, status (active/suspended), credit_balance, total_credits_purchased, total_credits_used, webhook_url, webhook_secret, notes, created_by
-- **`reseller_api_keys`** — reseller_id, key_hash (sha256), key_prefix (first 8 chars, shown in UI), label, last_used_at, revoked_at, expires_at
-- **`reseller_credit_transactions`** — reseller_id, amount, balance_before, balance_after, type (topup/deduction/refund/adjustment), description, performed_by, scan_id
-- **`reseller_scans`** — reseller_id, api_key_id, external_reference (reseller's own ID), document_id (links to existing `documents` table), status, ai_percentage, ai_report_path, error, created_at, completed_at, ip_address
-- **`reseller_webhook_logs`** — reseller_id, scan_id, url, payload, response_status, response_body, attempt_number, succeeded, next_retry_at, created_at
-- **`reseller_api_logs`** — reseller_id, api_key_id, method, path, status_code, ip, user_agent, request_size, response_time_ms, created_at
+## 1. Migrate the Lovable-stored token into the table
 
-Helper functions:
-- `consume_reseller_credit(reseller_id, scan_id, description)` — atomic FIFO-style deduction, inserts transaction
-- `topup_reseller_credits(reseller_id, amount, description, performed_by)` — admin top-up
-- `is_admin()` reuse existing `has_role` for RLS
+- Read the existing `SIMILARITYCHECK_API_TOKEN` value (it's the original "Goldfeather" account — confirmed via API probe: `creditsRemaining: 440 / 1570`, `concurrencyLimit: 5`, `expiresAt: 2026-05-22`).
+- Insert it as a new row in `external_api_accounts` labelled **"Primary (Goldfeather)"** so it appears alongside the 2 new tokens in the admin UI.
+- Keep the secret in Lovable as a last-resort safety net only — code stops reading it for routing decisions.
 
-RLS: only admins can read/write reseller tables. Edge functions use service role to bypass RLS.
+After this step, you'll see all 3 accounts in the External API tab.
 
-### Edge Functions (new, all `verify_jwt = false`, custom auth via API key header)
+## 2. Smart routing in the dispatcher
 
-- **`reseller-api`** — single function routing all reseller endpoints by path:
-  - `POST /scans` — submit (multipart: file + optional excludeBibliography/excludeQuotes/excludeCitations/minWords + external_reference). Validates API key, checks credits, uploads to `documents` storage bucket, creates `documents` row with `scan_type='ai_only_reseller'`, creates `reseller_scans` row, deducts 1 credit, dispatches to `external-api-submit`. Returns `{ scan_id, status: 'queued' }`.
-  - `GET /scans/{id}` — poll status. Returns scan info + (when completed) signed AI report download URL valid 1h.
-  - `GET /scans/{id}/report` — direct redirect to signed download URL.
-  - `GET /account` — credit balance, usage stats.
-  - `GET /scans` — list scans (paginated, filterable by status/date).
-- **`reseller-webhook-dispatch`** — internal: called when a reseller scan completes; POSTs JSON `{ scan_id, external_reference, status, ai_percentage, report_url }` with header `X-Plagaiscans-Signature: sha256=<hmac>` (signed with reseller's webhook_secret). Logs every attempt. Retries with exponential backoff (1m, 5m, 30m, 2h, 12h) up to 5 attempts.
-- **`reseller-webhook-retry`** — cron (every minute): retries pending webhook deliveries.
+Add new columns to `external_api_accounts` so we can route intelligently and display stats without an extra table:
 
-Hook into existing `external-api-poll`: when a `reseller_scans`-linked document completes, mark the reseller_scan completed, trigger `reseller-webhook-dispatch`.
+| Column | Purpose |
+|---|---|
+| `credits_remaining` | last-known credits left (snapshot) |
+| `credits_total` | total credits ever |
+| `concurrency_limit` | live limit reported by API |
+| `current_concurrent` | live in-flight count |
+| `daily_limit` / `daily_usage` | API daily caps (often null) |
+| `expires_at` | account expiry date |
+| `is_active_remote` | the API's own `isActive` flag |
+| `last_checked_at` | when we last probed `/account` |
+| `last_probe_error` | last error string, if any |
+| `client_id` / `account_name` | API-reported metadata for display |
 
-### Admin UI
+**New dispatch loop (every 1 minute):**
 
-New section "Resellers" in admin sidebar with subpages:
-- **`/admin/resellers`** — list all resellers (name, status, balance, total used, last activity, actions: edit/suspend/view)
-- **`/admin/resellers/new`** — create reseller form
-- **`/admin/resellers/:id`** — detail with tabs:
-  - **Overview** — info, status toggle, edit, webhook URL & rotate secret
-  - **API Keys** — create key (shows full key once, then prefix only), revoke, label, last used
-  - **Credits** — current balance, top-up form, transaction history
-  - **Scans** — list of all scans by this reseller with status/score/links to report
-  - **API Logs** — recent API requests with method/path/status/IP
-  - **Webhook Logs** — delivery attempts, status, payloads, retry now button
+```text
+1. Load all enabled accounts from DB.
+2. Probe /account for each in parallel (3s timeout). Save snapshot to columns above.
+3. Filter out accounts where:
+     - probe failed
+     - isActive = false
+     - expiresAt is in the past
+     - creditsRemaining <= 0
+     - dailyLimit reached (dailyUsage >= dailyLimit)
+     - free slots = (concurrencyLimit - currentConcurrent) <= 0
+4. Sort surviving accounts by creditsRemaining DESC.
+5. Walk pending documents one by one:
+     - assign to top account
+     - decrement that account's "free slots" and "creditsRemaining" locally
+     - if it hits 0 slots or 0 credits → remove from pool / re-sort
+     - move to next document
+6. Stamp each document with external_api_account_id, mark as 'queued',
+    then fan out to external-api-submit (background).
+```
 
-Single AdminResellers route added to `App.tsx` admin section, protected by `useUserRole` admin check.
+Manual-submit and poll already use the per-document `external_api_account_id`, so they keep working unchanged.
 
-### Documentation
+## 3. Health snapshot job
 
-Public docs page `/api-docs` (linked from footer) with:
-- Authentication (X-API-Key header)
-- Endpoints with curl + JS examples
-- Webhook payload format and signature verification
-- Error codes table
-- Credit & rate-limit info
+Create a separate edge function `external-api-account-stats` that just probes `/account` for every enabled account and updates the snapshot columns. Runs:
+- every minute via cron (so the dashboard stays fresh even when no documents are dispatched), and
+- on-demand from the dashboard "Refresh now" button.
 
-### Notes
+This avoids hammering `/account` more than once per minute when both dispatch + dashboard refresh might run together.
 
-- AI scan only — no similarity_only path. `scan_type='ai_only_reseller'` is filtered out from existing customer/staff queues.
-- Documents from resellers are excluded from regular `Dashboard`/`MyDocuments`/`DocumentQueue`/`SimilarityQueue` views (filter `scan_type != 'ai_only_reseller'` or `magic_link_id is null AND user_id is null AND reseller_id is set` — we'll add a guard in those queries).
-- API key shown once on creation (toast + copy button). Stored only as sha256 hash.
-- Rate limiting: simple in-memory per-key counter inside `reseller-api` (60 req/min) to start; documented as such.
-- Webhook signature: `sha256=HMAC_SHA256(webhook_secret, raw_body)`.
+## 4. Admin dashboard — "External API Accounts"
 
-### Files
+New route: **`/dashboard/external-api-accounts`** (admin-only), and a sidebar link under the existing External API section.
 
-Created:
-- 1 migration
-- `supabase/functions/reseller-api/index.ts`
-- `supabase/functions/reseller-webhook-dispatch/index.ts`
-- `supabase/functions/reseller-webhook-retry/index.ts`
-- `src/pages/AdminResellers.tsx`
-- `src/pages/AdminResellerDetail.tsx`
-- `src/pages/ApiDocs.tsx`
-- `src/hooks/useResellers.ts`
+Layout:
 
-Modified:
-- `supabase/functions/external-api-poll/index.ts` — trigger reseller webhook on completion
-- `supabase/functions/external-api-dispatch/index.ts` — include reseller scans in dispatch (already filters by scan_type != similarity_only, fine)
-- `supabase/config.toml` — register new functions
-- `src/App.tsx` — routes
-- `src/components/DashboardSidebar.tsx` — admin nav item
-- `src/components/Footer.tsx` — link to /api-docs
-- Existing query files (Dashboard, MyDocuments, DocumentQueue) — exclude reseller scans
+```text
++-------------------------------------------------------------+
+|  Total credits remaining: 1,240   |  In-flight scans: 3/14  |
++-------------------------------------------------------------+
+| Account            Credits        Concurrency   Expires     |
+| Primary (★)        440 / 1570     1 / 5         13 days     |
+| Account #2         500 / 500      0 / 4         29 days     |
+| Account #3         300 / 500      2 / 5         29 days     |
++-------------------------------------------------------------+
+```
 
-### Out of scope (can add later)
+Per-row card shows:
+- Label, status badge (Active / Disabled / Expired / Out of credits)
+- Credits remaining with a progress bar against `credits_total`
+- Concurrency `current / limit` with a progress bar
+- Daily usage if API returns one
+- Expiry date + relative ("13 days left", red if <7 days)
+- Last checked timestamp + last probe error if any
+- Inline edit for label, max concurrency cap, enabled switch
+- Buttons: **Refresh now**, **Reveal/Hide token**, **Delete**
 
-- Self-serve reseller signup portal
-- OAuth2 client_credentials flow (deferred — API key sufficient for v1)
-- Per-reseller custom AI exclusion defaults
-- Reseller-facing dashboard (this is API-only; admin manages everything)
+A summary strip at the top sums credits across all accounts and shows total in-flight scans, plus a "Low credits" warning when total drops below a threshold (e.g. 50).
+
+The existing `External API` tab inside Document Queue keeps the per-document status table and the auto-dispatch toggle. The accounts manager card moves to this new dedicated page (linked from both places).
+
+## 5. End-to-end test
+
+After deploy, I'll:
+1. Trigger `external-api-account-stats` manually → confirm all 3 rows get populated with credits/concurrency/expiry.
+2. Trigger `external-api-dispatch` with `force: true` and at least 1 pending document → confirm the document gets `external_api_account_id` set to the account with the most credits.
+3. Query `external_api_logs` to confirm the submit hit the right token.
+4. Open the new dashboard in the preview and verify all numbers render.
+5. Temporarily disable the highest-credit account and re-run dispatch → confirm next document goes to the second-best account.
+
+---
+
+## Technical notes
+
+- DB changes: `ALTER TABLE external_api_accounts ADD COLUMN ...` (no destructive changes); existing rows keep working.
+- Routing logic lives entirely in `external-api-dispatch/index.ts`; submit & poll are unchanged.
+- New cron: `select cron.schedule('external-api-account-stats-every-minute', '* * * * *', ...)`.
+- The Lovable-stored secret isn't deleted — left as a fallback so legacy code paths never crash if the table is ever empty.
+- No customer-facing changes; admin-only.
