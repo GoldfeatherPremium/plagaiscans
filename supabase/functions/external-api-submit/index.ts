@@ -35,11 +35,6 @@ Deno.serve(async (req) => {
       .update({ external_api_status: 'queued', external_api_error: null })
       .eq('id', documentId);
 
-    await supabase
-      .from('documents')
-      .update({ external_api_status: 'queued', external_api_error: null })
-      .eq('id', documentId);
-
     // Resolve which account token to use
     const apiToken = await resolveApiToken(supabase, documentId, fallbackToken);
     if (!apiToken) return json({ error: 'no API account available for this document' }, 500);
