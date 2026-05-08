@@ -880,12 +880,7 @@ export default function DocumentQueue() {
 
             {isAdmin && (
               <TabsContent value="external-api" className="mt-4">
-                {activeTab === 'external-api' && (
-                  <div className="space-y-4">
-                    <ExternalApiAccountsManager />
-                    <ExternalApiStatusPanel />
-                  </div>
-                )}
+                {activeTab === 'external-api' && <ExternalApiStatusPanel />}
               </TabsContent>
             )}
           </Tabs>
