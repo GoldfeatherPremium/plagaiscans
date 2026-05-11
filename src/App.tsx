@@ -331,6 +331,7 @@ const AppRoutes = () => (
       <Route path="/dashboard/magic-links" element={<ProtectedRoute allowedRoles={['admin']}><AdminMagicLinks /></ProtectedRoute>} />
       <Route path="/dashboard/settings" element={<ProtectedRoute allowedRoles={['admin']}><AdminSettings /></ProtectedRoute>} />
       <Route path="/dashboard/external-api-accounts" element={<ProtectedRoute allowedRoles={['admin']}><AdminExternalApiAccounts /></ProtectedRoute>} />
+      <Route path="/admin/export-status" element={<ProtectedRoute allowedRoles={['admin']}><AdminExportStatus /></ProtectedRoute>} />
       <Route path="/dashboard/staff-work" element={<ProtectedRoute allowedRoles={['admin']}><AdminStaffWork /></ProtectedRoute>} />
       <Route path="/dashboard/activity-logs" element={<ProtectedRoute allowedRoles={['admin']}><AdminActivityLogs /></ProtectedRoute>} />
       <Route path="/dashboard/system-health" element={<ProtectedRoute allowedRoles={['admin']}><AdminSystemHealth /></ProtectedRoute>} />
