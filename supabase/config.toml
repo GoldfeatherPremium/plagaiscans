@@ -149,3 +149,9 @@ verify_jwt = false
 
 [functions.create-reseller-with-account]
 verify_jwt = false
+
+[functions.public-reports-list]
+verify_jwt = false
+
+[functions.public-reports-file]
+verify_jwt = false
