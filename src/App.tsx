@@ -35,6 +35,7 @@ const ResellerDashboard = lazy(() => import("./pages/ResellerDashboard"));
 const AdminAnalytics = lazy(() => import("./pages/AdminAnalytics"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings"));
 const AdminExternalApiAccounts = lazy(() => import("./pages/AdminExternalApiAccounts"));
+const AdminExportStatus = lazy(() => import("./pages/AdminExportStatus"));
 const AdminPricing = lazy(() => import("./pages/AdminPricing"));
 const AdminMagicLinks = lazy(() => import("./pages/AdminMagicLinks"));
 const AdminActivityLogs = lazy(() => import("./pages/AdminActivityLogs"));
