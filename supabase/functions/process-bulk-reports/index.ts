@@ -236,6 +236,18 @@ async function bruteForceScan(pdf: any): Promise<ReportAnalysis> {
         return { reportType: 'ai', percentage: parseFloat(m[1]), textSnippet: text.substring(0, 200) };
       }
     }
+    // Asterisk-suppressed AI score fallback
+    const asteriskAiPatterns = [
+      /\*\s*%\s*(?:detected\s+as\s+)?ai/,
+      /ai[:\s]+\*\s*%/,
+      /\*\s*%\s*ai(?:\s+writing)?/,
+    ];
+    for (const p of asteriskAiPatterns) {
+      if (p.test(text)) {
+        console.log(`Brute-force: AI "*%" (suppressed) found on page ${pageNum} — sentinel 1`);
+        return { reportType: 'ai', percentage: 1, textSnippet: text.substring(0, 200) };
+      }
+    }
   }
 
   return { reportType: 'unknown', percentage: null, textSnippet: '' };
@@ -370,6 +382,19 @@ function extractAIPercentage(text: string): number | null {
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (match) return parseFloat(match[1]);
+  }
+  // Asterisk-suppressed AI score (e.g. Turnitin shows "*%" when below threshold).
+  // Store sentinel value 1 — display layer renders 1-19 as "*%".
+  const asteriskPatterns = [
+    /\*\s*%\s*(?:detected\s+as\s+)?ai/,
+    /ai[:\s]+\*\s*%/,
+    /\*\s*%\s*ai(?:\s+writing)?/,
+  ];
+  for (const pattern of asteriskPatterns) {
+    if (pattern.test(text)) {
+      console.log('AI percentage detected as suppressed "*%" — storing sentinel 1');
+      return 1;
+    }
   }
   return null;
 }
