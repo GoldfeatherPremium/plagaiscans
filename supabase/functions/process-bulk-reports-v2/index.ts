@@ -372,6 +372,18 @@ async function bruteForceScan(pdf: any): Promise<ReportAnalysis> {
       const m = text.match(p);
       if (m) return { reportType: 'ai', percentage: parseFloat(m[1]), textSnippet: text.substring(0, 200) };
     }
+    // Asterisk-suppressed AI score fallback ("*%" → sentinel 1)
+    const asteriskAiPatterns = [
+      /\*\s*%\s*(?:detected\s+as\s+)?ai/,
+      /ai[:\s]+\*\s*%/,
+      /\*\s*%\s*ai(?:\s+writing)?/,
+    ];
+    for (const p of asteriskAiPatterns) {
+      if (p.test(text)) {
+        console.log(`Brute-force: AI "*%" (suppressed) found on page ${pageNum} — sentinel 1`);
+        return { reportType: 'ai', percentage: 1, textSnippet: text.substring(0, 200) };
+      }
+    }
   }
   return { reportType: 'unknown', percentage: null, textSnippet: '' };
 }
