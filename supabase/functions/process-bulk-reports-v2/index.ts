@@ -477,6 +477,19 @@ function extractAIPercentage(text: string): number | null {
     const match = text.match(pattern);
     if (match) return parseFloat(match[1]);
   }
+  // Asterisk-suppressed AI score (e.g. Turnitin shows "*%" when below threshold).
+  // Store sentinel value 1 — display layer renders 1-19 as "*%".
+  const asteriskPatterns = [
+    /\*\s*%\s*(?:detected\s+as\s+)?ai/,
+    /ai[:\s]+\*\s*%/,
+    /\*\s*%\s*ai(?:\s+writing)?/,
+  ];
+  for (const pattern of asteriskPatterns) {
+    if (pattern.test(text)) {
+      console.log('AI percentage detected as suppressed "*%" — storing sentinel 1');
+      return 1;
+    }
+  }
   return null;
 }
 
