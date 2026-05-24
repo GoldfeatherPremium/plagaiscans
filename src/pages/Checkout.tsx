@@ -22,6 +22,7 @@ import { StripeEmbeddedCheckout } from '@/components/StripeEmbeddedCheckout';
 import { BANK_TRANSFER_COUNTRY_CODES } from '@/data/bankTransferCountries';
 import { countries, Country, validatePhoneNumber } from '@/data/countries';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { type CreditType, creditTypeLabel } from '@/lib/creditTypes';
 
 interface PaymentDetails {
   paymentId: string;
