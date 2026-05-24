@@ -397,6 +397,7 @@ export default function Checkout() {
         credits: totalCredits,
         status: 'pending',
         transaction_id: binanceOrderId.trim(),
+        credit_type: packageCreditType,
         notes: `Package: ${selectedPackage.name || selectedPackage.credits + ' credits'} × ${quantity}`,
       });
 
