@@ -157,7 +157,8 @@ export default function DocumentQueue({ provider = 'turnitin' }: DocumentQueuePr
   // Sort by uploaded_at ascending (oldest first, newest last)
   const availableDocs = useMemo(() => {
     const roleFiltered = documents.filter((d) => {
-      const isMatch = provider === 'drillbit' ? d.scan_type === 'drillbit_full' : (!d.scan_type || d.scan_type === 'full');
+      const st = d.scan_type as string | null | undefined;
+      const isMatch = provider === 'drillbit' ? st === 'drillbit_full' : (!st || st === 'full');
       if (!isMatch) return false;
       
       if (role === 'admin') {
