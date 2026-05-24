@@ -86,6 +86,9 @@ export default function Dashboard() {
   // so for power users with thousands of docs we must count via the database.
   const [fullScanStats, setFullScanStats] = useState({ pending: 0, inProgress: 0, completed: 0 });
   const [similarityStats, setSimilarityStats] = useState({ pending: 0, inProgress: 0, completed: 0 });
+  const [drillbitFullStats, setDrillbitFullStats] = useState({ pending: 0, inProgress: 0, completed: 0 });
+  const [drillbitSimStats, setDrillbitSimStats] = useState({ pending: 0, inProgress: 0, completed: 0 });
+  const [activeProvider, setActiveProvider] = useState<'turnitin' | 'drillbit'>('turnitin');
 
   useEffect(() => {
     const loadStats = async () => {
@@ -96,30 +99,35 @@ export default function Dashboard() {
         return q.eq('user_id', user.id).or('deleted_by_user.is.null,deleted_by_user.eq.false');
       };
 
-      const countFor = async (status: 'pending' | 'in_progress' | 'completed', scanFilter: 'full' | 'similarity_only') => {
-        let q = supabase
+      const countFor = async (status: 'pending' | 'in_progress' | 'completed', scanFilter: string) => {
+        const q = supabase
           .from('documents')
           .select('id', { count: 'exact', head: true })
           .eq('status', status)
-          .neq('scan_type', 'ai_only_reseller');
-        q = scanFilter === 'similarity_only'
-          ? q.eq('scan_type', 'similarity_only')
-          : q.eq('scan_type', 'full');
+          .eq('scan_type', scanFilter);
         const { count } = await baseFilter(q);
         return count ?? 0;
       };
 
-      const [fp, fi, fc, sp, si, sc] = await Promise.all([
+      const [fp, fi, fc, sp, si, sc, dfp, dfi, dfc, dsp, dsi, dsc] = await Promise.all([
         countFor('pending', 'full'),
         countFor('in_progress', 'full'),
         countFor('completed', 'full'),
         countFor('pending', 'similarity_only'),
         countFor('in_progress', 'similarity_only'),
         countFor('completed', 'similarity_only'),
+        countFor('pending', 'drillbit_full'),
+        countFor('in_progress', 'drillbit_full'),
+        countFor('completed', 'drillbit_full'),
+        countFor('pending', 'drillbit_similarity_only'),
+        countFor('in_progress', 'drillbit_similarity_only'),
+        countFor('completed', 'drillbit_similarity_only'),
       ]);
 
       setFullScanStats({ pending: fp, inProgress: fi, completed: fc });
       setSimilarityStats({ pending: sp, inProgress: si, completed: sc });
+      setDrillbitFullStats({ pending: dfp, inProgress: dfi, completed: dfc });
+      setDrillbitSimStats({ pending: dsp, inProgress: dsi, completed: dsc });
     };
 
     loadStats();
