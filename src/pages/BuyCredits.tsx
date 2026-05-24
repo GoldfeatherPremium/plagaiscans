@@ -159,21 +159,23 @@ export default function BuyCredits() {
   });
 
   const getCreditTypeConfig = (creditType: CreditType) => {
-    if (creditType === 'similarity_only') {
+    const isSim = creditType === 'similarity_only' || creditType === 'drillbit_similarity';
+    const isDrillbit = providerOf(creditType) === 'drillbit';
+    if (isSim) {
       return {
         icon: ScanSearch,
-        bgColor: 'bg-blue-500/10',
-        textColor: 'text-blue-600',
-        accentColor: 'text-blue-500',
-        label: 'Similarity Only',
+        bgColor: isDrillbit ? 'bg-purple-500/10' : 'bg-blue-500/10',
+        textColor: isDrillbit ? 'text-purple-600' : 'text-blue-600',
+        accentColor: isDrillbit ? 'text-purple-500' : 'text-blue-500',
+        label: isDrillbit ? 'Drillbit · Similarity' : 'Turnitin · Similarity',
       };
     }
     return {
       icon: Sparkles,
-      bgColor: 'bg-primary/10',
-      textColor: 'text-primary',
-      accentColor: 'text-secondary',
-      label: 'AI Scan',
+      bgColor: isDrillbit ? 'bg-purple-500/10' : 'bg-primary/10',
+      textColor: isDrillbit ? 'text-purple-600' : 'text-primary',
+      accentColor: isDrillbit ? 'text-purple-500' : 'text-secondary',
+      label: isDrillbit ? 'Drillbit · AI + Similarity' : 'Turnitin · AI + Similarity',
     };
   };
 
