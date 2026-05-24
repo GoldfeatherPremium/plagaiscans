@@ -137,9 +137,16 @@ export default function Dashboard() {
   // Staff only see documents from queues they have access to
   // Wait for scan types to load before filtering for staff
   const filteredDocuments = React.useMemo(() => {
+    if (role === 'customer') {
+      const drillbitTypes = ['drillbit_full', 'drillbit_similarity_only'];
+      return documents.filter(d => {
+        const isDrillbit = drillbitTypes.includes(d.scan_type as any);
+        return activeProvider === 'drillbit' ? isDrillbit : !isDrillbit;
+      });
+    }
     if (role !== 'staff') return documents;
-    if (scanTypesLoading) return []; // Don't show anything while loading scan type permissions
-    
+    if (scanTypesLoading) return [];
+
     return documents.filter(doc => {
       const isSimilarityOnly = doc.scan_type === 'similarity_only';
       if (isSimilarityOnly && !canAccessSimilarity) return false;
