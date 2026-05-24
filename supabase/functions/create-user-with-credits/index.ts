@@ -147,7 +147,11 @@ Deno.serve(async (req) => {
     });
 
     // Create credit transaction
-    const balanceField = creditType === 'full' ? 'credit_balance' : 'similarity_credit_balance';
+    const balanceField =
+      creditType === 'drillbit_full' ? 'drillbit_credit_balance' :
+      creditType === 'drillbit_similarity' ? 'drillbit_similarity_credit_balance' :
+      creditType === 'similarity_only' ? 'similarity_credit_balance' :
+      'credit_balance';
     const { data: txData } = await supabaseAdmin.from('credit_transactions').insert({
       user_id: userId,
       amount: creditAmount,
