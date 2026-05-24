@@ -875,11 +875,11 @@ export default function DocumentQueue({ provider = 'turnitin' }: DocumentQueuePr
             </TabsContent>
             
             <TabsContent value="bulk-upload" className="mt-4">
-              <BulkUploadPanel scanType="full" compact />
+              <BulkUploadPanel scanType={fullScanType as any} compact />
             </TabsContent>
 
             <TabsContent value="bulk-upload-v2" className="mt-4">
-              <BulkReportUploadV2Content embedded />
+              <BulkReportUploadV2Content embedded provider={provider} />
             </TabsContent>
 
             {isAdmin && (
