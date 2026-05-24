@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next';
 
 
 type PackageType = 'one_time' | 'subscription' | 'time_limited';
-type CreditType = 'full' | 'similarity_only';
+import { type CreditType, type Provider, providerOf } from '@/lib/creditTypes';
 
 interface PricingPackage {
   id: string;
