@@ -153,7 +153,7 @@ export default function Dashboard() {
       if (!isSimilarityOnly && !canAccessAI) return false;
       return true;
     });
-  }, [role, documents, scanTypesLoading, canAccessAI, canAccessSimilarity]);
+  }, [role, documents, scanTypesLoading, canAccessAI, canAccessSimilarity, activeProvider]);
 
   const recentDocs = filteredDocuments.slice(0, 5);
 
