@@ -22,7 +22,7 @@ interface CancelDocumentDialogProps {
     file_name: string;
     user_id: string | null;
     magic_link_id?: string | null;
-    scan_type: 'full' | 'similarity_only';
+    scan_type: 'full' | 'similarity_only' | 'drillbit_full' | 'drillbit_similarity_only';
     customer_profile?: {
       email: string;
       full_name: string | null;
