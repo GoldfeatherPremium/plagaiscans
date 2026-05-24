@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { type CreditType, balanceFieldOf, creditTypeLabel } from '@/lib/creditTypes';
 
 interface ManualPayment {
   id: string;
@@ -28,6 +29,7 @@ interface ManualPayment {
   created_at: string;
   verified_at: string | null;
   notes: string | null;
+  credit_type?: CreditType;
   user_email?: string;
   user_name?: string;
 }
