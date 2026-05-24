@@ -779,9 +779,44 @@ export const useDocuments = () => {
           schema: 'public',
           table: 'documents',
         },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['documents'] });
-          queryClient.invalidateQueries({ queryKey: ['similarity-documents'] });
+        (payload: any) => {
+          // Apply the change directly to every cached documents/similarity-documents
+          // query so other staff/admin tabs see picks, releases and status changes
+          // instantly — without waiting for a network refetch.
+          const newRow = payload.new as Document | undefined;
+          const oldRow = payload.old as Document | undefined;
+          const eventType = payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE';
+
+          const patcher = (prev: Document[] | undefined): Document[] | undefined => {
+            if (!prev) return prev;
+            if (eventType === 'DELETE' && oldRow?.id) {
+              return prev.filter(d => d.id !== oldRow.id);
+            }
+            if (eventType === 'INSERT' && newRow?.id) {
+              if (prev.some(d => d.id === newRow.id)) return prev;
+              return [newRow, ...prev];
+            }
+            if (eventType === 'UPDATE' && newRow?.id) {
+              let found = false;
+              const next = prev.map(d => {
+                if (d.id === newRow.id) {
+                  found = true;
+                  return { ...d, ...newRow };
+                }
+                return d;
+              });
+              return found ? next : prev;
+            }
+            return prev;
+          };
+
+          queryClient.setQueriesData<Document[]>({ queryKey: ['documents'] }, patcher);
+          queryClient.setQueriesData<Document[]>({ queryKey: ['similarity-documents'] }, patcher as any);
+
+          // Mark stale so the next focus/visit triggers a background refetch,
+          // but skip the immediate refetch — the cache is already in sync.
+          queryClient.invalidateQueries({ queryKey: ['documents'], refetchType: 'none' });
+          queryClient.invalidateQueries({ queryKey: ['similarity-documents'], refetchType: 'none' });
         }
       )
       .subscribe();
@@ -790,6 +825,7 @@ export const useDocuments = () => {
       supabase.removeChannel(channel);
     };
   }, [user, queryClient]);
+
 
   const deleteDocument = async (documentId: string, _filePath: string, _similarityReportPath?: string | null, _aiReportPath?: string | null) => {
     if (documentId === 'sample') return { success: false };

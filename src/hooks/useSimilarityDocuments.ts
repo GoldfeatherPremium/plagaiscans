@@ -111,9 +111,39 @@ export const useSimilarityDocuments = () => {
           table: 'documents',
           filter: 'scan_type=eq.similarity_only',
         },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['similarity-documents'] });
-          queryClient.invalidateQueries({ queryKey: ['documents'] });
+        (payload: any) => {
+          const newRow = payload.new as SimilarityDocument | undefined;
+          const oldRow = payload.old as SimilarityDocument | undefined;
+          const eventType = payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE';
+
+          const patcher = (prev: SimilarityDocument[] | undefined): SimilarityDocument[] | undefined => {
+            if (!prev) return prev;
+            if (eventType === 'DELETE' && oldRow?.id) {
+              return prev.filter(d => d.id !== oldRow.id);
+            }
+            if (eventType === 'INSERT' && newRow?.id) {
+              if (prev.some(d => d.id === newRow.id)) return prev;
+              return [newRow, ...prev];
+            }
+            if (eventType === 'UPDATE' && newRow?.id) {
+              let found = false;
+              const next = prev.map(d => {
+                if (d.id === newRow.id) {
+                  found = true;
+                  return { ...d, ...newRow };
+                }
+                return d;
+              });
+              return found ? next : prev;
+            }
+            return prev;
+          };
+
+          queryClient.setQueriesData<SimilarityDocument[]>({ queryKey: ['similarity-documents'] }, patcher);
+          queryClient.setQueriesData<SimilarityDocument[]>({ queryKey: ['documents'] }, patcher as any);
+
+          queryClient.invalidateQueries({ queryKey: ['similarity-documents'], refetchType: 'none' });
+          queryClient.invalidateQueries({ queryKey: ['documents'], refetchType: 'none' });
         }
       )
       .subscribe();
@@ -122,6 +152,7 @@ export const useSimilarityDocuments = () => {
       supabase.removeChannel(channel);
     };
   }, [user, queryClient]);
+
 
   const uploadSimilarityDocument = async (file: File, exclusions?: { exclude_bibliography?: boolean; exclude_quotes?: boolean; exclude_small_sources?: boolean }): Promise<void> => {
     if (!user) throw new Error('Not authenticated');
