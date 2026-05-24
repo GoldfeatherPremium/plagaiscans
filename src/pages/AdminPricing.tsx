@@ -28,7 +28,7 @@ import {
 
 type PackageType = 'one_time' | 'subscription' | 'time_limited';
 type BillingInterval = 'day' | 'week' | 'month' | 'year';
-type CreditType = 'full' | 'similarity_only';
+import type { CreditType } from '@/lib/creditTypes';
 
 interface PricingPackage {
   id: string;
@@ -50,16 +50,26 @@ interface PricingPackage {
   is_most_popular: boolean;
 }
 
-const CREDIT_TYPE_CONFIG = {
+const CREDIT_TYPE_CONFIG: Record<CreditType, { label: string; description: string; color: string }> = {
   full: {
-    label: 'AI Scan',
-    description: 'Similarity + AI Detection',
+    label: 'Turnitin · AI + Similarity',
+    description: 'Turnitin AI Detection + Similarity',
     color: 'bg-primary',
   },
   similarity_only: {
-    label: 'Similarity Only',
-    description: 'Plagiarism check only',
+    label: 'Turnitin · Similarity Only',
+    description: 'Turnitin plagiarism check only',
     color: 'bg-orange-500',
+  },
+  drillbit_full: {
+    label: 'Drillbit · AI + Similarity',
+    description: 'Drillbit AI Detection + Similarity',
+    color: 'bg-purple-500',
+  },
+  drillbit_similarity: {
+    label: 'Drillbit · Similarity Only',
+    description: 'Drillbit plagiarism check only',
+    color: 'bg-blue-500',
   },
 };
 
