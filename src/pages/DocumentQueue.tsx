@@ -157,9 +157,8 @@ export default function DocumentQueue({ provider = 'turnitin' }: DocumentQueuePr
   // Sort by uploaded_at ascending (oldest first, newest last)
   const availableDocs = useMemo(() => {
     const roleFiltered = documents.filter((d) => {
-      // Only show full scan documents in this queue
-      const isFullScan = !d.scan_type || d.scan_type === 'full';
-      if (!isFullScan) return false;
+      const isMatch = provider === 'drillbit' ? d.scan_type === 'drillbit_full' : (!d.scan_type || d.scan_type === 'full');
+      if (!isMatch) return false;
       
       if (role === 'admin') {
         return d.status === 'pending' || d.status === 'in_progress';
