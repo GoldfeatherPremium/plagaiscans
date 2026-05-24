@@ -361,11 +361,16 @@ export const useDocuments = () => {
   const uploadDocuments = async (
     files: File[],
     onProgress?: (current: number, total: number) => void,
-    options?: { uploadType?: 'single' | 'bulk'; exclusions?: { exclude_bibliography?: boolean; exclude_quotes?: boolean; exclude_small_sources?: boolean; exclude_citations?: boolean; exclude_small_matches_words?: number } }
+    options?: { uploadType?: 'single' | 'bulk'; scanType?: 'full' | 'drillbit_full'; exclusions?: { exclude_bibliography?: boolean; exclude_quotes?: boolean; exclude_small_sources?: boolean; exclude_citations?: boolean; exclude_small_matches_words?: number } }
   ): Promise<{ success: number; failed: number }> => {
     if (!user) return { success: 0, failed: files.length };
 
     const uploadType = options?.uploadType ?? 'single';
+    const scanType = options?.scanType ?? 'full';
+    const isDrillbit = scanType === 'drillbit_full';
+    const balanceField: 'credit_balance' | 'drillbit_credit_balance' =
+      isDrillbit ? 'drillbit_credit_balance' : 'credit_balance';
+    const creditTypeForRpc = isDrillbit ? 'drillbit_full' : 'full';
 
     const failToast = (title: string, description: string, error?: unknown) => {
       if (error) console.error(`Upload (${uploadType}) failed:`, { title, description, error });
@@ -374,7 +379,7 @@ export const useDocuments = () => {
 
     const { data: freshProfile, error: profileError } = await supabase
       .from('profiles')
-      .select('credit_balance')
+      .select(balanceField)
       .eq('id', user.id)
       .maybeSingle();
 
@@ -388,7 +393,7 @@ export const useDocuments = () => {
       return { success: 0, failed: files.length };
     }
 
-    const availableCredits = freshProfile.credit_balance;
+    const availableCredits = (freshProfile as Record<string, number>)[balanceField] ?? 0;
     const requiredCredits = files.length;
 
     if (availableCredits < requiredCredits) {
@@ -406,14 +411,14 @@ export const useDocuments = () => {
       try {
         const { data: currentProfile, error: balanceError } = await supabase
           .from('profiles')
-          .select('credit_balance')
+          .select(balanceField)
           .eq('id', user.id)
           .maybeSingle();
 
         if (balanceError) throw balanceError;
         if (!currentProfile) throw new Error('Profile missing');
 
-        const currentBalance = currentProfile.credit_balance;
+        const currentBalance = (currentProfile as Record<string, number>)[balanceField] ?? 0;
         if (currentBalance < 1) {
           failToast('Insufficient Credits', `Stopped at file ${i + 1}. No more credits available.`);
           failedCount += files.length - i;
@@ -435,6 +440,7 @@ export const useDocuments = () => {
             file_name: file.name,
             file_path: filePath,
             status: 'pending',
+            scan_type: scanType,
             exclude_bibliography: options?.exclusions?.exclude_bibliography ?? false,
             exclude_quotes: options?.exclusions?.exclude_quotes ?? false,
             exclude_citations: options?.exclusions?.exclude_citations ?? false,
@@ -451,7 +457,7 @@ export const useDocuments = () => {
 
         const { data: creditResultRaw, error: creditError } = await supabase.rpc('consume_user_credit', {
           p_user_id: user.id,
-          p_credit_type: 'full',
+          p_credit_type: creditTypeForRpc,
           p_description: `Document upload: ${file.name}`,
         });
 
@@ -488,7 +494,7 @@ export const useDocuments = () => {
 
       try {
         await supabase.functions.invoke('notify-zero-credits', {
-          body: { userId: user.id, creditType: 'full' },
+          body: { userId: user.id, creditType: creditTypeForRpc },
         });
       } catch (err) {
         console.log('Zero credits notification failed (non-critical):', err);

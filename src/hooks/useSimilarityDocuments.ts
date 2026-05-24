@@ -154,7 +154,17 @@ export const useSimilarityDocuments = () => {
   }, [user, queryClient]);
 
 
-  const uploadSimilarityDocument = async (file: File, exclusions?: { exclude_bibliography?: boolean; exclude_quotes?: boolean; exclude_small_sources?: boolean }): Promise<void> => {
+  const uploadSimilarityDocument = async (
+    file: File,
+    exclusions?: { exclude_bibliography?: boolean; exclude_quotes?: boolean; exclude_small_sources?: boolean },
+    scanTypeOverride?: 'similarity_only' | 'drillbit_similarity_only'
+  ): Promise<void> => {
+    const scanType = scanTypeOverride ?? 'similarity_only';
+    const isDrillbit = scanType === 'drillbit_similarity_only';
+    const balanceField: 'similarity_credit_balance' | 'drillbit_similarity_credit_balance' =
+      isDrillbit ? 'drillbit_similarity_credit_balance' : 'similarity_credit_balance';
+    const validityType = isDrillbit ? 'drillbit_similarity' : 'similarity';
+    const rpcCreditType = isDrillbit ? 'drillbit_similarity' : 'similarity_only';
     if (!user) throw new Error('Not authenticated');
 
     const { data: profile, error: profileError } = await supabase
