@@ -18,7 +18,7 @@ export interface SimilarityDocument {
   uploaded_at: string;
   completed_at: string | null;
   assigned_staff_id: string | null;
-  scan_type: 'similarity_only';
+  scan_type: 'similarity_only' | 'drillbit_similarity_only';
   is_favorite: boolean;
   exclude_bibliography?: boolean;
   exclude_quotes?: boolean;
