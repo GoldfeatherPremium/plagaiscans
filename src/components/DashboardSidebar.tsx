@@ -330,6 +330,19 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/similarity-bulk-upload', icon: FileStack, label: 'Bulk Upload (Sim)' }
       );
     }
+
+    if (canAccessAI) {
+      links.push(
+        { to: '/dashboard/drillbit-queue', icon: FileCheck, label: 'Drillbit Queue (AI)' },
+        { to: '/dashboard/drillbit-bulk-upload', icon: FileStack, label: 'Drillbit Bulk (AI)' }
+      );
+    }
+    if (canAccessSimilarity) {
+      links.push(
+        { to: '/dashboard/drillbit-queue-similarity', icon: FileText, label: 'Drillbit Queue (Sim)' },
+        { to: '/dashboard/drillbit-similarity-bulk-upload', icon: FileStack, label: 'Drillbit Bulk (Sim)' }
+      );
+    }
     
     links.push(
       { to: '/dashboard/my-work', icon: FileText, label: t('sidebar.myProcessed') },
@@ -361,6 +374,10 @@ export const DashboardSidebar: React.FC = () => {
         { to: '/dashboard/bulk-upload', icon: FileStack, label: 'Bulk Upload (Full)' },
         { to: '/dashboard/bulk-upload-v2', icon: FileStack, label: 'Bulk Upload AI V2' },
         { to: '/dashboard/similarity-bulk-upload', icon: FileStack, label: 'Bulk Upload (Sim)' },
+        { to: '/dashboard/drillbit-queue', icon: FileCheck, label: 'Drillbit Queue (AI)' },
+        { to: '/dashboard/drillbit-queue-similarity', icon: FileText, label: 'Drillbit Queue (Sim)' },
+        { to: '/dashboard/drillbit-bulk-upload', icon: FileStack, label: 'Drillbit Bulk (AI)' },
+        { to: '/dashboard/drillbit-similarity-bulk-upload', icon: FileStack, label: 'Drillbit Bulk (Sim)' },
         { to: '/dashboard/unmatched-reports', icon: FileQuestion, label: 'Unmatched Reports' },
         { to: '/dashboard/deleted-documents', icon: Trash2, label: 'Deleted Docs' },
       ],

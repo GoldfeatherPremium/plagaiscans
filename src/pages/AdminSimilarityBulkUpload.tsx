@@ -68,7 +68,11 @@ function normalizeFilename(filename: string): string {
   return normalize(filename);
 }
 
-export default function AdminSimilarityBulkUpload() {
+interface AdminSimilarityBulkUploadProps {
+  provider?: 'turnitin' | 'drillbit';
+}
+
+export default function AdminSimilarityBulkUpload({ provider = 'turnitin' }: AdminSimilarityBulkUploadProps = {}) {
   const { role } = useAuth();
   const { permissions, loading: permissionsLoading } = useStaffPermissions();
   const [files, setFiles] = useState<ReportFile[]>([]);
@@ -79,14 +83,16 @@ export default function AdminSimilarityBulkUpload() {
   const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const targetScanType = provider === 'drillbit' ? 'drillbit_similarity_only' : 'similarity_only';
+
   // Fetch pending documents for preview matching
   const { data: pendingDocuments = [] } = useQuery({
-    queryKey: ['similarity-pending-documents'],
+    queryKey: ['similarity-pending-documents', targetScanType],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('documents')
         .select('id, file_name, normalized_filename, status')
-        .eq('scan_type', 'similarity_only')
+        .eq('scan_type', targetScanType)
         .in('status', ['pending', 'in_progress'])
         .is('similarity_report_path', null);
       if (error) throw error;
@@ -266,7 +272,7 @@ export default function AdminSimilarityBulkUpload() {
       setUploadProgress(60);
       
       const { data, error } = await supabase.functions.invoke('process-similarity-bulk-reports', {
-        body: { reports: uploadedReports },
+        body: { reports: uploadedReports, provider },
       });
 
       if (error) {

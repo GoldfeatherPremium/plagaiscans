@@ -203,20 +203,21 @@ serve(async (req: Request) => {
       });
     }
 
-    const { reports } = await req.json() as { reports: ReportFile[] };
+    const { reports, provider } = await req.json() as { reports: ReportFile[]; provider?: 'turnitin' | 'drillbit' };
     if (!reports || !Array.isArray(reports) || reports.length === 0) {
       return new Response(JSON.stringify({ error: 'No reports provided' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`Processing ${reports.length} similarity reports with PDF analysis`);
+    const targetScanType = provider === 'drillbit' ? 'drillbit_similarity_only' : 'similarity_only';
+    console.log(`Processing ${reports.length} similarity reports with PDF analysis (scan_type=${targetScanType})`);
 
     // Fetch eligible documents — filter deleted and needs_review
     const { data: documents, error: docError } = await supabase
       .from('documents')
       .select('id, file_name, normalized_filename, user_id, magic_link_id, similarity_report_path, status')
-      .eq('scan_type', 'similarity_only')
+      .eq('scan_type', targetScanType)
       .in('status', ['pending', 'in_progress'])
       .eq('needs_review', false)
       .is('deleted_at', null);

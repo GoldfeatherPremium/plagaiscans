@@ -18,7 +18,7 @@ export interface SimilarityDocument {
   uploaded_at: string;
   completed_at: string | null;
   assigned_staff_id: string | null;
-  scan_type: 'similarity_only';
+  scan_type: 'similarity_only' | 'drillbit_similarity_only';
   is_favorite: boolean;
   exclude_bibliography?: boolean;
   exclude_quotes?: boolean;
@@ -33,10 +33,11 @@ export interface SimilarityDocument {
   } | null;
 }
 
-export const useSimilarityDocuments = () => {
+export const useSimilarityDocuments = (provider: 'turnitin' | 'drillbit' = 'turnitin') => {
   const { user, role, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
-  const queryKey = ['similarity-documents', user?.id, role] as const;
+  const targetScanType = provider === 'drillbit' ? 'drillbit_similarity_only' : 'similarity_only';
+  const queryKey = ['similarity-documents', user?.id, role, targetScanType] as const;
 
   const { data: documents = [], isLoading: loading, refetch } = useQuery<SimilarityDocument[]>({
     queryKey,
@@ -51,7 +52,7 @@ export const useSimilarityDocuments = () => {
       let query = supabase
         .from('documents')
         .select('*')
-        .eq('scan_type', 'similarity_only')
+        .eq('scan_type', targetScanType)
         .order('uploaded_at', { ascending: false })
         .limit(1000);
 
@@ -84,7 +85,7 @@ export const useSimilarityDocuments = () => {
 
       return docs.map(doc => ({
         ...doc,
-        scan_type: 'similarity_only' as const,
+        scan_type: targetScanType as any,
         profile: doc.user_id ? profilesMap[doc.user_id] || null : null,
         staff_profile: doc.assigned_staff_id ? profilesMap[doc.assigned_staff_id] || null : null,
       })) as SimilarityDocument[];
@@ -109,7 +110,7 @@ export const useSimilarityDocuments = () => {
           event: '*',
           schema: 'public',
           table: 'documents',
-          filter: 'scan_type=eq.similarity_only',
+          filter: `scan_type=eq.${targetScanType}`,
         },
         (payload: any) => {
           const newRow = payload.new as SimilarityDocument | undefined;

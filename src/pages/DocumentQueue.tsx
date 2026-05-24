@@ -57,7 +57,12 @@ interface BatchReportData {
   remarks: string;
 }
 
-export default function DocumentQueue() {
+interface DocumentQueueProps {
+  provider?: 'turnitin' | 'drillbit';
+}
+
+export default function DocumentQueue({ provider = 'turnitin' }: DocumentQueueProps = {}) {
+  const fullScanType = provider === 'drillbit' ? 'drillbit_full' : 'full';
   const { documents, loading, downloadFile, uploadReport, updateDocumentStatus, releaseDocument, fetchDocuments, cancelDocument } = useDocuments();
   const { user, role } = useAuth();
   const { toast } = useToast();
@@ -152,9 +157,9 @@ export default function DocumentQueue() {
   // Sort by uploaded_at ascending (oldest first, newest last)
   const availableDocs = useMemo(() => {
     const roleFiltered = documents.filter((d) => {
-      // Only show full scan documents in this queue
-      const isFullScan = !d.scan_type || d.scan_type === 'full';
-      if (!isFullScan) return false;
+      const st = d.scan_type as string | null | undefined;
+      const isMatch = provider === 'drillbit' ? st === 'drillbit_full' : (!st || st === 'full');
+      if (!isMatch) return false;
       
       if (role === 'admin') {
         return d.status === 'pending' || d.status === 'in_progress';
@@ -870,11 +875,11 @@ export default function DocumentQueue() {
             </TabsContent>
             
             <TabsContent value="bulk-upload" className="mt-4">
-              <BulkUploadPanel scanType="full" compact />
+              <BulkUploadPanel scanType={fullScanType as any} compact />
             </TabsContent>
 
             <TabsContent value="bulk-upload-v2" className="mt-4">
-              <BulkReportUploadV2Content embedded />
+              <BulkReportUploadV2Content embedded provider={provider} />
             </TabsContent>
 
             {isAdmin && (
