@@ -2031,6 +2031,8 @@ export type Database = {
         Row: {
           created_at: string
           credit_balance: number
+          drillbit_credit_balance: number
+          drillbit_similarity_credit_balance: number
           email: string
           email_unsubscribed: boolean | null
           full_name: string | null
@@ -2048,6 +2050,8 @@ export type Database = {
         Insert: {
           created_at?: string
           credit_balance?: number
+          drillbit_credit_balance?: number
+          drillbit_similarity_credit_balance?: number
           email: string
           email_unsubscribed?: boolean | null
           full_name?: string | null
@@ -2065,6 +2069,8 @@ export type Database = {
         Update: {
           created_at?: string
           credit_balance?: number
+          drillbit_credit_balance?: number
+          drillbit_similarity_credit_balance?: number
           email?: string
           email_unsubscribed?: boolean | null
           full_name?: string | null
