@@ -41,10 +41,14 @@ interface BatchReportData {
   remarks: string;
 }
 
-const SimilarityQueue: React.FC = () => {
+interface SimilarityQueueProps {
+  provider?: 'turnitin' | 'drillbit';
+}
+
+const SimilarityQueue: React.FC<SimilarityQueueProps> = ({ provider = 'turnitin' }) => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
-  const { documents, loading, fetchDocuments, uploadSimilarityReport, deleteSimilarityDocument, cancelSimilarityDocument } = useSimilarityDocuments();
+  const { documents, loading, fetchDocuments, uploadSimilarityReport, deleteSimilarityDocument, cancelSimilarityDocument } = useSimilarityDocuments(provider);
   const { downloadFile } = useDocuments();
   const isAdmin = role === 'admin';
   const { permissions } = useStaffPermissions();
