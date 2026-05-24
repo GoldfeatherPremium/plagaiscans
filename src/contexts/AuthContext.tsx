@@ -85,6 +85,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           phone: profileResult.data.phone,
           credit_balance: profileResult.data.credit_balance,
           similarity_credit_balance: profileResult.data.similarity_credit_balance,
+          drillbit_credit_balance: (profileResult.data as any).drillbit_credit_balance ?? 0,
+          drillbit_similarity_credit_balance: (profileResult.data as any).drillbit_similarity_credit_balance ?? 0,
           is_special: profileResult.data.is_special ?? false,
         });
       }
