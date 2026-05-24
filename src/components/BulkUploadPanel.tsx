@@ -289,7 +289,7 @@ export function BulkUploadPanel({ scanType, compact = false, useV2 = false }: Bu
       setUploadProgress(60);
       
       const { data, error } = await supabase.functions.invoke(edgeFunctionName, {
-        body: { reports: uploadedReports },
+        body: { reports: uploadedReports, provider: isDrillbit ? 'drillbit' : 'turnitin' },
       });
 
       if (error) {
