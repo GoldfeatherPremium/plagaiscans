@@ -1008,7 +1008,7 @@ const SimilarityQueue: React.FC<SimilarityQueueProps> = ({ provider = 'turnitin'
               </TabsContent>
               
               <TabsContent value="bulk-upload" className="mt-4">
-                <BulkUploadPanel scanType="similarity_only" compact />
+                <BulkUploadPanel scanType={provider === 'drillbit' ? 'drillbit_similarity_only' : 'similarity_only'} compact />
               </TabsContent>
             </Tabs>
           ) : (
