@@ -13,7 +13,7 @@ interface StripeEmbeddedCheckoutProps {
   onClose: () => void;
   credits: number;
   amount: number; // in cents
-  creditType: 'full' | 'similarity_only';
+  creditType: import('@/lib/creditTypes').CreditType;
   onSuccess?: () => void;
 }
 

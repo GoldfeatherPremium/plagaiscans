@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next';
 
 
 type PackageType = 'one_time' | 'subscription' | 'time_limited';
-type CreditType = 'full' | 'similarity_only';
+import { type CreditType, type Provider, providerOf } from '@/lib/creditTypes';
 
 interface PricingPackage {
   id: string;
@@ -64,7 +64,12 @@ export default function BuyCredits() {
   const [packages, setPackages] = useState<PricingPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<PackageType>('one_time');
-  const [creditTypeTab, setCreditTypeTab] = useState<CreditType>('full');
+  const [provider, setProvider] = useState<Provider>('turnitin');
+  const [creditKind, setCreditKind] = useState<'full' | 'similarity'>('full');
+  const creditTypeTab: CreditType =
+    provider === 'drillbit'
+      ? (creditKind === 'full' ? 'drillbit_full' : 'drillbit_similarity')
+      : (creditKind === 'full' ? 'full' : 'similarity_only');
   const [subscribing, setSubscribing] = useState<string | null>(null);
 
   useEffect(() => {
@@ -154,21 +159,23 @@ export default function BuyCredits() {
   });
 
   const getCreditTypeConfig = (creditType: CreditType) => {
-    if (creditType === 'similarity_only') {
+    const isSim = creditType === 'similarity_only' || creditType === 'drillbit_similarity';
+    const isDrillbit = providerOf(creditType) === 'drillbit';
+    if (isSim) {
       return {
         icon: ScanSearch,
-        bgColor: 'bg-blue-500/10',
-        textColor: 'text-blue-600',
-        accentColor: 'text-blue-500',
-        label: 'Similarity Only',
+        bgColor: isDrillbit ? 'bg-purple-500/10' : 'bg-blue-500/10',
+        textColor: isDrillbit ? 'text-purple-600' : 'text-blue-600',
+        accentColor: isDrillbit ? 'text-purple-500' : 'text-blue-500',
+        label: isDrillbit ? 'Drillbit · Similarity' : 'Turnitin · Similarity',
       };
     }
     return {
       icon: Sparkles,
-      bgColor: 'bg-primary/10',
-      textColor: 'text-primary',
-      accentColor: 'text-secondary',
-      label: 'AI Scan',
+      bgColor: isDrillbit ? 'bg-purple-500/10' : 'bg-primary/10',
+      textColor: isDrillbit ? 'text-purple-600' : 'text-primary',
+      accentColor: isDrillbit ? 'text-purple-500' : 'text-secondary',
+      label: isDrillbit ? 'Drillbit · AI + Similarity' : 'Turnitin · AI + Similarity',
     };
   };
 
@@ -258,33 +265,46 @@ export default function BuyCredits() {
           </p>
         </div>
 
-        {/* Current Balance */}
+        {/* Current Balance — all 4 pools */}
         <Card>
           <CardContent className="p-4">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-6">
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground">AI Scan</p>
-                  <p className="text-2xl font-bold">{profile?.credit_balance || 0}</p>
-                </div>
-                <div className="h-8 w-px bg-border" />
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground">Similarity</p>
-                  <p className="text-2xl font-bold">{profile?.similarity_credit_balance || 0}</p>
-                </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Turnitin · AI</p>
+                <p className="text-2xl font-bold">{profile?.credit_balance || 0}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Turnitin · Sim</p>
+                <p className="text-2xl font-bold">{profile?.similarity_credit_balance || 0}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Drillbit · AI</p>
+                <p className="text-2xl font-bold">{(profile as any)?.drillbit_credit_balance || 0}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Drillbit · Sim</p>
+                <p className="text-2xl font-bold">{(profile as any)?.drillbit_similarity_credit_balance || 0}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Credit Type Selector */}
-        <Tabs value={creditTypeTab} onValueChange={(v) => setCreditTypeTab(v as CreditType)} className="w-full">
+        {/* Provider Selector */}
+        <Tabs value={provider} onValueChange={(v) => setProvider(v as Provider)} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 h-auto">
+            <TabsTrigger value="turnitin" className="py-3">Turnitin Detection</TabsTrigger>
+            <TabsTrigger value="drillbit" className="py-3">Drillbit Detection</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Credit Kind Selector */}
+        <Tabs value={creditKind} onValueChange={(v) => setCreditKind(v as 'full' | 'similarity')} className="w-full">
           <TabsList className="grid w-full grid-cols-2 h-auto">
             <TabsTrigger value="full" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-2 sm:px-4 text-xs sm:text-sm">
               <Sparkles className="h-4 w-4 flex-shrink-0" />
-              <span className="whitespace-nowrap">AI Scan Credits</span>
+              <span className="whitespace-nowrap">AI + Similarity</span>
             </TabsTrigger>
-            <TabsTrigger value="similarity_only" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-2 sm:px-4 text-xs sm:text-sm">
+            <TabsTrigger value="similarity" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-3 px-2 sm:px-4 text-xs sm:text-sm">
               <FileText className="h-4 w-4 flex-shrink-0" />
               <span className="whitespace-nowrap">Similarity Only</span>
             </TabsTrigger>

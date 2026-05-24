@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { type CreditType, balanceFieldOf, creditTypeLabel } from '@/lib/creditTypes';
 
 interface ManualPayment {
   id: string;
@@ -28,6 +29,7 @@ interface ManualPayment {
   created_at: string;
   verified_at: string | null;
   notes: string | null;
+  credit_type?: string;
   user_email?: string;
   user_name?: string;
 }
@@ -95,22 +97,25 @@ export default function AdminManualPayments() {
 
       if (paymentError) throw paymentError;
 
-      // Get current user balance
+      const creditType = ((payment.credit_type as CreditType) || 'full') as CreditType;
+      const balanceField = balanceFieldOf(creditType);
+
+      // Get current user balance for the right pool
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('credit_balance')
+        .select(balanceField)
         .eq('id', payment.user_id)
         .single();
 
       if (profileError) throw profileError;
 
-      const currentBalance = profile?.credit_balance || 0;
+      const currentBalance = ((profile as any)?.[balanceField] as number) || 0;
       const newBalance = currentBalance + payment.credits;
 
-      // Update user credits
+      // Update user credits in the right pool
       const { error: creditError } = await supabase
         .from('profiles')
-        .update({ credit_balance: newBalance })
+        .update({ [balanceField]: newBalance } as any)
         .eq('id', payment.user_id);
 
       if (creditError) throw creditError;
@@ -122,7 +127,8 @@ export default function AdminManualPayments() {
         amount: payment.credits,
         balance_before: currentBalance,
         balance_after: newBalance,
-        description: `${payment.payment_method === 'usdt_manual' ? 'USDT Transfer' : 'Binance Pay'} purchase - $${payment.amount_usd}`,
+        credit_type: creditType,
+        description: `${payment.payment_method === 'usdt_manual' ? 'USDT Transfer' : 'Binance Pay'} purchase — ${creditTypeLabel(creditType)} - $${payment.amount_usd}`,
         performed_by: user?.id,
       });
 
@@ -133,7 +139,7 @@ export default function AdminManualPayments() {
           .from('pricing_packages')
           .select('id, validity_days')
           .eq('credits', payment.credits)
-          .eq('credit_type', 'full')
+          .eq('credit_type', creditType)
           .eq('is_active', true)
           .limit(1)
           .maybeSingle();
@@ -148,7 +154,7 @@ export default function AdminManualPayments() {
           credits_amount: payment.credits,
           remaining_credits: payment.credits,
           expires_at: expiresAt.toISOString(),
-          credit_type: 'full',
+          credit_type: creditType,
           package_id: pkg?.id || null,
         });
         console.log('Credit validity record created', { validityDays });

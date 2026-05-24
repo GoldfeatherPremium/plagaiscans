@@ -22,6 +22,7 @@ import { StripeEmbeddedCheckout } from '@/components/StripeEmbeddedCheckout';
 import { BANK_TRANSFER_COUNTRY_CODES } from '@/data/bankTransferCountries';
 import { countries, Country, validatePhoneNumber } from '@/data/countries';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { type CreditType, creditTypeLabel } from '@/lib/creditTypes';
 
 interface PaymentDetails {
   paymentId: string;
@@ -125,7 +126,7 @@ export default function Checkout() {
 
   const packagePrice = selectedPackage?.price || 0;
   const packageCredits = selectedPackage?.credits || 0;
-  const packageCreditType = (selectedPackage?.credit_type || 'full') as 'full' | 'similarity_only';
+  const packageCreditType = (selectedPackage?.credit_type || 'full') as import('@/lib/creditTypes').CreditType;
 
   const totalCredits = packageCredits * quantity;
   const totalPrice = packagePrice * quantity;
@@ -396,6 +397,7 @@ export default function Checkout() {
         credits: totalCredits,
         status: 'pending',
         transaction_id: binanceOrderId.trim(),
+        credit_type: packageCreditType,
         notes: `Package: ${selectedPackage.name || selectedPackage.credits + ' credits'} × ${quantity}`,
       });
 
@@ -506,6 +508,7 @@ export default function Checkout() {
         credits: totalCredits,
         status: 'pending',
         transaction_id: hash,
+        credit_type: packageCreditType,
         notes: `USDT TRC20 Transfer — Package: ${selectedPackage.name || selectedPackage.credits + ' credits'} × ${quantity}`,
       });
 
@@ -899,7 +902,7 @@ export default function Checkout() {
                     <p className="font-medium">{selectedPackage.name || `${packageCredits} Credits`}</p>
                     <p className="text-sm text-muted-foreground">{packageCredits} credits • ${packagePrice} each</p>
                     <Badge variant="outline" className="mt-1 text-xs">
-                      {packageCreditType === 'similarity_only' ? 'Similarity Only' : 'AI Scan'}
+                      {creditTypeLabel(packageCreditType)}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between gap-2 pt-2 border-t">

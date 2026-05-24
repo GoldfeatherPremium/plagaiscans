@@ -97,7 +97,11 @@ Deno.serve(async (req) => {
       });
 
       // Get user's current balance based on credit type
-      const balanceField = creditType === 'similarity_only' ? 'similarity_credit_balance' : 'credit_balance';
+      const balanceField =
+        creditType === 'drillbit_full' ? 'drillbit_credit_balance' :
+        creditType === 'drillbit_similarity' ? 'drillbit_similarity_credit_balance' :
+        creditType === 'similarity_only' ? 'similarity_credit_balance' :
+        'credit_balance';
       const { data: profile } = await supabase
         .from('profiles')
         .select(`${balanceField}, email, full_name`)

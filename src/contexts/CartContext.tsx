@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
-type CreditType = 'full' | 'similarity_only';
+import type { CreditType } from '@/lib/creditTypes';
 
 interface PricingPackage {
   id: string;
