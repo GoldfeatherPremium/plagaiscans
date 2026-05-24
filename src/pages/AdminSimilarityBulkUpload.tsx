@@ -272,7 +272,7 @@ export default function AdminSimilarityBulkUpload({ provider = 'turnitin' }: Adm
       setUploadProgress(60);
       
       const { data, error } = await supabase.functions.invoke('process-similarity-bulk-reports', {
-        body: { reports: uploadedReports },
+        body: { reports: uploadedReports, provider },
       });
 
       if (error) {
