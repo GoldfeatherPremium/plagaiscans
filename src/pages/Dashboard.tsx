@@ -395,13 +395,7 @@ export default function Dashboard() {
           const hasSimilarity = (profile?.similarity_credit_balance || 0) > 0;
 
           const handleUploadClick = () => {
-            if (hasAI && hasSimilarity) {
-              setUploadDialogOpen(true);
-            } else if (hasSimilarity) {
-              navigate('/dashboard/upload-similarity');
-            } else {
-              navigate('/dashboard/upload');
-            }
+            navigate('/dashboard/scan');
           };
 
           const uploadLabel = hasAI && !hasSimilarity
