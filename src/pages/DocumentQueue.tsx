@@ -57,7 +57,12 @@ interface BatchReportData {
   remarks: string;
 }
 
-export default function DocumentQueue() {
+interface DocumentQueueProps {
+  provider?: 'turnitin' | 'drillbit';
+}
+
+export default function DocumentQueue({ provider = 'turnitin' }: DocumentQueueProps = {}) {
+  const fullScanType = provider === 'drillbit' ? 'drillbit_full' : 'full';
   const { documents, loading, downloadFile, uploadReport, updateDocumentStatus, releaseDocument, fetchDocuments, cancelDocument } = useDocuments();
   const { user, role } = useAuth();
   const { toast } = useToast();
