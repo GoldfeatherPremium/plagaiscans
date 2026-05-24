@@ -1225,7 +1225,7 @@ const SimilarityQueue: React.FC<SimilarityQueueProps> = ({ provider = 'turnitin'
           id: documentToCancel.id,
           file_name: documentToCancel.file_name,
           user_id: documentToCancel.user_id,
-          scan_type: 'similarity_only',
+          scan_type: provider === 'drillbit' ? 'drillbit_similarity_only' : 'similarity_only',
           profile: documentToCancel.profile,
         } : null}
         cancelling={cancelling}
