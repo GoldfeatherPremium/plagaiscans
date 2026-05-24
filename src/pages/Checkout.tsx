@@ -900,7 +900,7 @@ export default function Checkout() {
                     <p className="font-medium">{selectedPackage.name || `${packageCredits} Credits`}</p>
                     <p className="text-sm text-muted-foreground">{packageCredits} credits • ${packagePrice} each</p>
                     <Badge variant="outline" className="mt-1 text-xs">
-                      {(await import('@/lib/creditTypes')).creditTypeLabel(packageCreditType)}
+                      {creditTypeLabel(packageCreditType)}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between gap-2 pt-2 border-t">
