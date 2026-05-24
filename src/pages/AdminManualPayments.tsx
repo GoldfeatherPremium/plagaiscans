@@ -29,7 +29,7 @@ interface ManualPayment {
   created_at: string;
   verified_at: string | null;
   notes: string | null;
-  credit_type?: CreditType;
+  credit_type?: string;
   user_email?: string;
   user_name?: string;
 }
