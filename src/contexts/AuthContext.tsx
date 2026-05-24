@@ -16,6 +16,8 @@ interface AuthContextType {
     phone: string | null;
     credit_balance: number;
     similarity_credit_balance: number;
+    drillbit_credit_balance: number;
+    drillbit_similarity_credit_balance: number;
     is_special: boolean;
   } | null;
   loading: boolean;
