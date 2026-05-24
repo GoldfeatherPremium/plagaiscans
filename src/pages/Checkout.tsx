@@ -125,7 +125,7 @@ export default function Checkout() {
 
   const packagePrice = selectedPackage?.price || 0;
   const packageCredits = selectedPackage?.credits || 0;
-  const packageCreditType = (selectedPackage?.credit_type || 'full') as 'full' | 'similarity_only';
+  const packageCreditType = (selectedPackage?.credit_type || 'full') as import('@/lib/creditTypes').CreditType;
 
   const totalCredits = packageCredits * quantity;
   const totalPrice = packagePrice * quantity;
