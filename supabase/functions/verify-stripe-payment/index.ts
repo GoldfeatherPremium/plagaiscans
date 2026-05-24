@@ -86,21 +86,29 @@ serve(async (req) => {
           throw idemInsertError;
         }
 
-        // Get current balance
+        // Determine credit pool based on session metadata
+        const creditTypeMeta = (session.metadata?.credit_type || "full") as string;
+        const balanceField =
+          creditTypeMeta === "drillbit_full" ? "drillbit_credit_balance" :
+          creditTypeMeta === "drillbit_similarity" ? "drillbit_similarity_credit_balance" :
+          creditTypeMeta === "similarity_only" ? "similarity_credit_balance" :
+          "credit_balance";
+
+        // Get current balance for the right pool
         const { data: profile } = await supabaseClient
           .from("profiles")
-          .select("credit_balance")
+          .select(balanceField)
           .eq("id", userId)
           .single();
 
         if (profile) {
-          const currentBalance = profile.credit_balance || 0;
+          const currentBalance = ((profile as any)?.[balanceField] as number) || 0;
           const newBalance = currentBalance + credits;
 
-          // Update credits
+          // Update credits in the right pool
           const { error: updateError } = await supabaseClient
             .from("profiles")
-            .update({ credit_balance: newBalance })
+            .update({ [balanceField]: newBalance } as any)
             .eq("id", userId);
 
           if (updateError) throw updateError;
@@ -139,6 +147,7 @@ serve(async (req) => {
             amount: credits,
             balance_before: currentBalance,
             balance_after: newBalance,
+            credit_type: creditTypeMeta,
             description: `Stripe payment - Session: ${sessionId.slice(-8)}`,
           });
 
