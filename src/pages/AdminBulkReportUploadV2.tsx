@@ -82,9 +82,10 @@ const UNMATCHED_VALUE = '__unmatched__';
 
 interface BulkReportUploadV2ContentProps {
   embedded?: boolean;
+  provider?: 'turnitin' | 'drillbit';
 }
 
-export function BulkReportUploadV2Content({ embedded = false }: BulkReportUploadV2ContentProps = {}) {
+export function BulkReportUploadV2Content({ embedded = false, provider = 'turnitin' }: BulkReportUploadV2ContentProps = {}) {
   const { role } = useAuth();
   const { permissions, loading: permissionsLoading } = useStaffPermissions();
   const [files, setFiles] = useState<ReportFile[]>([]);
@@ -98,15 +99,17 @@ export function BulkReportUploadV2Content({ embedded = false }: BulkReportUpload
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
+  const targetScanType = provider === 'drillbit' ? 'drillbit_full' : 'full';
+
   // Pending AI-scan queue documents (mirrors V1)
   const { data: pendingDocuments = [] } = useQuery({
-    queryKey: ['v2-pending-full-scan-documents'],
+    queryKey: ['v2-pending-full-scan-documents', targetScanType],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('documents')
         .select('id, file_name, file_path, normalized_filename, status, similarity_report_path, ai_report_path')
         .in('status', ['pending', 'in_progress'])
-        .neq('scan_type', 'similarity_only')
+        .eq('scan_type', targetScanType)
         .eq('needs_review', false)
         .is('deleted_at', null)
         .order('uploaded_at', { ascending: false });
