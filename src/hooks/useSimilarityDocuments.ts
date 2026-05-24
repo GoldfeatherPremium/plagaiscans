@@ -154,12 +154,22 @@ export const useSimilarityDocuments = () => {
   }, [user, queryClient]);
 
 
-  const uploadSimilarityDocument = async (file: File, exclusions?: { exclude_bibliography?: boolean; exclude_quotes?: boolean; exclude_small_sources?: boolean }): Promise<void> => {
+  const uploadSimilarityDocument = async (
+    file: File,
+    exclusions?: { exclude_bibliography?: boolean; exclude_quotes?: boolean; exclude_small_sources?: boolean },
+    scanTypeOverride?: 'similarity_only' | 'drillbit_similarity_only'
+  ): Promise<void> => {
+    const scanType = scanTypeOverride ?? 'similarity_only';
+    const isDrillbit = scanType === 'drillbit_similarity_only';
+    const balanceField: 'similarity_credit_balance' | 'drillbit_similarity_credit_balance' =
+      isDrillbit ? 'drillbit_similarity_credit_balance' : 'similarity_credit_balance';
+    const validityType = isDrillbit ? 'drillbit_similarity' : 'similarity';
+    const rpcCreditType = isDrillbit ? 'drillbit_similarity' : 'similarity_only';
     if (!user) throw new Error('Not authenticated');
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('similarity_credit_balance')
+      .select(balanceField)
       .eq('id', user.id)
       .single();
 
@@ -167,8 +177,9 @@ export const useSimilarityDocuments = () => {
       throw new Error('Could not fetch profile');
     }
 
-    if (profile.similarity_credit_balance < 1) {
-      throw new Error('Insufficient similarity credits');
+    const currentBalance = (profile as Record<string, number>)[balanceField] ?? 0;
+    if (currentBalance < 1) {
+      throw new Error(isDrillbit ? 'Insufficient Drillbit similarity credits' : 'Insufficient similarity credits');
     }
 
     const { data: validCredits } = await supabase
@@ -176,14 +187,14 @@ export const useSimilarityDocuments = () => {
       .select('remaining_credits')
       .eq('user_id', user.id)
       .eq('expired', false)
-      .eq('credit_type', 'similarity')
+      .eq('credit_type', validityType)
       .gt('expires_at', new Date().toISOString())
       .gt('remaining_credits', 0);
 
     const totalValidCredits = validCredits?.reduce((sum, v) => sum + v.remaining_credits, 0) ?? 0;
 
     if (totalValidCredits < 1 && (validCredits?.length ?? 0) > 0) {
-      throw new Error('Your similarity credits have expired. Please purchase new credits to continue.');
+      throw new Error('Your credits have expired. Please purchase new credits to continue.');
     }
 
     const fileExt = file.name.split('.').pop()?.toLowerCase();
@@ -200,7 +211,7 @@ export const useSimilarityDocuments = () => {
       file_name: file.name,
       file_path: filePath,
       status: 'pending',
-      scan_type: 'similarity_only',
+      scan_type: scanType,
       exclude_bibliography: exclusions?.exclude_bibliography ?? true,
       exclude_quotes: exclusions?.exclude_quotes ?? false,
       exclude_small_sources: exclusions?.exclude_small_sources ?? false,
@@ -213,8 +224,8 @@ export const useSimilarityDocuments = () => {
 
     const { data: creditResultRaw, error: creditError } = await supabase.rpc('consume_user_credit', {
       p_user_id: user.id,
-      p_credit_type: 'similarity_only',
-      p_description: `Similarity check: ${file.name}`,
+      p_credit_type: rpcCreditType,
+      p_description: `${isDrillbit ? 'Drillbit ' : ''}Similarity check: ${file.name}`,
     });
 
     const creditResult = creditResultRaw as { success: boolean; error?: string } | null;
@@ -227,10 +238,11 @@ export const useSimilarityDocuments = () => {
 
     await refreshProfile();
     queryClient.invalidateQueries({ queryKey: ['similarity-documents'] });
+    queryClient.invalidateQueries({ queryKey: ['documents'] });
 
     try {
       await supabase.functions.invoke('notify-zero-credits', {
-        body: { userId: user.id, creditType: 'similarity_only' },
+        body: { userId: user.id, creditType: rpcCreditType },
       });
     } catch (err) {
       console.log('Zero credits notification failed (non-critical):', err);

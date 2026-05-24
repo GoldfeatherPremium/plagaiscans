@@ -24,6 +24,9 @@ const Maintenance = lazy(() => import("./pages/Maintenance"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const UploadDocument = lazy(() => import("./pages/UploadDocument"));
 const UploadSimilarity = lazy(() => import("./pages/UploadSimilarity"));
+const UploadHub = lazy(() => import("./pages/UploadHub"));
+const UploadDrillbit = lazy(() => import("./pages/UploadDrillbit"));
+const UploadDrillbitSimilarity = lazy(() => import("./pages/UploadDrillbitSimilarity"));
 const MyDocuments = lazy(() => import("./pages/MyDocuments"));
 const BuyCredits = lazy(() => import("./pages/BuyCredits"));
 const PaymentHistory = lazy(() => import("./pages/PaymentHistory"));
@@ -302,8 +305,11 @@ const AppRoutes = () => (
       {/* Customer Routes */}
       <Route path="/dashboard" element={<ProtectedRoute><RoleHomeRedirect /></ProtectedRoute>} />
       <Route path="/reseller" element={<ProtectedRoute allowedRoles={['reseller']}><ResellerDashboard /></ProtectedRoute>} />
+      <Route path="/dashboard/scan" element={<ProtectedRoute allowedRoles={['customer']}><UploadHub /></ProtectedRoute>} />
       <Route path="/dashboard/upload" element={<ProtectedRoute allowedRoles={['customer']}><UploadDocument /></ProtectedRoute>} />
       <Route path="/dashboard/upload-similarity" element={<ProtectedRoute allowedRoles={['customer']}><UploadSimilarity /></ProtectedRoute>} />
+      <Route path="/dashboard/upload-drillbit" element={<ProtectedRoute allowedRoles={['customer']}><UploadDrillbit /></ProtectedRoute>} />
+      <Route path="/dashboard/upload-drillbit-similarity" element={<ProtectedRoute allowedRoles={['customer']}><UploadDrillbitSimilarity /></ProtectedRoute>} />
       <Route path="/dashboard/documents" element={<ProtectedRoute><MyDocuments /></ProtectedRoute>} />
       <Route path="/dashboard/credits" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><BuyCredits /></ProtectedRoute>} />
       <Route path="/dashboard/payments" element={<ProtectedRoute allowedRoles={['customer', 'admin']}><PaymentHistory /></ProtectedRoute>} />

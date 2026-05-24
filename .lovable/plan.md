@@ -1,116 +1,98 @@
-# External API multi-account: smart routing + dashboard
 
-## Goals
-1. Manage all 3 tokens (existing Lovable secret + 2 new DB rows) from one place.
-2. Dispatcher automatically picks the account with the **most credits remaining** that still has free concurrency, and skips accounts that are out of credits, expired, disabled, or full.
-3. A dedicated admin dashboard shows credits left, concurrency in use, expiry date, and daily usage for each account in real time.
-4. Verify the whole flow end-to-end.
+# Drillbit Integration + Dashboard Refresh
 
----
+Adds two new scan products (Drillbit Plagiarism, Drillbit + AI), keeps the existing Turnitin scans, and reorganizes the customer flow under two provider tabs.
 
-## 1. Migrate the Lovable-stored token into the table
+## 1. Data model (one migration)
 
-- Read the existing `SIMILARITYCHECK_API_TOKEN` value (it's the original "Goldfeather" account — confirmed via API probe: `creditsRemaining: 440 / 1570`, `concurrencyLimit: 5`, `expiresAt: 2026-05-22`).
-- Insert it as a new row in `external_api_accounts` labelled **"Primary (Goldfeather)"** so it appears alongside the 2 new tokens in the admin UI.
-- Keep the secret in Lovable as a last-resort safety net only — code stops reading it for routing decisions.
+Extend `profiles`:
+- `drillbit_credit_balance integer not null default 0` — Drillbit + AI scans
+- `drillbit_similarity_credit_balance integer not null default 0` — Drillbit plagiarism only
 
-After this step, you'll see all 3 accounts in the External API tab.
+Extend `documents.scan_type` allowed values to add:
+- `drillbit_full` (Drillbit plagiarism + AI)
+- `drillbit_similarity_only` (Drillbit plagiarism only)
 
-## 2. Smart routing in the dispatcher
+(Existing `full` and `similarity_only` stay = Turnitin.)
 
-Add new columns to `external_api_accounts` so we can route intelligently and display stats without an extra table:
+Extend `credit_validity.credit_type` and `credit_transactions.credit_type` to accept `drillbit_full` and `drillbit_similarity`.
 
-| Column | Purpose |
-|---|---|
-| `credits_remaining` | last-known credits left (snapshot) |
-| `credits_total` | total credits ever |
-| `concurrency_limit` | live limit reported by API |
-| `current_concurrent` | live in-flight count |
-| `daily_limit` / `daily_usage` | API daily caps (often null) |
-| `expires_at` | account expiry date |
-| `is_active_remote` | the API's own `isActive` flag |
-| `last_checked_at` | when we last probed `/account` |
-| `last_probe_error` | last error string, if any |
-| `client_id` / `account_name` | API-reported metadata for display |
+Update DB functions:
+- `consume_user_credit` — add branches for the two new credit types, locking and decrementing the right balance column.
+- `validate_document_upload_credits` — add branches that check Drillbit balances when `scan_type` is one of the new values.
 
-**New dispatch loop (every 1 minute):**
+Extend `staff_settings.assigned_scan_types` so admins can assign Drillbit queues to staff (same array column, new string values).
 
-```text
-1. Load all enabled accounts from DB.
-2. Probe /account for each in parallel (3s timeout). Save snapshot to columns above.
-3. Filter out accounts where:
-     - probe failed
-     - isActive = false
-     - expiresAt is in the past
-     - creditsRemaining <= 0
-     - dailyLimit reached (dailyUsage >= dailyLimit)
-     - free slots = (concurrencyLimit - currentConcurrent) <= 0
-4. Sort surviving accounts by creditsRemaining DESC.
-5. Walk pending documents one by one:
-     - assign to top account
-     - decrement that account's "free slots" and "creditsRemaining" locally
-     - if it hits 0 slots or 0 credits → remove from pool / re-sort
-     - move to next document
-6. Stamp each document with external_api_account_id, mark as 'queued',
-    then fan out to external-api-submit (background).
-```
+## 2. Customer-facing flow
 
-Manual-submit and poll already use the per-document `external_api_account_id`, so they keep working unchanged.
+**New unified entry point:** `/upload` (rebuild current upload landing)
+- Two tabs: **Turnitin Detection** and **Drillbit Detection**
+- Each tab shows a short description + a single "Start" button
+- Clicking opens a dialog with two choices:
+  1. Plagiarism only
+  2. Plagiarism + AI detection
+- Selection routes to the matching upload page:
+  - `/upload-turnitin-similarity` (existing `/upload-similarity`)
+  - `/upload-turnitin-full` (existing `/upload`)
+  - `/upload-drillbit-similarity` (new)
+  - `/upload-drillbit-full` (new)
 
-## 3. Health snapshot job
+The two new Drillbit upload pages are clones of the Turnitin ones, posting `scan_type = drillbit_*` and checking the Drillbit balances.
 
-Create a separate edge function `external-api-account-stats` that just probes `/account` for every enabled account and updates the snapshot columns. Runs:
-- every minute via cron (so the dashboard stays fresh even when no documents are dispatched), and
-- on-demand from the dashboard "Refresh now" button.
+## 3. Pricing & checkout
 
-This avoids hammering `/account` more than once per minute when both dispatch + dashboard refresh might run together.
+`/pricing` (and `/buy-credits`) gets 4 product categories instead of 2:
+- Turnitin – AI + Similarity (existing `full`)
+- Turnitin – Similarity only (existing `similarity_only`)
+- Drillbit – AI + Similarity (new `drillbit_full`)
+- Drillbit – Similarity only (new `drillbit_similarity`)
 
-## 4. Admin dashboard — "External API Accounts"
+Admin pricing page (`/admin/pricing`) gets two new tabs for managing Drillbit packages. Checkout/credit-grant flow extended to credit the right balance + create matching `credit_validity` rows.
 
-New route: **`/dashboard/external-api-accounts`** (admin-only), and a sidebar link under the existing External API section.
+## 4. Staff & admin queues
 
-Layout:
+New pages mirroring existing Turnitin queues:
+- `/staff/drillbit-queue` (plagiarism + AI)
+- `/staff/drillbit-similarity-queue`
+- `/admin/drillbit-bulk-upload` (manual report PDF upload — same flow as Turnitin bulk v2)
+- `/admin/drillbit-similarity-bulk-upload`
 
-```text
-+-------------------------------------------------------------+
-|  Total credits remaining: 1,240   |  In-flight scans: 3/14  |
-+-------------------------------------------------------------+
-| Account            Credits        Concurrency   Expires     |
-| Primary (★)        440 / 1570     1 / 5         13 days     |
-| Account #2         500 / 500      0 / 4         29 days     |
-| Account #3         300 / 500      2 / 5         29 days     |
-+-------------------------------------------------------------+
-```
+Sidebar links added for staff/admin, gated by `assigned_scan_types`.
 
-Per-row card shows:
-- Label, status badge (Active / Disabled / Expired / Out of credits)
-- Credits remaining with a progress bar against `credits_total`
-- Concurrency `current / limit` with a progress bar
-- Daily usage if API returns one
-- Expiry date + relative ("13 days left", red if <7 days)
-- Last checked timestamp + last probe error if any
-- Inline edit for label, max concurrency cap, enabled switch
-- Buttons: **Refresh now**, **Reveal/Hide token**, **Delete**
+Document queue hooks (`useDocuments`, `useSimilarityDocuments`) get scan-type filters so each queue only shows its provider's docs.
 
-A summary strip at the top sums credits across all accounts and shows total in-flight scans, plus a "Low credits" warning when total drops below a threshold (e.g. 50).
+## 5. Customer dashboard refresh
 
-The existing `External API` tab inside Document Queue keeps the per-document status table and the auto-dispatch toggle. The accounts manager card moves to this new dedicated page (linked from both places).
+Pending: waiting for your sample dashboard image. The user said they'll share one. **Plan will be updated after you share it.** For now, the minimum confirmed change is:
+- Remove the "Pending" and "Completed" count cards
+- Add Drillbit credit balance card(s) alongside the existing Turnitin balances
+- Header credit pills extended to show Drillbit balances too
 
-## 5. End-to-end test
+## 6. Routing, i18n, sidebar
 
-After deploy, I'll:
-1. Trigger `external-api-account-stats` manually → confirm all 3 rows get populated with credits/concurrency/expiry.
-2. Trigger `external-api-dispatch` with `force: true` and at least 1 pending document → confirm the document gets `external_api_account_id` set to the account with the most credits.
-3. Query `external_api_logs` to confirm the submit hit the right token.
-4. Open the new dashboard in the preview and verify all numbers render.
-5. Temporarily disable the highest-credit account and re-run dispatch → confirm next document goes to the second-best account.
+- New routes added in `App.tsx`
+- Sidebar (`DashboardSidebar.tsx`) gets new entries for customers, staff, admin
+- Locale files (`en` first, others get English fallback strings) updated with new keys for tab labels, dialog, queue names
 
----
+## 7. What is NOT in this plan (explicit)
+
+- No Drillbit API integration — reports are uploaded manually by staff via bulk PDF upload (same as Turnitin v2).
+- No browser extension changes.
+- No changes to existing Turnitin upload behavior or existing balances.
 
 ## Technical notes
 
-- DB changes: `ALTER TABLE external_api_accounts ADD COLUMN ...` (no destructive changes); existing rows keep working.
-- Routing logic lives entirely in `external-api-dispatch/index.ts`; submit & poll are unchanged.
-- New cron: `select cron.schedule('external-api-account-stats-every-minute', '* * * * *', ...)`.
-- The Lovable-stored secret isn't deleted — left as a fallback so legacy code paths never crash if the table is ever empty.
-- No customer-facing changes; admin-only.
+- Realtime patcher in `useDocuments`/`useSimilarityDocuments` extended so Drillbit queues update instantly (same pattern as the prior fix).
+- `consume_user_credit` keeps FIFO via `deduct_credit_validity` trigger by passing `credit_type = 'drillbit_full' | 'drillbit_similarity'`.
+- Edge functions that grant credits (Paddle / Stripe / manual payments) get a `credit_type` switch on the package row to know which balance column to bump.
+
+## Build phasing
+
+1. Migration (separate approval step).
+2. Customer tabs + dialog + 4 upload pages + pricing/buy-credits expansion + sidebar.
+3. Staff queues + admin bulk-upload pages.
+4. Dashboard refresh — **after you share the sample image**.
+
+---
+
+**Please share the sample dashboard image** so I can finalize section 5 before I start building. After you reply with the image (or "go ahead, just remove pending/complete cards and add Drillbit balances"), I'll run the migration and begin phase 1.
