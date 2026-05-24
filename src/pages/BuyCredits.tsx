@@ -64,7 +64,12 @@ export default function BuyCredits() {
   const [packages, setPackages] = useState<PricingPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<PackageType>('one_time');
-  const [creditTypeTab, setCreditTypeTab] = useState<CreditType>('full');
+  const [provider, setProvider] = useState<Provider>('turnitin');
+  const [creditKind, setCreditKind] = useState<'full' | 'similarity'>('full');
+  const creditTypeTab: CreditType =
+    provider === 'drillbit'
+      ? (creditKind === 'full' ? 'drillbit_full' : 'drillbit_similarity')
+      : (creditKind === 'full' ? 'full' : 'similarity_only');
   const [subscribing, setSubscribing] = useState<string | null>(null);
 
   useEffect(() => {
