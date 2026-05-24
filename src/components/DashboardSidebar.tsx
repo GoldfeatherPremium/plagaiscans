@@ -293,23 +293,9 @@ export const DashboardSidebar: React.FC = () => {
   const customerLinks: NavLink[] = useMemo(() => {
     const links: NavLink[] = [
       { to: '/dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard') },
+      { to: '/dashboard/scan', icon: Upload, label: 'New Scan' },
     ];
-    
-    const hasFullCredits = (profile?.credit_balance || 0) > 0;
-    const hasSimilarityCredits = (profile?.similarity_credit_balance || 0) > 0;
-    const hasNoCredits = !hasFullCredits && !hasSimilarityCredits;
-    
-    // Show Full Scan upload if: has full credits OR has no credits at all (so they can see what they need)
-    if (hasFullCredits || hasNoCredits) {
-      links.push({ to: '/dashboard/upload', icon: Upload, label: t('sidebar.uploadFull') });
-    }
-    
-    // Show Similarity upload only if user has similarity credits
-    if (hasSimilarityCredits) {
-      links.push({ to: '/dashboard/upload-similarity', icon: FileCheck, label: t('sidebar.uploadSimilarity') });
-    }
-    
-    // Add remaining links
+
     links.push(
       { to: '/dashboard/documents', icon: FileText, label: t('sidebar.myDocuments') },
       { to: '/dashboard/credits', icon: CreditCard, label: t('sidebar.buyCredits') },
@@ -318,7 +304,7 @@ export const DashboardSidebar: React.FC = () => {
       { to: '/dashboard/my-tickets', icon: MessageSquare, label: 'Support Tickets' },
       { to: '/dashboard/profile', icon: User, label: t('sidebar.profile') },
     );
-    
+
     return links;
   }, [profile, t]);
 
