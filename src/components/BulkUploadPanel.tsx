@@ -61,7 +61,7 @@ interface ProcessingResult {
 }
 
 interface BulkUploadPanelProps {
-  scanType: 'full' | 'similarity_only';
+  scanType: 'full' | 'similarity_only' | 'drillbit_full' | 'drillbit_similarity_only';
   compact?: boolean;
   useV2?: boolean;
 }
@@ -85,7 +85,8 @@ export function BulkUploadPanel({ scanType, compact = false, useV2 = false }: Bu
   const [manualMappings, setManualMappings] = useState<Map<string, string>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isSimilarityOnly = scanType === 'similarity_only';
+  const isSimilarityOnly = scanType === 'similarity_only' || scanType === 'drillbit_similarity_only';
+  const isDrillbit = scanType === 'drillbit_full' || scanType === 'drillbit_similarity_only';
   const edgeFunctionName = useV2
     ? 'process-bulk-reports-v2'
     : (isSimilarityOnly ? 'process-similarity-bulk-reports' : 'process-bulk-reports');
@@ -94,19 +95,14 @@ export function BulkUploadPanel({ scanType, compact = false, useV2 = false }: Bu
   const { data: pendingDocuments = [], isLoading: loadingDocuments } = useQuery({
     queryKey: ['pending-documents-bulk', scanType],
     queryFn: async () => {
-      let query = supabase
+      const query = supabase
         .from('documents')
         .select('id, file_name, normalized_filename, status, similarity_report_path, ai_report_path')
         .in('status', ['pending', 'in_progress'])
+        .eq('scan_type', scanType)
         .eq('needs_review', false)
         .is('deleted_at', null);
 
-      if (isSimilarityOnly) {
-        query = query.eq('scan_type', 'similarity_only');
-      } else {
-        query = query.neq('scan_type', 'similarity_only');
-      }
-      
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
