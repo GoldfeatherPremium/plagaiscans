@@ -508,6 +508,7 @@ export default function Checkout() {
         credits: totalCredits,
         status: 'pending',
         transaction_id: hash,
+        credit_type: packageCreditType,
         notes: `USDT TRC20 Transfer — Package: ${selectedPackage.name || selectedPackage.credits + ' credits'} × ${quantity}`,
       });
 
