@@ -365,6 +365,10 @@ const AppRoutes = () => (
       <Route path="/dashboard/bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminBulkReportUpload /></ProtectedRoute>} />
       <Route path="/dashboard/bulk-upload-v2" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminBulkReportUploadV2 /></ProtectedRoute>} />
       <Route path="/dashboard/similarity-bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminSimilarityBulkUpload /></ProtectedRoute>} />
+      <Route path="/dashboard/drillbit-queue" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><StaffDrillbitQueue /></ProtectedRoute>} />
+      <Route path="/dashboard/drillbit-queue-similarity" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><StaffDrillbitSimilarityQueue /></ProtectedRoute>} />
+      <Route path="/dashboard/drillbit-bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminDrillbitBulkUpload /></ProtectedRoute>} />
+      <Route path="/dashboard/drillbit-similarity-bulk-upload" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AdminDrillbitSimilarityBulkUpload /></ProtectedRoute>} />
       <Route path="/dashboard/unmatched-reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminUnmatchedReports /></ProtectedRoute>} />
       <Route path="/dashboard/needs-review" element={<ProtectedRoute allowedRoles={['admin']}><AdminNeedsReview /></ProtectedRoute>} />
       <Route path="/dashboard/site-content" element={<ProtectedRoute allowedRoles={['admin']}><AdminSiteContent /></ProtectedRoute>} />
