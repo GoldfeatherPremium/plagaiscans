@@ -214,7 +214,11 @@ serve(async (req) => {
           }
 
           // Get current balance
-          const balanceField = creditType === "similarity_only" ? "similarity_credit_balance" : "credit_balance";
+          const balanceField =
+            creditType === "drillbit_full" ? "drillbit_credit_balance" :
+            creditType === "drillbit_similarity" ? "drillbit_similarity_credit_balance" :
+            creditType === "similarity_only" ? "similarity_credit_balance" :
+            "credit_balance";
           const { data: profile, error: profileError } = await supabaseAdmin
             .from("profiles")
             .select(`${balanceField}, email`)
