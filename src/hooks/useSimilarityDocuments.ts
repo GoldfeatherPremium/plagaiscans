@@ -110,7 +110,7 @@ export const useSimilarityDocuments = (provider: 'turnitin' | 'drillbit' = 'turn
           event: '*',
           schema: 'public',
           table: 'documents',
-          filter: 'scan_type=eq.similarity_only',
+          filter: `scan_type=eq.${targetScanType}`,
         },
         (payload: any) => {
           const newRow = payload.new as SimilarityDocument | undefined;
